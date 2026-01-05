@@ -301,6 +301,36 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
             const dc = pc.createDataChannel("oai-events");
             dataChannelRef.current = dc;
 
+            // Flag to track if AI greeting was triggered
+            let aiGreetingTriggered = false;
+
+            // Function to trigger AI greeting (called after connection is established)
+            const triggerAiGreeting = () => {
+                if (aiGreetingTriggered || dc.readyState !== "open") return;
+                aiGreetingTriggered = true;
+
+                console.log("📡 Triggering AI greeting after ringtone...");
+
+                // Send initial message to make AI start in character
+                const initialMessage = {
+                    type: "conversation.item.create",
+                    item: {
+                        type: "message",
+                        role: "user",
+                        content: [
+                            {
+                                type: "input_text",
+                                text: "La simulation commence. Mets-toi directement dans ton personnage et commence la scène. Joue ton rôle immédiatement."
+                            }
+                        ]
+                    }
+                };
+                dc.send(JSON.stringify(initialMessage));
+
+                // Trigger response
+                dc.send(JSON.stringify({ type: "response.create" }));
+            };
+
             dc.onmessage = (e) => {
                 try {
                     const event = JSON.parse(e.data);
@@ -364,6 +394,9 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
                     ringtoneRef.current = null;
 
                     setStatus("connected");
+
+                    // Trigger AI greeting after ringtone stops
+                    triggerAiGreeting();
 
                     // Start duration timer
                     const startTime = Date.now();
