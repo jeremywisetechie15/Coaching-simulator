@@ -508,9 +508,9 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
 
                 {/* Top Left: Persona Badge - Show for coach mode (always) or connected state */}
                 {(isCoachMode || status === "connecting" || status === "connected") && (
-                    <div className="absolute top-3 left-3 z-20 flex items-center gap-2 bg-[#333C4E] text-white px-4 py-2.5 rounded-xl shadow-lg">
-                        <Volume2 className="w-5 h-5 text-gray-300" />
-                        <span className="font-semibold text-base">{displayName}</span>
+                    <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 bg-[#333C4E] text-white px-3 py-1.5 rounded-lg shadow-lg">
+                        <Volume2 className="w-4 h-4 text-gray-300" />
+                        <span className="font-medium text-sm">{displayName}</span>
                     </div>
                 )}
 
@@ -601,16 +601,16 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
 
                             {/* Avatar Container */}
                             <div
-                                className="w-56 h-56 md:w-64 md:h-64 rounded-full border-[5px] overflow-hidden shadow-xl transition-all duration-300"
+                                className="w-40 h-40 md:w-48 md:h-48 rounded-full border-4 overflow-hidden shadow-xl transition-all duration-300"
                                 style={{
                                     borderColor: isAiSpeaking ? '#7C8FFF' : 'white',
                                     boxShadow: isAiSpeaking
-                                        ? '0 0 50px rgba(124, 143, 255, 0.5), 0 25px 50px -12px rgba(0, 0, 0, 0.25)'
-                                        : '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                                        ? '0 0 40px rgba(124, 143, 255, 0.4), 0 20px 40px -12px rgba(0, 0, 0, 0.25)'
+                                        : '0 20px 40px -12px rgba(0, 0, 0, 0.25)'
                                 }}
                             >
                                 <img
-                                    src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=300&h=300"
+                                    src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200&h=200"
                                     alt={config.personaName}
                                     className="w-full h-full object-cover"
                                 />
@@ -627,19 +627,19 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
                 )}
 
                 {/* Bottom Right: User Video Preview */}
-                <div className="absolute bottom-3 right-3 z-20 w-32 h-20 bg-[#1E293B] rounded-xl overflow-hidden shadow-xl flex items-center justify-center">
+                <div className="absolute bottom-2 right-2 z-20 w-24 h-16 bg-[#1E293B] rounded-lg overflow-hidden shadow-lg flex items-center justify-center">
                     {/* User Badge */}
-                    <div className="absolute top-1.5 left-1.5 flex items-center gap-1 bg-black/40 px-1.5 py-0.5 rounded">
-                        <Camera className="w-2.5 h-2.5 text-white/70" />
-                        <span className="text-white/90 text-[10px] font-medium">Vous</span>
+                    <div className="absolute top-1 left-1 flex items-center gap-0.5 bg-black/40 px-1 py-0.5 rounded">
+                        <Camera className="w-2 h-2 text-white/70" />
+                        <span className="text-white/90 text-[8px] font-medium">Vous</span>
                     </div>
 
                     {/* Camera Off Icon */}
-                    <VideoOff className="w-6 h-6 text-gray-500" />
+                    <VideoOff className="w-5 h-5 text-gray-500" />
 
                     {/* Mute Indicator */}
-                    <div className="absolute bottom-1.5 right-1.5 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                        <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                    <div className="absolute bottom-1 right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                        <svg className="w-2 h-2 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                             <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                             <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                             <line x1="12" y1="19" x2="12" y2="23" />
@@ -651,16 +651,16 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
             </div>
 
             {/* Bottom Controls Bar */}
-            <div className="flex items-center justify-center gap-4 py-3 px-4">
+            <div className="flex items-center justify-center gap-3 py-2 px-3">
                 {/* Coach Mode: Simple Start/End Button */}
                 {isCoachMode ? (
                     <>
                         {status === "ready" && (
                             <button
                                 onClick={startSession}
-                                className="bg-[#00D64F] hover:bg-[#00c046] text-white text-lg font-semibold py-4 px-10 rounded-xl flex items-center justify-center gap-3 transition-all hover:shadow-lg shadow-lg"
+                                className="bg-[#00D64F] hover:bg-[#00c046] text-white text-base font-semibold py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-all hover:shadow-lg shadow-md"
                             >
-                                <Phone className="w-6 h-6" />
+                                <Phone className="w-5 h-5" />
                                 Démarrer la conversation
                             </button>
                         )}
@@ -668,9 +668,9 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
                             <button
                                 onClick={endSession}
                                 disabled={status !== "connected"}
-                                className="bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed text-white text-lg font-semibold py-4 px-10 rounded-xl flex items-center justify-center gap-3 transition-all shadow-lg"
+                                className="bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed text-white text-base font-semibold py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md"
                             >
-                                <PhoneOff className="w-6 h-6" />
+                                <PhoneOff className="w-5 h-5" />
                                 Terminer la conversation
                             </button>
                         )}
@@ -679,19 +679,19 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
                     /* Standard Mode: Full Controls */
                     <>
                         {/* Timer */}
-                        <div className="flex items-center gap-2 bg-gray-100 px-5 py-2.5 rounded-full">
-                            <svg className="w-5 h-5 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <div className="flex items-center gap-1.5 bg-gray-100 px-3 py-1.5 rounded-full">
+                            <svg className="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                                 <circle cx="12" cy="12" r="10" />
                                 <polyline points="12 6 12 12 16 14" />
                             </svg>
-                            <span className="text-gray-700 font-mono text-base tabular-nums font-medium">
+                            <span className="text-gray-700 font-mono text-sm tabular-nums font-medium">
                                 {formatDurationLong(sessionDuration)}
                             </span>
                         </div>
 
                         {/* Microphone Button - Active (green) */}
-                        <button className="w-14 h-14 bg-[#00D64F] hover:bg-[#00c046] rounded-full flex items-center justify-center text-white transition-all shadow-lg">
-                            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                        <button className="w-11 h-11 bg-[#00D64F] hover:bg-[#00c046] rounded-full flex items-center justify-center text-white transition-all shadow-md">
+                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                                 <path d="M19 10v2a7 7 0 0 1-14 0v-2" fill="none" stroke="currentColor" strokeWidth="2" />
                                 <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2" />
@@ -700,13 +700,13 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
                         </button>
 
                         {/* Video Button - Disabled */}
-                        <button className="w-14 h-14 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-500 transition-all">
-                            <VideoOff className="w-6 h-6" />
+                        <button className="w-11 h-11 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-500 transition-all">
+                            <VideoOff className="w-5 h-5" />
                         </button>
 
                         {/* Pause Button */}
-                        <button className="w-14 h-14 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-500 transition-all">
-                            <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
+                        <button className="w-11 h-11 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-500 transition-all">
+                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
                                 <rect x="6" y="4" width="4" height="16" rx="1" />
                                 <rect x="14" y="4" width="4" height="16" rx="1" />
                             </svg>
@@ -716,9 +716,9 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
                         <button
                             onClick={endSession}
                             disabled={status !== "connected"}
-                            className="w-14 h-14 bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed rounded-full flex items-center justify-center text-white transition-all shadow-lg"
+                            className="w-11 h-11 bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed rounded-full flex items-center justify-center text-white transition-all shadow-md"
                         >
-                            <PhoneOff className="w-6 h-6" />
+                            <PhoneOff className="w-5 h-5" />
                         </button>
                     </>
                 )}
