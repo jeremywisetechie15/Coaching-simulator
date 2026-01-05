@@ -337,7 +337,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
 
             // Connect to OpenAI Realtime API directly with the ephemeral key
             const baseUrl = "https://api.openai.com/v1/realtime";
-            const model = config.model || "gpt-4o-realtime-preview";
+            const model = config.model || "gpt-realtime";
 
             const sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
                 method: "POST",
