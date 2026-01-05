@@ -90,9 +90,12 @@ Sois encourageant, précis et actionnable. Parle en français de manière nature
             voiceId = "alloy"; // Voix neutre pour le coach
         } else {
             // Standard mode: Use persona instructions with auto-start greeting
+            console.log("📝 Persona system_instructions from DB:", persona.system_instructions);
             systemInstructions = `
+IMPORTANT: Dès que la conversation commence, tu dois immédiatement te présenter et saluer l'utilisateur en incarnant ton personnage. N'attends pas que l'utilisateur parle en premier. Commence la conversation de manière naturelle et engageante.
 
-IMPORTANT: Dès que la conversation commence, tu dois immédiatement te présenter et saluer l'utilisateur en incarnant ton personnage. N'attends pas que l'utilisateur parle en premier. Commence la conversation de manière naturelle et engageante.${persona.system_instructions}`;
+${persona.system_instructions}`;
+            console.log("📝 Final systemInstructions sent to API:", systemInstructions);
             voiceId = persona.voice_id;
         }
 

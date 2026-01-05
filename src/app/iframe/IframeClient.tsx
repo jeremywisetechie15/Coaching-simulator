@@ -407,9 +407,9 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
-                        scenarioId: config.scenarioId,
+                        scenario_id: config.scenarioId,
                         mode: config.mode,
-                        duration,
+                        duration_seconds: duration,
                         messages,
                     }),
                 });
