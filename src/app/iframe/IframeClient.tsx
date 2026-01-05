@@ -312,22 +312,49 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
 
-            // Get session from API
-            const response = await fetch("/api/realtime-session", {
+            // Get ephemeral key from our API
+            const tokenResponse = await fetch("/api/realtime-session", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    sdp: offer.sdp,
                     model: config.model,
                     voice: config.voiceId,
                     system_instructions: config.systemInstructions,
                 }),
             });
 
-            if (!response.ok) throw new Error("Failed to create session");
+            if (!tokenResponse.ok) {
+                const errData = await tokenResponse.json();
+                throw new Error(errData.error || "Failed to get session token");
+            }
 
-            const data = await response.json();
-            await pc.setRemoteDescription({ type: "answer", sdp: data.sdp });
+            const tokenData = await tokenResponse.json();
+            const ephemeralKey = tokenData.data?.client_secret?.value || tokenData.data?.client_secret;
+
+            if (!ephemeralKey) {
+                throw new Error("No ephemeral key received");
+            }
+
+            // Connect to OpenAI Realtime API directly with the ephemeral key
+            const baseUrl = "https://api.openai.com/v1/realtime";
+            const model = config.model || "gpt-4o-realtime-preview";
+
+            const sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${ephemeralKey}`,
+                    "Content-Type": "application/sdp",
+                },
+                body: offer.sdp,
+            });
+
+            if (!sdpResponse.ok) {
+                const errText = await sdpResponse.text();
+                throw new Error(`OpenAI SDP error: ${sdpResponse.status} - ${errText}`);
+            }
+
+            const answerSdp = await sdpResponse.text();
+            await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
 
             // Wait for connection
             pc.onconnectionstatechange = () => {
@@ -360,6 +387,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
             ringtoneRef.current?.stop();
             ringtoneRef.current = null;
 
+            console.error("Session error:", err);
             setError(err instanceof Error ? err.message : "Failed to start session");
             setStatus("error");
         }
