@@ -303,10 +303,19 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
 
             // Flag to track if AI greeting was triggered
             let aiGreetingTriggered = false;
+            let connectionEstablished = false;
 
-            // Function to trigger AI greeting (called after connection is established)
+            // Function to trigger AI greeting (called after connection is established AND data channel is open)
             const triggerAiGreeting = () => {
-                if (aiGreetingTriggered || dc.readyState !== "open") return;
+                if (aiGreetingTriggered) return;
+                if (dc.readyState !== "open") {
+                    console.log("⏳ Data channel not open yet, waiting...");
+                    return;
+                }
+                if (!connectionEstablished) {
+                    console.log("⏳ Connection not established yet, waiting...");
+                    return;
+                }
                 aiGreetingTriggered = true;
 
                 console.log("📡 Triggering AI greeting after ringtone...");
@@ -329,6 +338,12 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
 
                 // Trigger response
                 dc.send(JSON.stringify({ type: "response.create" }));
+            };
+
+            // Also try to trigger when data channel opens (in case it opens after connection)
+            dc.onopen = () => {
+                console.log("📡 Data channel opened");
+                triggerAiGreeting();
             };
 
             dc.onmessage = (e) => {
@@ -395,7 +410,8 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
 
                     setStatus("connected");
 
-                    // Trigger AI greeting after ringtone stops
+                    // Mark connection as established and trigger AI greeting
+                    connectionEstablished = true;
                     triggerAiGreeting();
 
                     // Start duration timer
