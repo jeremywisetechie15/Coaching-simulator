@@ -5,6 +5,9 @@ import { Phone, PhoneOff, Loader2, AlertCircle, Waves, Volume2, Camera, VideoOff
 import { prepareIframeSession, type IframeSessionConfig } from "./actions";
 import type { VoiceId } from "@/types";
 
+// Force dynamic rendering to ensure searchParams work correctly on Vercel
+export const dynamic = 'force-dynamic';
+
 type SessionStatus = "loading" | "ready" | "connecting" | "connected" | "error" | "ended";
 
 interface ConversationMessage {
