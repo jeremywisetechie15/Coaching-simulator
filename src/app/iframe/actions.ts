@@ -89,8 +89,10 @@ Sois encourageant, précis et actionnable. Parle en français de manière nature
 
             voiceId = "alloy"; // Voix neutre pour le coach
         } else {
-            // Standard mode: Use persona instructions
-            systemInstructions = persona.system_instructions;
+            // Standard mode: Use persona instructions with auto-start greeting
+            systemInstructions = `${persona.system_instructions}
+
+IMPORTANT: Dès que la conversation commence, tu dois immédiatement te présenter et saluer l'utilisateur en incarnant ton personnage. N'attends pas que l'utilisateur parle en premier. Commence la conversation de manière naturelle et engageante.`;
             voiceId = persona.voice_id;
         }
 
