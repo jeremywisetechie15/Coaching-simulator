@@ -2,7 +2,6 @@
 
 import { createClient } from "@/lib/supabase/server";
 import type { Persona } from "@/types";
-import { log } from "console";
 
 export interface IframeSessionConfig {
     scenarioId: string;
