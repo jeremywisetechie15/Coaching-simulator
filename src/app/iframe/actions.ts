@@ -11,10 +11,11 @@ export interface IframeSessionConfig {
     mode: "standard" | "coach";
     model: string;
     personaName: string;
+    avatarUrl?: string;
 }
 
 interface PrepareParams {
-    scenarioId: string;
+    scenarioId?: string;
     mode?: string;
     refSessionId?: string;
     model?: string;
@@ -29,14 +30,112 @@ export async function prepareIframeSession(params: PrepareParams): Promise<{
 }> {
     const { scenarioId, mode = "standard", refSessionId, model = "gpt-realtime", coachId } = params;
 
-    if (!scenarioId) {
-        return { success: false, error: "scenario_id is required" };
-    }
-
     try {
         const supabase = await createClient();
 
-        // 1. Fetch scenario
+        // COACH MODE: Get everything from session
+        if (mode === "coach") {
+            // Fetch coach from DB (coachId provided or fallback to DEFAULT_COACH_ID)
+            let coach: Coach | null = null;
+            const effectiveCoachId = coachId || process.env.DEFAULT_COACH_ID;
+
+            if (effectiveCoachId) {
+                const { data: coachData, error: coachError } = await supabase
+                    .from("coaches")
+                    .select("*")
+                    .eq("id", effectiveCoachId)
+                    .single<Coach>();
+
+                if (coachError) {
+                    console.error("Error fetching coach:", coachError);
+                } else {
+                    coach = coachData;
+                }
+            }
+
+            if (!coach) {
+                console.error("No coach found and DEFAULT_COACH_ID not set");
+                return { success: false, error: "No coach available" };
+            }
+
+            // Determine the session ID to use (provided or latest)
+            let effectiveSessionId = refSessionId;
+
+            if (!effectiveSessionId) {
+                // Fetch the latest completed session (any scenario)
+                const { data: latestSession, error: sessionError } = await supabase
+                    .from("sessions")
+                    .select("id")
+                    .eq("status", "completed")
+                    .order("created_at", { ascending: false })
+                    .limit(1)
+                    .single();
+
+                if (sessionError || !latestSession) {
+                    console.error("Error fetching latest session:", sessionError);
+                    return { success: false, error: "No completed session found" };
+                }
+                effectiveSessionId = latestSession.id;
+                console.log("📝 Using latest session:", effectiveSessionId);
+            }
+
+            // Fetch the session with its scenario
+            const { data: session, error: sessionFetchError } = await supabase
+                .from("sessions")
+                .select("*, scenarios(*, personas(*))")
+                .eq("id", effectiveSessionId)
+                .single();
+
+            if (sessionFetchError || !session) {
+                return { success: false, error: `Session not found: ${sessionFetchError?.message}` };
+            }
+
+            const scenario = session.scenarios as { id: string; title: string; description: string | null; personas: Persona };
+
+            // Fetch session messages for transcript
+            const { data: messages, error: messagesError } = await supabase
+                .from("messages")
+                .select("role, content, timestamp")
+                .eq("session_id", effectiveSessionId)
+                .order("timestamp", { ascending: true });
+
+            let transcript = "Aucun transcript disponible.";
+            if (!messagesError && messages && messages.length > 0) {
+                transcript = messages
+                    .map(m => `[${m.role === "user" ? "Utilisateur" : "Persona"}]: ${m.content}`)
+                    .join("\n");
+            }
+
+            const systemInstructions = `${coach.system_instructions}
+
+Voici le transcript complet de la session précédente pour t'aider à mieux à coacher l'utilisateur :
+---
+${transcript}
+---
+`;
+            console.log("📝 Coach mode - Using coach:", coach.name);
+
+            return {
+                success: true,
+                data: {
+                    scenarioId: scenario.id,
+                    scenarioTitle: scenario.title,
+                    systemInstructions,
+                    voiceId: coach.voice_id,
+                    mode: "coach",
+                    model,
+                    personaName: coach.name,
+                    avatarUrl: coach.avatar_url,
+                },
+            };
+        }
+
+        // STANDARD MODE: scenario_id is required
+        if (!scenarioId) {
+            return { success: false, error: "scenario_id is required for standard mode" };
+        }
+
+        // Fetch scenario with persona
         const { data: scenario, error: scenarioError } = await supabase
             .from("scenarios")
             .select("*, personas(*)")
@@ -48,108 +147,23 @@ export async function prepareIframeSession(params: PrepareParams): Promise<{
         }
 
         const persona = scenario.personas as Persona;
-        let systemInstructions: string;
-        let voiceId: string;
-        let coachName: string = "Coach";
 
-        // 2. Generate system prompt based on mode
-        if (mode === "coach" && refSessionId) {
-            // Coach mode: Fetch coach from DB if coachId provided
-            let coach: Coach | null = null;
-
-            if (coachId) {
-                const { data: coachData, error: coachError } = await supabase
-                    .from("coaches")
-                    .select("*")
-                    .eq("id", coachId)
-                    .single<Coach>();
-
-                if (coachError) {
-                    console.error("Error fetching coach:", coachError);
-                } else {
-                    coach = coachData;
-                }
-            }
-
-            // Fetch previous session messages
-            const { data: messages, error: messagesError } = await supabase
-                .from("messages")
-                .select("role, content, timestamp")
-                .eq("session_id", refSessionId)
-                .order("timestamp", { ascending: true });
-
-            if (messagesError) {
-                console.error("Error fetching messages:", messagesError);
-            }
-            console.log(scenario.title);
-            console.log(scenario.description);
-
-            // Format transcript
-            const transcript = messages
-                ?.map(m => `[${m.role === "user" ? "Utilisateur" : "Persona"}]: ${m.content}`)
-                .join("\n") || "Aucun transcript disponible.";
-
-            // Build system instructions from coach (DB) or fallback to default
-            if (coach) {
-                // Use coach from DB - append scenario context and transcript
-                systemInstructions = `${coach.system_instructions}
-
-Contexte du scénario joué : "${scenario.title}"
-Description : ${scenario.description || "Pas de description"}
-
-Voici le transcript complet de la session précédente :
----
-${transcript}
----
-`;
-                voiceId = coach.voice_id;
-                coachName = coach.name;
-            } else {
-                // Fallback: Default coach prompt (no coach_id provided or coach not found)
-                systemInstructions = `Tu es un Coach professionnel bienveillant et constructif. L'utilisateur a joué le scénario de coaching suivant : "${scenario.title}"
-            Ton rôle est d'analyser cette conversation et de débriefer avec l'utilisateur :
-1. Commence par le féliciter pour avoir fait l'exercice
-2. Identifie 2-3 points forts dans sa communication
-3. Identifie 1-2 axes d'amélioration avec des suggestions concrètes
-4. Propose des alternatives de formulation si nécessaire
-5. Réponds à ses questions sur sa performance
-
-Sois encourageant, précis et actionnable. Parle en français de manière naturelle et conversationnelle.
-Description du scénario : ${scenario.description}
-
-Voici le transcript complet de sa session précédente :
----
-${transcript}
----
-
-`;
-                voiceId = "alloy"; // Voix neutre par défaut
-                coachName = "Coach";
-            }
-
-            console.log("📝 Coach mode - Using coach:", coach ? coach.name : "Default fallback");
-        } else {
-            // Standard mode: Use persona instructions with auto-start greeting
-
-            systemInstructions = `
+        const systemInstructions = `
 IMPORTANT: Dès que la conversation commence, tu dois immédiatement te présenter et saluer l'utilisateur en incarnant ton personnage. N'attends pas que l'utilisateur parle en premier. Commence la conversation de manière naturelle et engageante.
 
 ${persona.system_instructions}`;
 
-            voiceId = persona.voice_id;
-        }
-
-        // Return config WITHOUT creating session
         return {
             success: true,
             data: {
                 scenarioId: scenario.id,
                 scenarioTitle: scenario.title,
                 systemInstructions,
-                voiceId,
-                mode: mode as "standard" | "coach",
+                voiceId: persona.voice_id,
+                mode: "standard",
                 model,
-                personaName: mode === "coach" ? coachName : persona.name,
+                personaName: persona.name,
+                avatarUrl: persona.avatar_url,
             },
         };
 

@@ -14,7 +14,7 @@ interface ConversationMessage {
 }
 
 interface IframeClientProps {
-    scenarioId: string;
+    scenarioId?: string;
     mode: string;
     refSessionId?: string;
     model: string;
@@ -691,7 +691,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                                 }}
                             >
                                 <img
-                                    src="https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200&h=200"
+                                    src={config.avatarUrl || "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200&h=200"}
                                     alt={config.personaName}
                                     className="w-full h-full object-cover"
                                 />

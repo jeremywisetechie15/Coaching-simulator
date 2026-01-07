@@ -2,10 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { VoiceId, RealtimeSessionResponse, Persona } from "@/types";
 
-// OpenAI Realtime API endpoint for ephemeral key generation
 const OPENAI_REALTIME_SESSIONS_URL = "https://api.openai.com/v1/realtime/sessions";
 
-// Model configuration - default model
+
 const DEFAULT_MODEL = "gpt-realtime";
 const VALID_MODELS = [
     "gpt-4o-mini-realtime-preview",
@@ -26,7 +25,7 @@ export async function POST(request: NextRequest) {
         const body: RequestBody = await request.json();
         const { persona_id, system_instructions, voice, model } = body;
 
-        // Validate that we have either persona_id or system_instructions
+
         if (!persona_id && !system_instructions) {
             return NextResponse.json(
                 { error: "Either persona_id or system_instructions is required" },
@@ -37,10 +36,10 @@ export async function POST(request: NextRequest) {
         let instructions = system_instructions || "";
         let voiceId: VoiceId = voice || "alloy";
 
-        // Validate and set model
+
         const selectedModel = model && VALID_MODELS.includes(model) ? model : DEFAULT_MODEL;
 
-        // If persona_id is provided, fetch persona from Supabase
+
         if (persona_id) {
             const supabase = await createClient();
             const { data: persona, error: dbError } = await supabase
@@ -57,13 +56,13 @@ export async function POST(request: NextRequest) {
             }
 
             instructions = persona.system_instructions;
-            // Use voice from request body if provided, otherwise use persona's voice
+
             if (!voice) {
                 voiceId = persona.voice_id;
             }
         }
 
-        // Check for OpenAI API key
+
         const openaiApiKey = process.env.OPENAI_API_KEY;
         if (!openaiApiKey) {
             return NextResponse.json(
@@ -74,7 +73,7 @@ export async function POST(request: NextRequest) {
 
 
 
-        // Request ephemeral key from OpenAI
+
         const openaiResponse = await fetch(OPENAI_REALTIME_SESSIONS_URL, {
             method: "POST",
             headers: {
@@ -112,7 +111,7 @@ export async function POST(request: NextRequest) {
 
         const sessionData = await openaiResponse.json();
 
-        // Return the ephemeral key to the client
+
         return NextResponse.json({
             data: {
                 client_secret: sessionData.client_secret,

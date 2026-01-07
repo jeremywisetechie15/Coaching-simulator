@@ -14,14 +14,15 @@ export default async function IframePage({
 
     console.log("🔍 Server: searchParams received:", params);
 
-    // Validate scenario_id
-    if (!params.scenario_id) {
+    // Validate scenario_id (only required for standard mode)
+    const isCoachMode = params.mode === "coach";
+    if (!isCoachMode && !params.scenario_id) {
         return (
             <div className="h-screen w-full bg-[#E8EEFF] flex flex-col items-center justify-center gap-4 p-6">
                 <AlertCircle className="w-16 h-16 text-red-500" />
                 <p className="text-red-500 text-center">Paramètre manquant : scenario_id</p>
                 <code className="text-xs text-gray-500 bg-white px-3 py-2 rounded border border-gray-200">
-                    ?scenario_id=UUID&mode=coach&ref_session_id=UUID&coach_id=UUID
+                    ?scenario_id=UUID (mode standard) ou ?mode=coach (mode coach)
                 </code>
             </div>
         );

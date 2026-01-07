@@ -7,6 +7,7 @@ export interface Persona {
     name: string;
     voice_id: VoiceId;
     system_instructions: string;
+    avatar_url?: string;
     created_at?: string;
     updated_at?: string;
 }
@@ -16,6 +17,7 @@ export interface Coach {
     name: string;
     voice_id: VoiceId;
     system_instructions: string;
+    avatar_url?: string;
     created_at?: string;
     updated_at?: string;
 }
