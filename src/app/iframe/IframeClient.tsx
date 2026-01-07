@@ -708,11 +708,11 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                 )}
 
                 {/* Bottom Right: User Video Preview */}
-                <div className="absolute bottom-3 right-3 z-20 w-36 h-24 bg-[#1E293B] rounded-xl overflow-hidden shadow-lg flex items-center justify-center">
+                <div className="absolute bottom-4 right-4 z-20 w-56 h-40 bg-[#1E293B] rounded-xl overflow-hidden shadow-lg flex items-center justify-center">
                     {/* User Badge */}
-                    <div className="absolute top-1.5 left-1.5 z-10 flex items-center gap-1 bg-black/40 px-1.5 py-0.5 rounded">
-                        <Camera className="w-3 h-3 text-white/70" />
-                        <span className="text-white/90 text-[10px] font-medium">Vous</span>
+                    <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 bg-black/40 px-2.5 py-1 rounded-md">
+                        <Camera className="w-4 h-4 text-white/70" />
+                        <span className="text-white/90 text-sm font-medium">Vous</span>
                     </div>
 
                     {/* Video Element - Only show when session is active */}
@@ -731,20 +731,20 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                         />
                     ) : (
                         /* Camera Off Icon - Show when not connected */
-                        <VideoOff className="w-8 h-8 text-gray-500" />
+                        <VideoOff className="w-12 h-12 text-gray-500" />
                     )}
 
                     {/* Mic Active Indicator - Green when connected */}
                     {(status === "connecting" || status === "connected") ? (
-                        <div className="absolute bottom-1.5 right-1.5 w-5 h-5 bg-green-500 rounded-full flex items-center justify-center">
-                            <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                        <div className="absolute bottom-2.5 right-2.5 w-7 h-7 bg-green-500 rounded-full flex items-center justify-center">
+                            <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="currentColor">
                                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                             </svg>
                         </div>
                     ) : (
                         /* Mute Indicator - Red when not connected */
-                        <div className="absolute bottom-1.5 right-1.5 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center">
-                            <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                        <div className="absolute bottom-2.5 right-2.5 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center">
+                            <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
                                 <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
                                 <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
                                 <line x1="12" y1="19" x2="12" y2="23" />
