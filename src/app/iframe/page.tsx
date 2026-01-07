@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic';
 export default async function IframePage({
     searchParams,
 }: {
-    searchParams: Promise<{ scenario_id?: string; mode?: string; ref_session_id?: string; model?: string }>;
+    searchParams: Promise<{ scenario_id?: string; mode?: string; ref_session_id?: string; model?: string; coach_id?: string }>;
 }) {
     // Await the searchParams on the server
     const params = await searchParams;
@@ -21,7 +21,7 @@ export default async function IframePage({
                 <AlertCircle className="w-16 h-16 text-red-500" />
                 <p className="text-red-500 text-center">Paramètre manquant : scenario_id</p>
                 <code className="text-xs text-gray-500 bg-white px-3 py-2 rounded border border-gray-200">
-                    ?scenario_id=UUID&mode=coach&ref_session_id=UUID
+                    ?scenario_id=UUID&mode=coach&ref_session_id=UUID&coach_id=UUID
                 </code>
             </div>
         );
@@ -33,6 +33,8 @@ export default async function IframePage({
             mode={params.mode || "standard"}
             refSessionId={params.ref_session_id}
             model={params.model || "gpt-realtime"}
+            coachId={params.coach_id}
         />
     );
 }
+

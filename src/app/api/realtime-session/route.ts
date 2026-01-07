@@ -72,7 +72,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        console.log("📝 Instructions envoyées à OpenAI:", instructions.substring(0, 100) + "...");
+
 
         // Request ephemeral key from OpenAI
         const openaiResponse = await fetch(OPENAI_REALTIME_SESSIONS_URL, {

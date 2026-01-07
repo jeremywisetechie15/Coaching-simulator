@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import type { Persona } from "@/types";
+import type { Persona, Coach } from "@/types";
 
 export interface IframeSessionConfig {
     scenarioId: string;
@@ -18,6 +18,7 @@ interface PrepareParams {
     mode?: string;
     refSessionId?: string;
     model?: string;
+    coachId?: string;
 }
 
 // Step 1: Prepare session config (NO DB write) - called on page load
@@ -26,7 +27,7 @@ export async function prepareIframeSession(params: PrepareParams): Promise<{
     data?: IframeSessionConfig;
     error?: string
 }> {
-    const { scenarioId, mode = "standard", refSessionId, model = "gpt-realtime" } = params;
+    const { scenarioId, mode = "standard", refSessionId, model = "gpt-realtime", coachId } = params;
 
     if (!scenarioId) {
         return { success: false, error: "scenario_id is required" };
@@ -49,10 +50,28 @@ export async function prepareIframeSession(params: PrepareParams): Promise<{
         const persona = scenario.personas as Persona;
         let systemInstructions: string;
         let voiceId: string;
+        let coachName: string = "Coach";
 
         // 2. Generate system prompt based on mode
         if (mode === "coach" && refSessionId) {
-            // Coach mode: Fetch previous session messages
+            // Coach mode: Fetch coach from DB if coachId provided
+            let coach: Coach | null = null;
+
+            if (coachId) {
+                const { data: coachData, error: coachError } = await supabase
+                    .from("coaches")
+                    .select("*")
+                    .eq("id", coachId)
+                    .single<Coach>();
+
+                if (coachError) {
+                    console.error("Error fetching coach:", coachError);
+                } else {
+                    coach = coachData;
+                }
+            }
+
+            // Fetch previous session messages
             const { data: messages, error: messagesError } = await supabase
                 .from("messages")
                 .select("role, content, timestamp")
@@ -65,13 +84,29 @@ export async function prepareIframeSession(params: PrepareParams): Promise<{
             console.log(scenario.title);
             console.log(scenario.description);
 
-
             // Format transcript
             const transcript = messages
                 ?.map(m => `[${m.role === "user" ? "Utilisateur" : "Persona"}]: ${m.content}`)
                 .join("\n") || "Aucun transcript disponible.";
 
-            systemInstructions = `Tu es un Coach professionnel bienveillant et constructif. L'utilisateur a joué le scénario de coaching suivant : "${scenario.title}"
+            // Build system instructions from coach (DB) or fallback to default
+            if (coach) {
+                // Use coach from DB - append scenario context and transcript
+                systemInstructions = `${coach.system_instructions}
+
+Contexte du scénario joué : "${scenario.title}"
+Description : ${scenario.description || "Pas de description"}
+
+Voici le transcript complet de la session précédente :
+---
+${transcript}
+---
+`;
+                voiceId = coach.voice_id;
+                coachName = coach.name;
+            } else {
+                // Fallback: Default coach prompt (no coach_id provided or coach not found)
+                systemInstructions = `Tu es un Coach professionnel bienveillant et constructif. L'utilisateur a joué le scénario de coaching suivant : "${scenario.title}"
             Ton rôle est d'analyser cette conversation et de débriefer avec l'utilisateur :
 1. Commence par le féliciter pour avoir fait l'exercice
 2. Identifie 2-3 points forts dans sa communication
@@ -88,16 +123,19 @@ ${transcript}
 ---
 
 `;
+                voiceId = "alloy"; // Voix neutre par défaut
+                coachName = "Coach";
+            }
 
-            voiceId = "alloy"; // Voix neutre pour le coach
+            console.log("📝 Coach mode - Using coach:", coach ? coach.name : "Default fallback");
         } else {
             // Standard mode: Use persona instructions with auto-start greeting
-            console.log("📝 Persona system_instructions from DB:", persona.system_instructions);
+
             systemInstructions = `
 IMPORTANT: Dès que la conversation commence, tu dois immédiatement te présenter et saluer l'utilisateur en incarnant ton personnage. N'attends pas que l'utilisateur parle en premier. Commence la conversation de manière naturelle et engageante.
 
 ${persona.system_instructions}`;
-            console.log("📝 Final systemInstructions sent to API:", systemInstructions);
+
             voiceId = persona.voice_id;
         }
 
@@ -111,7 +149,7 @@ ${persona.system_instructions}`;
                 voiceId,
                 mode: mode as "standard" | "coach",
                 model,
-                personaName: mode === "coach" ? "Pierre Laurent" : persona.name,
+                personaName: mode === "coach" ? coachName : persona.name,
             },
         };
 

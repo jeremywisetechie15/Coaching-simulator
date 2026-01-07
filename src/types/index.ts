@@ -11,6 +11,15 @@ export interface Persona {
     updated_at?: string;
 }
 
+export interface Coach {
+    id: string;
+    name: string;
+    voice_id: VoiceId;
+    system_instructions: string;
+    created_at?: string;
+    updated_at?: string;
+}
+
 export interface Scenario {
     id: string;
     title: string;

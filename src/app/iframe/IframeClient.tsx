@@ -18,20 +18,24 @@ interface IframeClientProps {
     mode: string;
     refSessionId?: string;
     model: string;
+    coachId?: string;
 }
 
-export default function IframeClient({ scenarioId, mode, refSessionId, model }: IframeClientProps) {
+export default function IframeClient({ scenarioId, mode, refSessionId, model, coachId }: IframeClientProps) {
     const [status, setStatus] = useState<SessionStatus>("loading");
     const [error, setError] = useState<string | null>(null);
     const [config, setConfig] = useState<IframeSessionConfig | null>(null);
     const [isAiSpeaking, setIsAiSpeaking] = useState(false);
     const [sessionDuration, setSessionDuration] = useState(0);
+    const [hasVideoStream, setHasVideoStream] = useState(false);
 
     // WebRTC refs
     const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
     const dataChannelRef = useRef<RTCDataChannel | null>(null);
     const localStreamRef = useRef<MediaStream | null>(null);
+    const videoStreamRef = useRef<MediaStream | null>(null);
     const audioElementRef = useRef<HTMLAudioElement | null>(null);
+    const userVideoRef = useRef<HTMLVideoElement | null>(null);
     const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const ringtoneRef = useRef<{ stop: () => void } | null>(null);
 
@@ -145,6 +149,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
                     mode: mode as "standard" | "coach",
                     refSessionId,
                     model,
+                    coachId,
                 });
 
                 if (!result.success || !result.data) {
@@ -159,7 +164,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
             }
         }
         init();
-    }, [scenarioId, mode, refSessionId, model]);
+    }, [scenarioId, mode, refSessionId, model, coachId]);
 
     const cleanup = useCallback(() => {
         if (durationIntervalRef.current) {
@@ -178,10 +183,18 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
             localStreamRef.current.getTracks().forEach(track => track.stop());
             localStreamRef.current = null;
         }
+        if (videoStreamRef.current) {
+            videoStreamRef.current.getTracks().forEach(track => track.stop());
+            videoStreamRef.current = null;
+        }
         if (audioElementRef.current) {
             audioElementRef.current.srcObject = null;
         }
+        if (userVideoRef.current) {
+            userVideoRef.current.srcObject = null;
+        }
         setIsAiSpeaking(false);
+        setHasVideoStream(false);
     }, []);
 
     useEffect(() => {
@@ -204,7 +217,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
             timestamp: new Date().toISOString(),
         });
 
-        console.log(`💬 ${role === "user" ? "👤 User" : "🤖 AI"}: ${trimmedContent.substring(0, 50)}...`);
+
     }, []);
 
     const handleRealtimeEvent = useCallback((event: { type: string;[key: string]: unknown }) => {
@@ -277,9 +290,19 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
             // Start playing ringtone
             playRingtone();
 
-            // Get microphone
+            // Get microphone (audio only for WebRTC)
             const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
             localStreamRef.current = stream;
+
+            // Get camera for local preview (separate stream)
+            try {
+                const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                videoStreamRef.current = videoStream;
+                setHasVideoStream(true);
+            } catch (videoErr) {
+                console.log("Camera not available, continuing without video preview");
+                setHasVideoStream(false);
+            }
 
             // Create peer connection
             const pc = new RTCPeerConnection();
@@ -465,7 +488,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
 
                 if (response.ok) {
                     const result = await response.json();
-                    console.log(`✅ Session saved: ${result.sessionId} (${messages.length} messages, ${duration}s)`);
+
                 }
             } catch (err) {
                 console.error("Failed to save session:", err);
@@ -677,24 +700,49 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model }: 
                 {/* Bottom Right: User Video Preview */}
                 <div className="absolute bottom-2 right-2 z-20 w-24 h-16 bg-[#1E293B] rounded-lg overflow-hidden shadow-lg flex items-center justify-center">
                     {/* User Badge */}
-                    <div className="absolute top-1 left-1 flex items-center gap-0.5 bg-black/40 px-1 py-0.5 rounded">
+                    <div className="absolute top-1 left-1 z-10 flex items-center gap-0.5 bg-black/40 px-1 py-0.5 rounded">
                         <Camera className="w-2 h-2 text-white/70" />
                         <span className="text-white/90 text-[8px] font-medium">Vous</span>
                     </div>
 
-                    {/* Camera Off Icon */}
-                    <VideoOff className="w-5 h-5 text-gray-500" />
+                    {/* Video Element - Only show when session is active */}
+                    {(status === "connecting" || status === "connected") && hasVideoStream ? (
+                        <video
+                            ref={(el) => {
+                                userVideoRef.current = el;
+                                if (el && videoStreamRef.current) {
+                                    el.srcObject = videoStreamRef.current;
+                                }
+                            }}
+                            autoPlay
+                            playsInline
+                            muted
+                            className="w-full h-full object-cover scale-x-[-1]"
+                        />
+                    ) : (
+                        /* Camera Off Icon - Show when not connected */
+                        <VideoOff className="w-5 h-5 text-gray-500" />
+                    )}
 
-                    {/* Mute Indicator */}
-                    <div className="absolute bottom-1 right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
-                        <svg className="w-2 h-2 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                            <line x1="12" y1="19" x2="12" y2="23" />
-                            <line x1="8" y1="23" x2="16" y2="23" />
-                            <line x1="1" y1="1" x2="23" y2="23" />
-                        </svg>
-                    </div>
+                    {/* Mic Active Indicator - Green when connected */}
+                    {(status === "connecting" || status === "connected") ? (
+                        <div className="absolute bottom-1 right-1 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center">
+                            <svg className="w-2 h-2 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                            </svg>
+                        </div>
+                    ) : (
+                        /* Mute Indicator - Red when not connected */
+                        <div className="absolute bottom-1 right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center">
+                            <svg className="w-2 h-2 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                                <line x1="12" y1="19" x2="12" y2="23" />
+                                <line x1="8" y1="23" x2="16" y2="23" />
+                                <line x1="1" y1="1" x2="23" y2="23" />
+                            </svg>
+                        </div>
+                    )}
                 </div>
             </div>
 
