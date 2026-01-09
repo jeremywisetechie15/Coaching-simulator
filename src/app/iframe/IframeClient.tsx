@@ -794,12 +794,23 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                         )}
                         {(status === "connecting" || status === "connected") && (
                             <>
-                                {/* Microphone Toggle */}
+                                {/* Timer */}
+                                <div className="flex items-center gap-1.5 bg-gray-100 px-3 py-1.5 rounded-full">
+                                    <svg className="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <polyline points="12 6 12 12 16 14" />
+                                    </svg>
+                                    <span className="text-gray-700 font-mono text-sm tabular-nums font-medium">
+                                        {formatDurationLong(sessionDuration)}
+                                    </span>
+                                </div>
+
+                                {/* Microphone Button - Toggle */}
                                 <button
                                     onClick={toggleMic}
                                     className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shadow-md ${isMicMuted
-                                            ? 'bg-red-500 hover:bg-red-600 text-white'
-                                            : 'bg-[#00D64F] hover:bg-[#00c046] text-white'
+                                        ? 'bg-red-500 hover:bg-red-600 text-white'
+                                        : 'bg-[#00D64F] hover:bg-[#00c046] text-white'
                                         }`}
                                 >
                                     {isMicMuted ? (
@@ -814,12 +825,12 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                                     )}
                                 </button>
 
-                                {/* Camera Toggle */}
+                                {/* Video Button - Toggle */}
                                 <button
                                     onClick={toggleCamera}
                                     className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shadow-md ${isCameraOff
-                                            ? 'bg-red-500 hover:bg-red-600 text-white'
-                                            : 'bg-[#00D64F] hover:bg-[#00c046] text-white'
+                                        ? 'bg-red-500 hover:bg-red-600 text-white'
+                                        : 'bg-[#00D64F] hover:bg-[#00c046] text-white'
                                         }`}
                                 >
                                     {isCameraOff ? (
@@ -829,14 +840,21 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                                     )}
                                 </button>
 
-                                {/* End Session Button */}
+                                {/* Pause Button */}
+                                <button className="w-11 h-11 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-500 transition-all">
+                                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                                        <rect x="6" y="4" width="4" height="16" rx="1" />
+                                        <rect x="14" y="4" width="4" height="16" rx="1" />
+                                    </svg>
+                                </button>
+
+                                {/* Hangup Button */}
                                 <button
                                     onClick={endSession}
                                     disabled={status !== "connected"}
-                                    className="bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed text-white text-base font-semibold py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-all shadow-md"
+                                    className="w-11 h-11 bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed rounded-full flex items-center justify-center text-white transition-all shadow-md"
                                 >
                                     <PhoneOff className="w-5 h-5" />
-                                    Terminer la conversation
                                 </button>
                             </>
                         )}
