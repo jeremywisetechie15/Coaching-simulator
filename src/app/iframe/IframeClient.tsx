@@ -19,9 +19,12 @@ interface IframeClientProps {
     refSessionId?: string;
     model: string;
     coachId?: string;
+    coachMode?: "before_training" | "after_training";
+    step?: number;
+    variant?: "coach";
 }
 
-export default function IframeClient({ scenarioId, mode, refSessionId, model, coachId }: IframeClientProps) {
+export default function IframeClient({ scenarioId, mode, refSessionId, model, coachId, coachMode, step, variant }: IframeClientProps) {
     const [status, setStatus] = useState<SessionStatus>("loading");
     const [error, setError] = useState<string | null>(null);
     const [config, setConfig] = useState<IframeSessionConfig | null>(null);
@@ -152,6 +155,9 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                     refSessionId,
                     model,
                     coachId,
+                    coachMode,
+                    step,
+                    variant,
                 });
 
                 if (!result.success || !result.data) {
@@ -166,7 +172,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
             }
         }
         init();
-    }, [scenarioId, mode, refSessionId, model, coachId]);
+    }, [scenarioId, mode, refSessionId, model, coachId, coachMode, step, variant]);
 
     const cleanup = useCallback(() => {
         if (durationIntervalRef.current) {
@@ -345,7 +351,31 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
 
                 console.log("📡 Triggering AI greeting after ringtone...");
 
-                // Send initial message to make AI start in character
+                // Determine the initial message based on mode and coachMode
+                let initialText = "";
+
+                // Special case: persona_variant uses standard mode but persona gives feedback
+                if (config.coachMode === "persona_variant") {
+                    initialText = "Notre conversation est terminée. Donne-moi maintenant ton avis sur comment ça s'est passé. Qu'est-ce que tu en as pensé ?";
+                } else if (config.mode === "coach") {
+                    switch (config.coachMode) {
+                        case "before_training":
+                            initialText = "La session de préparation commence. Aide l'utilisateur à se préparer pour son entraînement à venir. Présente-toi brièvement et guide-le dans sa préparation.";
+                            break;
+                        case "after_training":
+                            initialText = "La session de débrief commence. Analyse la performance de l'utilisateur en te basant sur le transcript fourni. Présente-toi brièvement et donne-lui ton feedback structuré.";
+                            break;
+                        case "default":
+                        default:
+                            initialText = "La session de coaching commence. Présente-toi brièvement et commence à guider l'utilisateur dans son débrief.";
+                            break;
+                    }
+                } else {
+                    // Standard persona mode
+                    initialText = "La simulation commence. Mets-toi directement dans ton personnage et commence la scène. Joue ton rôle immédiatement.";
+                }
+
+                // Send initial message to make AI start
                 const initialMessage = {
                     type: "conversation.item.create",
                     item: {
@@ -354,7 +384,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                         content: [
                             {
                                 type: "input_text",
-                                text: "La simulation commence. Mets-toi directement dans ton personnage et commence la scène. Joue ton rôle immédiatement."
+                                text: initialText
                             }
                         ]
                     }
@@ -490,7 +520,38 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
 
                 if (response.ok) {
                     const result = await response.json();
+                    const savedSessionId = result.session_id;
 
+                    // Appeler l'API de notation pour les sessions persona (mode standard)
+                    // Ne PAS appeler pour les sessions coach ou persona_variant
+                    if (config.mode === "standard" && !config.coachMode && savedSessionId) {
+                        console.log("📊 Calculating notation for session:", savedSessionId);
+
+                        // Construire le transcript à partir des messages
+                        const transcript = messages
+                            .map(m => `[${m.role === "user" ? "Utilisateur" : "Persona"}]: ${m.content}`)
+                            .join("\n");
+
+                        try {
+                            const notationResponse = await fetch("/api/notation", {
+                                method: "POST",
+                                headers: { "Content-Type": "application/json" },
+                                body: JSON.stringify({
+                                    transcript,
+                                    session_id: savedSessionId,
+                                }),
+                            });
+
+                            if (notationResponse.ok) {
+                                const notationResult = await notationResponse.json();
+                                console.log("✅ Notation saved:", notationResult.notation?.note_globale);
+                            } else {
+                                console.error("❌ Failed to calculate notation:", await notationResponse.text());
+                            }
+                        } catch (notationErr) {
+                            console.error("❌ Error calling notation API:", notationErr);
+                        }
+                    }
                 }
             } catch (err) {
                 console.error("Failed to save session:", err);

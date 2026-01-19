@@ -147,29 +147,83 @@ Permet à un coach IA de débriefer une session précédente
 | `mode` | ✅ Oui | Doit être `coach` |
 | `ref_session_id` | Non | UUID de la session à analyser (sinon: dernière session) |
 | `coach_id` | Non | UUID du coach (sinon: `DEFAULT_COACH_ID`) |
+| `coach_mode` | Non | `before_training` ou `after_training` (voir ci-dessous) |
+| `step` | Non | Étape de focus (1 à 4) |
 | `model` | Non | Modèle OpenAI |
 
-**Comportement** :
-1. Récupère la session (fournie ou dernière complétée)
-2. Extrait le transcript des messages
-3. Charge le coach (fourni ou par défaut via `DEFAULT_COACH_ID`)
-4. Injecte le transcript dans le `system_instructions` du coach
-5. Utilise l'`avatar_url` du coach
+#### Sous-modes du Coach
+
+**1. Mode par défaut** (`mode=coach` sans `coach_mode`) :
+- Comportement actuel
+- Récupère le transcript de la dernière session
+- Contexte du scénario inclus
+
+**2. Mode avant entraînement** (`mode=coach&coach_mode=before_training`) :
+- Prépare l'utilisateur AVANT une session
+- Pas de transcript (session pas encore effectuée)
+- Focus sur la préparation et les techniques
+
+**3. Mode après entraînement** (`mode=coach&coach_mode=after_training`) :
+- Débrief détaillé APRÈS une session
+- Transcript complet inclus
+- Focus sur l'analyse et les axes d'amélioration
+
+#### Paramètre `step` (Étapes de focus)
+
+| Step | Description |
+|------|-------------|
+| 1 | Accroche & Introduction |
+| 2 | Découverte des besoins |
+| 3 | Argumentation & Valeur |
+| 4 | Conclusion & Engagement |
 
 #### Exemples d'URLs Coach
 
 ```bash
-# Dernière session + coach par défaut
+# Mode par défaut - Dernière session + coach par défaut
 /iframe?mode=coach
 
 # Session spécifique + coach par défaut
 /iframe?mode=coach&ref_session_id=ea94846a-e876-47bf-882e-e8027051a89c
 
-# Dernière session + coach spécifique
-/iframe?mode=coach&coach_id=abc123-def456
+# Préparation avant entraînement (step 1)
+/iframe?mode=coach&coach_mode=before_training&step=1
+
+# Débrief après entraînement (step 2)
+/iframe?mode=coach&coach_mode=after_training&step=2
 
 # Session + coach spécifiques
 /iframe?mode=coach&ref_session_id=XXX&coach_id=YYY
+```
+
+---
+
+### Mode Persona avec Variante Coach
+
+Permet d'obtenir du coaching sur la dernière session d'un persona spécifique
+
+```
+/iframe?scenario_id=UUID&variant=coach
+```
+
+| Paramètre | Obligatoire | Description |
+|-----------|-------------|-------------|
+| `scenario_id` | ✅ Oui | UUID du scénario |
+| `variant` | ✅ Oui | Doit être `coach` |
+| `coach_id` | Non | UUID du coach (sinon: `DEFAULT_COACH_ID`) |
+| `model` | Non | Modèle OpenAI |
+
+**Comportement** :
+1. Charge le scénario et son persona associé
+2. Récupère le transcript de la dernière session pour ce scénario
+3. Injecte le contexte du persona + transcript dans le prompt du coach
+4. Utilise l'UI du mode coach (gradient orange)
+
+#### Exemple d'URL
+
+```bash
+# Coaching sur la dernière session du scénario ABC
+/iframe?scenario_id=ABC&variant=coach
 ```
 
 ---
