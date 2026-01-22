@@ -13,7 +13,7 @@ export default async function IframePage({
         ref_session_id?: string;
         model?: string;
         coach_id?: string;
-        coach_mode?: string;  // "before_training" | "after_training"
+        coach_mode?: string;  // "before_training" | "after_training" | "notation"
         step?: string;        // "1" | "2" | "3" | "4"
         variant?: string;     // "coach" (pour mode persona avec coaching)
     }>;
@@ -25,12 +25,12 @@ export default async function IframePage({
 
     // Validate parameters
     const isCoachMode = params.mode === "coach";
-    const isCoachWithTrainingMode = isCoachMode && (params.coach_mode === "before_training" || params.coach_mode === "after_training");
+    const isCoachWithTrainingMode = isCoachMode && (params.coach_mode === "before_training" || params.coach_mode === "after_training" || params.coach_mode === "notation");
     const isPersonaCoachVariant = params.variant === "coach" && params.scenario_id;
 
     // scenario_id is required for:
     // - standard mode (persona)
-    // - coach mode with before_training or after_training
+    // - coach mode with before_training or after_training or notation
     // - variant=coach
     if (!isCoachMode && !isPersonaCoachVariant && !params.scenario_id) {
         return (
@@ -44,7 +44,7 @@ export default async function IframePage({
         );
     }
 
-    // For coach mode with before_training or after_training, scenario_id is required
+    // For coach mode with before_training, after_training, or notation, scenario_id is required
     if (isCoachWithTrainingMode && !params.scenario_id) {
         return (
             <div className="h-screen w-full bg-[#E8EEFF] flex flex-col items-center justify-center gap-4 p-6">
@@ -64,7 +64,7 @@ export default async function IframePage({
             refSessionId={params.ref_session_id}
             model={params.model || "gpt-realtime"}
             coachId={params.coach_id}
-            coachMode={params.coach_mode as "before_training" | "after_training" | undefined}
+            coachMode={params.coach_mode as "before_training" | "after_training" | "notation" | undefined}
             step={params.step ? parseInt(params.step, 10) : undefined}
             variant={params.variant as "coach" | undefined}
         />

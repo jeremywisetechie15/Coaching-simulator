@@ -13,27 +13,71 @@ export async function OPTIONS() {
     return setCorsHeaders(NextResponse.json({}, { status: 200 }));
 }
 
-// Interface pour la notation
-interface NotationResult {
-    note_globale: number;
-    feedback: string;
-    points_forts: string[];
-    points_amelioration: string[];
-    details?: Record<string, { note: number; commentaire: string }>;
+// Les 4 tabs de notation
+const NOTATION_TABS = ['synthese', 'methodo', 'discours', 'transcription'] as const;
+type NotationTab = typeof NOTATION_TABS[number];
+
+// Interface pour le résultat global
+interface NotationGlobal {
+    synthese?: Record<string, unknown>;
+    methodo?: Record<string, unknown>;
+    discours?: Record<string, unknown>;
+    transcription?: Record<string, unknown>;
 }
 
+type MethodoEtape = {
+    titre: string;
+    score: number; // 0..100
+};
+
+function addGlobalScoreToSynthese(json: NotationGlobal) {
+    const MAX_POINTS = { D: 20, A: 35, G: 25, O: 20 } as const;
+
+    const methodo = json.methodo as unknown as { etapes?: MethodoEtape[] } | undefined;
+    const etapes = methodo?.etapes ?? [];
+
+    if (!Array.isArray(etapes) || etapes.length === 0) return json;
+
+    const getPctByPrefix = (prefix: 1 | 2 | 3 | 4): number => {
+        const e = etapes.find((x) => new RegExp(`^\\s*${prefix}\\s*[—-]`).test(x.titre));
+        const v = e?.score;
+        if (typeof v !== "number" || Number.isNaN(v)) return 0;
+        return Math.max(0, Math.min(100, v));
+    };
+
+    const roundToHalf = (x: number) => Math.round(x * 2) / 2;
+
+    const pointsD = roundToHalf((getPctByPrefix(1) / 100) * MAX_POINTS.D);
+    const pointsA = roundToHalf((getPctByPrefix(2) / 100) * MAX_POINTS.A);
+    const pointsG = roundToHalf((getPctByPrefix(3) / 100) * MAX_POINTS.G);
+    const pointsO = roundToHalf((getPctByPrefix(4) / 100) * MAX_POINTS.O);
+
+    const globalPoints = roundToHalf(pointsD + pointsA + pointsG + pointsO); // 0..100
+
+    json.synthese = json.synthese ?? { onglet: "SyntheseGlobale" };
+    // Champ demandé (sur 100)
+    json.synthese.notation_globale = globalPoints;
+
+    return json;
+}
+
+// =============================================
+// POST /api/notation
+// Body: { session_id } ou { scenario_id }
+// Génère les 4 notations et les sauvegarde
+// =============================================
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { transcript, session_id, pdf_filename } = body;
+        const { session_id, scenario_id } = body;
 
-        if (!transcript) {
+        if (!session_id && !scenario_id) {
             return setCorsHeaders(
-                NextResponse.json({ error: "Transcript manquant" }, { status: 400 })
+                NextResponse.json({ error: "session_id ou scenario_id requis" }, { status: 400 })
             );
         }
 
-        // Créer un client Supabase avec le service role pour accéder au storage
+        // Créer un client Supabase
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -45,10 +89,81 @@ export async function POST(req: Request) {
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-        // 1. TÉLÉCHARGER LE PDF DEPUIS SUPABASE STORAGE
-        const pdfPath = pdf_filename || "criteres_v1.pdf"; // Nom par défaut
+        // 1. RÉSOUDRE LA SESSION ET RÉCUPÉRER LE SCÉNARIO
+        let effectiveSessionId = session_id;
+        let scenarioTitle = "";
+        let scenarioDescription = "";
 
-        console.log("📊 Notation API - Fetching PDF from Supabase:", pdfPath);
+        if (!effectiveSessionId && scenario_id) {
+            // Cas: scenario_id fourni, on cherche la dernière session
+            const { data: latestSession, error: sessionError } = await supabase
+                .from('sessions')
+                .select('id, scenarios(title, description)')
+                .eq('scenario_id', scenario_id)
+                .eq('status', 'completed')
+                .order('created_at', { ascending: false })
+                .limit(1)
+                .single();
+
+            if (sessionError || !latestSession) {
+                return setCorsHeaders(
+                    NextResponse.json({ error: "Aucune session complétée trouvée pour ce scénario" }, { status: 404 })
+                );
+            }
+            effectiveSessionId = latestSession.id;
+            const scenario = latestSession.scenarios as unknown as { title: string; description: string | null } | null;
+            scenarioTitle = scenario?.title || "";
+            scenarioDescription = scenario?.description || "";
+        } else {
+            // Cas: session_id fourni, on récupère le scénario
+            const { data: sessionData, error: sessionError } = await supabase
+                .from('sessions')
+                .select('scenarios(title, description)')
+                .eq('id', effectiveSessionId)
+                .single();
+
+            if (!sessionError && sessionData) {
+                const scenario = sessionData.scenarios as unknown as { title: string; description: string | null } | null;
+                scenarioTitle = scenario?.title || "";
+                scenarioDescription = scenario?.description || "";
+            }
+        }
+
+        console.log("📊 Notation API - Processing session:", effectiveSessionId);
+        console.log("📊 Scenario:", scenarioTitle);
+        console.log("📊 Scenario description:", scenarioDescription);
+
+        // 2. RÉCUPÉRER LE TRANSCRIPT DEPUIS LA TABLE MESSAGES
+        const { data: messages, error: messagesError } = await supabase
+            .from('messages')
+            .select('role, content, timestamp')
+            .eq('session_id', effectiveSessionId)
+            .order('timestamp', { ascending: true });
+
+        if (messagesError || !messages || messages.length === 0) {
+            return setCorsHeaders(
+                NextResponse.json({ error: "Aucun message trouvé pour cette session" }, { status: 404 })
+            );
+        }
+
+        const transcript = messages
+            .map(m => {
+                const time = new Date(m.timestamp).toLocaleTimeString('fr-FR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                });
+                return `[${time}] ${m.role === "user" ? "Utilisateur" : "Persona"}: ${m.content}`;
+            })
+            .join("\n");
+
+        console.log("📊 Transcript built, length:", transcript.length, "characters");
+        console.log("📊 Transcript:", transcript);
+
+        // 3. TÉLÉCHARGER LE PDF (une seule fois)
+        const pdfPath = "criteres_v1.pdf";
+
+        console.log("📊 Fetching PDF from Supabase:", pdfPath);
 
         const { data: pdfData, error: pdfError } = await supabase
             .storage
@@ -71,132 +186,155 @@ export async function POST(req: Request) {
         const base64Pdf = buffer.toString('base64');
 
         console.log("📊 PDF loaded, size:", buffer.length, "bytes");
-        console.log("📊 Transcript length:", transcript.length, "characters");
 
-        // 2. APPEL API OPENAI /v1/responses (supporte les PDF nativement)
-        const response = await fetch("https://api.openai.com/v1/responses", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-            },
-            body: JSON.stringify({
-                model: "gpt-4o",
-                instructions: `Tu es un expert en analyse d'appels commerciaux et de formation.
+        // 4. RÉCUPÉRER TOUS LES PROMPTS DE LA TABLE prompts
+        const { data: prompts, error: promptsError } = await supabase
+            .from('prompts')
+            .select('title, prompt')
+            .in('title', NOTATION_TABS.map(tab => `notation.${tab}`));
 
-CONTEXTE :
-- Tu reçois un document PDF contenant les critères de notation.
-- Tu reçois un transcript d'un appel entre un UTILISATEUR (apprenant) et un PERSONA (client simulé joué par une IA).
-- L'UTILISATEUR s'entraîne à la vente/négociation face au persona.
+        if (promptsError || !prompts || prompts.length === 0) {
+            return setCorsHeaders(
+                NextResponse.json({ error: "Prompts de notation non trouvés dans la base" }, { status: 404 })
+            );
+        }
 
-TA MISSION :
-- Évalue UNIQUEMENT la performance de l'UTILISATEUR (pas le persona).
-- Analyse comment l'utilisateur a géré la conversation selon les critères du PDF.
-- Note sa capacité à : accrocher, découvrir les besoins, argumenter, conclure.
+        // Créer un map title -> prompt
+        const promptsMap = new Map<string, string>();
+        prompts.forEach(p => {
+            promptsMap.set(p.title, p.prompt);
+        });
 
-IMPORTANT: Réponds UNIQUEMENT avec un JSON valide, sans aucun texte avant ou après.
-Le format attendu est :
-{
-  "note_globale": number (entre 0 et 100),
-  "feedback": string (résumé de la performance de l'UTILISATEUR en 2-3 phrases),
-  "points_forts": [string] (3-5 points positifs de l'utilisateur),
-  "points_amelioration": [string] (3-5 axes d'amélioration pour l'utilisateur),
-  "details": {
-    "critere1": { "note": number, "commentaire": string },
-    ...
-  }
-}`,
-                input: [
-                    {
-                        role: "user",
-                        content: [
+        console.log("📊 Loaded prompts:", Array.from(promptsMap.keys()));
+
+        // 5. APPELER OPENAI POUR CHAQUE TAB (en parallèle)
+        const callOpenAI = async (tab: NotationTab): Promise<{ tab: NotationTab; result: Record<string, unknown> | null; error?: string }> => {
+            const promptText = promptsMap.get(`notation.${tab}`);
+
+            if (!promptText) {
+                console.error(`❌ Prompt non trouvé pour notation.${tab}`);
+                return { tab, result: null, error: `Prompt non trouvé pour ${tab}` };
+            }
+
+            try {
+                const response = await fetch("https://api.openai.com/v1/responses", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                    },
+                    body: JSON.stringify({
+                        model: "gpt-4o",
+                        instructions: promptText,
+                        input: [
                             {
-                                type: "input_file",
-                                filename: "criteres_notation.pdf",
-                                file_data: `data:application/pdf;base64,${base64Pdf}`
-                            },
-                            {
-                                type: "input_text",
-                                text: `Voici la transcription de l'appel à analyser :
+                                role: "user",
+                                content: [
+                                    {
+                                        type: "input_file",
+                                        filename: "criteres_notation.pdf",
+                                        file_data: `data:application/pdf;base64,${base64Pdf}`
+                                    },
+                                    {
+                                        type: "input_text",
+                                        text: `CONTEXTE DU SCÉNARIO:
+- Titre: ${scenarioTitle}
+- Description: ${scenarioDescription || "Non disponible"}
 
+TRANSCRIPTION DE L'APPEL:
 ---
 ${transcript}
 ---
 
-Analyse cet appel en te basant sur les critères du PDF ci-dessus et donne une notation détaillée en JSON.`
+Analyse cet appel et réponds uniquement avec un JSON valide.`
+                                    }
+                                ]
                             }
                         ]
-                    }
-                ]
-            })
+                    })
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    console.error(`❌ Erreur OpenAI pour ${tab}:`, errorData);
+                    return { tab, result: null, error: errorData.error?.message || "Erreur API OpenAI" };
+                }
+
+                const data = await response.json();
+
+                // Parsing de la réponse
+                let content = "";
+                if (data.output && data.output[0]?.content) {
+                    const contentItem = data.output[0].content.find((c: { type: string }) => c.type === "output_text");
+                    content = contentItem?.text || "";
+                } else if (data.choices) {
+                    content = data.choices[0].message.content;
+                }
+
+                // Nettoyage du JSON
+                const jsonStr = content.replace(/```json\s*|```\s*/g, '').trim();
+
+                try {
+                    const resultJson = JSON.parse(jsonStr);
+                    console.log(`✅ ${tab} - Notation calculée`);
+                    return { tab, result: resultJson };
+                } catch (parseError) {
+                    console.error(`❌ Erreur parsing JSON pour ${tab}:`, parseError);
+                    return { tab, result: null, error: "Format de réponse invalide" };
+                }
+
+            } catch (error) {
+                console.error(`❌ Erreur appel OpenAI pour ${tab}:`, error);
+                return { tab, result: null, error: error instanceof Error ? error.message : "Erreur inconnue" };
+            }
+        };
+
+        // Lancer les 4 appels en parallèle
+        console.log("📊 Calling OpenAI for all 4 tabs in parallel...");
+        const results = await Promise.all(NOTATION_TABS.map(tab => callOpenAI(tab)));
+
+        // 6. CONSTRUIRE LE JSON GLOBAL
+        const notationGlobal: NotationGlobal = {};
+        const errors: string[] = [];
+
+        results.forEach(({ tab, result, error }) => {
+            if (result) {
+                notationGlobal[tab] = result;
+            } else if (error) {
+                errors.push(`${tab}: ${error}`);
+            }
         });
 
-        if (!response.ok) {
-            const errorData = await response.json();
-            console.error("❌ Erreur OpenAI API:", errorData);
-            return setCorsHeaders(
-                NextResponse.json({
-                    error: errorData.error?.message || "Erreur API OpenAI"
-                }, { status: 500 })
-            );
-        }
+        addGlobalScoreToSynthese(notationGlobal);
 
-        const data = await response.json();
+        console.log("📊 Notation global built:", Object.keys(notationGlobal));
 
-        // 3. PARSING DE LA RÉPONSE (format /v1/responses)
-        // L'API responses renvoie le contenu dans output[0].content[0].text
-        let content = "";
-        if (data.output && data.output[0]?.content) {
-            // Format v1/responses
-            const contentItem = data.output[0].content.find((c: { type: string }) => c.type === "output_text");
-            content = contentItem?.text || "";
-        } else if (data.choices) {
-            // Fallback format chat/completions
-            content = data.choices[0].message.content;
-        }
-
-        console.log("📊 OpenAI Response preview:", content.substring(0, 200));
-
-        // Nettoyage du JSON
-        const jsonStr = content.replace(/```json\s*|```\s*/g, '').trim();
-
-        let resultJson: NotationResult;
-        try {
-            resultJson = JSON.parse(jsonStr);
-        } catch (parseError) {
-            console.error("❌ Erreur parsing JSON:", parseError);
-            console.error("Raw content:", content);
-            return setCorsHeaders(
-                NextResponse.json({
-                    error: "Format de réponse invalide",
-                    raw_response: content
-                }, { status: 500 })
-            );
-        }
-
-        // 4. SAUVEGARDE EN DB SI SESSION_ID FOURNI
-        if (session_id) {
-            console.log("📊 Saving notation to session:", session_id);
+        // 7. SAUVEGARDER EN DB
+        if (Object.keys(notationGlobal).length > 0) {
+            console.log("📊 Saving notation to session:", effectiveSessionId);
 
             const { error: updateError } = await supabase
                 .from('sessions')
-                .update({ notation_json: resultJson })
-                .eq('id', session_id);
+                .update({ notation_json: notationGlobal })
+                .eq('id', effectiveSessionId);
 
             if (updateError) {
                 console.error("❌ Erreur sauvegarde notation:", updateError);
-            } else {
-                console.log("✅ Notation saved to session");
+                return setCorsHeaders(
+                    NextResponse.json({ error: "Erreur sauvegarde en base", details: updateError.message }, { status: 500 })
+                );
             }
+
+            console.log("✅ Notation saved to session");
         }
 
-        console.log("✅ Notation calculée:", resultJson.note_globale);
-
-        // 5. RÉPONSE
+        // 8. RÉPONSE
         return setCorsHeaders(NextResponse.json({
             success: true,
-            notation: resultJson,
-            session_id: session_id || null
+            session_id: effectiveSessionId,
+            tabs_processed: Object.keys(notationGlobal),
+            errors: errors.length > 0 ? errors : undefined,
+            notation: notationGlobal
         }));
 
     } catch (error) {
@@ -210,16 +348,20 @@ Analyse cet appel en te basant sur les critères du PDF ci-dessus et donne une n
     }
 }
 
-// ROUTE GET - Récupérer la notation
-// Params:
-// - session_id: récupère la notation d'une session spécifique
-// - scenario_id: récupère la notation de la dernière session de ce scénario
-// - (aucun param): récupère la notation de la toute dernière session
+// =============================================
+// GET /api/notation?scenario_id=XXX
+// Retourne le notation_json de la dernière session du scénario
+// =============================================
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
-        const sessionId = searchParams.get('session_id');
         const scenarioId = searchParams.get('scenario_id');
+
+        if (!scenarioId) {
+            return setCorsHeaders(
+                NextResponse.json({ error: "scenario_id requis" }, { status: 400 })
+            );
+        }
 
         const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
         const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -232,52 +374,26 @@ export async function GET(req: Request) {
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-        let query = supabase
+        // Récupérer la dernière session complétée du scénario
+        const { data: session, error } = await supabase
             .from('sessions')
-            .select('id, scenario_id, notation_json, created_at, status, scenarios(title)')
-            .not('notation_json', 'is', null);
+            .select('id, scenario_id, notation_json, created_at, scenarios(title)')
+            .eq('scenario_id', scenarioId)
+            .eq('status', 'completed')
+            .not('notation_json', 'is', null)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .single();
 
-        // Cas 1: session_id fourni - récupérer cette session spécifique
-        if (sessionId) {
-            query = query.eq('id', sessionId);
-        }
-        // Cas 2: scenario_id fourni - récupérer la dernière session de ce scénario
-        else if (scenarioId) {
-            query = query
-                .eq('scenario_id', scenarioId)
-                .eq('status', 'completed')
-                .order('created_at', { ascending: false })
-                .limit(1);
-        }
-        // Cas 3: Aucun param - récupérer la toute dernière session avec notation
-        else {
-            query = query
-                .eq('status', 'completed')
-                .order('created_at', { ascending: false })
-                .limit(1);
-        }
-
-        const { data: sessions, error } = await query;
-
-        if (error) {
-            console.error("❌ Erreur fetch notation:", error);
-            return setCorsHeaders(
-                NextResponse.json({ error: "Erreur base de données" }, { status: 500 })
-            );
-        }
-
-        if (!sessions || sessions.length === 0) {
+        if (error || !session) {
             return setCorsHeaders(
                 NextResponse.json({
-                    error: "Aucune session avec notation trouvée",
-                    session_id: sessionId,
+                    error: "Aucune session avec notation trouvée pour ce scénario",
                     scenario_id: scenarioId
                 }, { status: 404 })
             );
         }
 
-        const session = sessions[0];
-        // scenarios est un objet nested, pas un array
         const scenario = session.scenarios as unknown as { title: string } | null;
 
         return setCorsHeaders(NextResponse.json({

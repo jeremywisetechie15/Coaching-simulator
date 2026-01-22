@@ -19,7 +19,7 @@ interface IframeClientProps {
     refSessionId?: string;
     model: string;
     coachId?: string;
-    coachMode?: "before_training" | "after_training";
+    coachMode?: "before_training" | "after_training" | "notation";
     step?: number;
     variant?: "coach";
 }
@@ -360,14 +360,17 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                 } else if (config.mode === "coach") {
                     switch (config.coachMode) {
                         case "before_training":
-                            initialText = "La session de préparation commence. Aide l'utilisateur à se préparer pour son entraînement à venir. Présente-toi brièvement et guide-le dans sa préparation.";
+                            initialText = "";
                             break;
                         case "after_training":
-                            initialText = "La session de débrief commence. Analyse la performance de l'utilisateur en te basant sur le transcript fourni. Présente-toi brièvement et donne-lui ton feedback structuré.";
+                            initialText = "";
+                            break;
+                        case "notation":
+                            initialText = "";
                             break;
                         case "default":
                         default:
-                            initialText = "La session de coaching commence. Présente-toi brièvement et commence à guider l'utilisateur dans son débrief.";
+                            initialText = "";
                             break;
                     }
                 } else {
@@ -504,8 +507,14 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
         cleanup();
         setStatus("ended");
 
-        // Save session to database
-        if (config && messages.length > 0) {
+        // Save session to database ONLY for standard persona mode
+        // Do NOT save for: coach mode, persona_variant
+        const shouldSaveSession = config &&
+            messages.length > 0 &&
+            config.mode === "standard" &&
+            !config.coachMode;
+
+        if (shouldSaveSession) {
             try {
                 const response = await fetch("/api/save-session", {
                     method: "POST",
