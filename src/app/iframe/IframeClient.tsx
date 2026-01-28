@@ -298,8 +298,14 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
             // Start playing ringtone
             playRingtone();
 
-            // Get microphone (audio only for WebRTC)
-            const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            // Get microphone (audio only for WebRTC) with echo cancellation
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                }
+            });
             localStreamRef.current = stream;
 
             // Get camera for local preview (separate stream)
@@ -378,23 +384,25 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                     initialText = "La simulation commence. Mets-toi directement dans ton personnage et commence la scène. Joue ton rôle immédiatement.";
                 }
 
-                // Send initial message to make AI start
-                const initialMessage = {
-                    type: "conversation.item.create",
-                    item: {
-                        type: "message",
-                        role: "user",
-                        content: [
-                            {
-                                type: "input_text",
-                                text: initialText
-                            }
-                        ]
-                    }
-                };
-                dc.send(JSON.stringify(initialMessage));
+                // Send initial message to make AI start (only if not empty)
+                if (initialText.trim()) {
+                    const initialMessage = {
+                        type: "conversation.item.create",
+                        item: {
+                            type: "message",
+                            role: "user",
+                            content: [
+                                {
+                                    type: "input_text",
+                                    text: initialText
+                                }
+                            ]
+                        }
+                    };
+                    dc.send(JSON.stringify(initialMessage));
+                }
 
-                // Trigger response
+                // Trigger response (always sent to start the conversation)
                 dc.send(JSON.stringify({ type: "response.create" }));
             };
 
