@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import type { VoiceId, RealtimeSessionResponse, Persona } from "@/types";
+import type { VoiceId, Persona } from "@/types";
 
 const OPENAI_REALTIME_SESSIONS_URL = "https://api.openai.com/v1/realtime/sessions";
 
@@ -93,9 +93,9 @@ export async function POST(request: NextRequest) {
                 },
                 turn_detection: {
                     type: "server_vad",
-                    threshold: 0.5,
+                    threshold: 0.8,
                     prefix_padding_ms: 300,
-                    silence_duration_ms: 500,
+                    silence_duration_ms: 600,
                     create_response: true,
                 },
             }),
