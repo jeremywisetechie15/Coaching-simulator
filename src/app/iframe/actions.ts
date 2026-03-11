@@ -69,7 +69,7 @@ export async function prepareIframeSession(params: PrepareParams): Promise<{
         scenarioId,
         mode = "standard",
         refSessionId,
-        model = "gpt-realtime",
+        model = "gpt-realtime-1.5",
         coachId,
         coachMode,
         step,
