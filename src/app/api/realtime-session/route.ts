@@ -5,11 +5,12 @@ import type { VoiceId, Persona } from "@/types";
 const OPENAI_REALTIME_SESSIONS_URL = "https://api.openai.com/v1/realtime/sessions";
 
 
-const DEFAULT_MODEL = "gpt-realtime";
+const DEFAULT_MODEL = "gpt-realtime-1.5";
 const VALID_MODELS = [
     "gpt-4o-mini-realtime-preview",
     "gpt-4o-realtime-preview",
     "gpt-realtime",
+    "gpt-realtime-1.5",
     "gpt-realtime-mini"
 ];
 

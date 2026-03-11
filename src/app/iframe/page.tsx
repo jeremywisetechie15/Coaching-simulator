@@ -62,7 +62,7 @@ export default async function IframePage({
             scenarioId={params.scenario_id}
             mode={params.mode || "standard"}
             refSessionId={params.ref_session_id}
-            model={params.model || "gpt-realtime"}
+            model={params.model || "gpt-realtime-1.5"}
             coachId={params.coach_id}
             coachMode={params.coach_mode as "before_training" | "after_training" | "notation" | undefined}
             step={params.step ? parseInt(params.step, 10) : undefined}
