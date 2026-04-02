@@ -33,6 +33,8 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
     const [hasVideoStream, setHasVideoStream] = useState(false);
     const [isMicMuted, setIsMicMuted] = useState(false);
     const [isCameraOff, setIsCameraOff] = useState(false);
+    const [liveMessages, setLiveMessages] = useState<ConversationMessage[]>([]);
+    const transcriptEndRef = useRef<HTMLDivElement | null>(null);
 
     // WebRTC refs
     const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -209,7 +211,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
         return () => cleanup();
     }, [cleanup]);
 
-    // Add message to ref (no DB save - done at the end)
+    // Add message to ref + update live state for real-time panel
     const addMessageToRef = useCallback((role: "user" | "assistant", content: string, eventId?: string) => {
         if (!content?.trim()) return;
         if (eventId && processedEventIds.current.has(eventId)) return;
@@ -219,13 +221,21 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
         const lastMessage = conversationRef.current[conversationRef.current.length - 1];
         if (lastMessage && lastMessage.role === role && lastMessage.content === trimmedContent) return;
 
-        conversationRef.current.push({
+        const newMessage: ConversationMessage = {
             role,
             content: trimmedContent,
             timestamp: new Date().toISOString(),
-        });
+        };
 
+        conversationRef.current.push(newMessage);
 
+        // Update live state to trigger re-render of transcript panel
+        setLiveMessages(prev => [...prev, newMessage]);
+
+        // Auto-scroll transcript panel
+        setTimeout(() => {
+            transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
+        }, 50);
     }, []);
 
     const handleRealtimeEvent = useCallback((event: { type: string;[key: string]: unknown }) => {
@@ -674,337 +684,492 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
         ? `Coach ${firstName} ${nameParts.slice(1).join(' ') || ''}`
         : `${firstName} ${lastName}`;
 
+    // Format timestamp HH:MM:SS for display
+    const formatTime = (iso: string) => {
+        const d = new Date(iso);
+        return `${d.getHours().toString().padStart(2, '0')}:${d.getMinutes().toString().padStart(2, '0')}:${d.getSeconds().toString().padStart(2, '0')}`;
+    };
+
+    const isSessionActive = status === "connecting" || status === "connected";
+
     return (
-        <div className="relative h-screen w-full bg-white flex flex-col overflow-hidden font-sans">
+        <div className="relative h-screen w-full bg-white flex flex-row overflow-hidden font-sans">
 
-            {/* Main Content Area - Different background for coach mode */}
-            <div
-                className="flex-1 relative rounded-3xl m-4 overflow-hidden shadow-inner"
-                style={isCoachMode ? {
-                    backgroundImage: 'url(/bg_coach_ai.png)',
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    backgroundRepeat: 'no-repeat'
-                } : {
-                    background: 'linear-gradient(to bottom right, #E8EEFF, #F0F4FF)'
-                }}
-            >
+            {/* Left column: call UI + controls */}
+            <div className="flex-1 flex flex-col overflow-hidden">
 
-                {/* Top Left: Persona Badge - Show for coach mode (always) or connected state */}
-                {(isCoachMode || status === "connecting" || status === "connected") && (
-                    <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 bg-[#333C4E] text-white px-3 py-1.5 rounded-lg shadow-lg">
-                        <Volume2 className="w-4 h-4 text-gray-300" />
-                        <span className="font-medium text-sm">{displayName}</span>
-                    </div>
-                )}
+                {/* Main Content Area - Different background for coach mode */}
+                <div
+                    className="flex-1 relative rounded-3xl m-4 overflow-hidden shadow-inner"
+                    style={isCoachMode ? {
+                        backgroundImage: 'url(/bg_coach_ai.png)',
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        backgroundRepeat: 'no-repeat'
+                    } : {
+                        background: 'linear-gradient(to bottom right, #E8EEFF, #F0F4FF)'
+                    }}
+                >
 
-                {/* Standard Mode: Ready State - Call Card Overlay */}
-                {status === "ready" && !isCoachMode && (
-                    <>
-                        {/* Blur Overlay */}
-                        <div className="absolute inset-0 bg-gray-500/30 backdrop-blur-sm z-20" />
+                    {/* Top Left: Persona Badge - Show for coach mode (always) or connected state */}
+                    {(isCoachMode || status === "connecting" || status === "connected") && (
+                        <div className="absolute top-2 left-2 z-20 flex items-center gap-1.5 bg-[#333C4E] text-white px-3 py-1.5 rounded-lg shadow-lg">
+                            <Volume2 className="w-4 h-4 text-gray-300" />
+                            <span className="font-medium text-sm">{displayName}</span>
+                        </div>
+                    )}
 
-                        {/* Call Card */}
-                        <div className="absolute inset-0 flex items-center justify-center z-30">
-                            <div className="bg-white rounded-2xl shadow-xl p-5 flex flex-col items-center text-center max-w-[85%] w-auto mx-4">
+                    {/* Standard Mode: Ready State - Call Card Overlay */}
+                    {status === "ready" && !isCoachMode && (
+                        <>
+                            {/* Blur Overlay */}
+                            <div className="absolute inset-0 bg-gray-500/30 backdrop-blur-sm z-20" />
 
-                                {/* Green Phone Icon */}
-                                <div className="mb-3">
-                                    <svg className="w-12 h-12 text-[#00D64F]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                        <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" strokeLinecap="round" strokeLinejoin="round" />
-                                    </svg>
+                            {/* Call Card */}
+                            <div className="absolute inset-0 flex items-center justify-center z-30">
+                                <div className="bg-white rounded-2xl shadow-xl p-5 flex flex-col items-center text-center max-w-[85%] w-auto mx-4">
+
+                                    {/* Green Phone Icon */}
+                                    <div className="mb-3">
+                                        <svg className="w-12 h-12 text-[#00D64F]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" strokeLinecap="round" strokeLinejoin="round" />
+                                        </svg>
+                                    </div>
+
+                                    <h2 className="text-lg text-gray-900 font-medium mb-1">Appel sortant</h2>
+
+                                    <div className="text-gray-900 text-base font-semibold mb-4">{firstName} {lastName}</div>
+
+                                    <button
+                                        onClick={startSession}
+                                        className="bg-[#00D64F] hover:bg-[#00c046] text-white text-sm font-semibold py-2.5 px-5 rounded-lg flex items-center justify-center gap-2 transition-all hover:shadow-md mb-3"
+                                    >
+                                        <Phone className="w-4 h-4" />
+                                        Démarrer la conversation
+                                    </button>
+
+                                    <p className="text-gray-400 text-xs leading-relaxed">
+                                        Préparez-vous, la conversation démarrera<br />immédiatement
+                                    </p>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {/* Coach Mode OR Connected State - Central Avatar */}
+                    {(isCoachMode || status === "connecting" || status === "connected") && (
+                        <div className="absolute inset-0 flex items-center justify-center">
+                            <div className="relative">
+                                {/* Sound Wave Rings - Only when AI is speaking */}
+                                {isAiSpeaking && (
+                                    <>
+                                        {/* Wave 1 - Innermost */}
+                                        <div
+                                            className="absolute rounded-full border-[3px] border-[#7C8FFF]"
+                                            style={{
+                                                inset: '-20px',
+                                                animation: 'wave-expand 2s ease-out infinite',
+                                            }}
+                                        />
+                                        {/* Wave 2 */}
+                                        <div
+                                            className="absolute rounded-full border-[3px] border-[#7C8FFF]"
+                                            style={{
+                                                inset: '-20px',
+                                                animation: 'wave-expand 2s ease-out infinite 0.5s',
+                                            }}
+                                        />
+                                        {/* Wave 3 */}
+                                        <div
+                                            className="absolute rounded-full border-[3px] border-[#7C8FFF]"
+                                            style={{
+                                                inset: '-20px',
+                                                animation: 'wave-expand 2s ease-out infinite 1s',
+                                            }}
+                                        />
+                                        {/* Wave 4 - Outermost */}
+                                        <div
+                                            className="absolute rounded-full border-[3px] border-[#7C8FFF]"
+                                            style={{
+                                                inset: '-20px',
+                                                animation: 'wave-expand 2s ease-out infinite 1.5s',
+                                            }}
+                                        />
+                                    </>
+                                )}
+
+                                {/* Static Ring when not speaking */}
+                                {!isAiSpeaking && (
+                                    <div className="absolute rounded-full border-4 border-[#C8D4FF]/50" style={{ inset: '-10px' }} />
+                                )}
+
+                                {/* Avatar Container */}
+                                <div
+                                    className="w-40 h-40 md:w-48 md:h-48 rounded-full border-4 overflow-hidden shadow-xl transition-all duration-300"
+                                    style={{
+                                        borderColor: isAiSpeaking ? '#7C8FFF' : 'white',
+                                        boxShadow: isAiSpeaking
+                                            ? '0 0 40px rgba(124, 143, 255, 0.4), 0 20px 40px -12px rgba(0, 0, 0, 0.25)'
+                                            : '0 20px 40px -12px rgba(0, 0, 0, 0.25)'
+                                    }}
+                                >
+                                    <img
+                                        src={config.avatarUrl || "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200&h=200"}
+                                        alt={config.personaName}
+                                        className="w-full h-full object-cover"
+                                    />
                                 </div>
 
-                                <h2 className="text-lg text-gray-900 font-medium mb-1">Appel sortant</h2>
+                                {/* Connecting Overlay */}
+                                {status === "connecting" && (
+                                    <div className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center">
+                                        <Loader2 className="w-10 h-10 text-white animate-spin" />
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
-                                <div className="text-gray-900 text-base font-semibold mb-4">{firstName} {lastName}</div>
+                    {/* Bottom Right: User Video Preview */}
+                    <div className="absolute bottom-4 right-4 z-20 w-56 h-40 bg-[#1E293B] rounded-xl overflow-hidden shadow-lg flex items-center justify-center">
+                        {/* User Badge */}
+                        <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 bg-black/40 px-2.5 py-1 rounded-md">
+                            <Camera className="w-4 h-4 text-white/70" />
+                            <span className="text-white/90 text-sm font-medium">Vous</span>
+                        </div>
 
+                        {/* Video Element - Only show when session is active and camera is on */}
+                        {(status === "connecting" || status === "connected") && hasVideoStream && !isCameraOff ? (
+                            <video
+                                ref={(el) => {
+                                    userVideoRef.current = el;
+                                    if (el && videoStreamRef.current) {
+                                        el.srcObject = videoStreamRef.current;
+                                    }
+                                }}
+                                autoPlay
+                                playsInline
+                                muted
+                                className="w-full h-full object-cover scale-x-[-1]"
+                            />
+                        ) : (
+                            /* Camera Off Icon - Show when not connected or camera is off */
+                            <VideoOff className="w-12 h-12 text-gray-500" />
+                        )}
+
+                        {/* Mic Active Indicator - Green when connected and not muted, Red when muted */}
+                        {(status === "connecting" || status === "connected") ? (
+                            <div className={`absolute bottom-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center ${isMicMuted ? 'bg-red-500' : 'bg-green-500'}`}>
+                                {isMicMuted ? (
+                                    <MicOff className="w-3.5 h-3.5 text-white" />
+                                ) : (
+                                    <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                                    </svg>
+                                )}
+                            </div>
+                        ) : (
+                            /* Mute Indicator - Red when not connected */
+                            <div className="absolute bottom-2.5 right-2.5 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center">
+                                <MicOff className="w-3.5 h-3.5 text-white" />
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Bottom Controls Bar */}
+                <div className="flex items-center justify-center gap-3 py-2 px-3">
+                    {/* Coach Mode: Simple Start/End Button */}
+                    {isCoachMode ? (
+                        <>
+                            {status === "ready" && (
                                 <button
                                     onClick={startSession}
-                                    className="bg-[#00D64F] hover:bg-[#00c046] text-white text-sm font-semibold py-2.5 px-5 rounded-lg flex items-center justify-center gap-2 transition-all hover:shadow-md mb-3"
+                                    className="bg-[#00D64F] hover:bg-[#00c046] text-white text-base font-semibold py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-all hover:shadow-lg shadow-md"
                                 >
-                                    <Phone className="w-4 h-4" />
+                                    <Phone className="w-5 h-5" />
                                     Démarrer la conversation
                                 </button>
-
-                                <p className="text-gray-400 text-xs leading-relaxed">
-                                    Préparez-vous, la conversation démarrera<br />immédiatement
-                                </p>
-                            </div>
-                        </div>
-                    </>
-                )}
-
-                {/* Coach Mode OR Connected State - Central Avatar */}
-                {(isCoachMode || status === "connecting" || status === "connected") && (
-                    <div className="absolute inset-0 flex items-center justify-center">
-                        <div className="relative">
-                            {/* Sound Wave Rings - Only when AI is speaking */}
-                            {isAiSpeaking && (
+                            )}
+                            {(status === "connecting" || status === "connected") && (
                                 <>
-                                    {/* Wave 1 - Innermost */}
-                                    <div
-                                        className="absolute rounded-full border-[3px] border-[#7C8FFF]"
-                                        style={{
-                                            inset: '-20px',
-                                            animation: 'wave-expand 2s ease-out infinite',
-                                        }}
-                                    />
-                                    {/* Wave 2 */}
-                                    <div
-                                        className="absolute rounded-full border-[3px] border-[#7C8FFF]"
-                                        style={{
-                                            inset: '-20px',
-                                            animation: 'wave-expand 2s ease-out infinite 0.5s',
-                                        }}
-                                    />
-                                    {/* Wave 3 */}
-                                    <div
-                                        className="absolute rounded-full border-[3px] border-[#7C8FFF]"
-                                        style={{
-                                            inset: '-20px',
-                                            animation: 'wave-expand 2s ease-out infinite 1s',
-                                        }}
-                                    />
-                                    {/* Wave 4 - Outermost */}
-                                    <div
-                                        className="absolute rounded-full border-[3px] border-[#7C8FFF]"
-                                        style={{
-                                            inset: '-20px',
-                                            animation: 'wave-expand 2s ease-out infinite 1.5s',
-                                        }}
-                                    />
+                                    {/* Timer */}
+                                    <div className="flex items-center gap-1.5 bg-gray-100 px-3 py-1.5 rounded-full">
+                                        <svg className="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <circle cx="12" cy="12" r="10" />
+                                            <polyline points="12 6 12 12 16 14" />
+                                        </svg>
+                                        <span className="text-gray-700 font-mono text-sm tabular-nums font-medium">
+                                            {formatDurationLong(sessionDuration)}
+                                        </span>
+                                    </div>
+
+                                    {/* Microphone Button - Toggle */}
+                                    <button
+                                        onClick={toggleMic}
+                                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shadow-md ${isMicMuted
+                                            ? 'bg-red-500 hover:bg-red-600 text-white'
+                                            : 'bg-[#00D64F] hover:bg-[#00c046] text-white'
+                                            }`}
+                                    >
+                                        {isMicMuted ? (
+                                            <MicOff className="w-5 h-5" />
+                                        ) : (
+                                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                                                <path d="M19 10v2a7 7 0 0 1-14 0v-2" fill="none" stroke="currentColor" strokeWidth="2" />
+                                                <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2" />
+                                                <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2" />
+                                            </svg>
+                                        )}
+                                    </button>
+
+                                    {/* Video Button - Toggle */}
+                                    <button
+                                        onClick={toggleCamera}
+                                        className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shadow-md ${isCameraOff
+                                            ? 'bg-red-500 hover:bg-red-600 text-white'
+                                            : 'bg-[#00D64F] hover:bg-[#00c046] text-white'
+                                            }`}
+                                    >
+                                        {isCameraOff ? (
+                                            <VideoOff className="w-5 h-5" />
+                                        ) : (
+                                            <Camera className="w-5 h-5" />
+                                        )}
+                                    </button>
+
+                                    {/* Pause Button */}
+                                    <button className="w-11 h-11 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-500 transition-all">
+                                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                                            <rect x="6" y="4" width="4" height="16" rx="1" />
+                                            <rect x="14" y="4" width="4" height="16" rx="1" />
+                                        </svg>
+                                    </button>
+
+                                    {/* Hangup Button */}
+                                    <button
+                                        onClick={endSession}
+                                        disabled={status !== "connected"}
+                                        className="w-11 h-11 bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed rounded-full flex items-center justify-center text-white transition-all shadow-md"
+                                    >
+                                        <PhoneOff className="w-5 h-5" />
+                                    </button>
                                 </>
                             )}
-
-                            {/* Static Ring when not speaking */}
-                            {!isAiSpeaking && (
-                                <div className="absolute rounded-full border-4 border-[#C8D4FF]/50" style={{ inset: '-10px' }} />
-                            )}
-
-                            {/* Avatar Container */}
-                            <div
-                                className="w-40 h-40 md:w-48 md:h-48 rounded-full border-4 overflow-hidden shadow-xl transition-all duration-300"
-                                style={{
-                                    borderColor: isAiSpeaking ? '#7C8FFF' : 'white',
-                                    boxShadow: isAiSpeaking
-                                        ? '0 0 40px rgba(124, 143, 255, 0.4), 0 20px 40px -12px rgba(0, 0, 0, 0.25)'
-                                        : '0 20px 40px -12px rgba(0, 0, 0, 0.25)'
-                                }}
-                            >
-                                <img
-                                    src={config.avatarUrl || "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200&h=200"}
-                                    alt={config.personaName}
-                                    className="w-full h-full object-cover"
-                                />
+                        </>
+                    ) : (
+                        /* Standard Mode: Full Controls */
+                        <>
+                            {/* Timer */}
+                            <div className="flex items-center gap-1.5 bg-gray-100 px-3 py-1.5 rounded-full">
+                                <svg className="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                    <circle cx="12" cy="12" r="10" />
+                                    <polyline points="12 6 12 12 16 14" />
+                                </svg>
+                                <span className="text-gray-700 font-mono text-sm tabular-nums font-medium">
+                                    {formatDurationLong(sessionDuration)}
+                                </span>
                             </div>
 
-                            {/* Connecting Overlay */}
-                            {status === "connecting" && (
-                                <div className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center">
-                                    <Loader2 className="w-10 h-10 text-white animate-spin" />
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
+                            {/* Microphone Button - Toggle */}
+                            <button
+                                onClick={toggleMic}
+                                className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shadow-md ${isMicMuted
+                                    ? 'bg-red-500 hover:bg-red-600 text-white'
+                                    : 'bg-[#00D64F] hover:bg-[#00c046] text-white'
+                                    }`}
+                            >
+                                {isMicMuted ? (
+                                    <MicOff className="w-5 h-5" />
+                                ) : (
+                                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                                        <path d="M19 10v2a7 7 0 0 1-14 0v-2" fill="none" stroke="currentColor" strokeWidth="2" />
+                                        <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2" />
+                                        <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2" />
+                                    </svg>
+                                )}
+                            </button>
 
-                {/* Bottom Right: User Video Preview */}
-                <div className="absolute bottom-4 right-4 z-20 w-56 h-40 bg-[#1E293B] rounded-xl overflow-hidden shadow-lg flex items-center justify-center">
-                    {/* User Badge */}
-                    <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 bg-black/40 px-2.5 py-1 rounded-md">
-                        <Camera className="w-4 h-4 text-white/70" />
-                        <span className="text-white/90 text-sm font-medium">Vous</span>
-                    </div>
+                            {/* Video Button - Toggle */}
+                            <button
+                                onClick={toggleCamera}
+                                className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isCameraOff
+                                    ? 'bg-red-500 hover:bg-red-600 text-white shadow-md'
+                                    : 'bg-[#00D64F] hover:bg-[#00c046] text-white shadow-md'
+                                    }`}
+                            >
+                                {isCameraOff ? (
+                                    <VideoOff className="w-5 h-5" />
+                                ) : (
+                                    <Camera className="w-5 h-5" />
+                                )}
+                            </button>
 
-                    {/* Video Element - Only show when session is active and camera is on */}
-                    {(status === "connecting" || status === "connected") && hasVideoStream && !isCameraOff ? (
-                        <video
-                            ref={(el) => {
-                                userVideoRef.current = el;
-                                if (el && videoStreamRef.current) {
-                                    el.srcObject = videoStreamRef.current;
-                                }
-                            }}
-                            autoPlay
-                            playsInline
-                            muted
-                            className="w-full h-full object-cover scale-x-[-1]"
-                        />
-                    ) : (
-                        /* Camera Off Icon - Show when not connected or camera is off */
-                        <VideoOff className="w-12 h-12 text-gray-500" />
-                    )}
-
-                    {/* Mic Active Indicator - Green when connected and not muted, Red when muted */}
-                    {(status === "connecting" || status === "connected") ? (
-                        <div className={`absolute bottom-2.5 right-2.5 w-7 h-7 rounded-full flex items-center justify-center ${isMicMuted ? 'bg-red-500' : 'bg-green-500'}`}>
-                            {isMicMuted ? (
-                                <MicOff className="w-3.5 h-3.5 text-white" />
-                            ) : (
-                                <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                            {/* Pause Button */}
+                            <button className="w-11 h-11 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-500 transition-all">
+                                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
+                                    <rect x="6" y="4" width="4" height="16" rx="1" />
+                                    <rect x="14" y="4" width="4" height="16" rx="1" />
                                 </svg>
-                            )}
-                        </div>
-                    ) : (
-                        /* Mute Indicator - Red when not connected */
-                        <div className="absolute bottom-2.5 right-2.5 w-7 h-7 bg-red-500 rounded-full flex items-center justify-center">
-                            <MicOff className="w-3.5 h-3.5 text-white" />
-                        </div>
+                            </button>
+
+                            {/* Hangup Button */}
+                            <button
+                                onClick={endSession}
+                                disabled={status !== "connected"}
+                                className="w-11 h-11 bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed rounded-full flex items-center justify-center text-white transition-all shadow-md"
+                            >
+                                <PhoneOff className="w-5 h-5" />
+                            </button>
+                        </>
                     )}
                 </div>
-            </div>
 
-            {/* Bottom Controls Bar */}
-            <div className="flex items-center justify-center gap-3 py-2 px-3">
-                {/* Coach Mode: Simple Start/End Button */}
-                {isCoachMode ? (
-                    <>
-                        {status === "ready" && (
-                            <button
-                                onClick={startSession}
-                                className="bg-[#00D64F] hover:bg-[#00c046] text-white text-base font-semibold py-3 px-6 rounded-lg flex items-center justify-center gap-2 transition-all hover:shadow-lg shadow-md"
-                            >
-                                <Phone className="w-5 h-5" />
-                                Démarrer la conversation
-                            </button>
-                        )}
-                        {(status === "connecting" || status === "connected") && (
-                            <>
-                                {/* Timer */}
-                                <div className="flex items-center gap-1.5 bg-gray-100 px-3 py-1.5 rounded-full">
-                                    <svg className="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <circle cx="12" cy="12" r="10" />
-                                        <polyline points="12 6 12 12 16 14" />
-                                    </svg>
-                                    <span className="text-gray-700 font-mono text-sm tabular-nums font-medium">
-                                        {formatDurationLong(sessionDuration)}
-                                    </span>
-                                </div>
+            </div>{/* end left column */}
 
-                                {/* Microphone Button - Toggle */}
-                                <button
-                                    onClick={toggleMic}
-                                    className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shadow-md ${isMicMuted
-                                        ? 'bg-red-500 hover:bg-red-600 text-white'
-                                        : 'bg-[#00D64F] hover:bg-[#00c046] text-white'
-                                        }`}
-                                >
-                                    {isMicMuted ? (
-                                        <MicOff className="w-5 h-5" />
-                                    ) : (
-                                        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                                            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                                            <path d="M19 10v2a7 7 0 0 1-14 0v-2" fill="none" stroke="currentColor" strokeWidth="2" />
-                                            <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2" />
-                                            <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2" />
-                                        </svg>
-                                    )}
-                                </button>
-
-                                {/* Video Button - Toggle */}
-                                <button
-                                    onClick={toggleCamera}
-                                    className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shadow-md ${isCameraOff
-                                        ? 'bg-red-500 hover:bg-red-600 text-white'
-                                        : 'bg-[#00D64F] hover:bg-[#00c046] text-white'
-                                        }`}
-                                >
-                                    {isCameraOff ? (
-                                        <VideoOff className="w-5 h-5" />
-                                    ) : (
-                                        <Camera className="w-5 h-5" />
-                                    )}
-                                </button>
-
-                                {/* Pause Button */}
-                                <button className="w-11 h-11 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-500 transition-all">
-                                    <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                                        <rect x="6" y="4" width="4" height="16" rx="1" />
-                                        <rect x="14" y="4" width="4" height="16" rx="1" />
-                                    </svg>
-                                </button>
-
-                                {/* Hangup Button */}
-                                <button
-                                    onClick={endSession}
-                                    disabled={status !== "connected"}
-                                    className="w-11 h-11 bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed rounded-full flex items-center justify-center text-white transition-all shadow-md"
-                                >
-                                    <PhoneOff className="w-5 h-5" />
-                                </button>
-                            </>
-                        )}
-                    </>
-                ) : (
-                    /* Standard Mode: Full Controls */
-                    <>
-                        {/* Timer */}
-                        <div className="flex items-center gap-1.5 bg-gray-100 px-3 py-1.5 rounded-full">
-                            <svg className="w-4 h-4 text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="12" cy="12" r="10" />
-                                <polyline points="12 6 12 12 16 14" />
-                            </svg>
-                            <span className="text-gray-700 font-mono text-sm tabular-nums font-medium">
-                                {formatDurationLong(sessionDuration)}
+            {/* Live Transcript Panel — masqué pour le mode persona standard */}
+            {!(config.mode === "standard" && !config.coachMode) && (
+                <div
+                    style={{
+                        width: '320px',
+                        minWidth: '280px',
+                        height: '100%',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        backgroundColor: '#F8F9FB',
+                        borderLeft: '1px solid #E5E7EB',
+                    }}
+                >
+                    {/* Header */}
+                    <div style={{
+                        padding: '16px',
+                        borderBottom: '1px solid #E5E7EB',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        backgroundColor: '#FFFFFF',
+                    }}>
+                        {/* Live dot */}
+                        <div style={{
+                            width: '8px',
+                            height: '8px',
+                            borderRadius: '50%',
+                            backgroundColor: isSessionActive ? '#22C55E' : '#9CA3AF',
+                            boxShadow: isSessionActive ? '0 0 0 2px rgba(34,197,94,0.25)' : 'none',
+                            animation: isSessionActive ? 'pulse 2s infinite' : 'none',
+                        }} />
+                        <span style={{ fontSize: '14px', fontWeight: 600, color: '#111827' }}>
+                            Live Transcription
+                        </span>
+                        {liveMessages.length > 0 && (
+                            <span style={{
+                                marginLeft: 'auto',
+                                fontSize: '11px',
+                                color: '#9CA3AF',
+                                backgroundColor: '#F3F4F6',
+                                padding: '2px 8px',
+                                borderRadius: '9999px',
+                            }}>
+                                {liveMessages.length} msg
                             </span>
-                        </div>
+                        )}
+                    </div>
 
-                        {/* Microphone Button - Toggle */}
-                        <button
-                            onClick={toggleMic}
-                            className={`w-11 h-11 rounded-full flex items-center justify-center transition-all shadow-md ${isMicMuted
-                                ? 'bg-red-500 hover:bg-red-600 text-white'
-                                : 'bg-[#00D64F] hover:bg-[#00c046] text-white'
-                                }`}
-                        >
-                            {isMicMuted ? (
-                                <MicOff className="w-5 h-5" />
-                            ) : (
-                                <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                                    <path d="M19 10v2a7 7 0 0 1-14 0v-2" fill="none" stroke="currentColor" strokeWidth="2" />
-                                    <line x1="12" y1="19" x2="12" y2="23" stroke="currentColor" strokeWidth="2" />
-                                    <line x1="8" y1="23" x2="16" y2="23" stroke="currentColor" strokeWidth="2" />
+                    {/* Messages list */}
+                    <div style={{
+                        flex: 1,
+                        overflowY: 'auto',
+                        padding: '12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '12px',
+                    }}>
+                        {liveMessages.length === 0 ? (
+                            <div style={{
+                                flex: 1,
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                color: '#9CA3AF',
+                                paddingTop: '40px',
+                            }}>
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
                                 </svg>
-                            )}
-                        </button>
-
-                        {/* Video Button - Toggle */}
-                        <button
-                            onClick={toggleCamera}
-                            className={`w-11 h-11 rounded-full flex items-center justify-center transition-all ${isCameraOff
-                                ? 'bg-red-500 hover:bg-red-600 text-white shadow-md'
-                                : 'bg-[#00D64F] hover:bg-[#00c046] text-white shadow-md'
-                                }`}
-                        >
-                            {isCameraOff ? (
-                                <VideoOff className="w-5 h-5" />
-                            ) : (
-                                <Camera className="w-5 h-5" />
-                            )}
-                        </button>
-
-                        {/* Pause Button */}
-                        <button className="w-11 h-11 bg-gray-100 hover:bg-gray-200 rounded-full flex items-center justify-center text-gray-500 transition-all">
-                            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
-                                <rect x="6" y="4" width="4" height="16" rx="1" />
-                                <rect x="14" y="4" width="4" height="16" rx="1" />
-                            </svg>
-                        </button>
-
-                        {/* Hangup Button */}
-                        <button
-                            onClick={endSession}
-                            disabled={status !== "connected"}
-                            className="w-11 h-11 bg-red-500 hover:bg-red-600 disabled:bg-red-300 disabled:cursor-not-allowed rounded-full flex items-center justify-center text-white transition-all shadow-md"
-                        >
-                            <PhoneOff className="w-5 h-5" />
-                        </button>
-                    </>
-                )}
-            </div>
+                                <span style={{ fontSize: '13px', textAlign: 'center' }}>
+                                    {isSessionActive ? 'En attente des messages...' : 'Démarrez une session'}
+                                </span>
+                            </div>
+                        ) : (
+                            liveMessages.map((msg, idx) => {
+                                const isUser = msg.role === "user";
+                                // Nom du speaker IA selon le mode
+                                const aiName = config.coachMode === "persona_variant"
+                                    ? config.personaName  // avis du persona → nom prénom du persona
+                                    : "Coach AI";          // tous les modes coach → "Coach AI"
+                                const speakerName = isUser ? "Vous" : aiName;
+                                return (
+                                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                                        {/* Speaker + time */}
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                            {/* Avatar */}
+                                            <div style={{
+                                                width: '24px',
+                                                height: '24px',
+                                                borderRadius: '50%',
+                                                backgroundColor: isUser ? '#E5E7EB' : '#EEF2FF',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                flexShrink: 0,
+                                            }}>
+                                                {isUser ? (
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="#6B7280">
+                                                        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                                                        <circle cx="12" cy="7" r="4" />
+                                                    </svg>
+                                                ) : (
+                                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="#6366F1">
+                                                        <circle cx="12" cy="12" r="10" />
+                                                        <path d="M8 14s1.5 2 4 2 4-2 4-2" stroke="white" strokeWidth="1.5" fill="none" />
+                                                        <line x1="9" y1="9" x2="9.01" y2="9" stroke="white" strokeWidth="2" />
+                                                        <line x1="15" y1="9" x2="15.01" y2="9" stroke="white" strokeWidth="2" />
+                                                    </svg>
+                                                )}
+                                            </div>
+                                            <span style={{ fontSize: '12px', fontWeight: 600, color: isUser ? '#374151' : '#4F46E5' }}>
+                                                {speakerName}
+                                            </span>
+                                            <span style={{ fontSize: '11px', color: '#9CA3AF', marginLeft: '2px' }}>
+                                                {formatTime(msg.timestamp)}
+                                            </span>
+                                        </div>
+                                        {/* Bubble */}
+                                        <div style={{
+                                            marginLeft: '30px',
+                                            padding: '10px 12px',
+                                            borderRadius: '0 10px 10px 10px',
+                                            backgroundColor: isUser ? '#FFFFFF' : '#EEF2FF',
+                                            border: isUser ? '1px solid #E5E7EB' : '1px solid #C7D2FE',
+                                            fontSize: '13px',
+                                            color: '#1F2937',
+                                            lineHeight: '1.5',
+                                            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                                        }}>
+                                            {msg.content}
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
+                        <div ref={transcriptEndRef} />
+                    </div>
+                </div>
+            )}{/* end transcript panel */}
         </div>
     );
 }
