@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 const LIVEAVATAR_API = "https://api.liveavatar.com";
-const DEFAULT_COACH_AVATAR_ID = "073b60a9-89a8-45aa-8902-c358f64d2852";
+const DEFAULT_COACH_AVATAR_ID = "e9844e6d-847e-4964-a92b-7ecd066f69df";
 const LIVEAVATAR_SUCCESS_CODE = 1000;
 const DEFAULT_LLM_MODEL = "gpt-4o-mini";
 
