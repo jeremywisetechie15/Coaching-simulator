@@ -55,6 +55,15 @@ const FALLBACK_PERSONA_VARIANT_FEEDBACK_PROMPT = `Après notre dernière convers
 
 Tu parles à la première personne en restant dans ton personnage ("j'ai trouvé que...", "Personnellement, je pense que...").`;
 
+const COACH_CONTEXT_GUARDRAILS = `
+
+RÈGLES DE CONTEXTE:
+- Tu disposes déjà du contexte utile dans tes instructions système.
+- Ne demande jamais à l'utilisateur de te redonner le contexte du scénario, le transcript, l'historique ou "ce qui s'est passé".
+- Ne dis jamais que tu n'as pas le contexte si celui-ci est fourni ci-dessous.
+- Si une information précise manque vraiment, pose uniquement une question ciblée sur ce point précis, sans demander un contexte global.
+- Réponds directement comme si tu connaissais déjà la conversation et le scénario fournis.`;
+
 // Note: Les prompts sont stockés dans la table 'prompts' de la DB
 // Titres: coach.before_training, coach.after_training, coach.notation.synthese, persona.variant.feedback
 // Les descriptions des étapes sont maintenant stockées dans le champ coaching_steps de la table sessions
@@ -144,6 +153,7 @@ Contexte du scénario à préparer:
 - Description : ${scenario.description || "Aucune description disponible"}
 
 ${coachingStepsText ? `Voici toutes les étapes de cette session de coaching:\n${coachingStepsText}\n` : ""}${step ? `\n**IMPORTANT: Tu dois te concentrer UNIQUEMENT sur l'étape numéro ${step}.**\nNe parle pas des autres étapes, concentre-toi exclusivement sur l'étape ${step}.` : ""}
+${COACH_CONTEXT_GUARDRAILS}
 `;
 
                 console.log("📝 Coach mode: before_training, step:", step, "coaching_steps:", coachingStepsText ? "present" : "none");
@@ -181,7 +191,6 @@ ${coachingStepsText ? `Voici toutes les étapes de cette session de coaching:\n$
                     .single();
 
                 const basePrompt = promptData?.prompt || FALLBACK_AFTER_TRAINING_PROMPT;
-                console.log(basePrompt);
 
                 // Fetch scenario avec coaching_steps
                 const { data: scenario, error: scenarioError } = await supabase
@@ -242,6 +251,7 @@ Voici le transcript complet de la session à analyser:
 ---
 ${transcript}
 ---
+${COACH_CONTEXT_GUARDRAILS}
 `;
 
                 console.log("📝 Coach mode: after_training, step:", step, "session:", effectiveSessionId, "coaching_steps:", coachingStepsText ? "present" : "none", "scenario:", scenario ? "scenario found" : "scenario not found", transcript ? "transcript found" : "transcript not found");
@@ -279,7 +289,6 @@ ${transcript}
                     .single();
 
                 const basePrompt = promptData?.prompt || FALLBACK_NOTATION_SYNTHESE_PROMPT;
-                console.log("📝 Coach notation mode - base prompt loaded,basePrompt:", basePrompt);
 
                 // Fetch scenario
                 const { data: scenario, error: scenarioError } = await supabase
@@ -310,7 +319,6 @@ ${transcript}
 
                 const effectiveSessionId = latestSession.id;
                 const notationJson = latestSession.notation_json as Record<string, unknown> | null;
-                console.log(notationJson);
 
                 // Extract appreciation_globale.texte from synthese
                 let appreciationGlobaleTexte = "Aucune appréciation globale disponible.";
@@ -337,7 +345,6 @@ ${transcript}
                         .map(m => `[${m.role === "user" ? "Utilisateur" : "Persona"}]: ${m.content}`)
                         .join("\n");
                 }
-                console.log(appreciationGlobaleTexte);
 
                 const systemInstructions = `${basePrompt}
 
@@ -357,6 +364,7 @@ ${transcript}
 
 IMPORTANT: Commence par partager ton appréciation globale avec l'apprenant. Sois bienveillante mais honnête. 
 Parle à la première personne ("J'ai remarqué que...", "De mon analyse...", "Ce que j'ai apprécié...").
+${COACH_CONTEXT_GUARDRAILS}
 `;
 
                 console.log("📝 Coach mode: notation, session:", effectiveSessionId, "appreciation extracted:", appreciationGlobaleTexte ? "yes" : "no");
@@ -439,9 +447,9 @@ Voici le transcript complet de la session précédente pour t'aider à mieux coa
 ---
 ${transcript}
 ---
+${COACH_CONTEXT_GUARDRAILS}
 `;
             console.log("📝 Coach mode - Using coach:", coach.name);
-            console.log("📝 Coach systemInstructions:", systemInstructions);
 
             return {
                 success: true,

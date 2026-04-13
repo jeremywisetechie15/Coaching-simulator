@@ -1,4 +1,5 @@
 import IframeClient from "./IframeClient";
+import CoachHeygenClient from "./coach-full-mode/CoachHeygenClient";
 import { AlertCircle } from "lucide-react";
 
 // Force dynamic rendering to ensure searchParams work correctly
@@ -16,6 +17,7 @@ export default async function IframePage({
         coach_mode?: string;  // "before_training" | "after_training" | "notation"
         step?: string;        // "1" | "2" | "3" | "4"
         variant?: string;     // "coach" (pour mode persona avec coaching)
+        coach_provider?: string;
     }>;
 }) {
     // Await the searchParams on the server
@@ -57,6 +59,22 @@ export default async function IframePage({
         );
     }
 
+    const shouldUseCoachHeygen = isCoachMode && params.coach_provider !== "legacy";
+
+    if (shouldUseCoachHeygen) {
+        return (
+            <CoachHeygenClient
+                scenarioId={params.scenario_id}
+                mode={params.mode || "coach"}
+                refSessionId={params.ref_session_id}
+                model={params.model || "gpt-realtime-1.5"}
+                coachId={params.coach_id}
+                coachMode={params.coach_mode as "before_training" | "after_training" | "notation" | undefined}
+                step={params.step ? parseInt(params.step, 10) : undefined}
+            />
+        );
+    }
+
     return (
         <IframeClient
             scenarioId={params.scenario_id}
@@ -70,4 +88,3 @@ export default async function IframePage({
         />
     );
 }
-
