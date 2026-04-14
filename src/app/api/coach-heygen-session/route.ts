@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 const LIVEAVATAR_API = "https://api.liveavatar.com";
 const DEFAULT_COACH_AVATAR_ID = "d1b25f7e-ef00-455b-af2f-62c84254924a";
 const LIVEAVATAR_SUCCESS_CODE = 1000;
-const DEFAULT_LLM_MODEL = "gpt-4.1";
+const DEFAULT_LLM_MODEL = "gpt-5.4-mini";
 
 interface CoachHeygenSessionRequest {
     systemInstructions?: string;
