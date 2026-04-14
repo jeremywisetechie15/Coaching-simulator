@@ -40,19 +40,6 @@ const cleanEnv = (value?: string | null): string | undefined => {
     return trimmed ? trimmed : undefined;
 };
 
-const buildOpeningText = (coachMode?: CoachHeygenSessionRequest["coachMode"]): string => {
-    switch (coachMode) {
-        case "before_training":
-            return "Bonjour, préparons ensemble votre prochaine session.";
-        case "after_training":
-            return "Bonjour, analysons ensemble votre dernière session.";
-        case "notation":
-            return "Bonjour, je vais vous partager mon appréciation globale de votre session.";
-        default:
-            return "Bonjour, je suis prête à commencer cette session de coaching.";
-    }
-};
-
 const extractErrorMessage = (payload: unknown, fallback: string): string => {
     if (isRecord(payload) && typeof payload.message === "string" && payload.message.trim()) {
         return payload.message;
@@ -168,7 +155,7 @@ async function createElevenLabsVoice(
 export async function POST(request: NextRequest) {
     try {
         const body = (await request.json()) as CoachHeygenSessionRequest;
-        const { systemInstructions, scenarioTitle, coachMode, model } = body;
+        const { systemInstructions, scenarioTitle, model } = body;
 
         if (!systemInstructions?.trim()) {
             return NextResponse.json(
@@ -279,7 +266,6 @@ export async function POST(request: NextRequest) {
                 body: JSON.stringify({
                     name: `Coach ${String(scenarioTitle || "Session").slice(0, 50)} ${Date.now()}`,
                     prompt: systemInstructions,
-                    opening_text: buildOpeningText(coachMode),
                 }),
             },
             "Failed to create context",
