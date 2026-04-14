@@ -266,6 +266,7 @@ export async function POST(request: NextRequest) {
                 body: JSON.stringify({
                     name: `Coach ${String(scenarioTitle || "Session").slice(0, 50)} ${Date.now()}`,
                     prompt: systemInstructions,
+                    opening_text: "Bonjour Paul",
                 }),
             },
             "Failed to create context",
