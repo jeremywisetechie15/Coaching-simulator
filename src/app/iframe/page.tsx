@@ -1,5 +1,5 @@
-import IframeClient from "./IframeClient";
-import CoachHeygenClient from "./coach-full-mode/CoachHeygenClient";
+// import IframeClient from "./IframeClient";
+// import CoachHeygenClient from "./coach-full-mode/CoachHeygenClient";
 import { AlertCircle } from "lucide-react";
 
 // Force dynamic rendering to ensure searchParams work correctly
