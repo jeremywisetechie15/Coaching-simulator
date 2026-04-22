@@ -623,13 +623,13 @@ export default function CoachHeygenClient({
                                 </div>
                                 <h2 className="mb-1 text-lg font-medium text-gray-900">Coach en attente</h2>
                                 <p className="mb-5 text-sm text-gray-500">{config.scenarioTitle}</p>
-                                {/* <button
+                                <button
                                     onClick={startSession}
                                     className="mb-3 flex items-center gap-2 rounded-lg bg-[#00D64F] px-5 py-3 text-sm font-semibold text-white transition-all hover:bg-[#00c046] hover:shadow-md"
                                 >
                                     <Phone className="h-4 w-4" />
                                     Démarrer la conversation
-                                </button> */}
+                                </button>
                             </div>
                         </div>
                     )}
