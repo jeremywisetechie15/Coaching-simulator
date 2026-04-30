@@ -165,17 +165,17 @@ function injectScoreGlobal(notation: NotationPayload, roundStep: 1 | 5 = 5) {
 
 // =============================================
 // POST /api/notation
-// Body: { session_id } ou { scenario_id }
+// Body: { session_id } ou { scenario_id } ou { persona_id }
 // Génère les 4 notations et les sauvegarde
 // =============================================
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { session_id, scenario_id } = body;
+        const { session_id, scenario_id, persona_id } = body;
 
-        if (!session_id && !scenario_id) {
+        if (!session_id && !scenario_id && !persona_id) {
             return setCorsHeaders(
-                NextResponse.json({ error: "session_id ou scenario_id requis" }, { status: 400 })
+                NextResponse.json({ error: "session_id, scenario_id ou persona_id requis" }, { status: 400 })
             );
         }
 
@@ -196,20 +196,28 @@ export async function POST(req: Request) {
         let scenarioTitle = "";
         let scenarioDescription = "";
 
-        if (!effectiveSessionId && scenario_id) {
-            // Cas: scenario_id fourni, on cherche la dernière session
-            const { data: latestSession, error: sessionError } = await supabase
+        if (!effectiveSessionId && (scenario_id || persona_id)) {
+            // Cas: scenario_id/persona_id fourni, on cherche la dernière session correspondante
+            let latestSessionQuery = supabase
                 .from('sessions')
-                .select('id, scenarios(title, description)')
-                .eq('scenario_id', scenario_id)
+                .select('id, scenarios!inner(title, description, persona_id)')
                 .eq('status', 'completed')
                 .order('created_at', { ascending: false })
-                .limit(1)
-                .single();
+                .limit(1);
+
+            if (scenario_id) {
+                latestSessionQuery = latestSessionQuery.eq('scenario_id', scenario_id);
+            }
+
+            if (persona_id) {
+                latestSessionQuery = latestSessionQuery.eq('scenarios.persona_id', persona_id);
+            }
+
+            const { data: latestSession, error: sessionError } = await latestSessionQuery.single();
 
             if (sessionError || !latestSession) {
                 return setCorsHeaders(
-                    NextResponse.json({ error: "Aucune session complétée trouvée pour ce scénario" }, { status: 404 })
+                    NextResponse.json({ error: "Aucune session complétée trouvée pour cette sélection" }, { status: 404 })
                 );
             }
             effectiveSessionId = latestSession.id;
@@ -452,17 +460,18 @@ Analyse cet appel et réponds uniquement avec un JSON valide.`
 }
 
 // =============================================
-// GET /api/notation?scenario_id=XXX
-// Retourne le notation_json de la dernière session du scénario
+// GET /api/notation?scenario_id=XXX ou ?persona_id=XXX
+// Retourne le notation_json de la dernière session du scénario/persona
 // =============================================
 export async function GET(req: Request) {
     try {
         const { searchParams } = new URL(req.url);
         const scenarioId = searchParams.get('scenario_id');
+        const personaId = searchParams.get('persona_id');
 
-        if (!scenarioId) {
+        if (!scenarioId && !personaId) {
             return setCorsHeaders(
-                NextResponse.json({ error: "scenario_id requis" }, { status: 400 })
+                NextResponse.json({ error: "scenario_id ou persona_id requis" }, { status: 400 })
             );
         }
 
@@ -477,8 +486,8 @@ export async function GET(req: Request) {
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-        // Récupérer la dernière session complétée du scénario avec le persona
-        const { data: session, error } = await supabase
+        // Récupérer la dernière session complétée de la sélection avec le persona
+        let sessionQuery = supabase
             .from('sessions')
             .select(`
                 id, 
@@ -486,25 +495,36 @@ export async function GET(req: Request) {
                 notation_json, 
                 created_at, 
                 duration_seconds,
-                scenarios(
+                scenarios!inner(
+                    id,
                     title, 
                     description,
+                    persona_id,
                     difficulty_level,
                     personas(name, role, company)
                 )
             `)
-            .eq('scenario_id', scenarioId)
             .eq('status', 'completed')
             .not('notation_json', 'is', null)
             .order('created_at', { ascending: false })
-            .limit(1)
-            .single();
+            .limit(1);
+
+        if (scenarioId) {
+            sessionQuery = sessionQuery.eq('scenario_id', scenarioId);
+        }
+
+        if (personaId) {
+            sessionQuery = sessionQuery.eq('scenarios.persona_id', personaId);
+        }
+
+        const { data: session, error } = await sessionQuery.single();
 
         if (error || !session) {
             return setCorsHeaders(
                 NextResponse.json({
-                    error: "Aucune session avec notation trouvée pour ce scénario",
-                    scenario_id: scenarioId
+                    error: "Aucune session avec notation trouvée pour cette sélection",
+                    scenario_id: scenarioId,
+                    persona_id: personaId
                 }, { status: 404 })
             );
         }
@@ -544,8 +564,10 @@ export async function GET(req: Request) {
 
         // Extraction des données du scénario et persona
         const scenario = session.scenarios as unknown as {
+            id: string;
             title: string;
             description: string | null;
+            persona_id: string;
             difficulty_level: string | null;
             personas: { name: string; role: string | null; company: string | null } | null;
         } | null;
@@ -556,6 +578,7 @@ export async function GET(req: Request) {
             success: true,
             session_id: session.id,
             scenario_id: session.scenario_id,
+            persona_id: scenario?.persona_id || null,
             scenario_title: scenario?.title || null,
             created_at: session.created_at,
             call_metadata: {
