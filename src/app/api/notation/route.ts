@@ -18,11 +18,12 @@ const NOTATION_TABS = ['synthese', 'methodo', 'discours', 'transcription'] as co
 type NotationTab = typeof NOTATION_TABS[number];
 
 // Types pour le calcul de score global
-type DagoCode = "D" | "A" | "G" | "O";
+type MethodoCode = "A" | "C" | "D";
+type MethodoStepKey = "accueillir" | "cadrer" | "decouvrir" | "confirmer";
 
 type MethodoEtape = {
     numero?: number;
-    code?: DagoCode;
+    code?: MethodoCode | string;
     titre: string;
     score: number; // 0..100
     score_max?: number; // 100
@@ -44,12 +45,34 @@ type NotationPayload = {
     transcription?: Record<string, unknown>;
 };
 
+const METHOD_STEPS: Array<{
+    key: MethodoStepKey;
+    code: MethodoCode;
+    etape: string;
+    poids: number;
+    numero: number;
+    aliases: string[];
+}> = [
+        { key: "accueillir", code: "A", etape: "Accueillir", poids: 0.15, numero: 1, aliases: ["accueillir", "accueil"] },
+        { key: "cadrer", code: "C", etape: "Cadrer", poids: 0.20, numero: 2, aliases: ["cadrer", "cadrage"] },
+        { key: "decouvrir", code: "D", etape: "Découvrir", poids: 0.40, numero: 3, aliases: ["decouvrir", "decouverte"] },
+        { key: "confirmer", code: "C", etape: "Confirmer", poids: 0.25, numero: 4, aliases: ["confirmer", "confirmation"] },
+    ];
+
 const SCORE_WEIGHTS = {
-    demarrer_passer_barrage: 0.20,
-    accrocher: 0.30,
-    gerer_objections: 0.25,
-    obtenir_rendez_vous: 0.25,
+    accueillir: 0.15,
+    cadrer: 0.20,
+    decouvrir: 0.40,
+    confirmer: 0.25,
 } as const;
+
+// Ancienne méthode DAGO conservée en référence si besoin de la réactiver :
+// const DAGO_METHOD_STEPS = [
+//     { key: "demarrer_passer_barrage", code: "D", etape: "Démarrer et passer le barrage", poids: 0.20 },
+//     { key: "accrocher", code: "A", etape: "Accrocher", poids: 0.30 },
+//     { key: "gerer_objections", code: "G", etape: "Gérer les objections", poids: 0.25 },
+//     { key: "obtenir_rendez_vous", code: "O", etape: "Obtenir le rendez-vous", poids: 0.25 },
+// ] as const;
 
 // --- Fonctions utilitaires pour le calcul de score ---
 function clamp0_100(n: number) {
@@ -72,92 +95,117 @@ function niveauPerformance(score: number) {
     return "excellent";
 }
 
-function buildInterpretation(detail: Array<{ code: DagoCode; score_etape: number; poids: number }>) {
-    const poidsManquants = detail.filter(d => d.score_etape === 0).reduce((acc, d) => acc + d.poids, 0);
-    const poidsManquantsPct = Math.round(poidsManquants * 100);
-
-    const d = detail.find(x => x.code === "D")?.score_etape ?? 0;
-    const a = detail.find(x => x.code === "A")?.score_etape ?? 0;
-    const g = detail.find(x => x.code === "G")?.score_etape ?? 0;
-    const o = detail.find(x => x.code === "O")?.score_etape ?? 0;
-
-    const lacunes: string[] = [];
-    if (a === 0) lacunes.push("la phase d'accroche (0%)");
-    if (o === 0) lacunes.push("l'obtention du rendez-vous (0%)");
-    const lacunesTxt = lacunes.length ? lacunes.join(" et ") : "certaines étapes clés";
-
-    return `L'appel présente des lacunes importantes dans ${lacunesTxt}, qui pèsent lourdement sur le score global (${poidsManquantsPct}% du poids total). Malgré un démarrage (${d}%) et une gestion des objections (${g}%), l'absence d'accroche et/ou de closing structuré limite fortement l'efficacité commerciale.`;
+function normalizeText(text: string) {
+    return text
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase();
 }
 
-function getScoreFromEtapes(etapes: MethodoEtape[], code: DagoCode): number {
-    const byCode = etapes.find(e => e.code === code);
-    if (byCode) return clamp0_100(byCode.score);
+function titleHasStepPrefix(title: string, numero: number) {
+    return new RegExp(`^\\s*${numero}\\s*[.)\\-—:]`).test(title);
+}
 
-    const prefix = code === "D" ? 1 : code === "A" ? 2 : code === "G" ? 3 : 4;
-    const byPrefix = etapes.find(e => new RegExp(`^\\s*${prefix}\\s*[—-]`).test(e.titre));
-    return clamp0_100(byPrefix?.score ?? 0);
+function inferStepFromEtape(etape: MethodoEtape, index?: number) {
+    const normalizedTitle = normalizeText(etape.titre || "");
+
+    const byNumberOrTitle = METHOD_STEPS.find(step =>
+        etape.numero === step.numero ||
+        titleHasStepPrefix(etape.titre || "", step.numero) ||
+        step.aliases.some(alias => normalizedTitle.includes(alias))
+    );
+
+    if (byNumberOrTitle) return byNumberOrTitle;
+
+    if (typeof index === "number" && METHOD_STEPS[index]) {
+        return METHOD_STEPS[index];
+    }
+
+    return METHOD_STEPS.find(step => step.code === etape.code && step.code !== "C");
+}
+
+function getScoreFromEtapes(etapes: MethodoEtape[], key: MethodoStepKey): number {
+    const step = METHOD_STEPS.find(item => item.key === key);
+    if (!step) return 0;
+
+    const byStep = etapes.find((etape, index) => inferStepFromEtape(etape, index)?.key === key);
+    return clamp0_100(byStep?.score ?? 0);
+}
+
+function buildInterpretation(
+    detail: Array<{ etape: string; score_etape: number }>,
+    global: number
+) {
+    const niveau = niveauPerformance(global);
+    const strengths = detail.filter(d => d.score_etape >= 80);
+    const weaknesses = detail.filter(d => d.score_etape < 66);
+
+    const formatList = (items: Array<{ etape: string; score_etape: number }>) =>
+        items.map(item => `${item.etape.toLowerCase()} (${item.score_etape}%)`).join(" et ");
+
+    if (strengths.length > 0 && weaknesses.length > 0) {
+        return `L'entretien présente une performance globalement ${niveau} grâce à ${formatList(strengths)}. En revanche, ${formatList(weaknesses)} fragilisent l'échange : la relation, le cadre, le diagnostic ou la validation finale ne sont pas suffisamment posés. La performance reste portée par les étapes les mieux maîtrisées, mais gagnerait en impact avec une conduite plus homogène sur l'ensemble de la méthode.`;
+    }
+
+    if (strengths.length > 0) {
+        return `L'entretien présente une performance globalement ${niveau}, portée par ${formatList(strengths)}. Les étapes méthodologiques sont suffisamment structurées pour soutenir l'efficacité de l'échange, avec des marges de progression ciblées sur les points les moins notés.`;
+    }
+
+    if (weaknesses.length > 0) {
+        return `L'entretien présente une performance globalement ${niveau}. Les fragilités se concentrent sur ${formatList(weaknesses)}, ce qui limite l'impact commercial de l'échange et appelle une structuration plus claire de la méthode.`;
+    }
+
+    return `L'entretien présente une performance globalement ${niveau}. Les quatre étapes de la méthode sont exécutées de manière équilibrée, sans rupture majeure dans la conduite de l'échange.`;
 }
 
 function injectScoreGlobal(notation: NotationPayload, roundStep: 1 | 5 = 5) {
     const etapes = notation.methodo?.etapes ?? [];
     if (!Array.isArray(etapes) || etapes.length === 0) return notation;
 
-    const scoreD = getScoreFromEtapes(etapes, "D");
-    const scoreA = getScoreFromEtapes(etapes, "A");
-    const scoreG = getScoreFromEtapes(etapes, "G");
-    const scoreO = getScoreFromEtapes(etapes, "O");
+    const detail_calcul = METHOD_STEPS.map(step => {
+        const score_etape = getScoreFromEtapes(etapes, step.key);
 
-    const detail_calcul = [
-        { etape: "Démarrer et passer le barrage", code: "D" as const, score_etape: scoreD, poids: SCORE_WEIGHTS.demarrer_passer_barrage, contribution: round2(scoreD * SCORE_WEIGHTS.demarrer_passer_barrage) },
-        { etape: "Accrocher", code: "A" as const, score_etape: scoreA, poids: SCORE_WEIGHTS.accrocher, contribution: round2(scoreA * SCORE_WEIGHTS.accrocher) },
-        { etape: "Gérer les objections", code: "G" as const, score_etape: scoreG, poids: SCORE_WEIGHTS.gerer_objections, contribution: round2(scoreG * SCORE_WEIGHTS.gerer_objections) },
-        { etape: "Obtenir le rendez-vous", code: "O" as const, score_etape: scoreO, poids: SCORE_WEIGHTS.obtenir_rendez_vous, contribution: round2(scoreO * SCORE_WEIGHTS.obtenir_rendez_vous) }
-    ];
+        return {
+            code: step.code,
+            etape: step.etape,
+            poids: step.poids,
+            score_etape,
+            contribution: round2(score_etape * step.poids),
+        };
+    });
 
     const rawGlobal = detail_calcul.reduce((acc, d) => acc + d.contribution, 0);
     const global = roundToStep(rawGlobal, roundStep);
 
     // Injecter poids + contribution sur chaque étape methodo
-    for (const e of etapes) {
-        const inferred: DagoCode | undefined =
-            e.code ??
-            (/^\s*1\s*[—-]/.test(e.titre) ? "D" :
-                /^\s*2\s*[—-]/.test(e.titre) ? "A" :
-                    /^\s*3\s*[—-]/.test(e.titre) ? "G" :
-                        /^\s*4\s*[—-]/.test(e.titre) ? "O" : undefined);
+    for (const [index, e] of etapes.entries()) {
+        const inferred = inferStepFromEtape(e, index);
 
         if (!inferred) continue;
-        e.code = inferred;
+        e.code = inferred.code;
         e.score = clamp0_100(e.score);
         e.score_max = 100;
-
-        const poids =
-            inferred === "D" ? SCORE_WEIGHTS.demarrer_passer_barrage :
-                inferred === "A" ? SCORE_WEIGHTS.accrocher :
-                    inferred === "G" ? SCORE_WEIGHTS.gerer_objections :
-                        SCORE_WEIGHTS.obtenir_rendez_vous;
-
-        e.poids = poids;
-        e.contribution_score_global = round2(e.score * poids);
+        e.poids = inferred.poids;
+        e.contribution_score_global = round2(e.score * inferred.poids);
     }
 
     notation.score_global = {
-        valeur: global,
         unite: "score_sur_100",
-        methode_calcul: "moyenne_ponderee_etapes_methodologiques",
-        "pondérations": { ...SCORE_WEIGHTS },
-        detail_calcul,
-        score_process: global,
-        score_execution_discours: null,
-        interpretation: buildInterpretation(detail_calcul.map(d => ({ code: d.code, score_etape: d.score_etape, poids: d.poids }))),
-        niveau_performance: niveauPerformance(global),
         seuils: {
-            faible: "0-40",
-            moyen: "41-65",
             bon: "66-85",
+            moyen: "41-65",
+            faible: "0-40",
             excellent: "86-100"
         },
-        regles_exclusion: ["SyntheseGlobale", "AvisPersonaIA", "AnalyseDiscours", "Transcription"]
+        valeur: global,
+        detail_calcul,
+        "pondérations": { ...SCORE_WEIGHTS },
+        score_process: global,
+        interpretation: buildInterpretation(detail_calcul, global),
+        methode_calcul: "moyenne_ponderee_etapes_methodologiques",
+        regles_exclusion: ["SyntheseGlobale", "AvisPersonaIA", "AnalyseDiscours", "Transcription"],
+        niveau_performance: niveauPerformance(global),
+        score_execution_discours: null
     };
 
     return notation;
@@ -415,8 +463,8 @@ Analyse cet appel et réponds uniquement avec un JSON valide.`
             }
         });
 
-        // ✅ Injecter score_global + contributions D/A/G/O (backend)
-        injectScoreGlobal(notation, 5);
+        // ✅ Injecter score_global + contributions Accueillir/Cadrer/Découvrir/Confirmer (backend)
+        injectScoreGlobal(notation, 1);
 
         console.log("📊 Notation global built:", Object.keys(notation));
 
