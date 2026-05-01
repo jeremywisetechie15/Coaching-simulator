@@ -1,0 +1,32 @@
+import { AppShell } from "@/features/app-shell/components";
+import type { OrganizationListItem } from "@/features/organizations/domain/organization-list";
+import type { ProfileFormValues } from "@/features/profile/domain/profile";
+import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
+import { OrganizationsAccessDeniedContent } from "./OrganizationsAccessDeniedContent";
+import { OrganizationsPageContent } from "./OrganizationsPageContent";
+
+interface OrganizationsPageProps {
+    accessDenied?: boolean;
+    initialOrganizations: OrganizationListItem[];
+    profileValues: ProfileFormValues;
+}
+
+export function OrganizationsPage({
+    accessDenied = false,
+    initialOrganizations,
+    profileValues,
+}: OrganizationsPageProps) {
+    return (
+        <AppShell
+            activePrimaryItem="Organisations"
+            avatarUrl={profileValues.avatarUrl}
+            initials={getProfileInitials(profileValues)}
+        >
+            {accessDenied ? (
+                <OrganizationsAccessDeniedContent />
+            ) : (
+                <OrganizationsPageContent initialOrganizations={initialOrganizations} />
+            )}
+        </AppShell>
+    );
+}

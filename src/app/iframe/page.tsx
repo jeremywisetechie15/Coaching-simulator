@@ -59,7 +59,7 @@ export default async function IframePage({
         );
     }
 
-    const shouldUseCoachHeygen = isCoachMode && params.coach_provider !== "legacy";
+    const shouldUseCoachHeygen = isCoachMode && params.coach_provider === "heygen";
 
     if (shouldUseCoachHeygen) {
         return (

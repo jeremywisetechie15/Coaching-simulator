@@ -30,8 +30,8 @@ body {
 
 body {
   font-family: var(--font-inter);
-  background: #0a0a0f;
-  color: #f9fafb;
+  background: #FAFAFB;
+  color: #171B2A;
   overflow-x: hidden;
 }
 
