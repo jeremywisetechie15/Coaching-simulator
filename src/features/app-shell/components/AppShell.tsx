@@ -23,7 +23,7 @@ export function AppShell({
     return (
         <Box className="min-h-screen bg-[#FAFAFB] text-[#171B2A]">
             <AppSidebar activeAccountItem={activeAccountItem} activePrimaryItem={activePrimaryItem} />
-            <Box className="min-h-screen lg:pl-[280px]">
+            <Box className="min-h-screen lg:pl-[256px]">
                 <AppTopBar
                     avatarUrl={avatarUrl}
                     initials={initials}

@@ -22,15 +22,15 @@ export interface AppNavigationItem {
 
 export const primaryNavigation: AppNavigationItem[] = [
     { icon: Grid2X2, label: "Tableau de bord" },
-    { icon: GraduationCap, label: "Académie" },
-    { icon: BookOpen, label: "Programmes" },
+    // { icon: GraduationCap, label: "Académie" },
+    // { icon: BookOpen, label: "Programmes" },
     { icon: MessagesSquare, label: "Roleplays" },
     { icon: BookOpen, label: "Méthodes et Playbook" },
     { icon: Star, label: "Compétences" },
     { icon: BotMessageSquare, label: "Mes Coachs IA" },
     { href: "/personas", icon: UserRoundCog, label: "Mes Personas IA" },
     { href: "/organizations", icon: Building2, label: "Organisations" },
-    { icon: UsersRound, label: "Utilisateurs" },
+    { href: "/users", icon: UsersRound, label: "Utilisateurs" },
 ];
 
 export const accountNavigation = {
@@ -39,7 +39,7 @@ export const accountNavigation = {
     trailingIcon: ChevronDown,
     items: [
         { href: "/profile", label: "Mon profil" },
-        { label: "Rôles & Permissions" },
+        { href: "/roles-permissions", label: "Rôles & Permissions" },
     ],
 };
 

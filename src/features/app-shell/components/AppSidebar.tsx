@@ -12,7 +12,7 @@ interface AppSidebarProps {
 
 function navItemClasses(isActive: boolean) {
     return [
-        "flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-[14px] font-normal leading-5 transition",
+        "flex h-9 w-full items-center gap-3 rounded-xl px-4 text-left text-[14px] font-medium leading-5 transition",
         isActive
             ? "bg-[#EEF0FF] text-[#5140F0]"
             : "text-[#0A0A0A] hover:bg-[#F4F5FF] hover:text-[#5140F0]",
@@ -21,7 +21,7 @@ function navItemClasses(isActive: boolean) {
 
 function accountItemClasses(isActive: boolean) {
     return [
-        "flex h-10 w-full items-center rounded-xl px-5 text-left text-[14px] font-normal leading-5 transition",
+        "flex h-9 w-full items-center rounded-xl px-4 text-left text-[14px] font-medium leading-5 transition",
         isActive ? "bg-[#EEF0FF] text-[#5140F0]" : "text-[#0A0A0A] hover:bg-[#F7F7FB]",
     ].join(" ");
 }
@@ -32,10 +32,10 @@ export function AppSidebar({ activeAccountItem, activePrimaryItem }: AppSidebarP
     return (
         <Box
             as="aside"
-            className="fixed left-0 top-0 z-30 hidden h-screen w-[280px] border-r border-[#E6E8EF] bg-white lg:flex lg:flex-col"
+            className="fixed left-0 top-0 z-30 hidden h-screen w-[256px] border-r border-[#E6E8EF] bg-white lg:flex lg:flex-col"
         >
-            <Box className="flex h-[84px] items-center border-b border-[#EEF0F5] px-5">
-                <Text className="text-[24px] font-black tracking-[-0.01em] text-[#5140F0]">MaiaCoach</Text>
+            <Box className="flex h-20 items-center border-b border-[#EEF0F5] px-6">
+                <Text className="text-[24px] font-black tracking-[-0.02em] text-[#5140F0]">MaiaCoach</Text>
             </Box>
 
             <Box as="nav" className="flex-1 space-y-1 overflow-y-auto px-4 pb-6 pt-4">
@@ -67,7 +67,7 @@ export function AppSidebar({ activeAccountItem, activePrimaryItem }: AppSidebarP
                     <Button
                         onClick={() => setIsAccountOpen((value) => !value)}
                         aria-expanded={isAccountOpen}
-                        className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-[14px] font-normal leading-5 text-[#0A0A0A]"
+                        className="flex h-9 w-full items-center gap-3 rounded-xl px-4 text-left text-[14px] font-medium leading-5 text-[#0A0A0A]"
                     >
                         <InlineIcon icon={accountNavigation.icon} className="h-5 w-5 shrink-0" />
                         <Text as="span">{accountNavigation.label}</Text>
@@ -78,7 +78,7 @@ export function AppSidebar({ activeAccountItem, activePrimaryItem }: AppSidebarP
                     </Button>
 
                     {isAccountOpen && (
-                        <Box className="ml-7 mt-2 space-y-2">
+                        <Box className="ml-8 mt-2 space-y-1">
                             {accountNavigation.items.map((item) => {
                                 const isActive = activeAccountItem === item.label;
 

@@ -11,7 +11,7 @@ export function AppTopBar({ avatarUrl, initials, searchPlaceholder }: AppTopBarP
     return (
         <Box
             as="header"
-            className="sticky top-0 z-20 flex h-[76px] items-center justify-between bg-[#FAFAFB]/95 px-5 backdrop-blur md:px-9 lg:px-12"
+            className="sticky top-0 z-20 flex h-[76px] items-center justify-between bg-[#FAFAFB]/95 px-5 backdrop-blur md:px-9 lg:px-14"
         >
             <Button className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#E8EAF1] bg-white text-[#384153] lg:hidden">
                 <InlineIcon icon={Menu} className="h-5 w-5" />

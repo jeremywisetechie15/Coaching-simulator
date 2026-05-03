@@ -53,17 +53,17 @@ const METHOD_STEPS: Array<{
     numero: number;
     aliases: string[];
 }> = [
-        { key: "accueillir", code: "A", etape: "Accueillir", poids: 0.15, numero: 1, aliases: ["accueillir", "accueil"] },
-        { key: "cadrer", code: "C", etape: "Cadrer", poids: 0.20, numero: 2, aliases: ["cadrer", "cadrage"] },
-        { key: "decouvrir", code: "D", etape: "Découvrir", poids: 0.40, numero: 3, aliases: ["decouvrir", "decouverte"] },
-        { key: "confirmer", code: "C", etape: "Confirmer", poids: 0.25, numero: 4, aliases: ["confirmer", "confirmation"] },
+        { key: "accueillir", code: "A", etape: "Accueillir", poids: 0.07, numero: 1, aliases: ["accueillir", "accueil"] },
+        { key: "cadrer", code: "C", etape: "Cadrer", poids: 0.08, numero: 2, aliases: ["cadrer", "cadrage"] },
+        { key: "decouvrir", code: "D", etape: "Découvrir", poids: 0.70, numero: 3, aliases: ["decouvrir", "decouverte"] },
+        { key: "confirmer", code: "C", etape: "Confirmer", poids: 0.15, numero: 4, aliases: ["confirmer", "confirmation"] },
     ];
 
 const SCORE_WEIGHTS = {
-    accueillir: 0.15,
-    cadrer: 0.20,
-    decouvrir: 0.40,
-    confirmer: 0.25,
+    accueillir: 0.07,
+    cadrer: 0.08,
+    decouvrir: 0.70,
+    confirmer: 0.15,
 } as const;
 
 // Ancienne méthode DAGO conservée en référence si besoin de la réactiver :
