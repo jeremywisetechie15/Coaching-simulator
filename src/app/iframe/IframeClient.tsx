@@ -426,12 +426,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                 }
 
                 // Trigger response (always sent to start the conversation)
-                dc.send(JSON.stringify({
-                    type: "response.create",
-                    response: {
-                        output_modalities: ["audio"],
-                    },
-                }));
+                dc.send(JSON.stringify({ type: "response.create" }));
             };
 
             // Also try to trigger when data channel opens (in case it opens after connection)
