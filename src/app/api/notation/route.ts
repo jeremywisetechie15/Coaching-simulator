@@ -16,6 +16,12 @@ export async function OPTIONS() {
 // Les 4 tabs de notation
 const NOTATION_TABS = ['synthese', 'methodo', 'discours', 'transcription'] as const;
 type NotationTab = typeof NOTATION_TABS[number];
+type OpenAITabResult = { tab: NotationTab; result: Record<string, unknown> | null; error?: string };
+
+const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
+const NOTATION_MODEL = "gpt-5.5";
+const NOTATION_REASONING_EFFORT = "high";
+const NOTATION_GENERATION_MODE = process.env.NOTATION_GENERATION_MODE === "parallel" ? "parallel" : "single";
 
 // Types pour le calcul de score global
 type MethodoCode = "A" | "C" | "D";
@@ -205,6 +211,114 @@ function extractOpenAIResponseText(data: unknown) {
     }
 
     return "";
+}
+
+function parseJsonObject(content: string) {
+    const jsonStr = content.replace(/```json\s*|```\s*/g, '').trim();
+
+    try {
+        return JSON.parse(jsonStr) as Record<string, unknown>;
+    } catch {
+        const start = jsonStr.indexOf("{");
+        const end = jsonStr.lastIndexOf("}");
+
+        if (start >= 0 && end > start) {
+            return JSON.parse(jsonStr.slice(start, end + 1)) as Record<string, unknown>;
+        }
+
+        throw new Error("Format de réponse invalide");
+    }
+}
+
+function buildNotationInputText(scenarioTitle: string, scenarioDescription: string, transcript: string) {
+    return `CONTEXTE DU SCÉNARIO:
+- Titre: ${scenarioTitle}
+- Description: ${scenarioDescription || "Non disponible"}
+
+TRANSCRIPTION DE L'APPEL:
+---
+${transcript}
+---
+
+Analyse cet appel et réponds uniquement avec un JSON valide.`;
+}
+
+function buildCombinedNotationInstructions(promptsMap: Map<string, string>) {
+    const sections = NOTATION_TABS.map(tab => {
+        const prompt = promptsMap.get(`notation.${tab}`);
+        if (!prompt) {
+            throw new Error(`Prompt non trouvé pour notation.${tab}`);
+        }
+
+        return `## Section "${tab}"
+Tu dois produire la clé JSON "${tab}" en appliquant strictement les consignes suivantes:
+
+${prompt}`;
+    }).join("\n\n---\n\n");
+
+    return `Tu dois générer la notation complète d'un appel de simulation commerciale.
+
+IMPORTANT:
+- Réponds avec un seul JSON valide.
+- Ne mets aucun texte hors du JSON.
+- La structure racine doit contenir exactement les clés suivantes: "synthese", "methodo", "discours", "transcription".
+- Chaque clé doit conserver la même structure que celle demandée par son prompt de section.
+- Ne génère pas "score_global": il sera calculé côté backend.
+
+${sections}
+
+Structure racine obligatoire:
+{
+  "synthese": {},
+  "methodo": {},
+  "discours": {},
+  "transcription": {}
+}`;
+}
+
+function buildOpenAIRequestBody(instructions: string, base64Pdf: string, inputText: string) {
+    return {
+        model: NOTATION_MODEL,
+        reasoning: { effort: NOTATION_REASONING_EFFORT },
+        instructions,
+        input: [
+            {
+                role: "user",
+                content: [
+                    {
+                        type: "input_file",
+                        filename: "criteres_notation.pdf",
+                        file_data: `data:application/pdf;base64,${base64Pdf}`
+                    },
+                    {
+                        type: "input_text",
+                        text: inputText
+                    }
+                ]
+            }
+        ]
+    };
+}
+
+function buildNotationFromCombinedResult(resultJson: Record<string, unknown>) {
+    const notation: NotationPayload = {};
+    const missingTabs: string[] = [];
+
+    for (const tab of NOTATION_TABS) {
+        const section = resultJson[tab];
+
+        if (section && typeof section === "object" && !Array.isArray(section)) {
+            notation[tab] = section as Record<string, unknown>;
+        } else {
+            missingTabs.push(tab);
+        }
+    }
+
+    if (missingTabs.length > 0) {
+        throw new Error(`Sections manquantes dans la notation complète: ${missingTabs.join(", ")}`);
+    }
+
+    return notation;
 }
 
 function injectScoreGlobal(notation: NotationPayload, roundStep: 1 | 5 = 5) {
@@ -414,8 +528,10 @@ export async function POST(req: Request) {
 
         console.log("📊 Loaded prompts:", Array.from(promptsMap.keys()));
 
-        // 5. APPELER OPENAI POUR CHAQUE TAB (en parallèle)
-        const callOpenAI = async (tab: NotationTab): Promise<{ tab: NotationTab; result: Record<string, unknown> | null; error?: string }> => {
+        const notationInputText = buildNotationInputText(scenarioTitle, scenarioDescription, transcript);
+
+        // 5. APPELER OPENAI POUR UNE NOTATION COMPLETE, avec fallback historique en parallèle
+        const callOpenAITab = async (tab: NotationTab): Promise<OpenAITabResult> => {
             const promptText = promptsMap.get(`notation.${tab}`);
 
             if (!promptText) {
@@ -424,42 +540,13 @@ export async function POST(req: Request) {
             }
 
             try {
-                const response = await fetch("https://api.openai.com/v1/responses", {
+                const response = await fetch(OPENAI_RESPONSES_URL, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
                         "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
                     },
-                    body: JSON.stringify({
-                        model: "gpt-5.5",
-                        reasoning: { effort: "high" },
-                        instructions: promptText,
-                        input: [
-                            {
-                                role: "user",
-                                content: [
-                                    {
-                                        type: "input_file",
-                                        filename: "criteres_notation.pdf",
-                                        file_data: `data:application/pdf;base64,${base64Pdf}`
-                                    },
-                                    {
-                                        type: "input_text",
-                                        text: `CONTEXTE DU SCÉNARIO:
-- Titre: ${scenarioTitle}
-- Description: ${scenarioDescription || "Non disponible"}
-
-TRANSCRIPTION DE L'APPEL:
----
-${transcript}
----
-
-Analyse cet appel et réponds uniquement avec un JSON valide.`
-                                    }
-                                ]
-                            }
-                        ]
-                    })
+                    body: JSON.stringify(buildOpenAIRequestBody(promptText, base64Pdf, notationInputText))
                 });
 
                 if (!response.ok) {
@@ -473,11 +560,8 @@ Analyse cet appel et réponds uniquement avec un JSON valide.`
                 // Parsing de la réponse
                 const content = extractOpenAIResponseText(data);
 
-                // Nettoyage du JSON
-                const jsonStr = content.replace(/```json\s*|```\s*/g, '').trim();
-
                 try {
-                    const resultJson = JSON.parse(jsonStr);
+                    const resultJson = parseJsonObject(content);
                     console.log(`✅ ${tab} - Notation calculée`);
                     return { tab, result: resultJson };
                 } catch (parseError) {
@@ -491,21 +575,70 @@ Analyse cet appel et réponds uniquement avec un JSON valide.`
             }
         };
 
-        // Lancer les 4 appels en parallèle
-        console.log("📊 Calling OpenAI for all 4 tabs in parallel...");
-        const results = await Promise.all(NOTATION_TABS.map(tab => callOpenAI(tab)));
+        const callOpenAIParallelNotation = async () => {
+            console.log("📊 Calling OpenAI for all 4 tabs in parallel...");
+            const results = await Promise.all(NOTATION_TABS.map(tab => callOpenAITab(tab)));
+            const notation: NotationPayload = {};
+            const errors: string[] = [];
+
+            results.forEach(({ tab, result, error }) => {
+                if (result) {
+                    notation[tab] = result;
+                } else if (error) {
+                    errors.push(`${tab}: ${error}`);
+                }
+            });
+
+            return { notation, errors };
+        };
+
+        const callOpenAICompleteNotation = async () => {
+            console.log("📊 Calling OpenAI once for complete notation...");
+
+            const response = await fetch(OPENAI_RESPONSES_URL, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                },
+                body: JSON.stringify(buildOpenAIRequestBody(
+                    buildCombinedNotationInstructions(promptsMap),
+                    base64Pdf,
+                    notationInputText
+                ))
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error?.message || "Erreur API OpenAI");
+            }
+
+            const data = await response.json();
+            const content = extractOpenAIResponseText(data);
+            const resultJson = parseJsonObject(content);
+            const notation = buildNotationFromCombinedResult(resultJson);
+
+            console.log("✅ Notation complète calculée");
+            return { notation, errors: [] as string[] };
+        };
 
         // 6. CONSTRUIRE LE JSON GLOBAL
-        const notation: NotationPayload = {};
-        const errors: string[] = [];
+        let notation: NotationPayload;
+        let errors: string[];
 
-        results.forEach(({ tab, result, error }) => {
-            if (result) {
-                notation[tab] = result;
-            } else if (error) {
-                errors.push(`${tab}: ${error}`);
+        if (NOTATION_GENERATION_MODE === "single") {
+            try {
+                ({ notation, errors } = await callOpenAICompleteNotation());
+            } catch (error) {
+                const message = error instanceof Error ? error.message : "Erreur inconnue";
+                console.error("❌ Erreur notation complète, fallback parallel:", message);
+                const fallback = await callOpenAIParallelNotation();
+                notation = fallback.notation;
+                errors = [`single: ${message}`, ...fallback.errors];
             }
-        });
+        } else {
+            ({ notation, errors } = await callOpenAIParallelNotation());
+        }
 
         if (Object.keys(notation).length === 0) {
             return setCorsHeaders(
