@@ -158,6 +158,55 @@ function buildInterpretation(
     return `L'entretien présente une performance globalement ${niveau}. Les quatre étapes de la méthode sont exécutées de manière équilibrée, sans rupture majeure dans la conduite de l'échange.`;
 }
 
+function extractOpenAIResponseText(data: unknown) {
+    if (!data || typeof data !== "object") return "";
+
+    const response = data as Record<string, unknown>;
+
+    if (typeof response.output_text === "string") {
+        return response.output_text;
+    }
+
+    if (Array.isArray(response.output)) {
+        const texts: string[] = [];
+
+        for (const outputItem of response.output) {
+            if (!outputItem || typeof outputItem !== "object") continue;
+
+            const content = (outputItem as Record<string, unknown>).content;
+            if (!Array.isArray(content)) continue;
+
+            for (const contentItem of content) {
+                if (!contentItem || typeof contentItem !== "object") continue;
+
+                const item = contentItem as Record<string, unknown>;
+                if (item.type === "output_text" && typeof item.text === "string") {
+                    texts.push(item.text);
+                }
+            }
+        }
+
+        if (texts.length > 0) {
+            return texts.join("\n");
+        }
+    }
+
+    if (Array.isArray(response.choices)) {
+        const firstChoice = response.choices[0];
+
+        if (firstChoice && typeof firstChoice === "object") {
+            const message = (firstChoice as Record<string, unknown>).message;
+
+            if (message && typeof message === "object") {
+                const content = (message as Record<string, unknown>).content;
+                if (typeof content === "string") return content;
+            }
+        }
+    }
+
+    return "";
+}
+
 function injectScoreGlobal(notation: NotationPayload, roundStep: 1 | 5 = 5) {
     const etapes = notation.methodo?.etapes ?? [];
     if (!Array.isArray(etapes) || etapes.length === 0) return notation;
@@ -422,13 +471,7 @@ Analyse cet appel et réponds uniquement avec un JSON valide.`
                 const data = await response.json();
 
                 // Parsing de la réponse
-                let content = "";
-                if (data.output && data.output[0]?.content) {
-                    const contentItem = data.output[0].content.find((c: { type: string }) => c.type === "output_text");
-                    content = contentItem?.text || "";
-                } else if (data.choices) {
-                    content = data.choices[0].message.content;
-                }
+                const content = extractOpenAIResponseText(data);
 
                 // Nettoyage du JSON
                 const jsonStr = content.replace(/```json\s*|```\s*/g, '').trim();
@@ -463,6 +506,15 @@ Analyse cet appel et réponds uniquement avec un JSON valide.`
                 errors.push(`${tab}: ${error}`);
             }
         });
+
+        if (Object.keys(notation).length === 0) {
+            return setCorsHeaders(
+                NextResponse.json({
+                    error: "Aucune notation générée",
+                    details: errors.length > 0 ? errors : ["Aucune réponse JSON valide retournée par OpenAI"]
+                }, { status: 502 })
+            );
+        }
 
         // ✅ Injecter score_global + contributions Accueillir/Cadrer/Découvrir/Confirmer (backend)
         injectScoreGlobal(notation, 1);
