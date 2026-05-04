@@ -343,7 +343,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
             // Audio element for remote audio
             const audioEl = document.createElement("audio");
             audioEl.autoplay = true;
-            audioEl.playsInline = true;
+            audioEl.setAttribute("playsinline", "true");
             audioEl.muted = false;
             audioEl.style.display = "none";
             document.body.appendChild(audioEl);
@@ -429,7 +429,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                 dc.send(JSON.stringify({
                     type: "response.create",
                     response: {
-                        output_modalities: ["audio", "text"],
+                        output_modalities: ["audio"],
                     },
                 }));
             };
