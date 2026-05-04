@@ -198,7 +198,10 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
             videoStreamRef.current = null;
         }
         if (audioElementRef.current) {
+            audioElementRef.current.pause();
             audioElementRef.current.srcObject = null;
+            audioElementRef.current.remove();
+            audioElementRef.current = null;
         }
         if (userVideoRef.current) {
             userVideoRef.current.srcObject = null;
@@ -285,7 +288,9 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
 
             // === ERROR ===
             case "error":
-                setError(String((event as { error?: { message?: string } }).error?.message) || "Error");
+                console.error("Realtime server error:", event);
+                setError(String((event as { error?: { message?: string } }).error?.message) || "Realtime error");
+                setStatus("error");
                 break;
 
             // === LOG ALL OTHER AUDIO-RELATED EVENTS ===
@@ -338,10 +343,18 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
             // Audio element for remote audio
             const audioEl = document.createElement("audio");
             audioEl.autoplay = true;
+            audioEl.playsInline = true;
+            audioEl.muted = false;
+            audioEl.style.display = "none";
+            document.body.appendChild(audioEl);
             audioElementRef.current = audioEl;
 
             pc.ontrack = (e) => {
                 audioEl.srcObject = e.streams[0];
+                audioEl.play().catch((playError) => {
+                    console.error("Remote audio playback failed:", playError);
+                    setError("La lecture audio du persona est bloquée par le navigateur. Vérifiez les permissions son du site, puis rechargez la page.");
+                });
             };
 
             // Data channel for events
@@ -413,7 +426,12 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                 }
 
                 // Trigger response (always sent to start the conversation)
-                dc.send(JSON.stringify({ type: "response.create" }));
+                dc.send(JSON.stringify({
+                    type: "response.create",
+                    response: {
+                        output_modalities: ["audio", "text"],
+                    },
+                }));
             };
 
             // Also try to trigger when data channel opens (in case it opens after connection)
@@ -422,12 +440,56 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                 triggerAiGreeting();
             };
 
+            dc.onerror = (event) => {
+                console.error("Realtime data channel error:", event);
+            };
+
+            dc.onclose = () => {
+                console.log("📡 Data channel closed");
+            };
+
             dc.onmessage = (e) => {
                 try {
                     const event = JSON.parse(e.data);
                     handleRealtimeEvent(event);
                 } catch { }
             };
+
+            const handleConnectionStateChange = () => {
+                console.log("WebRTC connection state:", pc.connectionState);
+
+                if (pc.connectionState === "connected") {
+                    // Stop ringtone when connected
+                    ringtoneRef.current?.stop();
+                    ringtoneRef.current = null;
+
+                    setStatus("connected");
+
+                    // Mark connection as established and trigger AI greeting
+                    connectionEstablished = true;
+                    triggerAiGreeting();
+
+                    // Start duration timer
+                    if (!durationIntervalRef.current) {
+                        const startTime = Date.now();
+                        durationIntervalRef.current = setInterval(() => {
+                            const duration = Math.floor((Date.now() - startTime) / 1000);
+                            sessionDurationRef.current = duration;
+                            setSessionDuration(duration);
+                        }, 1000);
+                    }
+                } else if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
+                    // Stop ringtone on failure
+                    ringtoneRef.current?.stop();
+                    ringtoneRef.current = null;
+
+                    setError("Connection lost");
+                    setStatus("error");
+                }
+            };
+
+            // Register before applying the remote SDP to avoid missing a fast connection state change.
+            pc.onconnectionstatechange = handleConnectionStateChange;
 
             // Create offer
             const offer = await pc.createOffer();
@@ -476,36 +538,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
 
             const answerSdp = await sdpResponse.text();
             await pc.setRemoteDescription({ type: "answer", sdp: answerSdp });
-
-            // Wait for connection
-            pc.onconnectionstatechange = () => {
-                if (pc.connectionState === "connected") {
-                    // Stop ringtone when connected
-                    ringtoneRef.current?.stop();
-                    ringtoneRef.current = null;
-
-                    setStatus("connected");
-
-                    // Mark connection as established and trigger AI greeting
-                    connectionEstablished = true;
-                    triggerAiGreeting();
-
-                    // Start duration timer
-                    const startTime = Date.now();
-                    durationIntervalRef.current = setInterval(() => {
-                        const duration = Math.floor((Date.now() - startTime) / 1000);
-                        sessionDurationRef.current = duration;
-                        setSessionDuration(duration);
-                    }, 1000);
-                } else if (pc.connectionState === "failed" || pc.connectionState === "disconnected") {
-                    // Stop ringtone on failure
-                    ringtoneRef.current?.stop();
-                    ringtoneRef.current = null;
-
-                    setError("Connection lost");
-                    setStatus("error");
-                }
-            };
+            handleConnectionStateChange();
 
         } catch (err) {
             // Stop ringtone on error

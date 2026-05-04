@@ -41,7 +41,7 @@ export interface Session {
 }
 
 // OpenAI Realtime API Types
-export type VoiceId = "alloy" | "ash" | "ballad" | "coral" | "echo" | "sage" | "shimmer" | "verse";
+export type VoiceId = "alloy" | "ash" | "ballad" | "cedar" | "coral" | "echo" | "marin" | "sage" | "shimmer" | "verse";
 
 export interface RealtimeSessionConfig {
     model: string;
