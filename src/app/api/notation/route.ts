@@ -19,7 +19,7 @@ type NotationTab = typeof NOTATION_TABS[number];
 type OpenAITabResult = { tab: NotationTab; result: Record<string, unknown> | null; error?: string };
 
 const OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses";
-const NOTATION_MODEL = "gpt-5.5";
+const NOTATION_MODEL = "gpt-5.2";
 const NOTATION_REASONING_EFFORT = "high";
 const NOTATION_GENERATION_MODE = process.env.NOTATION_GENERATION_MODE === "parallel" ? "parallel" : "single";
 
