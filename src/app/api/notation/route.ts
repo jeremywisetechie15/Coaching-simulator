@@ -16,6 +16,7 @@ export async function OPTIONS() {
 // Les 4 tabs de notation
 const NOTATION_TABS = ['synthese', 'methodo', 'discours', 'transcription'] as const;
 type NotationTab = typeof NOTATION_TABS[number];
+const PARALLEL_NOTATION_TABS = ['synthese', 'discours', 'transcription'] as const;
 
 // Types pour le calcul de score global
 type MethodoStepKey = string;
@@ -255,6 +256,38 @@ function injectScoreGlobal(notation: NotationPayload, steps: NotationMethodStep[
     };
 
     return notation;
+}
+
+function isCompleteMethodoResult(result: Record<string, unknown> | null, expectedStepCount: number) {
+    if (!result || !Array.isArray(result.etapes)) return false;
+    return result.etapes.length >= expectedStepCount;
+}
+
+function buildMethodoError(error?: string): NotationPayload["methodo"] {
+    return {
+        onglet: "AnalyseMethodologique",
+        etapes: [],
+        status: "failed",
+        error: true,
+        message: "Une erreur est survenue, réessayez.",
+        details: error || "Réponse methodo absente, invalide ou incomplète.",
+    };
+}
+
+function buildTabError(tab: Exclude<NotationTab, "methodo">, error?: string): Record<string, unknown> {
+    const ongletByTab: Record<Exclude<NotationTab, "methodo">, string> = {
+        synthese: "SyntheseGlobale",
+        discours: "AnalyseDiscours",
+        transcription: "Transcription",
+    };
+
+    return {
+        onglet: ongletByTab[tab],
+        status: "failed",
+        error: true,
+        message: "Une erreur est survenue, réessayez.",
+        details: error || `Réponse ${tab} absente, invalide ou incomplète.`,
+    };
 }
 
 function normalizeMethodSteps(rows: Array<Record<string, unknown>>): NotationMethodStep[] {
@@ -721,24 +754,51 @@ Analyse cet appel et réponds uniquement avec un JSON valide.`
             }
         };
 
-        // Lancer les 4 appels en parallèle
-        console.log("📊 Calling OpenAI for all 4 tabs in parallel...");
-        const results = await Promise.all(NOTATION_TABS.map(tab => callOpenAI(tab)));
+        // Lancer les onglets plus légers en parallèle, puis methodo seul.
+        console.log("📊 Calling OpenAI for synthese, discours and transcription in parallel...");
+        const parallelResults = await Promise.all(PARALLEL_NOTATION_TABS.map(tab => callOpenAI(tab)));
+
+        console.log("📊 Calling OpenAI for methodo alone...");
+        const methodoResult = await callOpenAI("methodo");
+        const resultsByTab = new Map<NotationTab, Awaited<ReturnType<typeof callOpenAI>>>(
+            [...parallelResults, methodoResult].map(result => [result.tab, result])
+        );
 
         // 6. CONSTRUIRE LE JSON GLOBAL
         const notation: NotationPayload = {};
         const errors: string[] = [];
 
-        results.forEach(({ tab, result, error }) => {
-            if (result) {
-                notation[tab] = result;
-            } else if (error) {
-                errors.push(`${tab}: ${error}`);
+        for (const tab of NOTATION_TABS) {
+            const tabResult = resultsByTab.get(tab);
+            const error = tabResult?.error;
+
+            if (tab === "methodo") {
+                if (isCompleteMethodoResult(tabResult?.result ?? null, notationConfig.steps.length)) {
+                    notation.methodo = tabResult?.result as NotationPayload["methodo"];
+                } else {
+                    const methodoError = error || "Réponse methodo absente, invalide ou incomplète.";
+                    errors.push(`methodo: ${methodoError}`);
+                    notation.methodo = buildMethodoError(methodoError);
+                }
+
+                continue;
             }
-        });
+
+            if (tabResult?.result) {
+                notation[tab] = tabResult.result;
+            } else {
+                const tabError = error || `Réponse ${tab} absente, invalide ou incomplète.`;
+                errors.push(`${tab}: ${tabError}`);
+                notation[tab] = buildTabError(tab, tabError);
+            }
+        }
 
         // Injecter score_global + contributions selon les étapes de la méthode active.
-        injectScoreGlobal(notation, notationConfig.steps, 1);
+        if (isCompleteMethodoResult(notation.methodo ?? null, notationConfig.steps.length)) {
+            injectScoreGlobal(notation, notationConfig.steps, 1);
+        } else {
+            console.warn("⚠️ score_global non calculé car methodo est absent ou incomplet.");
+        }
 
         console.log("📊 Notation global built:", Object.keys(notation));
 
