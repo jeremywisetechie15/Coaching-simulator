@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 
 // --- HEADERS CORS ---
 function setCorsHeaders(response: NextResponse) {
@@ -18,12 +18,11 @@ const NOTATION_TABS = ['synthese', 'methodo', 'discours', 'transcription'] as co
 type NotationTab = typeof NOTATION_TABS[number];
 
 // Types pour le calcul de score global
-type MethodoCode = "A" | "C" | "D";
-type MethodoStepKey = "accueillir" | "cadrer" | "decouvrir" | "confirmer";
+type MethodoStepKey = string;
 
 type MethodoEtape = {
     numero?: number;
-    code?: MethodoCode | string;
+    code?: string;
     titre: string;
     score: number; // 0..100
     score_max?: number; // 100
@@ -45,34 +44,72 @@ type NotationPayload = {
     transcription?: Record<string, unknown>;
 };
 
-const METHOD_STEPS: Array<{
+type NotationMethodStep = {
     key: MethodoStepKey;
-    code: MethodoCode;
+    code: string;
     etape: string;
     poids: number;
     numero: number;
     aliases: string[];
-}> = [
+};
+
+type NotationMethodFile = {
+    bucket: string;
+    path: string;
+    label: string | null;
+    fileType: string;
+    sortOrder: number;
+};
+
+type NotationMethodConfig = {
+    id: string | null;
+    code: string;
+    version: string;
+    steps: NotationMethodStep[];
+    files: NotationMethodFile[];
+    promptIds: Partial<Record<NotationTab, string>>;
+    source: "supabase" | "fallback";
+};
+
+type OpenAIFileInput = {
+    type: "input_file";
+    filename: string;
+    file_data: string;
+};
+
+const DEFAULT_STEP_TITLES: Record<string, string> = {
+    accueillir: "Accueillir",
+    cadrer: "Cadrer",
+    decouvrir: "Découvrir",
+    confirmer: "Confirmer",
+};
+
+const DEFAULT_METHOD_STEPS: NotationMethodStep[] = [
         { key: "accueillir", code: "A", etape: "Accueillir", poids: 0.07, numero: 1, aliases: ["accueillir", "accueil"] },
         { key: "cadrer", code: "C", etape: "Cadrer", poids: 0.08, numero: 2, aliases: ["cadrer", "cadrage"] },
         { key: "decouvrir", code: "D", etape: "Découvrir", poids: 0.70, numero: 3, aliases: ["decouvrir", "decouverte"] },
         { key: "confirmer", code: "C", etape: "Confirmer", poids: 0.15, numero: 4, aliases: ["confirmer", "confirmation"] },
     ];
 
-const SCORE_WEIGHTS = {
-    accueillir: 0.07,
-    cadrer: 0.08,
-    decouvrir: 0.70,
-    confirmer: 0.15,
-} as const;
+const DEFAULT_NOTATION_FILES: NotationMethodFile[] = [
+    {
+        bucket: "notation_pdf",
+        path: "criteres_v1.pdf",
+        label: "Criteres AC/DC v1",
+        fileType: "pdf",
+        sortOrder: 1,
+    },
+];
 
-// Ancienne méthode DAGO conservée en référence si besoin de la réactiver :
-// const DAGO_METHOD_STEPS = [
-//     { key: "demarrer_passer_barrage", code: "D", etape: "Démarrer et passer le barrage", poids: 0.20 },
-//     { key: "accrocher", code: "A", etape: "Accrocher", poids: 0.30 },
-//     { key: "gerer_objections", code: "G", etape: "Gérer les objections", poids: 0.25 },
-//     { key: "obtenir_rendez_vous", code: "O", etape: "Obtenir le rendez-vous", poids: 0.25 },
-// ] as const;
+const DEFAULT_NOTATION_CONFIG: NotationMethodConfig = {
+    id: null,
+    code: "acdc",
+    version: "v1",
+    steps: DEFAULT_METHOD_STEPS,
+    files: DEFAULT_NOTATION_FILES,
+    promptIds: {},
+    source: "fallback",
+};
 
 // --- Fonctions utilitaires pour le calcul de score ---
 function clamp0_100(n: number) {
@@ -106,10 +143,21 @@ function titleHasStepPrefix(title: string, numero: number) {
     return new RegExp(`^\\s*${numero}\\s*[.)\\-—:]`).test(title);
 }
 
-function inferStepFromEtape(etape: MethodoEtape, index?: number) {
+function canonicalStepTitle(key: string, title: string) {
+    return DEFAULT_STEP_TITLES[key] ?? title;
+}
+
+function buildPonderations(steps: NotationMethodStep[]) {
+    return steps.reduce<Record<string, number>>((acc, step) => {
+        acc[step.key] = step.poids;
+        return acc;
+    }, {});
+}
+
+function inferStepFromEtape(etape: MethodoEtape, steps: NotationMethodStep[], index?: number) {
     const normalizedTitle = normalizeText(etape.titre || "");
 
-    const byNumberOrTitle = METHOD_STEPS.find(step =>
+    const byNumberOrTitle = steps.find(step =>
         etape.numero === step.numero ||
         titleHasStepPrefix(etape.titre || "", step.numero) ||
         step.aliases.some(alias => normalizedTitle.includes(alias))
@@ -117,18 +165,16 @@ function inferStepFromEtape(etape: MethodoEtape, index?: number) {
 
     if (byNumberOrTitle) return byNumberOrTitle;
 
-    if (typeof index === "number" && METHOD_STEPS[index]) {
-        return METHOD_STEPS[index];
+    if (typeof index === "number" && steps[index]) {
+        return steps[index];
     }
 
-    return METHOD_STEPS.find(step => step.code === etape.code && step.code !== "C");
+    const sameCode = steps.filter(step => step.code === etape.code);
+    return sameCode.length === 1 ? sameCode[0] : undefined;
 }
 
-function getScoreFromEtapes(etapes: MethodoEtape[], key: MethodoStepKey): number {
-    const step = METHOD_STEPS.find(item => item.key === key);
-    if (!step) return 0;
-
-    const byStep = etapes.find((etape, index) => inferStepFromEtape(etape, index)?.key === key);
+function getScoreFromEtapes(etapes: MethodoEtape[], targetStep: NotationMethodStep, steps: NotationMethodStep[]): number {
+    const byStep = etapes.find((etape, index) => inferStepFromEtape(etape, steps, index)?.key === targetStep.key);
     return clamp0_100(byStep?.score ?? 0);
 }
 
@@ -158,12 +204,12 @@ function buildInterpretation(
     return `L'entretien présente une performance globalement ${niveau}. Les quatre étapes de la méthode sont exécutées de manière équilibrée, sans rupture majeure dans la conduite de l'échange.`;
 }
 
-function injectScoreGlobal(notation: NotationPayload, roundStep: 1 | 5 = 5) {
+function injectScoreGlobal(notation: NotationPayload, steps: NotationMethodStep[], roundStep: 1 | 5 = 5) {
     const etapes = notation.methodo?.etapes ?? [];
-    if (!Array.isArray(etapes) || etapes.length === 0) return notation;
+    if (!Array.isArray(etapes) || etapes.length === 0 || steps.length === 0) return notation;
 
-    const detail_calcul = METHOD_STEPS.map(step => {
-        const score_etape = getScoreFromEtapes(etapes, step.key);
+    const detail_calcul = steps.map(step => {
+        const score_etape = getScoreFromEtapes(etapes, step, steps);
 
         return {
             code: step.code,
@@ -179,7 +225,7 @@ function injectScoreGlobal(notation: NotationPayload, roundStep: 1 | 5 = 5) {
 
     // Injecter poids + contribution sur chaque étape methodo
     for (const [index, e] of etapes.entries()) {
-        const inferred = inferStepFromEtape(e, index);
+        const inferred = inferStepFromEtape(e, steps, index);
 
         if (!inferred) continue;
         e.code = inferred.code;
@@ -199,7 +245,7 @@ function injectScoreGlobal(notation: NotationPayload, roundStep: 1 | 5 = 5) {
         },
         valeur: global,
         detail_calcul,
-        "pondérations": { ...SCORE_WEIGHTS },
+        "pondérations": buildPonderations(steps),
         score_process: global,
         interpretation: buildInterpretation(detail_calcul, global),
         methode_calcul: "moyenne_ponderee_etapes_methodologiques",
@@ -209,6 +255,235 @@ function injectScoreGlobal(notation: NotationPayload, roundStep: 1 | 5 = 5) {
     };
 
     return notation;
+}
+
+function normalizeMethodSteps(rows: Array<Record<string, unknown>>): NotationMethodStep[] {
+    return rows
+        .map((row, index) => {
+            const key = String(row.step_key || `step_${index + 1}`);
+            const title = String(row.title || key);
+            const weight = Number(row.weight);
+            const aliases = Array.isArray(row.aliases)
+                ? row.aliases.map(alias => String(alias))
+                : [];
+
+            return {
+                key,
+                code: String(row.code || index + 1),
+                etape: canonicalStepTitle(key, title),
+                poids: Number.isFinite(weight) ? weight : 0,
+                numero: Number(row.step_order) || index + 1,
+                aliases: Array.from(new Set([key, title, ...aliases].map(alias => normalizeText(alias)))),
+            };
+        })
+        .filter(step => step.key && step.poids >= 0);
+}
+
+function normalizeMethodFiles(rows: Array<Record<string, unknown>>): NotationMethodFile[] {
+    return rows.map((row, index) => ({
+        bucket: String(row.bucket || ""),
+        path: String(row.path || ""),
+        label: typeof row.label === "string" ? row.label : null,
+        fileType: String(row.file_type || "pdf"),
+        sortOrder: Number(row.sort_order) || index + 1,
+    })).filter(file => file.bucket && file.path);
+}
+
+function promptIdsFromMethod(method: Record<string, unknown>): Partial<Record<NotationTab, string>> {
+    const promptIds: Partial<Record<NotationTab, string>> = {};
+    const mappings: Array<[NotationTab, string]> = [
+        ["synthese", "prompt_synthese_id"],
+        ["methodo", "prompt_methodo_id"],
+        ["discours", "prompt_discours_id"],
+        ["transcription", "prompt_transcription_id"],
+    ];
+
+    for (const [tab, column] of mappings) {
+        if (typeof method[column] === "string" && method[column]) {
+            promptIds[tab] = method[column] as string;
+        }
+    }
+
+    return promptIds;
+}
+
+async function loadNotationMethodConfig(
+    supabase: SupabaseClient,
+    notationMethodId: string | null
+): Promise<NotationMethodConfig> {
+    let method: Record<string, unknown> | null = null;
+
+    if (notationMethodId) {
+        const { data, error } = await supabase
+            .from("notation_methods")
+            .select("id, code, version, is_active, prompt_synthese_id, prompt_methodo_id, prompt_discours_id, prompt_transcription_id")
+            .eq("id", notationMethodId)
+            .eq("is_active", true)
+            .maybeSingle();
+
+        if (error) {
+            console.warn("⚠️ Erreur lecture méthode de notation liée au scénario:", error.message);
+        } else {
+            method = data as Record<string, unknown> | null;
+        }
+    }
+
+    if (!method) {
+        const { data, error } = await supabase
+            .from("notation_methods")
+            .select("id, code, version, is_active, prompt_synthese_id, prompt_methodo_id, prompt_discours_id, prompt_transcription_id")
+            .eq("is_default", true)
+            .eq("is_active", true)
+            .maybeSingle();
+
+        if (error) {
+            console.warn("⚠️ Erreur lecture méthode de notation par défaut:", error.message);
+            return DEFAULT_NOTATION_CONFIG;
+        }
+
+        method = data as Record<string, unknown> | null;
+    }
+
+    if (!method || typeof method.id !== "string") {
+        console.warn("⚠️ Aucune méthode de notation Supabase trouvée, fallback AC/DC utilisé.");
+        return DEFAULT_NOTATION_CONFIG;
+    }
+
+    const [{ data: stepsRows, error: stepsError }, { data: filesRows, error: filesError }] = await Promise.all([
+        supabase
+            .from("notation_method_steps")
+            .select("step_order, step_key, code, title, weight, aliases")
+            .eq("method_id", method.id)
+            .order("step_order", { ascending: true }),
+        supabase
+            .from("notation_method_files")
+            .select("bucket, path, label, file_type, sort_order, is_active")
+            .eq("method_id", method.id)
+            .eq("is_active", true)
+            .order("sort_order", { ascending: true }),
+    ]);
+
+    if (stepsError) {
+        console.warn("⚠️ Erreur lecture étapes méthode de notation:", stepsError.message);
+        return DEFAULT_NOTATION_CONFIG;
+    }
+
+    const steps = normalizeMethodSteps((stepsRows ?? []) as Array<Record<string, unknown>>);
+
+    if (steps.length === 0 || steps.every(step => step.poids === 0)) {
+        console.warn("⚠️ Méthode de notation sans étapes valides, fallback AC/DC utilisé.");
+        return DEFAULT_NOTATION_CONFIG;
+    }
+
+    if (filesError) {
+        console.warn("⚠️ Erreur lecture fichiers méthode de notation:", filesError.message);
+    }
+
+    return {
+        id: method.id,
+        code: String(method.code || "method"),
+        version: String(method.version || "v1"),
+        steps,
+        files: filesError ? [] : normalizeMethodFiles((filesRows ?? []) as Array<Record<string, unknown>>),
+        promptIds: promptIdsFromMethod(method),
+        source: "supabase",
+    };
+}
+
+async function loadNotationPrompts(
+    supabase: SupabaseClient,
+    config: NotationMethodConfig
+): Promise<Map<NotationTab, string>> {
+    const promptsMap = new Map<NotationTab, string>();
+    const idEntries = NOTATION_TABS
+        .map(tab => ({ tab, id: config.promptIds[tab] }))
+        .filter((entry): entry is { tab: NotationTab; id: string } => Boolean(entry.id));
+
+    if (idEntries.length > 0) {
+        const { data, error } = await supabase
+            .from("prompts")
+            .select("id, prompt")
+            .in("id", idEntries.map(entry => entry.id));
+
+        if (error) {
+            console.warn("⚠️ Erreur lecture prompts par méthode:", error.message);
+        } else {
+            const promptById = new Map(
+                ((data ?? []) as Array<Record<string, unknown>>)
+                    .filter(row => typeof row.id === "string" && typeof row.prompt === "string")
+                    .map(row => [row.id as string, row.prompt as string])
+            );
+
+            for (const entry of idEntries) {
+                const prompt = promptById.get(entry.id);
+                if (prompt) promptsMap.set(entry.tab, prompt);
+            }
+        }
+    }
+
+    const missingTabs = NOTATION_TABS.filter(tab => !promptsMap.has(tab));
+
+    if (missingTabs.length > 0) {
+        const { data, error } = await supabase
+            .from("prompts")
+            .select("title, prompt")
+            .in("title", missingTabs.map(tab => `notation.${tab}`));
+
+        if (error) {
+            console.warn("⚠️ Erreur lecture prompts par défaut:", error.message);
+            return promptsMap;
+        }
+
+        for (const row of (data ?? []) as Array<Record<string, unknown>>) {
+            if (typeof row.title !== "string" || typeof row.prompt !== "string") continue;
+
+            const tab = row.title.replace("notation.", "") as NotationTab;
+            if (NOTATION_TABS.includes(tab)) {
+                promptsMap.set(tab, row.prompt);
+            }
+        }
+    }
+
+    return promptsMap;
+}
+
+function filenameFromPath(path: string) {
+    return path.split("/").filter(Boolean).pop() || "notation_file";
+}
+
+function mimeTypeForFile(file: NotationMethodFile) {
+    const fileType = file.fileType.toLowerCase();
+    if (fileType === "pdf" || file.path.toLowerCase().endsWith(".pdf")) return "application/pdf";
+    return "application/octet-stream";
+}
+
+async function buildNotationFileInputs(
+    supabase: SupabaseClient,
+    files: NotationMethodFile[]
+): Promise<OpenAIFileInput[]> {
+    return Promise.all(files.map(async file => {
+        console.log("📊 Fetching notation file from Supabase:", `${file.bucket}/${file.path}`);
+
+        const { data, error } = await supabase
+            .storage
+            .from(file.bucket)
+            .download(file.path);
+
+        if (error || !data) {
+            throw new Error(`Fichier de notation non trouvé: ${file.bucket}/${file.path}${error?.message ? ` (${error.message})` : ""}`);
+        }
+
+        const arrayBuffer = await data.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+
+        console.log("📊 Notation file loaded:", file.path, "size:", buffer.length, "bytes");
+
+        return {
+            type: "input_file",
+            filename: filenameFromPath(file.path),
+            file_data: `data:${mimeTypeForFile(file)};base64,${buffer.toString("base64")}`,
+        };
+    }));
 }
 
 // =============================================
@@ -241,6 +516,8 @@ export async function POST(req: Request) {
 
         // 1. RÉSOUDRE LA SESSION ET RÉCUPÉRER LE SCÉNARIO
         let effectiveSessionId = session_id;
+        let effectiveScenarioId: string | null = scenario_id || null;
+        let notationMethodId: string | null = null;
         let scenarioTitle = "";
         let scenarioDescription = "";
 
@@ -248,7 +525,7 @@ export async function POST(req: Request) {
             // Cas: scenario_id/persona_id fourni, on cherche la dernière session correspondante
             let latestSessionQuery = supabase
                 .from('sessions')
-                .select('id, scenarios!inner(title, description, persona_id)')
+                .select('id, scenario_id, scenarios!inner(title, description, persona_id, notation_method_id)')
                 .eq('status', 'completed')
                 .order('created_at', { ascending: false })
                 .limit(1);
@@ -269,27 +546,45 @@ export async function POST(req: Request) {
                 );
             }
             effectiveSessionId = latestSession.id;
-            const scenario = latestSession.scenarios as unknown as { title: string; description: string | null } | null;
+            effectiveScenarioId = latestSession.scenario_id || scenario_id || null;
+            const scenario = latestSession.scenarios as unknown as {
+                title: string;
+                description: string | null;
+                notation_method_id?: string | null;
+            } | null;
             scenarioTitle = scenario?.title || "";
             scenarioDescription = scenario?.description || "";
+            notationMethodId = scenario?.notation_method_id || null;
         } else {
             // Cas: session_id fourni, on récupère le scénario
             const { data: sessionData, error: sessionError } = await supabase
                 .from('sessions')
-                .select('scenarios(title, description)')
+                .select('scenario_id, scenarios(title, description, notation_method_id)')
                 .eq('id', effectiveSessionId)
                 .single();
 
             if (!sessionError && sessionData) {
-                const scenario = sessionData.scenarios as unknown as { title: string; description: string | null } | null;
+                effectiveScenarioId = sessionData.scenario_id || scenario_id || null;
+                const scenario = sessionData.scenarios as unknown as {
+                    title: string;
+                    description: string | null;
+                    notation_method_id?: string | null;
+                } | null;
                 scenarioTitle = scenario?.title || "";
                 scenarioDescription = scenario?.description || "";
+                notationMethodId = scenario?.notation_method_id || null;
             }
         }
 
         console.log("📊 Notation API - Processing session:", effectiveSessionId);
+        console.log("📊 Scenario id:", effectiveScenarioId);
         console.log("📊 Scenario:", scenarioTitle);
         console.log("📊 Scenario description:", scenarioDescription);
+
+        const notationConfig = await loadNotationMethodConfig(supabase, notationMethodId);
+
+        console.log("📊 Notation method:", `${notationConfig.code}@${notationConfig.version}`, notationConfig.source);
+        console.log("📊 Notation steps:", notationConfig.steps.map(step => `${step.numero}.${step.key}:${step.poids}`).join(", "));
 
         // 2. RÉCUPÉRER LE TRANSCRIPT DEPUIS LA TABLE MESSAGES
         const { data: messages, error: messagesError } = await supabase
@@ -318,56 +613,39 @@ export async function POST(req: Request) {
         console.log("📊 Transcript built, length:", transcript.length, "characters");
         console.log("📊 Transcript:", transcript);
 
-        // 3. TÉLÉCHARGER LE PDF (une seule fois)
-        const pdfPath = "criteres_v1.pdf";
+        // 3. TÉLÉCHARGER LES FICHIERS DE LA MÉTHODE (une seule fois)
+        let notationFileInputs: OpenAIFileInput[] = [];
 
-        console.log("📊 Fetching PDF from Supabase:", pdfPath);
-
-        const { data: pdfData, error: pdfError } = await supabase
-            .storage
-            .from('notation_pdf')
-            .download(pdfPath);
-
-        if (pdfError || !pdfData) {
-            console.error("❌ Erreur téléchargement PDF:", pdfError);
+        try {
+            notationFileInputs = await buildNotationFileInputs(supabase, notationConfig.files);
+        } catch (fileError) {
+            console.error("❌ Erreur téléchargement fichier de notation:", fileError);
             return setCorsHeaders(
                 NextResponse.json({
-                    error: "PDF de notation non trouvé dans Supabase",
-                    details: pdfError?.message
+                    error: "Fichier de notation non trouvé dans Supabase",
+                    details: fileError instanceof Error ? fileError.message : "Erreur inconnue"
                 }, { status: 404 })
             );
         }
 
-        // Convertir le Blob en base64
-        const arrayBuffer = await pdfData.arrayBuffer();
-        const buffer = Buffer.from(arrayBuffer);
-        const base64Pdf = buffer.toString('base64');
+        // 4. RÉCUPÉRER LES PROMPTS DE LA MÉTHODE, AVEC FALLBACK notation.*
+        const promptsMap = await loadNotationPrompts(supabase, notationConfig);
+        const missingPrompts = NOTATION_TABS.filter(tab => !promptsMap.has(tab));
 
-        console.log("📊 PDF loaded, size:", buffer.length, "bytes");
-
-        // 4. RÉCUPÉRER TOUS LES PROMPTS DE LA TABLE prompts
-        const { data: prompts, error: promptsError } = await supabase
-            .from('prompts')
-            .select('title, prompt')
-            .in('title', NOTATION_TABS.map(tab => `notation.${tab}`));
-
-        if (promptsError || !prompts || prompts.length === 0) {
+        if (missingPrompts.length > 0) {
             return setCorsHeaders(
-                NextResponse.json({ error: "Prompts de notation non trouvés dans la base" }, { status: 404 })
+                NextResponse.json({
+                    error: "Prompts de notation non trouvés dans la base",
+                    missing_prompts: missingPrompts.map(tab => `notation.${tab}`)
+                }, { status: 404 })
             );
         }
 
-        // Créer un map title -> prompt
-        const promptsMap = new Map<string, string>();
-        prompts.forEach(p => {
-            promptsMap.set(p.title, p.prompt);
-        });
-
-        console.log("📊 Loaded prompts:", Array.from(promptsMap.keys()));
+        console.log("📊 Loaded prompts:", NOTATION_TABS.filter(tab => promptsMap.has(tab)));
 
         // 5. APPELER OPENAI POUR CHAQUE TAB (en parallèle)
         const callOpenAI = async (tab: NotationTab): Promise<{ tab: NotationTab; result: Record<string, unknown> | null; error?: string }> => {
-            const promptText = promptsMap.get(`notation.${tab}`);
+            const promptText = promptsMap.get(tab);
 
             if (!promptText) {
                 console.error(`❌ Prompt non trouvé pour notation.${tab}`);
@@ -388,11 +666,7 @@ export async function POST(req: Request) {
                             {
                                 role: "user",
                                 content: [
-                                    {
-                                        type: "input_file",
-                                        filename: "criteres_notation.pdf",
-                                        file_data: `data:application/pdf;base64,${base64Pdf}`
-                                    },
+                                    ...notationFileInputs,
                                     {
                                         type: "input_text",
                                         text: `CONTEXTE DU SCÉNARIO:
@@ -463,8 +737,8 @@ Analyse cet appel et réponds uniquement avec un JSON valide.`
             }
         });
 
-        // ✅ Injecter score_global + contributions Accueillir/Cadrer/Découvrir/Confirmer (backend)
-        injectScoreGlobal(notation, 1);
+        // Injecter score_global + contributions selon les étapes de la méthode active.
+        injectScoreGlobal(notation, notationConfig.steps, 1);
 
         console.log("📊 Notation global built:", Object.keys(notation));
 
