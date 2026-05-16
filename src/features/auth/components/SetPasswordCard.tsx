@@ -31,6 +31,7 @@ function getSafeRedirect(value: string | null) {
 export function SetPasswordCard() {
     const searchParams = useSearchParams();
     const redirectTo = useMemo(() => getSafeRedirect(searchParams.get("redirect")), [searchParams]);
+    const organizationId = searchParams.get("organization_id");
 
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
@@ -65,6 +66,19 @@ export function SetPasswordCard() {
 
         if (updateError) {
             setError("Lien expiré ou session invalide. Demandez une nouvelle invitation.");
+            return;
+        }
+
+        const activationResponse = await fetch("/api/auth/activate-membership", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                ...(organizationId ? { organizationId } : {}),
+            }),
+        });
+
+        if (!activationResponse.ok) {
+            setError("Mot de passe créé, mais l'activation de l'organisation a échoué. Contactez un administrateur.");
             return;
         }
 

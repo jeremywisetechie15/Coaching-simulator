@@ -1,9 +1,19 @@
+import type {
+    OrganizationMemberRole,
+    OrganizationMemberStatus,
+} from "@/features/organizations/domain/organization-member";
+import {
+    isOrganizationMemberRole,
+    isOrganizationMemberStatus,
+} from "@/features/organizations/domain/organization-member";
+
 export type PlatformRole = "admin" | "user";
-export type OrganizationRole = "member" | "manager";
+export type OrganizationRole = OrganizationMemberRole;
 
 export interface OrganizationMembershipContext {
     organizationId: string;
     role: OrganizationRole;
+    status: OrganizationMemberStatus;
 }
 
 export interface UserContext {
@@ -20,5 +30,9 @@ export function isPlatformRole(value: unknown): value is PlatformRole {
 }
 
 export function isOrganizationRole(value: unknown): value is OrganizationRole {
-    return value === "member" || value === "manager";
+    return isOrganizationMemberRole(value);
+}
+
+export function isOrganizationMembershipStatus(value: unknown): value is OrganizationMemberStatus {
+    return isOrganizationMemberStatus(value);
 }

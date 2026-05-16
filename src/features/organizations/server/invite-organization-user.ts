@@ -13,6 +13,7 @@ interface MembershipRow {
     id?: string;
     organization_id: string;
     role: string;
+    status: string;
     user_id: string;
 }
 
@@ -89,7 +90,7 @@ export async function inviteOrganizationUser(
 
     const { data: existingMembership, error: membershipFetchError } = await adminSupabase
         .from("organization_members")
-        .select("user_id, organization_id, role")
+        .select("user_id, organization_id, role, status")
         .eq("user_id", invitedUser.id)
         .eq("organization_id", organizationId)
         .maybeSingle<MembershipRow>();
@@ -103,6 +104,8 @@ export async function inviteOrganizationUser(
             .from("organization_members")
             .update({
                 role: input.role,
+                status: "invited",
+                updated_at: new Date().toISOString(),
             })
             .eq("user_id", invitedUser.id)
             .eq("organization_id", organizationId);
@@ -116,6 +119,7 @@ export async function inviteOrganizationUser(
             .insert({
                 organization_id: organizationId,
                 role: input.role,
+                status: "invited",
                 user_id: invitedUser.id,
             });
 

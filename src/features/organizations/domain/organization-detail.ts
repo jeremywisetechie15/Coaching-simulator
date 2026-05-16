@@ -1,4 +1,5 @@
 import type { OrganizationStatus } from "./organization-list";
+import type { OrganizationMemberStatus } from "./organization-member";
 
 export interface OrganizationDetail {
     contactEmail: string;
@@ -30,7 +31,7 @@ export interface OrganizationUserRow {
     name: string;
     progress: number;
     role: string;
-    status: OrganizationStatus;
+    status: OrganizationMemberStatus;
 }
 
 export interface OrganizationTrainingRow {

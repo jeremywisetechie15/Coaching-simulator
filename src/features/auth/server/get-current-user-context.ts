@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import {
     isOrganizationRole,
+    isOrganizationMembershipStatus,
     isPlatformRole,
     type OrganizationMembershipContext,
     type UserContext,
@@ -14,6 +15,7 @@ interface ProfileRow {
 interface OrganizationMemberRow {
     organization_id: string | null;
     role: string | null;
+    status: string | null;
 }
 
 export async function getCurrentUserContext(): Promise<UserContext | null> {
@@ -36,12 +38,16 @@ export async function getCurrentUserContext(): Promise<UserContext | null> {
 
     const { data: membershipRows } = await supabase
         .from("organization_members")
-        .select("organization_id, role")
+        .select("organization_id, role, status")
         .eq("user_id", user.id)
         .returns<OrganizationMemberRow[]>();
 
     const memberships: OrganizationMembershipContext[] = (membershipRows ?? []).flatMap((membership) => {
-        if (!membership.organization_id || !isOrganizationRole(membership.role)) {
+        if (
+            !membership.organization_id ||
+            !isOrganizationRole(membership.role) ||
+            !isOrganizationMembershipStatus(membership.status)
+        ) {
             return [];
         }
 
@@ -49,11 +55,12 @@ export async function getCurrentUserContext(): Promise<UserContext | null> {
             {
                 organizationId: membership.organization_id,
                 role: membership.role,
+                status: membership.status,
             },
         ];
     });
 
-    const activeMembership = memberships[0] ?? null;
+    const activeMembership = memberships.find((membership) => membership.status === "active") ?? null;
 
     return {
         activeOrganizationId: activeMembership?.organizationId ?? null,

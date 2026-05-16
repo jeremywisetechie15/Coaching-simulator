@@ -14,7 +14,11 @@ export async function POST(request: NextRequest, { params }: RouteContext) {
         const { organizationId } = await params;
         const body = await request.json();
         const input = inviteOrganizationUserDto.parse(body);
-        const redirectTo = `${request.nextUrl.origin}/auth/set-password?redirect=/organizations/${organizationId}`;
+        const redirectParams = new URLSearchParams({
+            organization_id: organizationId,
+            redirect: "/profile",
+        });
+        const redirectTo = `${request.nextUrl.origin}/auth/set-password?${redirectParams.toString()}`;
         const user = await inviteOrganizationUser(organizationId, input, redirectTo);
 
         return NextResponse.json({ user }, { status: 201 });

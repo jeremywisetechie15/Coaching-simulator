@@ -7,6 +7,7 @@ import {
     demoOrganizationGroups,
     demoOrganizationUsers,
 } from "@/features/organizations/domain/organization-detail";
+import { ORGANIZATION_MEMBER_STATUS_LABELS } from "@/features/organizations/domain/organization-member";
 import { CreateUserModal, type CreateUserFormValues } from "./CreateUserModal";
 import { OrganizationProgressBar } from "./OrganizationProgressBar";
 
@@ -109,7 +110,7 @@ export function OrganizationDetailUsers({
                 name: `${firstName} ${lastName}`,
                 progress: 0,
                 role: getRoleLabel(createUserValues.role),
-                status: "active",
+                status: "invited",
             },
         ]);
         closeCreateModal();
@@ -169,7 +170,7 @@ export function OrganizationDetailUsers({
                                     </Box>
                                     <Box as="td" className="px-7 py-5">
                                         <Box className="inline-flex h-8 items-center rounded-lg bg-[#DDF8E6] px-3 text-[13px] font-bold text-[#2A8A41]">
-                                            Activé
+                                            {ORGANIZATION_MEMBER_STATUS_LABELS[user.status]}
                                         </Box>
                                     </Box>
                                     <Box as="td" className="px-7 py-5">

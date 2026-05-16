@@ -78,6 +78,13 @@ type OpenAIFileInput = {
     file_data: string;
 };
 
+type OpenAIJsonSchemaFormat = {
+    type: "json_schema";
+    name: string;
+    strict: boolean;
+    schema: Record<string, unknown>;
+};
+
 const DEFAULT_STEP_TITLES: Record<string, string> = {
     accueillir: "Accueillir",
     cadrer: "Cadrer",
@@ -480,6 +487,55 @@ async function loadNotationPrompts(
     return promptsMap;
 }
 
+function sanitizeSchemaName(name: string, fallback: string) {
+    const sanitized = name.replace(/[^a-zA-Z0-9_-]/g, "_").slice(0, 64);
+    return sanitized || fallback;
+}
+
+async function loadNotationOutputSchemas(
+    supabase: SupabaseClient,
+    config: NotationMethodConfig
+): Promise<Map<NotationTab, OpenAIJsonSchemaFormat>> {
+    const schemasMap = new Map<NotationTab, OpenAIJsonSchemaFormat>();
+
+    const { data, error } = await supabase
+        .from("notation_output_schemas")
+        .select("tab, name, schema_json, is_active")
+        .eq("is_active", true)
+        .in("tab", NOTATION_TABS);
+
+    if (error) {
+        console.warn("⚠️ Schémas JSON de notation indisponibles, fallback prompt-only:", error.message);
+        return schemasMap;
+    }
+
+    for (const row of (data ?? []) as Array<Record<string, unknown>>) {
+        const tab = row.tab;
+        const schema = row.schema_json;
+
+        if (!NOTATION_TABS.includes(tab as NotationTab) || !schema || typeof schema !== "object" || Array.isArray(schema)) {
+            continue;
+        }
+
+        const safeTab = tab as NotationTab;
+        if (schemasMap.has(safeTab)) {
+            continue;
+        }
+
+        const fallbackName = `notation_${config.code}_${safeTab}`;
+        const rawName = typeof row.name === "string" ? row.name : fallbackName;
+
+        schemasMap.set(safeTab, {
+            type: "json_schema",
+            name: sanitizeSchemaName(rawName, fallbackName),
+            strict: true,
+            schema: schema as Record<string, unknown>,
+        });
+    }
+
+    return schemasMap;
+}
+
 function filenameFromPath(path: string) {
     return path.split("/").filter(Boolean).pop() || "notation_file";
 }
@@ -676,6 +732,10 @@ export async function POST(req: Request) {
 
         console.log("📊 Loaded prompts:", NOTATION_TABS.filter(tab => promptsMap.has(tab)));
 
+        // 4b. RÉCUPÉRER LES SCHÉMAS JSON STRUCTURÉS DE LA MÉTHODE, SI DISPONIBLES
+        const outputSchemasMap = await loadNotationOutputSchemas(supabase, notationConfig);
+        console.log("📊 Loaded output schemas:", NOTATION_TABS.filter(tab => outputSchemasMap.has(tab)));
+
         // 5. APPELER OPENAI POUR CHAQUE TAB (en parallèle)
         const callOpenAI = async (tab: NotationTab): Promise<{ tab: NotationTab; result: Record<string, unknown> | null; error?: string }> => {
             const promptText = promptsMap.get(tab);
@@ -686,23 +746,19 @@ export async function POST(req: Request) {
             }
 
             try {
-                const response = await fetch("https://api.openai.com/v1/responses", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
-                    },
-                    body: JSON.stringify({
-                        model: "gpt-4.1",
-                        instructions: promptText,
-                        input: [
-                            {
-                                role: "user",
-                                content: [
-                                    ...notationFileInputs,
-                                    {
-                                        type: "input_text",
-                                        text: `CONTEXTE DU SCÉNARIO:
+                const outputSchema = outputSchemasMap.get(tab);
+                const requestBody: Record<string, unknown> = {
+                    model: "gpt-4.1",
+                    instructions: promptText,
+                    max_output_tokens: tab === "methodo" ? 24000 : 8000,
+                    input: [
+                        {
+                            role: "user",
+                            content: [
+                                ...notationFileInputs,
+                                {
+                                    type: "input_text",
+                                    text: `CONTEXTE DU SCÉNARIO:
 - Titre: ${scenarioTitle}
 - Description: ${scenarioDescription || "Non disponible"}
 
@@ -712,11 +768,25 @@ ${transcript}
 ---
 
 Analyse cet appel et réponds uniquement avec un JSON valide.`
-                                    }
-                                ]
-                            }
-                        ]
-                    })
+                                }
+                            ]
+                        }
+                    ]
+                };
+
+                if (outputSchema) {
+                    requestBody.text = {
+                        format: outputSchema,
+                    };
+                }
+
+                const response = await fetch("https://api.openai.com/v1/responses", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+                    },
+                    body: JSON.stringify(requestBody)
                 });
 
                 if (!response.ok) {
@@ -729,9 +799,14 @@ Analyse cet appel et réponds uniquement avec un JSON valide.`
 
                 // Parsing de la réponse
                 let content = "";
-                if (data.output && data.output[0]?.content) {
-                    const contentItem = data.output[0].content.find((c: { type: string }) => c.type === "output_text");
-                    content = contentItem?.text || "";
+                if (typeof data.output_text === "string") {
+                    content = data.output_text;
+                } else if (Array.isArray(data.output)) {
+                    const outputTexts = data.output
+                        .flatMap((outputItem: { content?: Array<{ type: string; text?: string }> }) => outputItem.content ?? [])
+                        .filter((contentItem: { type: string; text?: string }) => contentItem.type === "output_text" && typeof contentItem.text === "string")
+                        .map((contentItem: { text?: string }) => contentItem.text as string);
+                    content = outputTexts.join("");
                 } else if (data.choices) {
                     content = data.choices[0].message.content;
                 }
@@ -745,6 +820,7 @@ Analyse cet appel et réponds uniquement avec un JSON valide.`
                     return { tab, result: resultJson };
                 } catch (parseError) {
                     console.error(`❌ Erreur parsing JSON pour ${tab}:`, parseError);
+                    console.error(`❌ Réponse brute ${tab}:`, content.slice(0, 2000));
                     return { tab, result: null, error: "Format de réponse invalide" };
                 }
 
