@@ -87,7 +87,7 @@ export default function HeygenTestClient({
                     boxShadow: "0 0 8px #a78bfa",
                 }} />
                 <span style={{ color: "rgba(255,255,255,0.7)", fontSize: "13px", fontWeight: 500 }}>
-                    Test LiveAvatar × OpenAI
+                    Test LiveAvatar
                 </span>
             </div>
 
@@ -400,7 +400,7 @@ export default function HeygenTestClient({
                                     Création de la session...
                                 </p>
                                 <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "13px", margin: 0 }}>
-                                    Configuration du LLM OpenAI + génération de l&apos;avatar
+                                    Configuration du LLM + génération de l&apos;avatar
                                 </p>
                             </div>
                             <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
@@ -528,7 +528,7 @@ export default function HeygenTestClient({
                                 />
                             </div>
                             <p style={{ color: "rgba(255,255,255,0.2)", fontSize: "11px", textAlign: "center", margin: 0 }}>
-                                LLM: GPT-4o Mini (OpenAI) · Avatar: LiveAvatar Sandbox · Prompt: coach.after_training
+                                LLM: GPT-4o Mini · Avatar: LiveAvatar Sandbox · Prompt: coach.after_training
                             </p>
                         </div>
                     )}

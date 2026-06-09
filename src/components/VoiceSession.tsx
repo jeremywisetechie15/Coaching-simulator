@@ -20,21 +20,7 @@ import {
     ChevronDown
 } from "lucide-react";
 import type { Scenario, VoiceId } from "@/types";
-
-// Available voices with descriptions
-const AVAILABLE_VOICES: { id: VoiceId; name: string; description: string; gender: string }[] = [
-    { id: "alloy", name: "Alloy", description: "Neutre et équilibré", gender: "🔘" },
-    { id: "ash", name: "Ash", description: "Masculin, doux et calme", gender: "♂️" },
-    { id: "ballad", name: "Ballad", description: "Mélodique et expressif", gender: "🔘" },
-    { id: "coral", name: "Coral", description: "Féminin, chaleureux", gender: "♀️" },
-    { id: "echo", name: "Echo", description: "Masculin, dynamique", gender: "♂️" },
-    { id: "sage", name: "Sage", description: "Féminin, calme et posé", gender: "♀️" },
-    { id: "shimmer", name: "Shimmer", description: "Féminin, vif et enjoué", gender: "♀️" },
-    { id: "verse", name: "Verse", description: "Narratif, storytelling", gender: "🔘" },
-];
-
-
-
+import { DEFAULT_OPENAI_REALTIME_VOICE_ID, OPENAI_REALTIME_VOICES } from "@/lib/openai/realtime-voices";
 
 interface VoiceSessionProps {
     scenario: Scenario;
@@ -56,8 +42,8 @@ export default function VoiceSession({ scenario, model = "gpt-4o-mini-realtime-p
     const [isAiSpeaking, setIsAiSpeaking] = useState(false);
     const [volume, setVolume] = useState(1);
     const [sessionDuration, setSessionDuration] = useState(0);
-    const [currentVoice, setCurrentVoice] = useState<VoiceId>("alloy");
-    const [selectedVoice, setSelectedVoice] = useState<VoiceId>("alloy");
+    const [currentVoice, setCurrentVoice] = useState<VoiceId>(DEFAULT_OPENAI_REALTIME_VOICE_ID);
+    const [selectedVoice, setSelectedVoice] = useState<VoiceId>(DEFAULT_OPENAI_REALTIME_VOICE_ID);
     const [showVoiceDropdown, setShowVoiceDropdown] = useState(false);
 
     // UI state for transcript display
@@ -605,7 +591,7 @@ export default function VoiceSession({ scenario, model = "gpt-4o-mini-realtime-p
                         >
                             <span className="text-sm text-gray-300">
                                 Voix: <span className="text-white font-medium">
-                                    {AVAILABLE_VOICES.find(v => v.id === selectedVoice)?.name || selectedVoice}
+                                    {OPENAI_REALTIME_VOICES.find(v => v.id === selectedVoice)?.name || selectedVoice}
                                 </span>
                             </span>
                             <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${showVoiceDropdown ? "rotate-180" : ""}`} />
@@ -614,7 +600,7 @@ export default function VoiceSession({ scenario, model = "gpt-4o-mini-realtime-p
                         {showVoiceDropdown && (
                             <div className="absolute z-[100] mt-2 left-1/2 -translate-x-1/2 w-64 bg-gray-900 border border-gray-700 rounded-xl overflow-hidden shadow-2xl shadow-black/50">
                                 <div className="max-h-64 overflow-y-auto">
-                                    {AVAILABLE_VOICES.map((voice) => (
+                                    {OPENAI_REALTIME_VOICES.map((voice) => (
                                         <button
                                             key={voice.id}
                                             onClick={() => {
@@ -624,12 +610,16 @@ export default function VoiceSession({ scenario, model = "gpt-4o-mini-realtime-p
                                             className={`w-full px-4 py-3 text-left hover:bg-white/10 transition-colors flex items-center gap-3 ${selectedVoice === voice.id ? "bg-blue-500/20" : ""
                                                 }`}
                                         >
-                                            <span className="text-lg">{voice.gender}</span>
                                             <div className="flex-1">
-                                                <p className={`text-sm font-medium ${selectedVoice === voice.id ? "text-blue-300" : "text-white"}`}>
+                                                <p className={`flex items-center gap-2 text-sm font-medium ${selectedVoice === voice.id ? "text-blue-300" : "text-white"}`}>
                                                     {voice.name}
+                                                    {voice.recommended && (
+                                                        <span className="rounded bg-blue-500/20 px-1.5 py-0.5 text-[10px] text-blue-300">
+                                                            Recommandée
+                                                        </span>
+                                                    )}
                                                 </p>
-                                                <p className="text-xs text-gray-500">{voice.description}</p>
+                                                <p className="text-xs text-gray-500">{voice.characteristic}</p>
                                             </div>
                                             {selectedVoice === voice.id && (
                                                 <Check className="w-4 h-4 text-blue-400" />

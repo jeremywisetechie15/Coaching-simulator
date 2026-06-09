@@ -2,6 +2,10 @@
 // COACHING SIMULATOR - Type Definitions
 // ===========================================
 
+import type { VoiceId } from "@/lib/openai/realtime-voices";
+
+export type { VoiceId } from "@/lib/openai/realtime-voices";
+
 export interface Persona {
     id: string;
     name: string;
@@ -39,9 +43,6 @@ export interface Session {
     status?: "active" | "completed" | "interrupted";
     created_at: string;
 }
-
-// OpenAI Realtime API Types
-export type VoiceId = "alloy" | "ash" | "ballad" | "cedar" | "coral" | "echo" | "marin" | "sage" | "shimmer" | "verse";
 
 export interface RealtimeSessionConfig {
     model: string;

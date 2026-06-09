@@ -528,7 +528,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
 
             if (!sdpResponse.ok) {
                 const errText = await sdpResponse.text();
-                throw new Error(`OpenAI SDP error: ${sdpResponse.status} - ${errText}`);
+                throw new Error(`Voice service connection error: ${sdpResponse.status} - ${errText}`);
             }
 
             const answerSdp = await sdpResponse.text();

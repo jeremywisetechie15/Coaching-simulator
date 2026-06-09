@@ -20,6 +20,8 @@ export function OrganizationDetailPage({
             activePrimaryItem="Organisations"
             avatarUrl={profileValues.avatarUrl}
             initials={getProfileInitials(profileValues)}
+            fullName={`${profileValues.firstName} ${profileValues.lastName}`.trim()}
+            email={profileValues.email}
         >
             <OrganizationDetailContent initialIsEditing={initialIsEditing} organization={organization} />
         </AppShell>

@@ -5,18 +5,20 @@ import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import { PersonasPageContent } from "./PersonasPageContent";
 
 interface PersonasPageProps {
-    personas: PersonaListItem[];
+    initialPersonas: PersonaListItem[];
     profileValues: ProfileFormValues;
 }
 
-export function PersonasPage({ personas, profileValues }: PersonasPageProps) {
+export function PersonasPage({ initialPersonas, profileValues }: PersonasPageProps) {
     return (
         <AppShell
             activePrimaryItem="Mes Personas IA"
             avatarUrl={profileValues.avatarUrl}
             initials={getProfileInitials(profileValues)}
+            fullName={`${profileValues.firstName} ${profileValues.lastName}`.trim()}
+            email={profileValues.email}
         >
-            <PersonasPageContent personas={personas} />
+            <PersonasPageContent initialPersonas={initialPersonas} />
         </AppShell>
     );
 }

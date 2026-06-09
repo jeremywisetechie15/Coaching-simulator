@@ -1,13 +1,22 @@
 import { Bell, Menu, Search } from "lucide-react";
 import { Box, Button, InlineIcon, Text, TextInput } from "@/lib/ui/atoms";
+import { UserAvatarMenu } from "./UserAvatarMenu";
 
 interface AppTopBarProps {
     avatarUrl: string | null;
     initials: string;
     searchPlaceholder?: string;
+    fullName?: string;
+    email?: string;
 }
 
-export function AppTopBar({ avatarUrl, initials, searchPlaceholder }: AppTopBarProps) {
+export function AppTopBar({
+    avatarUrl,
+    initials,
+    searchPlaceholder,
+    fullName,
+    email,
+}: AppTopBarProps) {
     return (
         <Box
             as="header"
@@ -42,19 +51,12 @@ export function AppTopBar({ avatarUrl, initials, searchPlaceholder }: AppTopBarP
                         2
                     </Text>
                 </Button>
-                <Box className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#5B50F5] text-white shadow-[0_10px_24px_rgba(81,64,240,0.22)]">
-                    {avatarUrl ? (
-                        <Box
-                            aria-hidden="true"
-                            className="absolute inset-0 bg-cover bg-center"
-                            style={{ backgroundImage: `url("${avatarUrl}")` }}
-                        />
-                    ) : (
-                        <Text as="span" className="text-[14px] font-bold">
-                            {initials}
-                        </Text>
-                    )}
-                </Box>
+                <UserAvatarMenu
+                    avatarUrl={avatarUrl}
+                    initials={initials}
+                    fullName={fullName}
+                    email={email}
+                />
             </Box>
         </Box>
     );

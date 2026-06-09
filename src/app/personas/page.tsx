@@ -24,5 +24,5 @@ export default async function Page() {
 
     const personas = await listPersonas();
 
-    return <PersonasPage personas={personas} profileValues={toProfileFormValues(profile)} />;
+    return <PersonasPage initialPersonas={personas} profileValues={toProfileFormValues(profile)} />;
 }

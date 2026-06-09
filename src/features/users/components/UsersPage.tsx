@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
     ChevronDown,
     Eye,
@@ -9,56 +10,54 @@ import {
     Plus,
     Search,
     UserRound,
-    X,
 } from "lucide-react";
 import { AppShell } from "@/features/app-shell/components";
-import { Box, Button, CardSurface, FieldLabel, FormRoot, InlineIcon, SelectInput, Text, TextInput } from "@/lib/ui/atoms";
-import { demoUsers, type UserListItem, type UserRole, type UserStatus } from "@/features/users/domain/users";
+import { Box, Button, CardSurface, InlineIcon, SelectInput, Text, TextInput } from "@/lib/ui/atoms";
+import { type UserListItem, type UserRole, type UserStatus } from "@/features/users/domain/users";
+import type { OrganizationListItem } from "@/features/organizations/domain/organization-list";
+import {
+    initialUserInviteFormValues,
+    UserInviteModal,
+    type UserInviteFormValues,
+} from "./UserInviteModal";
 
 interface UsersPageProps {
     avatarUrl: string | null;
     initials: string;
+    initialUsers: UserListItem[];
+    organizations: OrganizationListItem[];
 }
 
-interface UserFormValues {
-    city: string;
-    email: string;
-    firstName: string;
-    group: string;
-    lastName: string;
-    organization: string;
-    phone: string;
-    role: UserRole;
-    status: UserStatus;
+interface ApiValidationIssue {
+    message: string;
+    path: Array<string | number>;
 }
 
-const emptyUserForm: UserFormValues = {
-    city: "",
-    email: "",
-    firstName: "",
-    group: "Sales",
-    lastName: "",
-    organization: "Deepmark",
-    phone: "",
-    role: "Learner",
-    status: "pending",
-};
+interface ApiErrorPayload {
+    code?: string;
+    error?: string;
+    issues?: ApiValidationIssue[];
+}
+
+interface UsersPayload {
+    users?: UserListItem[];
+}
+
+interface ApiRequestError extends Error {
+    payload: ApiErrorPayload | null;
+    status: number;
+}
+
+const usersQueryKey = ["users"] as const;
 
 const columns = [
     "Utilisateur",
     "Email",
-    "Rôle",
-    "Organisation",
-    "Groupe",
+    "Entreprise",
     "Statut",
-    "Progression",
-    "Dernière activité",
+    "Dernière connexion",
     "Actions",
 ];
-
-function getInitials(firstName: string, lastName: string) {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-}
 
 function getStatusLabel(status: UserStatus) {
     if (status === "active") return "Activé";
@@ -76,94 +75,6 @@ function UserStatusBadge({ status }: { status: UserStatus }) {
     return (
         <Box className={`inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-bold ${getStatusClasses(status)}`}>
             {getStatusLabel(status)}
-        </Box>
-    );
-}
-
-function ProgressBar({ progress }: { progress: number }) {
-    return (
-        <Box className="flex items-center gap-3">
-            <Box className="h-2 w-[116px] overflow-hidden rounded-full bg-[#EEF0F4]">
-                <Box className="h-full rounded-full bg-[#5140F0]" style={{ width: `${progress}%` }} />
-            </Box>
-            <Text as="span" className="w-10 text-[14px] font-extrabold text-[#5140F0]">
-                {progress}%
-            </Text>
-        </Box>
-    );
-}
-
-function ModalField({
-    autoFocus = false,
-    id,
-    label,
-    onChange,
-    required = false,
-    type = "text",
-    value,
-}: {
-    autoFocus?: boolean;
-    id: string;
-    label: string;
-    onChange: (value: string) => void;
-    required?: boolean;
-    type?: "email" | "text";
-    value: string;
-}) {
-    return (
-        <Box className="space-y-2">
-            <FieldLabel htmlFor={id} className="text-[14px] font-bold text-[#111827]">
-                {label} {required && <Text as="span" className="text-[#FF4E68]">*</Text>}
-            </FieldLabel>
-            <TextInput
-                id={id}
-                autoFocus={autoFocus}
-                hasLeadingIcon={false}
-                onChange={(event) => onChange(event.target.value)}
-                type={type}
-                value={value}
-                className="!h-10 rounded-lg border border-[#DADDE4] bg-[#F8F9FB] text-[14px] font-semibold shadow-none focus:bg-white"
-            />
-        </Box>
-    );
-}
-
-function ModalSelect({
-    id,
-    label,
-    onChange,
-    options,
-    value,
-}: {
-    id: string;
-    label: string;
-    onChange: (value: string) => void;
-    options: Array<{ label: string; value: string }>;
-    value: string;
-}) {
-    return (
-        <Box className="space-y-2">
-            <FieldLabel htmlFor={id} className="text-[14px] font-bold text-[#111827]">
-                {label}
-            </FieldLabel>
-            <Box className="relative">
-                <SelectInput
-                    id={id}
-                    onChange={(event) => onChange(event.target.value)}
-                    value={value}
-                    className="!h-10 rounded-lg border border-[#DADDE4] bg-[#F8F9FB] text-[14px] font-semibold shadow-none focus:bg-white"
-                >
-                    {options.map((option) => (
-                        <option key={option.value} value={option.value}>
-                            {option.label}
-                        </option>
-                    ))}
-                </SelectInput>
-                <InlineIcon
-                    icon={ChevronDown}
-                    className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#B7BBC5]"
-                />
-            </Box>
         </Box>
     );
 }
@@ -201,176 +112,79 @@ function FilterSelect({
     );
 }
 
-function UserModal({
-    onClose,
-    onSubmit,
-    onValueChange,
-    values,
-}: {
-    onClose: () => void;
-    onSubmit: () => void;
-    onValueChange: (field: keyof UserFormValues, value: string) => void;
-    values: UserFormValues;
-}) {
-    const canSubmit = values.firstName.trim() && values.lastName.trim() && values.email.trim();
-
-    const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-
-        if (canSubmit) {
-            onSubmit();
-        }
-    };
-
-    return (
-        <Box className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#111827]/55 px-4 py-5 backdrop-blur-[1px]">
-            <CardSurface className="w-full max-w-[520px] rounded-[14px] px-6 py-6 shadow-[0_22px_60px_rgba(17,24,39,0.26)]">
-                <Box className="mb-5 flex items-start justify-between gap-4">
-                    <Text as="h2" className="text-[20px] font-extrabold text-[#111827]">
-                        Ajouter un utilisateur
-                    </Text>
-                    <Button
-                        aria-label="Fermer"
-                        onClick={onClose}
-                        className="flex h-8 w-8 items-center justify-center rounded-lg text-[#6B7280] transition hover:bg-[#F3F4F7] hover:text-[#111827]"
-                    >
-                        <InlineIcon icon={X} className="h-5 w-5" />
-                    </Button>
-                </Box>
-
-                <FormRoot onSubmit={handleSubmit} className="space-y-4" noValidate>
-                    <Box className="grid gap-4 sm:grid-cols-2">
-                        <ModalField
-                            autoFocus
-                            id="first-name"
-                            label="Prénom"
-                            onChange={(value) => onValueChange("firstName", value)}
-                            required
-                            value={values.firstName}
-                        />
-                        <ModalField
-                            id="last-name"
-                            label="Nom"
-                            onChange={(value) => onValueChange("lastName", value)}
-                            required
-                            value={values.lastName}
-                        />
-                    </Box>
-                    <ModalField
-                        id="email"
-                        label="Email"
-                        onChange={(value) => onValueChange("email", value)}
-                        required
-                        type="email"
-                        value={values.email}
-                    />
-                    <ModalField
-                        id="phone"
-                        label="Téléphone"
-                        onChange={(value) => onValueChange("phone", value)}
-                        value={values.phone}
-                    />
-                    <Box className="grid gap-4 sm:grid-cols-2">
-                        <ModalSelect
-                            id="role"
-                            label="Rôle"
-                            onChange={(value) => onValueChange("role", value)}
-                            options={[
-                                { label: "SuperAdmin", value: "SuperAdmin" },
-                                { label: "Learner", value: "Learner" },
-                            ]}
-                            value={values.role}
-                        />
-                        <ModalSelect
-                            id="status"
-                            label="Statut"
-                            onChange={(value) => onValueChange("status", value)}
-                            options={[
-                                { label: "Activé", value: "active" },
-                                { label: "En attente", value: "pending" },
-                                { label: "Désactivé", value: "inactive" },
-                            ]}
-                            value={values.status}
-                        />
-                    </Box>
-                    <ModalField
-                        id="organization"
-                        label="Organisation"
-                        onChange={(value) => onValueChange("organization", value)}
-                        value={values.organization}
-                    />
-                    <Box className="grid gap-4 sm:grid-cols-2">
-                        <ModalField
-                            id="group"
-                            label="Groupe"
-                            onChange={(value) => onValueChange("group", value)}
-                            value={values.group}
-                        />
-                        <ModalField
-                            id="city"
-                            label="Ville"
-                            onChange={(value) => onValueChange("city", value)}
-                            value={values.city}
-                        />
-                    </Box>
-
-                    <Box className="grid gap-3 pt-2 sm:grid-cols-[minmax(0,0.9fr)_minmax(0,1.5fr)]">
-                        <Button
-                            onClick={onClose}
-                            className="flex h-10 items-center justify-center rounded-lg border border-[#DADDE4] bg-white text-[13px] font-bold text-[#111827] transition hover:bg-[#F7F8FB]"
-                        >
-                            Annuler
-                        </Button>
-                        <Button
-                            type="submit"
-                            disabled={!canSubmit}
-                            className="flex h-10 items-center justify-center rounded-lg bg-[#5140F0] text-[13px] font-bold text-white shadow-[0_8px_18px_rgba(81,64,240,0.16)] transition hover:bg-[#4635E7] disabled:cursor-not-allowed disabled:bg-[#E3E5EA]"
-                        >
-                            Créer l&apos;utilisateur
-                        </Button>
-                    </Box>
-                </FormRoot>
-            </CardSurface>
-        </Box>
-    );
+function isApiRequestError(error: unknown): error is ApiRequestError {
+    return error instanceof Error && "payload" in error && "status" in error;
 }
 
-function createUserFromForm(values: UserFormValues): UserListItem {
-    const id = `${values.firstName}-${values.lastName}-${Date.now()}`
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, "-")
-        .replace(/(^-|-$)/g, "");
-
-    return {
-        activity: [{ date: "Maintenant", id: `${id}-activity`, label: "Utilisateur créé", type: "Compte" }],
-        city: values.city,
-        email: values.email,
-        group: values.group,
-        id,
-        initials: getInitials(values.firstName, values.lastName),
-        joinedAt: "Aujourd'hui",
-        lastActiveAt: values.status === "active" ? "Aujourd'hui" : "Jamais connecté",
-        name: `${values.firstName} ${values.lastName}`,
-        organization: values.organization,
-        phone: values.phone,
-        progress: 0,
-        role: values.role,
-        roleplays: [],
-        skills: [],
-        status: values.status,
-        trainings: [],
-    };
+async function readJsonPayload(response: Response) {
+    return response.json().catch(() => null) as Promise<unknown>;
 }
 
-export function UsersPage({ avatarUrl, initials }: UsersPageProps) {
-    const [users, setUsers] = useState<UserListItem[]>(demoUsers);
+async function fetchUsers() {
+    const response = await fetch("/api/users", {
+        headers: { Accept: "application/json" },
+    });
+    const payload = (await readJsonPayload(response)) as UsersPayload | ApiErrorPayload | null;
+
+    if (!response.ok) {
+        throw new Error((payload as ApiErrorPayload | null)?.error ?? "Impossible de charger les utilisateurs.");
+    }
+
+    return (payload as UsersPayload | null)?.users ?? [];
+}
+
+async function inviteUserRequest(values: UserInviteFormValues) {
+    const response = await fetch(`/api/organizations/${values.organizationId}/users/invite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            email: values.email.trim(),
+            firstName: values.firstName.trim(),
+            groupId: values.groupId,
+            lastName: values.lastName.trim(),
+            role: values.role,
+        }),
+    });
+
+    const payload = (await readJsonPayload(response)) as ApiErrorPayload | null;
+
+    if (!response.ok) {
+        const error = new Error("Impossible d'envoyer l'invitation.") as ApiRequestError;
+
+        error.payload = payload;
+        error.status = response.status;
+
+        throw error;
+    }
+
+    return values.email.trim();
+}
+
+function getInviteErrorMessage(status: number, payload: ApiErrorPayload | null) {
+    const validationMessage = payload?.issues?.map((issue) => issue.message).join(" ");
+    const message = validationMessage || payload?.error || "Impossible d'envoyer l'invitation.";
+
+    return `Erreur ${status} : ${message}`;
+}
+
+export function UsersPage({ avatarUrl, initials, initialUsers, organizations }: UsersPageProps) {
+    const queryClient = useQueryClient();
     const [query, setQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<"all" | UserStatus>("all");
     const [roleFilter, setRoleFilter] = useState<"all" | UserRole>("all");
     const [organizationFilter, setOrganizationFilter] = useState("all");
     const [groupFilter, setGroupFilter] = useState("all");
     const [modalMode, setModalMode] = useState<"create" | null>(null);
-    const [formValues, setFormValues] = useState<UserFormValues>(emptyUserForm);
+    const [formValues, setFormValues] = useState<UserInviteFormValues>(initialUserInviteFormValues);
+    const [inviteError, setInviteError] = useState<string | null>(null);
+    const [inviteStatus, setInviteStatus] = useState<string | null>(null);
+    const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+    const usersQuery = useQuery({
+        queryKey: usersQueryKey,
+        queryFn: fetchUsers,
+        initialData: initialUsers,
+    });
+    const users = usersQuery.data;
 
     const filteredUsers = useMemo(() => {
         const normalizedQuery = query.trim().toLocaleLowerCase("fr-FR");
@@ -400,7 +214,7 @@ export function UsersPage({ avatarUrl, initials }: UsersPageProps) {
     const groupOptions = useMemo(
         () => [
             { label: "Tous groupes", value: "all" },
-            ...Array.from(new Set(users.map((user) => user.group))).map((group) => ({
+            ...Array.from(new Set(users.map((user) => user.group).filter(Boolean))).map((group) => ({
                 label: group,
                 value: group,
             })),
@@ -410,26 +224,57 @@ export function UsersPage({ avatarUrl, initials }: UsersPageProps) {
 
     const openCreateModal = () => {
         setModalMode("create");
-        setFormValues(emptyUserForm);
+        setFormValues(initialUserInviteFormValues);
+        setInviteError(null);
+        setInviteStatus(null);
     };
 
     const closeModal = () => {
         setModalMode(null);
-        setFormValues(emptyUserForm);
+        setFormValues(initialUserInviteFormValues);
+        setInviteError(null);
+        setInviteStatus(null);
     };
 
-    const updateFormValue = (field: keyof UserFormValues, value: string) => {
+    const inviteUserMutation = useMutation({
+        mutationFn: inviteUserRequest,
+        onError: (error) => {
+            setInviteStatus(null);
+
+            if (isApiRequestError(error)) {
+                setInviteError(getInviteErrorMessage(error.status, error.payload));
+                return;
+            }
+
+            setInviteError(error instanceof Error ? error.message : "Impossible d'envoyer l'invitation.");
+        },
+        onSuccess: (email) => {
+            setInviteSuccess(`Invitation envoyée à ${email}.`);
+            void queryClient.invalidateQueries({ queryKey: usersQueryKey });
+            void queryClient.invalidateQueries({ queryKey: ["organizations"] });
+            closeModal();
+        },
+    });
+
+    const updateFormValue = (field: keyof UserInviteFormValues, value: string) => {
         setFormValues((current) => ({
             ...current,
-            [field]: value,
+            [field]: field === "role" ? (value as UserInviteFormValues["role"]) : value,
         }));
+        setInviteError(null);
+        setInviteStatus(null);
+        setInviteSuccess(null);
     };
 
     const submitModal = () => {
-        if (modalMode) {
-            setUsers((current) => [createUserFromForm(formValues), ...current]);
-            closeModal();
+        if (!modalMode) {
+            return;
         }
+
+        setInviteError(null);
+        setInviteSuccess(null);
+        setInviteStatus("Envoi de la requête d'invitation...");
+        inviteUserMutation.mutate(formValues);
     };
 
     return (
@@ -458,6 +303,18 @@ export function UsersPage({ avatarUrl, initials }: UsersPageProps) {
                             Ajouter un utilisateur
                         </Button>
                     </Box>
+
+                    {inviteSuccess && (
+                        <Box className="mb-5 rounded-lg border border-[#BFE8CB] bg-[#F0FBF3] px-4 py-3 text-[13px] font-semibold text-[#27743B]">
+                            {inviteSuccess}
+                        </Box>
+                    )}
+
+                    {usersQuery.isError && (
+                        <Box className="mb-5 rounded-lg border border-[#F3C7C7] bg-[#FFF4F4] px-4 py-3 text-[13px] font-semibold text-[#A43A3A]">
+                            {usersQuery.error.message}
+                        </Box>
+                    )}
 
                     <Box className="mb-5 space-y-3">
                         <Box className="relative">
@@ -490,7 +347,8 @@ export function UsersPage({ avatarUrl, initials }: UsersPageProps) {
                                 onChange={(value) => setRoleFilter(value as "all" | UserRole)}
                                 options={[
                                     { label: "Tous rôles", value: "all" },
-                                    { label: "SuperAdmin", value: "SuperAdmin" },
+                                    { label: "Admin", value: "Admin" },
+                                    { label: "Manager", value: "Manager" },
                                     { label: "Learner", value: "Learner" },
                                 ]}
                                 value={roleFilter}
@@ -512,7 +370,7 @@ export function UsersPage({ avatarUrl, initials }: UsersPageProps) {
 
                     <CardSurface className="overflow-hidden rounded-[14px] border border-[#E1E4EB] shadow-none">
                         <Box className="overflow-x-auto">
-                            <Box as="table" className="w-full min-w-[1080px] border-collapse">
+                            <Box as="table" className="w-full border-collapse">
                                 <Box as="thead">
                                     <Box as="tr" className="border-b border-[#E3E6EE] bg-[#FBFCFE]">
                                         {columns.map((column) => (
@@ -536,35 +394,19 @@ export function UsersPage({ avatarUrl, initials }: UsersPageProps) {
                                                             {user.initials}
                                                         </Text>
                                                     </Box>
-                                                    <Box>
-                                                        <Text className="text-[14px] font-extrabold text-[#171B2A]">
-                                                            {user.name}
-                                                        </Text>
-                                                        <Text className="mt-1 text-[12px] font-semibold text-[#8C94A4]">
-                                                            {user.city}
-                                                        </Text>
-                                                    </Box>
+                                                    <Text className="text-[14px] font-extrabold text-[#171B2A]">
+                                                        {user.name}
+                                                    </Text>
                                                 </Box>
                                             </Box>
                                             <Box as="td" className="p-[17px]">
                                                 <Text className="text-[14px] font-semibold text-[#4F5868]">{user.email}</Text>
                                             </Box>
                                             <Box as="td" className="p-[17px]">
-                                                <Box className="inline-flex h-8 items-center rounded-lg border border-[#D5DAE3] px-3 text-[13px] font-bold text-[#4F5868]">
-                                                    {user.role}
-                                                </Box>
-                                            </Box>
-                                            <Box as="td" className="p-[17px]">
                                                 <Text className="text-[14px] font-bold text-[#202636]">{user.organization}</Text>
                                             </Box>
                                             <Box as="td" className="p-[17px]">
-                                                <Text className="text-[14px] font-bold text-[#202636]">{user.group}</Text>
-                                            </Box>
-                                            <Box as="td" className="p-[17px]">
                                                 <UserStatusBadge status={user.status} />
-                                            </Box>
-                                            <Box as="td" className="p-[17px]">
-                                                <ProgressBar progress={user.progress} />
                                             </Box>
                                             <Box as="td" className="p-[17px]">
                                                 <Text className="text-[14px] font-semibold text-[#4F5868]">
@@ -625,10 +467,18 @@ export function UsersPage({ avatarUrl, initials }: UsersPageProps) {
             </Box>
 
             {modalMode && (
-                <UserModal
+                <UserInviteModal
+                    formError={inviteError}
+                    formStatus={inviteStatus}
+                    groupOptions={[]}
+                    isSubmitting={inviteUserMutation.isPending}
                     onClose={closeModal}
                     onSubmit={submitModal}
                     onValueChange={updateFormValue}
+                    organizationOptions={organizations.map((organization) => ({
+                        label: organization.name,
+                        value: organization.id,
+                    }))}
                     values={formValues}
                 />
             )}

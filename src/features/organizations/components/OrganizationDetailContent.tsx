@@ -178,7 +178,7 @@ export function OrganizationDetailContent({
                             onValueChange={updateFormValue}
                         />
                     )}
-                    {activeTab === "groups" && <OrganizationDetailGroups />}
+                    {activeTab === "groups" && <OrganizationDetailGroups organizationId={currentOrganization.id} />}
                     {activeTab === "users" && (
                         <OrganizationDetailUsers
                             organizationId={currentOrganization.id}

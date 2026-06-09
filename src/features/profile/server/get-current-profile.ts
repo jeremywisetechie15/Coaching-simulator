@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAuth } from "@/features/auth/server";
 import type { ProfileView } from "@/features/profile/domain/profile";
 import { mapProfileRowToView, type ProfileRow } from "./profile.mapper";
@@ -20,12 +21,27 @@ export async function getCurrentProfile(): Promise<ProfileView> {
     }
 
     if (!profile) {
-        const { data: createdProfile, error: createError } = await supabase
+        const adminSupabase = createAdminClient();
+        const { data: existingProfile, error: existingProfileError } = await adminSupabase
+            .from("profiles")
+            .select(profileSelect)
+            .eq("id", context.userId)
+            .maybeSingle<ProfileRow>();
+
+        if (existingProfileError) {
+            throw existingProfileError;
+        }
+
+        if (existingProfile) {
+            return mapProfileRowToView(existingProfile, context.email);
+        }
+
+        const { data: createdProfile, error: createError } = await adminSupabase
             .from("profiles")
             .insert({
                 id: context.userId,
                 email: context.email,
-                platform_role: context.platformRole,
+                platform_role: "user",
             })
             .select(profileSelect)
             .single<ProfileRow>();

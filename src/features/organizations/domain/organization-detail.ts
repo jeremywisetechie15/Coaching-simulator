@@ -16,11 +16,13 @@ export interface OrganizationDetail {
 }
 
 export interface OrganizationGroupRow {
+    description?: string;
     formationCount: number;
     id: string;
     memberCount: number;
     name: string;
     progress: number;
+    status?: "active" | "archived";
 }
 
 export interface OrganizationUserRow {
@@ -58,7 +60,7 @@ export const demoOrganizationUsers: OrganizationUserRow[] = [
         initials: "PL",
         name: "Paul Laverdure",
         progress: 67,
-        role: "SuperAdmin",
+        role: "Admin",
         status: "active",
     },
     {

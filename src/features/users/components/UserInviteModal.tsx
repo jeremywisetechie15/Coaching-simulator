@@ -15,29 +15,45 @@ import {
 } from "@/lib/ui/atoms";
 import { AlertMessage } from "@/lib/ui/molecules";
 
-export interface CreateUserFormValues {
+export type UserInviteRole = "member" | "manager";
+
+export interface UserInviteFormValues {
     email: string;
     firstName: string;
     groupId: string;
     lastName: string;
-    role: "member" | "manager";
+    organizationId: string;
+    role: UserInviteRole;
 }
 
-interface CreateUserModalProps {
+export interface UserInviteOption {
+    label: string;
+    value: string;
+}
+
+export const initialUserInviteFormValues: UserInviteFormValues = {
+    email: "",
+    firstName: "",
+    groupId: "",
+    lastName: "",
+    organizationId: "",
+    role: "member",
+};
+
+interface UserInviteModalProps {
     formError?: string | null;
-    groupOptions: Array<{
-        label: string;
-        value: string;
-    }>;
+    formStatus?: string | null;
+    groupOptions: UserInviteOption[];
     isSubmitting?: boolean;
     onClose: () => void;
     onSubmit: () => void;
-    onValueChange: (field: keyof CreateUserFormValues, value: string) => void;
-    organizationName: string;
-    values: CreateUserFormValues;
+    onValueChange: (field: keyof UserInviteFormValues, value: string) => void;
+    organizationOptions: UserInviteOption[];
+    organizationSelectDisabled?: boolean;
+    values: UserInviteFormValues;
 }
 
-const roleOptions = [
+const roleOptions: UserInviteOption[] = [
     { label: "Learner", value: "member" },
     { label: "Manager", value: "manager" },
 ];
@@ -98,10 +114,7 @@ function UserSelectField({
     id: string;
     label: string;
     onChange: (value: string) => void;
-    options: Array<{
-        label: string;
-        value: string;
-    }>;
+    options: UserInviteOption[];
     required?: boolean;
     value: string;
 }) {
@@ -133,20 +146,23 @@ function UserSelectField({
     );
 }
 
-export function CreateUserModal({
+export function UserInviteModal({
     formError = null,
+    formStatus = null,
     groupOptions,
     isSubmitting = false,
     onClose,
     onSubmit,
     onValueChange,
-    organizationName,
+    organizationOptions,
+    organizationSelectDisabled = false,
     values,
-}: CreateUserModalProps) {
+}: UserInviteModalProps) {
     const canSubmit =
         values.firstName.trim().length > 0 &&
         values.lastName.trim().length > 0 &&
         values.email.trim().length > 0 &&
+        values.organizationId.trim().length > 0 &&
         values.role.trim().length > 0;
 
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -167,7 +183,8 @@ export function CreateUserModal({
                     <Button
                         aria-label="Fermer"
                         onClick={onClose}
-                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[#6B7280] transition hover:bg-[#F3F4F7] hover:text-[#111827]"
+                        disabled={isSubmitting}
+                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-[#6B7280] transition hover:bg-[#F3F4F7] hover:text-[#111827] disabled:cursor-not-allowed disabled:opacity-60"
                     >
                         <InlineIcon icon={X} className="h-5 w-5" />
                     </Button>
@@ -175,6 +192,14 @@ export function CreateUserModal({
 
                 <FormRoot onSubmit={handleSubmit} className="space-y-4" noValidate>
                     {formError && <AlertMessage message={formError} />}
+                    {!formError && formStatus && (
+                        <Box
+                            aria-live="polite"
+                            className="rounded-lg border border-[#B8C5FF] bg-[#F4F6FF] px-3 py-2 text-[13px] font-semibold text-[#4434D4]"
+                        >
+                            {formStatus}
+                        </Box>
+                    )}
                     <UserTextField
                         autoFocus
                         id="user-first-name"
@@ -200,20 +225,20 @@ export function CreateUserModal({
                     />
                     <UserSelectField
                         id="user-role"
-                        label="Rôle"
+                        label="Rôle dans l'organisation"
                         onChange={(value) => onValueChange("role", value)}
                         options={roleOptions}
                         required
                         value={values.role}
                     />
                     <UserSelectField
-                        disabled
+                        disabled={organizationSelectDisabled}
                         id="user-organization"
                         label="Organisation"
-                        onChange={() => undefined}
-                        options={[{ label: organizationName, value: organizationName }]}
+                        onChange={(value) => onValueChange("organizationId", value)}
+                        options={[{ label: "Sélectionnez une organisation", value: "" }, ...organizationOptions]}
                         required
-                        value={organizationName}
+                        value={values.organizationId}
                     />
                     <UserSelectField
                         id="user-group"
@@ -227,7 +252,7 @@ export function CreateUserModal({
                         <Button
                             onClick={onClose}
                             disabled={isSubmitting}
-                            className="flex h-9 items-center justify-center rounded-lg border border-[#DADDE4] bg-white text-[13px] font-bold text-[#111827] transition hover:bg-[#F7F8FB]"
+                            className="flex h-9 items-center justify-center rounded-lg border border-[#DADDE4] bg-white text-[13px] font-bold text-[#111827] transition hover:bg-[#F7F8FB] disabled:cursor-not-allowed disabled:opacity-60"
                         >
                             Annuler
                         </Button>

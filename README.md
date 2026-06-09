@@ -254,16 +254,9 @@ src/
 
 ## 🎨 Voix Disponibles
 
-| Voice ID | Description |
-|----------|-------------|
-| `alloy` | Neutre |
-| `ash` | Masculine douce |
-| `ballad` | Mélodique |
-| `coral` | Féminine chaleureuse |
-| `echo` | Masculine dynamique |
-| `sage` | Féminine calme |
-| `shimmer` | Féminine vive |
-| `verse` | Narrative |
+Les identifiants compatibles OpenAI Realtime et les libellés affichés dans
+l'application sont centralisés dans `src/lib/openai/realtime-voices.ts`.
+OpenAI recommande `marin` et `cedar` pour la meilleure qualité audio.
 
 ---
 

@@ -792,7 +792,7 @@ Analyse cet appel et réponds uniquement avec un JSON valide.`
                 if (!response.ok) {
                     const errorData = await response.json();
                     console.error(`❌ Erreur OpenAI pour ${tab}:`, errorData);
-                    return { tab, result: null, error: errorData.error?.message || "Erreur API OpenAI" };
+                    return { tab, result: null, error: errorData.error?.message || "Erreur du service IA" };
                 }
 
                 const data = await response.json();

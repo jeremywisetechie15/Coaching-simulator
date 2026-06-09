@@ -1,13 +1,38 @@
+import {
+    DEFAULT_OPENAI_REALTIME_VOICE_ID,
+    type VoiceId,
+} from "@/lib/openai/realtime-voices";
+
 export interface PersonaListItem {
     avatarUrl: string | null;
     company: string;
     id: string;
-    influenceLabel: "Influent" | "Stable";
     name: string;
     role: string;
+    voiceCharacteristic: string | null;
+    voiceId: string | null;
+    voiceName: string;
+}
+
+export interface PersonaEditorValues {
+    avatarUrl: string;
+    company: string;
+    name: string;
+    role: string;
+    systemInstructions: string;
+    voiceId: VoiceId;
 }
 
 export const PERSONA_AVATAR_BUCKET = "personas-avatars";
+
+export const EMPTY_PERSONA_EDITOR_VALUES: PersonaEditorValues = {
+    avatarUrl: "",
+    company: "",
+    name: "",
+    role: "",
+    systemInstructions: "",
+    voiceId: DEFAULT_OPENAI_REALTIME_VOICE_ID,
+};
 
 export function getPersonaAvatarPublicUrl(avatarPath: string | null | undefined) {
     const normalizedPath = avatarPath?.trim();

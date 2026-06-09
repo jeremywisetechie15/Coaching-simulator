@@ -21,6 +21,8 @@ export function OrganizationsPage({
             activePrimaryItem="Organisations"
             avatarUrl={profileValues.avatarUrl}
             initials={getProfileInitials(profileValues)}
+            fullName={`${profileValues.firstName} ${profileValues.lastName}`.trim()}
+            email={profileValues.email}
         >
             {accessDenied ? (
                 <OrganizationsAccessDeniedContent />

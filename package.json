@@ -12,6 +12,7 @@
     "@heygen/liveavatar-web-sdk": "^0.0.13",
     "@supabase/ssr": "^0.8.0",
     "@supabase/supabase-js": "^2.89.0",
+    "@tanstack/react-query": "^5.100.14",
     "lucide-react": "^0.562.0",
     "next": "16.1.1",
     "react": "19.2.3",

@@ -231,7 +231,9 @@ function getStatusClasses(status: UserStatus) {
 }
 
 function roleLabel(role: UserRole) {
-    return role === "SuperAdmin" ? "SuperAdmin" : "Learner";
+    if (role === "Admin") return "Admin";
+    if (role === "Manager") return "Manager";
+    return "Learner";
 }
 
 function getUsernameFromEmail(email: string) {
@@ -425,7 +427,8 @@ function ProfileTab({
                             label="Rôle"
                             onChange={(value) => onDraftChange("role", value)}
                             options={[
-                                { label: "SuperAdmin", value: "SuperAdmin" },
+                                { label: "Admin", value: "Admin" },
+                                { label: "Manager", value: "Manager" },
                                 { label: "Learner", value: "Learner" },
                             ]}
                             value={draft.role}

@@ -28,5 +28,29 @@ export async function getOrganizationDetail(organizationId: string): Promise<Org
         throw new NotFoundError("Organisation introuvable.");
     }
 
-    return mapOrganizationRowToDetail(data);
+    const [membershipsResult, groupsResult] = await Promise.all([
+        supabase
+            .from("organization_members")
+            .select("organization_id")
+            .eq("organization_id", organizationId),
+        supabase
+            .from("groups")
+            .select("organization_id")
+            .eq("organization_id", organizationId)
+            .eq("status", "active"),
+    ]);
+
+    if (membershipsResult.error) {
+        throw membershipsResult.error;
+    }
+
+    if (groupsResult.error) {
+        throw groupsResult.error;
+    }
+
+    return mapOrganizationRowToDetail({
+        ...data,
+        group_count: groupsResult.data?.length ?? 0,
+        user_count: membershipsResult.data?.length ?? 0,
+    });
 }

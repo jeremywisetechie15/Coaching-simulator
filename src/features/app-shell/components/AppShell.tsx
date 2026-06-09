@@ -10,6 +10,10 @@ interface AppShellProps extends PropsWithChildren {
     avatarUrl: string | null;
     initials: string;
     searchPlaceholder?: string;
+    /** Nom complet affiché en en-tête du menu utilisateur. */
+    fullName?: string;
+    /** Email affiché en en-tête du menu utilisateur. */
+    email?: string;
 }
 
 export function AppShell({
@@ -19,6 +23,8 @@ export function AppShell({
     children,
     initials,
     searchPlaceholder,
+    fullName,
+    email,
 }: AppShellProps) {
     return (
         <Box className="min-h-screen bg-[#FAFAFB] text-[#171B2A]">
@@ -28,6 +34,8 @@ export function AppShell({
                     avatarUrl={avatarUrl}
                     initials={initials}
                     searchPlaceholder={searchPlaceholder}
+                    fullName={fullName}
+                    email={email}
                 />
                 {children}
             </Box>

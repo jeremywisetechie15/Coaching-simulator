@@ -45,3 +45,8 @@ next-env.d.ts
 
 # handoff
 HANDOFF.md
+
+.agents/
+.claude/
+
+doc/

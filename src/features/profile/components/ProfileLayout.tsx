@@ -13,6 +13,8 @@ export function ProfileLayout({ children, profileValues }: ProfileLayoutProps) {
             activeAccountItem="Mon profil"
             avatarUrl={profileValues.avatarUrl}
             initials={getProfileInitials(profileValues)}
+            fullName={`${profileValues.firstName} ${profileValues.lastName}`.trim()}
+            email={profileValues.email}
         >
             {children}
         </AppShell>

@@ -1,28 +1,47 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Eye, Pencil, Plus } from "lucide-react";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import {
-    demoOrganizationGroups,
     demoOrganizationUsers,
+    type OrganizationGroupRow,
 } from "@/features/organizations/domain/organization-detail";
 import { ORGANIZATION_MEMBER_STATUS_LABELS } from "@/features/organizations/domain/organization-member";
-import { CreateUserModal, type CreateUserFormValues } from "./CreateUserModal";
+import {
+    initialUserInviteFormValues,
+    UserInviteModal,
+    type UserInviteFormValues,
+} from "@/features/users/components/UserInviteModal";
 import { OrganizationProgressBar } from "./OrganizationProgressBar";
 
 const columns = ["Utilisateur", "Email", "Rôle", "Statut", "Formations", "Progression", "Actions"];
 
-const initialCreateUserValues: CreateUserFormValues = {
-    email: "",
-    firstName: "",
-    groupId: "",
-    lastName: "",
-    role: "member",
-};
+interface ApiValidationIssue {
+    message: string;
+    path: Array<string | number>;
+}
+
+interface ApiErrorPayload {
+    code?: string;
+    error?: string;
+    issues?: ApiValidationIssue[];
+}
+
+interface GroupsPayload {
+    groups?: OrganizationGroupRow[];
+}
 
 function getInitials(firstName: string, lastName: string) {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+}
+
+function getInitialCreateUserValues(organizationId: string): UserInviteFormValues {
+    return {
+        ...initialUserInviteFormValues,
+        organizationId,
+    };
 }
 
 interface OrganizationDetailUsersProps {
@@ -30,37 +49,77 @@ interface OrganizationDetailUsersProps {
     organizationName?: string;
 }
 
-function getRoleLabel(role: CreateUserFormValues["role"]) {
+function getRoleLabel(role: UserInviteFormValues["role"]) {
     return role === "manager" ? "Manager" : "Learner";
+}
+
+function getInviteErrorMessage(status: number, payload: ApiErrorPayload | null) {
+    const validationMessage = payload?.issues?.map((issue) => issue.message).join(" ");
+    const message = validationMessage || payload?.error || "Impossible d'envoyer l'invitation.";
+
+    return `Erreur ${status} : ${message}`;
 }
 
 export function OrganizationDetailUsers({
     organizationId,
     organizationName = "Organisation",
 }: OrganizationDetailUsersProps) {
+    const queryClient = useQueryClient();
     const [users, setUsers] = useState(demoOrganizationUsers);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isInviting, setIsInviting] = useState(false);
     const [inviteError, setInviteError] = useState<string | null>(null);
-    const [createUserValues, setCreateUserValues] = useState<CreateUserFormValues>(initialCreateUserValues);
-
-    const groupOptions = useMemo(
-        () => demoOrganizationGroups.map((group) => ({ label: group.name, value: group.id })),
-        []
+    const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
+    const [inviteStatus, setInviteStatus] = useState<string | null>(null);
+    const [organizationGroups, setOrganizationGroups] = useState<OrganizationGroupRow[]>([]);
+    const [createUserValues, setCreateUserValues] = useState<UserInviteFormValues>(() =>
+        getInitialCreateUserValues(organizationId)
     );
+
+    const groupOptions = organizationGroups.map((group) => ({ label: group.name, value: group.id }));
+
+    useEffect(() => {
+        let isMounted = true;
+
+        async function loadGroups() {
+            try {
+                const response = await fetch(`/api/organizations/${organizationId}/groups`, {
+                    headers: { Accept: "application/json" },
+                });
+                const payload = (await response.json().catch(() => null)) as GroupsPayload | null;
+
+                if (response.ok && isMounted) {
+                    setOrganizationGroups(payload?.groups ?? []);
+                }
+            } catch {
+                if (isMounted) {
+                    setOrganizationGroups([]);
+                }
+            }
+        }
+
+        void loadGroups();
+
+        return () => {
+            isMounted = false;
+        };
+    }, [organizationId]);
 
     const closeCreateModal = () => {
         setIsCreateModalOpen(false);
         setInviteError(null);
-        setCreateUserValues(initialCreateUserValues);
+        setInviteStatus(null);
+        setCreateUserValues(getInitialCreateUserValues(organizationId));
     };
 
-    const updateCreateUserValue = (field: keyof CreateUserFormValues, value: string) => {
+    const updateCreateUserValue = (field: keyof UserInviteFormValues, value: string) => {
         setCreateUserValues((currentValues) => ({
             ...currentValues,
-            [field]: field === "role" ? (value as CreateUserFormValues["role"]) : value,
+            [field]: field === "role" ? (value as UserInviteFormValues["role"]) : value,
         }));
         setInviteError(null);
+        setInviteSuccess(null);
+        setInviteStatus(null);
     };
 
     const createUser = async () => {
@@ -74,32 +133,40 @@ export function OrganizationDetailUsers({
 
         setIsInviting(true);
         setInviteError(null);
+        setInviteSuccess(null);
+        setInviteStatus("Envoi de la requête d'invitation...");
 
         try {
             const response = await fetch(`/api/organizations/${organizationId}/users/invite`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    ...createUserValues,
                     email,
                     firstName,
+                    groupId: createUserValues.groupId,
                     lastName,
+                    role: createUserValues.role,
                 }),
             });
 
             const payload = await response.json().catch(() => null);
 
             if (!response.ok) {
-                setInviteError(payload?.error ?? "Impossible d'envoyer l'invitation.");
+                setInviteStatus(null);
+                setInviteError(getInviteErrorMessage(response.status, payload as ApiErrorPayload | null));
                 return;
             }
         } catch {
+            setInviteStatus(null);
             setInviteError("Impossible d'envoyer l'invitation.");
             return;
         } finally {
             setIsInviting(false);
         }
 
+        setInviteSuccess(`Invitation envoyée à ${email}.`);
+        void queryClient.invalidateQueries({ queryKey: ["organizations"] });
+        void queryClient.invalidateQueries({ queryKey: ["users"] });
         setUsers((currentUsers) => [
             ...currentUsers,
             {
@@ -130,6 +197,15 @@ export function OrganizationDetailUsers({
                     Ajouter des utilisateurs
                 </Button>
             </Box>
+
+            {inviteSuccess && (
+                <Box
+                    aria-live="polite"
+                    className="mb-5 rounded-lg border border-[#BFE8CB] bg-[#F0FBF3] px-4 py-3 text-[13px] font-semibold text-[#27743B]"
+                >
+                    {inviteSuccess}
+                </Box>
+            )}
 
             <CardSurface className="overflow-hidden rounded-[14px] border border-[#E1E4EB] shadow-none">
                 <Box className="overflow-x-auto">
@@ -201,14 +277,16 @@ export function OrganizationDetailUsers({
             </CardSurface>
 
             {isCreateModalOpen && (
-                <CreateUserModal
+                <UserInviteModal
                     formError={inviteError}
+                    formStatus={inviteStatus}
                     groupOptions={groupOptions}
                     isSubmitting={isInviting}
                     onClose={closeCreateModal}
                     onSubmit={createUser}
                     onValueChange={updateCreateUserValue}
-                    organizationName={organizationName}
+                    organizationOptions={[{ label: organizationName, value: organizationId }]}
+                    organizationSelectDisabled
                     values={createUserValues}
                 />
             )}

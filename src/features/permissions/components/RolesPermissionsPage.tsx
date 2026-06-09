@@ -5,7 +5,7 @@ import { ArrowLeft, Check, ChevronDown, Minus } from "lucide-react";
 import { AppShell } from "@/features/app-shell/components";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 
-type PermissionRole = "superAdmin" | "learner";
+type PermissionRole = "admin" | "learner";
 type ToggleState = "checked" | "mixed" | "unchecked";
 
 interface RolesPermissionsPageProps {
@@ -22,7 +22,7 @@ interface PermissionGroup {
 type PermissionState = Record<string, Record<PermissionRole, Record<string, boolean>>>;
 
 const roles: Array<{ key: PermissionRole; label: string }> = [
-    { key: "superAdmin", label: "SuperAdmin" },
+    { key: "admin", label: "Admin" },
     { key: "learner", label: "Learner" },
 ];
 
@@ -48,12 +48,12 @@ const permissionGroups: PermissionGroup[] = [
 function createInitialPermissions(): PermissionState {
     return permissionGroups.reduce<PermissionState>((groupState, group) => {
         groupState[group.id] = {
-            superAdmin: {},
+            admin: {},
             learner: {},
         };
 
         for (const action of group.actions) {
-            groupState[group.id].superAdmin[action] = true;
+            groupState[group.id].admin[action] = true;
             groupState[group.id].learner[action] = action === "Voir";
         }
 

@@ -3,7 +3,7 @@ import HeygenTestClient from "./HeygenTestClient";
 
 export const metadata = {
     title: "Test LiveAvatar — Coaching Simulator",
-    description: "Page de test d'intégration LiveAvatar (HeyGen) avec OpenAI comme LLM",
+    description: "Page de test d'intégration LiveAvatar (HeyGen) avec un LLM",
 };
 
 interface PageProps {

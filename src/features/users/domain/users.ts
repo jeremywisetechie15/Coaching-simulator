@@ -1,5 +1,5 @@
 export type UserStatus = "active" | "inactive" | "pending";
-export type UserRole = "SuperAdmin" | "Learner";
+export type UserRole = "Admin" | "Manager" | "Learner";
 
 export interface UserTraining {
     assignedAt: string;
@@ -71,7 +71,7 @@ export const demoUsers: UserListItem[] = [
         organization: "Deepmark",
         phone: "+33 6 18 42 91 04",
         progress: 68,
-        role: "SuperAdmin",
+        role: "Admin",
         status: "active",
         trainings: [
             { assignedAt: "10 jan. 2025", id: "t1", progress: 68, status: "in_progress", title: "Prise de rendez-vous prospect qualifié" },

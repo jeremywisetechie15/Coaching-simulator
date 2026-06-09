@@ -1,7 +1,7 @@
 import { notFound, redirect } from "next/navigation";
-import { UnauthorizedError } from "@/lib/server/errors";
+import { ForbiddenError, UnauthorizedError } from "@/lib/server/errors";
 import { UserDetailPage } from "@/features/users/components";
-import { getDemoUserById } from "@/features/users/domain/users";
+import { getUserById } from "@/features/users/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import { getCurrentProfile } from "@/features/profile/server";
@@ -22,22 +22,27 @@ interface PageProps {
 export default async function Page({ params, searchParams }: PageProps) {
     const { userId } = await params;
     const resolvedSearchParams = searchParams ? await searchParams : undefined;
-    const user = getDemoUserById(userId);
-
-    if (!user) {
-        notFound();
-    }
 
     let profile;
+    let user;
 
     try {
         profile = await getCurrentProfile();
+        user = await getUserById(userId);
     } catch (error) {
-        if (!(error instanceof UnauthorizedError)) {
-            throw error;
+        if (error instanceof UnauthorizedError) {
+            redirect(`/auth?redirect=/users/${userId}`);
         }
 
-        redirect(`/auth?redirect=/users/${userId}`);
+        if (error instanceof ForbiddenError) {
+            notFound();
+        }
+
+        throw error;
+    }
+
+    if (!user) {
+        notFound();
     }
 
     const profileValues = toProfileFormValues(profile);

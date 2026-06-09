@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import type { VoiceId, Persona } from "@/types";
+import { DEFAULT_OPENAI_REALTIME_VOICE_ID, isOpenAIRealtimeVoiceId } from "@/lib/openai/realtime-voices";
 
 const OPENAI_REALTIME_SESSIONS_URL = "https://api.openai.com/v1/realtime/sessions";
 
@@ -17,7 +18,7 @@ const VALID_MODELS = [
 interface RequestBody {
     persona_id?: string;
     system_instructions?: string;
-    voice?: VoiceId;
+    voice?: string;
     model?: string;
 }
 
@@ -25,7 +26,6 @@ export async function POST(request: NextRequest) {
     try {
         const body: RequestBody = await request.json();
         const { persona_id, system_instructions, voice, model } = body;
-
 
         if (!persona_id && !system_instructions) {
             return NextResponse.json(
@@ -35,7 +35,15 @@ export async function POST(request: NextRequest) {
         }
 
         let instructions = system_instructions || "";
-        let voiceId: VoiceId = voice || "alloy";
+        let voiceId: VoiceId = DEFAULT_OPENAI_REALTIME_VOICE_ID;
+
+        if (voice) {
+            if (!isOpenAIRealtimeVoiceId(voice)) {
+                return NextResponse.json({ error: "Unsupported realtime voice" }, { status: 400 });
+            }
+
+            voiceId = voice;
+        }
 
 
         const selectedModel = model && VALID_MODELS.includes(model) ? model : DEFAULT_MODEL;
@@ -59,6 +67,13 @@ export async function POST(request: NextRequest) {
             instructions = persona.system_instructions;
 
             if (!voice) {
+                if (!isOpenAIRealtimeVoiceId(persona.voice_id)) {
+                    return NextResponse.json(
+                        { error: "Persona voice is not supported by the realtime service" },
+                        { status: 500 }
+                    );
+                }
+
                 voiceId = persona.voice_id;
             }
         }
@@ -67,7 +82,7 @@ export async function POST(request: NextRequest) {
         const openaiApiKey = process.env.OPENAI_API_KEY;
         if (!openaiApiKey) {
             return NextResponse.json(
-                { error: "OpenAI API key not configured" },
+                { error: "Voice service is not configured" },
                 { status: 500 }
             );
         }
@@ -106,7 +121,7 @@ export async function POST(request: NextRequest) {
             const errorText = await openaiResponse.text();
             console.error("OpenAI API Error:", errorText);
             return NextResponse.json(
-                { error: `OpenAI API error: ${openaiResponse.status} - ${errorText}` },
+                { error: `Voice service error: ${openaiResponse.status} - ${errorText}` },
                 { status: openaiResponse.status }
             );
         }

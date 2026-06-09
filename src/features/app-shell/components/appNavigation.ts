@@ -3,7 +3,7 @@ import {
     BotMessageSquare,
     Building2,
     ChevronDown,
-    GraduationCap,
+    ClipboardCheck,
     Grid2X2,
     LogOut,
     MessagesSquare,
@@ -21,13 +21,14 @@ export interface AppNavigationItem {
 }
 
 export const primaryNavigation: AppNavigationItem[] = [
-    { icon: Grid2X2, label: "Tableau de bord" },
+    { href: "/", icon: Grid2X2, label: "Tableau de bord" },
     // { icon: GraduationCap, label: "Académie" },
     // { icon: BookOpen, label: "Programmes" },
-    { icon: MessagesSquare, label: "Roleplays" },
-    { icon: BookOpen, label: "Méthodes et Playbook" },
-    { icon: Star, label: "Compétences" },
-    { icon: BotMessageSquare, label: "Mes Coachs IA" },
+    { href: "/roleplays", icon: MessagesSquare, label: "Roleplays" },
+    { href: "/methods", icon: BookOpen, label: "Méthodes et Playbook" },
+    { href: "/evaluations", icon: ClipboardCheck, label: "Évaluations" },
+    { href: "/skills", icon: Star, label: "Compétences" },
+    { href: "/coaches", icon: BotMessageSquare, label: "Mes Coachs IA" },
     { href: "/personas", icon: UserRoundCog, label: "Mes Personas IA" },
     { href: "/organizations", icon: Building2, label: "Organisations" },
     { href: "/users", icon: UsersRound, label: "Utilisateurs" },
