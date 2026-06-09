@@ -251,6 +251,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                 if (transcript) addMessageToRef("user", transcript, eventId);
                 break;
             }
+            case "response.output_audio_transcript.done":
             case "response.audio_transcript.done": {
                 const transcript = (event as { transcript?: string }).transcript;
                 if (transcript) addMessageToRef("assistant", transcript, eventId);
@@ -274,12 +275,19 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                 break;
 
             // === FALLBACK for WebSocket mode ===
+            case "response.output_audio.delta":
             case "response.audio.delta":
                 console.log("🔵 Audio delta received");
                 setIsAiSpeaking(true);
                 break;
 
-            // NOTE: response.audio.done fires before output_audio_buffer.stopped
+            case "response.output_audio.done":
+            case "response.done":
+                console.log("⚪ Audio response done");
+                setIsAiSpeaking(false);
+                break;
+
+            // NOTE: old response.audio.done can fire before output_audio_buffer.stopped
             // so we ignore it and rely on output_audio_buffer.stopped for WebRTC
             case "response.audio.done":
                 console.log("⚪ Audio done (ignored - waiting for output_audio_buffer.stopped)");
@@ -513,11 +521,9 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                 throw new Error("No ephemeral key received");
             }
 
-            // Connect to OpenAI Realtime API directly with the ephemeral key
-            const baseUrl = "https://api.openai.com/v1/realtime";
-            const model = config.model || "gpt-realtime-1.5";
-
-            const sdpResponse = await fetch(`${baseUrl}?model=${model}`, {
+            // Connect to OpenAI Realtime API directly with the ephemeral key.
+            // The model/session config is bound to the client secret by our API route.
+            const sdpResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${ephemeralKey}`,

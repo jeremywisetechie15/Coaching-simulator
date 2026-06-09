@@ -187,9 +187,8 @@ export default function VoiceSession({ scenario, model = "gpt-4o-mini-realtime-p
                 throw new Error(errorData.error || "Failed to get session token");
             }
 
-            const { data, voice, model: responseModel } = await response.json();
+            const { data, voice } = await response.json();
             const ephemeralKey = data.client_secret.value;
-            const activeModel = responseModel || model;
             setCurrentVoice(voice);
 
             const pc = new RTCPeerConnection({
@@ -247,17 +246,14 @@ export default function VoiceSession({ scenario, model = "gpt-4o-mini-realtime-p
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
 
-            const sdpResponse = await fetch(
-                `https://api.openai.com/v1/realtime?model=${activeModel}`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${ephemeralKey}`,
-                        "Content-Type": "application/sdp",
-                    },
-                    body: offer.sdp,
-                }
-            );
+            const sdpResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${ephemeralKey}`,
+                    "Content-Type": "application/sdp",
+                },
+                body: offer.sdp,
+            });
 
             if (!sdpResponse.ok) throw new Error(`Failed to connect: ${sdpResponse.status}`);
 
@@ -300,6 +296,7 @@ export default function VoiceSession({ scenario, model = "gpt-4o-mini-realtime-p
             }
 
             // ✅ AI RESPONSE - Final transcript only
+            case "response.output_audio_transcript.done":
             case "response.audio_transcript.done": {
                 const transcript = (event as { transcript?: string }).transcript;
                 if (transcript) {
@@ -309,10 +306,12 @@ export default function VoiceSession({ scenario, model = "gpt-4o-mini-realtime-p
             }
 
             // Visual feedback only (no storage)
+            case "response.output_audio.delta":
             case "response.audio.delta":
                 setIsAiSpeaking(true);
                 break;
 
+            case "response.output_audio.done":
             case "response.audio.done":
             case "response.done":
                 setIsAiSpeaking(false);
