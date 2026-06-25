@@ -6,9 +6,8 @@ import { Eye, Pencil, Plus, Trash2, UsersRound } from "lucide-react";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import type { OrganizationGroupRow } from "@/features/organizations/domain/organization-detail";
 import { CreateGroupModal } from "./CreateGroupModal";
-import { OrganizationProgressBar } from "./OrganizationProgressBar";
 
-const columns = ["Groupe", "Membres", "Formations", "Progression", "Actions"];
+const columns = ["Groupe", "Membres", "Roleplays", "Quizzes", "Actions"];
 
 interface OrganizationDetailGroupsProps {
     organizationId: string;
@@ -28,18 +27,6 @@ interface ApiErrorPayload {
 interface GroupsPayload {
     group?: OrganizationGroupRow;
     groups?: OrganizationGroupRow[];
-}
-
-function progressColor(progress: number) {
-    if (progress >= 75) {
-        return "green" as const;
-    }
-
-    if (progress >= 60) {
-        return "yellow" as const;
-    }
-
-    return "orange" as const;
 }
 
 export function OrganizationDetailGroups({ organizationId }: OrganizationDetailGroupsProps) {
@@ -215,15 +202,13 @@ export function OrganizationDetailGroups({ organizationId }: OrganizationDetailG
                                     </Box>
                                     <Box as="td" className="px-7 py-5">
                                         <Text className="text-[14px] font-semibold text-[#202636]">
-                                            {group.formationCount}
+                                            {group.roleplayCount}
                                         </Text>
                                     </Box>
                                     <Box as="td" className="px-7 py-5">
-                                        <OrganizationProgressBar
-                                            color={progressColor(group.progress)}
-                                            progress={group.progress}
-                                            size="sm"
-                                        />
+                                        <Text className="text-[14px] font-semibold text-[#202636]">
+                                            {group.quizCount}
+                                        </Text>
                                     </Box>
                                     <Box as="td" className="px-7 py-5">
                                         <Box className="flex items-center gap-5 text-[#9AA2B2]">

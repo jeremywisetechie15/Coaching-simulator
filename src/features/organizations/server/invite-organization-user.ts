@@ -2,6 +2,8 @@ import { AppError, NotFoundError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/features/auth/server";
 import type { InviteOrganizationUserDto } from "@/features/organizations/dto/invite-organization-user.dto";
+import { ORGANIZATION_MEMBER_STATUS } from "@/features/organizations/domain/organization-member";
+import { PLATFORM_ROLE } from "@/features/users/domain/users";
 
 interface OrganizationRow {
     id: string;
@@ -95,7 +97,7 @@ export async function inviteOrganizationUser(
                 id: invitedUser.id,
                 last_name: input.lastName,
                 name: fullName,
-                platform_role: "user",
+                platform_role: PLATFORM_ROLE.user,
                 updated_at: new Date().toISOString(),
             },
             { onConflict: "id" }
@@ -121,7 +123,7 @@ export async function inviteOrganizationUser(
             .from("organization_members")
             .update({
                 role: input.role,
-                status: "invited",
+                status: ORGANIZATION_MEMBER_STATUS.invited,
                 updated_at: new Date().toISOString(),
             })
             .eq("user_id", invitedUser.id)
@@ -136,7 +138,7 @@ export async function inviteOrganizationUser(
             .insert({
                 organization_id: organizationId,
                 role: input.role,
-                status: "invited",
+                status: ORGANIZATION_MEMBER_STATUS.invited,
                 user_id: invitedUser.id,
             });
 

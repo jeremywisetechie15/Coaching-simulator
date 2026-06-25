@@ -1,31 +1,35 @@
+import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
 import { MethodDetailPage } from "@/features/methods/components";
-import { methods } from "@/features/methods/data/methods";
+import { getMethodById } from "@/features/methods/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
-import { UnauthorizedError } from "@/lib/server/errors";
+import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
 
 interface PageProps {
     params: Promise<{ methodId: string }>;
 }
 
+const getCachedMethodById = cache(getMethodById);
+
 export async function generateMetadata({ params }: PageProps) {
     const { methodId } = await params;
-    const method = methods.find((item) => item.id === methodId);
 
-    return {
-        title: method ? `${method.name} | MaiaCoach` : "Méthode | MaiaCoach",
-    };
+    try {
+        const method = await getCachedMethodById(methodId);
+
+        return {
+            title: `${method.name} | MaiaCoach`,
+        };
+    } catch {
+        return {
+            title: "Méthode | MaiaCoach",
+        };
+    }
 }
 
 export default async function Page({ params }: PageProps) {
     const { methodId } = await params;
-    const method = methods.find((item) => item.id === methodId);
-
-    if (!method) {
-        notFound();
-    }
-
     let profile;
 
     try {
@@ -36,6 +40,18 @@ export default async function Page({ params }: PageProps) {
         }
 
         redirect(`/auth?redirect=/methods/${methodId}`);
+    }
+
+    let method;
+
+    try {
+        method = await getCachedMethodById(methodId);
+    } catch (error) {
+        if (error instanceof NotFoundError) {
+            notFound();
+        }
+
+        throw error;
     }
 
     return <MethodDetailPage profileValues={toProfileFormValues(profile)} method={method} />;

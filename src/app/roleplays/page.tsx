@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { RoleplaysPage } from "@/features/roleplays/components";
+import { mergeRoleplayListWithMocks } from "@/features/roleplays/data/roleplay-ui-adapter";
+import { listRoleplays } from "@/features/roleplays/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { UnauthorizedError } from "@/lib/server/errors";
@@ -21,5 +23,7 @@ export default async function Page() {
         redirect("/auth?redirect=/roleplays");
     }
 
-    return <RoleplaysPage profileValues={toProfileFormValues(profile)} />;
+    const roleplays = mergeRoleplayListWithMocks(await listRoleplays());
+
+    return <RoleplaysPage profileValues={toProfileFormValues(profile)} roleplays={roleplays} />;
 }

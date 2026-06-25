@@ -1,49 +1,77 @@
 import { notFound, redirect } from "next/navigation";
+import { getRoleplayMethod } from "@/features/roleplays/data/roleplays";
+import { getMethodById } from "@/features/methods/server";
 import { RoleplayStepsPage } from "@/features/roleplays/components";
-import { getRoleplayMethod, roleplays } from "@/features/roleplays/data/roleplays";
+import {
+    findMockRoleplayById,
+    isUuid,
+    mapDbRoleplayToUi,
+    mapMethodDetailToUi,
+} from "@/features/roleplays/data/roleplay-ui-adapter";
+import { getRoleplayById } from "@/features/roleplays/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
-import { UnauthorizedError } from "@/lib/server/errors";
+import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
 
 interface PageProps {
     params: Promise<{ roleplayId: string }>;
 }
 
-export async function generateMetadata({ params }: PageProps) {
-    const { roleplayId } = await params;
-    const roleplay = roleplays.find((item) => item.id === roleplayId);
-
+export async function generateMetadata() {
     return {
-        title: roleplay
-            ? `Étapes — ${roleplay.name} | Roleplays | MaiaCoach`
-            : "Étapes | Roleplays | MaiaCoach",
+        title: `Étapes | Roleplays | MaiaCoach`,
     };
 }
 
 export default async function Page({ params }: PageProps) {
     const { roleplayId } = await params;
-    const roleplay = roleplays.find((item) => item.id === roleplayId);
+    let profile;
+    let dbMethodId: string | null = null;
+
+    try {
+        profile = await getCurrentProfile();
+    } catch (error) {
+        if (error instanceof UnauthorizedError) {
+            redirect(`/auth?redirect=/roleplays/${roleplayId}/steps`);
+        }
+
+        throw error;
+    }
+
+    let roleplay = findMockRoleplayById(roleplayId);
+
+    try {
+        if (isUuid(roleplayId)) {
+            const dbRoleplay = await getRoleplayById(roleplayId);
+            dbMethodId = dbRoleplay.methodId;
+            roleplay = mapDbRoleplayToUi(dbRoleplay);
+        }
+    } catch (error) {
+        if (error instanceof NotFoundError) {
+            roleplay = findMockRoleplayById(roleplayId);
+        } else {
+            throw error;
+        }
+    }
 
     if (!roleplay) {
         notFound();
     }
 
-    const method = getRoleplayMethod(roleplay);
+    let method = getRoleplayMethod(roleplay);
+
+    if (dbMethodId) {
+        try {
+            method = mapMethodDetailToUi(await getMethodById(dbMethodId));
+        } catch (error) {
+            if (!(error instanceof NotFoundError)) {
+                throw error;
+            }
+        }
+    }
 
     if (!method) {
         notFound();
-    }
-
-    let profile;
-
-    try {
-        profile = await getCurrentProfile();
-    } catch (error) {
-        if (!(error instanceof UnauthorizedError)) {
-            throw error;
-        }
-
-        redirect(`/auth?redirect=/roleplays/${roleplayId}/steps`);
     }
 
     return (

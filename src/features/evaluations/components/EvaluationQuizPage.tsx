@@ -1,15 +1,17 @@
 import { AppShell } from "@/features/app-shell/components";
+import type { QuizDetail } from "@/features/evaluations/domain";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
-import type { Evaluation } from "@/features/evaluations/data/evaluations";
+import type { SkillOption } from "@/features/skills/domain/skills";
 import { EvaluationQuizPageContent } from "./EvaluationQuizPageContent";
 
 interface EvaluationQuizPageProps {
+    quiz: QuizDetail;
     profileValues: ProfileFormValues;
-    evaluation: Evaluation;
+    skillOptions: SkillOption[];
 }
 
-export function EvaluationQuizPage({ profileValues, evaluation }: EvaluationQuizPageProps) {
+export function EvaluationQuizPage({ profileValues, quiz, skillOptions }: EvaluationQuizPageProps) {
     return (
         <AppShell
             activePrimaryItem="Évaluations"
@@ -19,7 +21,7 @@ export function EvaluationQuizPage({ profileValues, evaluation }: EvaluationQuiz
             email={profileValues.email}
             searchPlaceholder="Rechercher..."
         >
-            <EvaluationQuizPageContent evaluation={evaluation} />
+            <EvaluationQuizPageContent quiz={quiz} skillOptions={skillOptions} />
         </AppShell>
     );
 }

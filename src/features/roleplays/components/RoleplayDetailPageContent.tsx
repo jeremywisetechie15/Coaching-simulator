@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import {
     ArrowLeft,
@@ -11,13 +12,16 @@ import {
     Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import {
     categoryBadgeStyles,
     difficultyBadgeStyles,
     discBadgeStyles,
 } from "@/features/roleplays/data/roleplays";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
+import { demoPrepDocuments, demoPrepQuizzes } from "@/features/roleplays/data/preparation";
+import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import { RoleplayDocumentsModal } from "./RoleplayDocumentsModal";
+import { RoleplayQuizModal } from "./RoleplayQuizModal";
 
 const chipIcons: Record<string, LucideIcon> = {
     users: Users,
@@ -46,11 +50,13 @@ function PrepCard({
     description,
     cta,
     href,
+    onClick,
 }: {
     title: string;
     description: string;
     cta: string;
     href?: string;
+    onClick?: () => void;
 }) {
     const ctaClassName =
         "mt-4 flex h-10 w-full items-center justify-center rounded-lg bg-[#5140F0] text-[13px] font-bold text-white transition hover:bg-[#4635E7]";
@@ -68,7 +74,9 @@ function PrepCard({
                     {cta}
                 </Link>
             ) : (
-                <Button className={ctaClassName}>{cta}</Button>
+                <Button onClick={onClick} className={ctaClassName}>
+                    {cta}
+                </Button>
             )}
         </CardSurface>
     );
@@ -79,6 +87,9 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
     const categoryStyle = categoryBadgeStyles[roleplay.category] ?? { bg: "#F3E8FD", text: "#8B2FD6" };
     const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
     const discStyle = discBadgeStyles[roleplay.disc];
+    const [activeModal, setActiveModal] = useState<"quiz" | "documents" | null>(null);
+    const prepDocuments = roleplay.prepDocuments ?? demoPrepDocuments;
+    const prepQuizzes = roleplay.prepQuizzes ?? demoPrepQuizzes;
 
     return (
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
@@ -226,11 +237,13 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
                             title="Quiz de connaissances"
                             description="Vérifiez que vous maîtrisez les bases avant la simulation."
                             cta="Vérifier mes connaissances"
+                            onClick={() => setActiveModal("quiz")}
                         />
                         <PrepCard
                             title="Documents pour la préparation"
                             description="Accédez aux ressources nécessaires pour ce scénario"
                             cta="Accéder"
+                            onClick={() => setActiveModal("documents")}
                         />
                     </Box>
 
@@ -247,6 +260,13 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
                     </Box>
                 </CardSurface>
             </Box>
+
+            {activeModal === "quiz" && (
+                <RoleplayQuizModal quizzes={prepQuizzes} onClose={() => setActiveModal(null)} />
+            )}
+            {activeModal === "documents" && (
+                <RoleplayDocumentsModal documents={prepDocuments} onClose={() => setActiveModal(null)} />
+            )}
         </Box>
     );
 }

@@ -14,11 +14,11 @@ export function mapOrganizationGroupRow(
 ): OrganizationGroupRow {
     return {
         description: row.description ?? "",
-        formationCount: 0,
         id: row.id,
         memberCount,
         name: row.name,
-        progress: 0,
+        quizCount: 0,
+        roleplayCount: 0,
         status: row.status === "archived" ? "archived" : "active",
     };
 }

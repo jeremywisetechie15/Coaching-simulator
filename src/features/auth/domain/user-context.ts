@@ -6,8 +6,8 @@ import {
     isOrganizationMemberRole,
     isOrganizationMemberStatus,
 } from "@/features/organizations/domain/organization-member";
+import { PLATFORM_ROLES, type PlatformRole } from "@/features/users/domain/users";
 
-export type PlatformRole = "admin" | "user";
 export type OrganizationRole = OrganizationMemberRole;
 
 export interface OrganizationMembershipContext {
@@ -26,7 +26,7 @@ export interface UserContext {
 }
 
 export function isPlatformRole(value: unknown): value is PlatformRole {
-    return value === "admin" || value === "user";
+    return typeof value === "string" && PLATFORM_ROLES.includes(value as PlatformRole);
 }
 
 export function isOrganizationRole(value: unknown): value is OrganizationRole {

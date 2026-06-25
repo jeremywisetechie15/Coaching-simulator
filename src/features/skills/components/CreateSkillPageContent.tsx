@@ -1,15 +1,20 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, ChevronDown, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { CONTENT_STATUS, type ContentStatus } from "@/features/content/domain";
+import type { SaveSkillInput } from "@/features/skills/dto";
+import type { SkillCategory, SkillDetail } from "@/features/skills/domain/skills";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import { AlertMessage } from "@/lib/ui/molecules";
 import {
     skillDomainOptions,
     skillFunctionOptions,
     skillObjectiveOptions,
     skillTypeOptions,
-} from "@/features/skills/data/skills";
+} from "@/features/skills/domain/skills";
 
 const functionChoices = skillFunctionOptions.slice(1);
 const typeChoices = skillTypeOptions.slice(1);
@@ -19,6 +24,41 @@ const objectiveChoices = skillObjectiveOptions.slice(1);
 const fieldLabelClasses = "block text-[14px] font-bold text-[#111827]";
 const inputClasses =
     "h-12 w-full rounded-lg border border-[#E5E7EB] bg-[#F3F4F6] px-3.5 text-[14px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#5140F0] focus:bg-white focus:ring-4 focus:ring-[#5140F0]/10";
+
+interface ApiErrorPayload {
+    error?: string;
+    issues?: Array<{ message: string }>;
+    skill?: SkillDetail;
+}
+
+interface CreateSkillPageContentProps {
+    initialSkill?: SkillDetail;
+}
+
+interface SkillDimensionFormItem {
+    id?: string;
+    label: string;
+}
+
+async function saveSkill(skillId: string | undefined, values: SaveSkillInput) {
+    const response = await fetch(skillId ? `/api/skills/${skillId}` : "/api/skills", {
+        body: JSON.stringify(values),
+        headers: { "Content-Type": "application/json" },
+        method: skillId ? "PATCH" : "POST",
+    });
+    const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+
+    if (!response.ok) {
+        const validationMessage = payload?.issues?.map((issue) => issue.message).join(" ");
+        throw new Error(validationMessage || payload?.error || "Impossible d'enregistrer la compétence.");
+    }
+
+    if (!payload?.skill) {
+        throw new Error("La compétence a été enregistrée mais la réponse est incomplète.");
+    }
+
+    return payload.skill;
+}
 
 function useOutsideClose(onClose: () => void) {
     const ref = useRef<HTMLDivElement>(null);
@@ -174,7 +214,7 @@ function DimensionSection({
 }: {
     title: string;
     placeholder: string;
-    items: string[];
+    items: SkillDimensionFormItem[];
     onAdd: () => void;
     onChange: (index: number, value: string) => void;
     onRemove: (index: number) => void;
@@ -195,10 +235,10 @@ function DimensionSection({
             </Box>
             <Box className="mt-3 space-y-2.5">
                 {items.map((item, index) => (
-                    <Box key={index} className="flex items-center gap-2.5">
+                    <Box key={item.id ?? index} className="flex items-center gap-2.5">
                         <Box className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#C9CED8]" />
                         <input
-                            value={item}
+                            value={item.label}
                             onChange={(event) => onChange(index, event.target.value)}
                             placeholder={placeholder}
                             className={inputClasses}
@@ -219,18 +259,42 @@ function DimensionSection({
     );
 }
 
-export function CreateSkillPageContent() {
-    const [name, setName] = useState("");
-    const [description, setDescription] = useState("");
-    const [functions, setFunctions] = useState<string[]>([]);
-    const [type, setType] = useState<string | null>(null);
-    const [domain, setDomain] = useState<string | null>(null);
-    const [objective, setObjective] = useState<string | null>(null);
-    const [knowledge, setKnowledge] = useState<string[]>([""]);
-    const [knowHow, setKnowHow] = useState<string[]>([""]);
-    const [attitude, setAttitude] = useState<string[]>([""]);
+function editableDimensionItems(
+    initialSkill: SkillDetail | undefined,
+    dimension: "savoir" | "savoir_faire" | "savoir_etre",
+): SkillDimensionFormItem[] {
+    const items =
+        initialSkill?.dimensionItems
+            .filter((item) => item.dimension === dimension)
+            .sort((first, second) => first.order - second.order)
+            .map((item) => ({ id: item.id, label: item.label })) ?? [];
+
+    return items.length > 0 ? items : [{ label: "" }];
+}
+
+export function CreateSkillPageContent({ initialSkill }: CreateSkillPageContentProps) {
+    const router = useRouter();
+    const isEditing = Boolean(initialSkill);
+    const [name, setName] = useState(initialSkill?.name ?? "");
+    const [description, setDescription] = useState(initialSkill?.description ?? "");
+    const [functions, setFunctions] = useState<string[]>(initialSkill?.functions ?? []);
+    const [type, setType] = useState<SkillCategory | null>(initialSkill?.category ?? null);
+    const [domain, setDomain] = useState<string | null>(initialSkill?.domain || null);
+    const [objective, setObjective] = useState<string | null>(initialSkill?.objective || null);
+    const [knowledge, setKnowledge] = useState<SkillDimensionFormItem[]>(
+        editableDimensionItems(initialSkill, "savoir"),
+    );
+    const [knowHow, setKnowHow] = useState<SkillDimensionFormItem[]>(
+        editableDimensionItems(initialSkill, "savoir_faire"),
+    );
+    const [attitude, setAttitude] = useState<SkillDimensionFormItem[]>(
+        editableDimensionItems(initialSkill, "savoir_etre"),
+    );
+    const [formError, setFormError] = useState<string | null>(null);
+    const [savingStatus, setSavingStatus] = useState<ContentStatus | null>(null);
 
     const canSubmit = name.trim().length > 0;
+    const isSaving = savingStatus !== null;
 
     function toggleFunction(value: string) {
         setFunctions((current) =>
@@ -239,12 +303,46 @@ export function CreateSkillPageContent() {
     }
 
     function updateList(
-        list: string[],
-        setter: (next: string[]) => void,
+        list: SkillDimensionFormItem[],
+        setter: (next: SkillDimensionFormItem[]) => void,
         index: number,
         value: string,
     ) {
-        setter(list.map((item, itemIndex) => (itemIndex === index ? value : item)));
+        setter(list.map((item, itemIndex) => (itemIndex === index ? { ...item, label: value } : item)));
+    }
+
+    function buildPayload(status: ContentStatus): SaveSkillInput {
+        return {
+            category: type ?? "Métier",
+            description,
+            dimensionItems: {
+                savoir: knowledge.map((item) => ({ id: item.id, label: item.label })),
+                savoir_etre: attitude.map((item) => ({ id: item.id, label: item.label })),
+                savoir_faire: knowHow.map((item) => ({ id: item.id, label: item.label })),
+            },
+            domain: domain ?? "",
+            functions,
+            name,
+            objective: objective ?? "",
+            status,
+        };
+    }
+
+    async function handleSave(status: ContentStatus) {
+        if (isSaving || !canSubmit) return;
+
+        setFormError(null);
+        setSavingStatus(status);
+
+        try {
+            await saveSkill(initialSkill?.id, buildPayload(status));
+            router.push("/skills");
+            router.refresh();
+        } catch (error) {
+            setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer la compétence.");
+        } finally {
+            setSavingStatus(null);
+        }
     }
 
     return (
@@ -259,9 +357,11 @@ export function CreateSkillPageContent() {
                         <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
                     </Link>
                     <Text as="h1" className="text-[28px] font-extrabold leading-tight text-[#111827] md:text-[32px]">
-                        Ajouter une compétence
+                        {isEditing ? "Modifier la compétence" : "Ajouter une compétence"}
                     </Text>
                 </Box>
+
+                {formError && <Box className="mb-5"><AlertMessage message={formError} /></Box>}
 
                 <CardSurface className="rounded-[24px] border border-[#E9E7FB] p-7 shadow-[0_1px_2px_rgba(17,24,39,0.04)] md:p-9">
                     <Text as="h2" className="text-[22px] font-extrabold text-[#111827]">
@@ -315,7 +415,7 @@ export function CreateSkillPageContent() {
                                     options={typeChoices}
                                     value={type}
                                     placeholder="Sélectionner un type"
-                                    onChange={setType}
+                                    onChange={(value) => setType(value as SkillCategory)}
                                 />
                             </Box>
                             <Box>
@@ -355,7 +455,7 @@ export function CreateSkillPageContent() {
                             title="Savoir (Connaissances théoriques)"
                             placeholder="Ex: Comprendre les différents rôles du standard..."
                             items={knowledge}
-                            onAdd={() => setKnowledge((current) => [...current, ""])}
+                            onAdd={() => setKnowledge((current) => [...current, { label: "" }])}
                             onChange={(index, value) => updateList(knowledge, setKnowledge, index, value)}
                             onRemove={(index) =>
                                 setKnowledge((current) => current.filter((_, itemIndex) => itemIndex !== index))
@@ -365,7 +465,7 @@ export function CreateSkillPageContent() {
                             title="Savoir-faire (Compétences pratiques)"
                             placeholder="Ex: Formuler une demande de mise en relation claire..."
                             items={knowHow}
-                            onAdd={() => setKnowHow((current) => [...current, ""])}
+                            onAdd={() => setKnowHow((current) => [...current, { label: "" }])}
                             onChange={(index, value) => updateList(knowHow, setKnowHow, index, value)}
                             onRemove={(index) =>
                                 setKnowHow((current) => current.filter((_, itemIndex) => itemIndex !== index))
@@ -375,7 +475,7 @@ export function CreateSkillPageContent() {
                             title="Savoir-être (Comportements et attitudes)"
                             placeholder="Ex: Adopter un ton assuré sans agressivité..."
                             items={attitude}
-                            onAdd={() => setAttitude((current) => [...current, ""])}
+                            onAdd={() => setAttitude((current) => [...current, { label: "" }])}
                             onChange={(index, value) => updateList(attitude, setAttitude, index, value)}
                             onRemove={(index) =>
                                 setAttitude((current) => current.filter((_, itemIndex) => itemIndex !== index))
@@ -386,21 +486,27 @@ export function CreateSkillPageContent() {
                     <Box className="my-8 h-px bg-[#ECEEF3]" />
 
                     <Box className="flex justify-end gap-3">
-                        <Link
-                            href="/skills"
+                        <Button
+                            disabled={!canSubmit || isSaving}
+                            onClick={() => void handleSave(CONTENT_STATUS.draft)}
                             className="flex h-11 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-6 text-[14px] font-semibold text-[#374151] transition hover:border-[#D5D7DE]"
                         >
-                            Annuler
-                        </Link>
+                            {savingStatus === CONTENT_STATUS.draft ? "Enregistrement..." : "Enregistrer en brouillon"}
+                        </Button>
                         <Button
-                            disabled={!canSubmit}
+                            disabled={!canSubmit || isSaving}
+                            onClick={() => void handleSave(CONTENT_STATUS.published)}
                             className={`flex h-11 items-center justify-center rounded-xl px-6 text-[14px] font-bold text-white transition ${
-                                canSubmit
+                                canSubmit && !isSaving
                                     ? "bg-[#5140F0] shadow-[0_10px_20px_rgba(81,64,240,0.18)] hover:bg-[#4635E7]"
                                     : "cursor-not-allowed bg-[#B9B2F8]"
                             }`}
                         >
-                            Enregistrer
+                            {savingStatus === CONTENT_STATUS.published
+                                ? "Publication..."
+                                : isEditing
+                                    ? "Mettre à jour"
+                                    : "Publier la compétence"}
                         </Button>
                     </Box>
                 </CardSurface>

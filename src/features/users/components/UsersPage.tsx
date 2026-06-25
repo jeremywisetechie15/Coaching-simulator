@@ -13,7 +13,14 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/features/app-shell/components";
 import { Box, Button, CardSurface, InlineIcon, SelectInput, Text, TextInput } from "@/lib/ui/atoms";
-import { type UserListItem, type UserRole, type UserStatus } from "@/features/users/domain/users";
+import {
+    getUserStatusLabel,
+    type UserListItem,
+    type UserRole,
+    USER_ROLE_FILTER_OPTIONS,
+    USER_STATUS_FILTER_OPTIONS,
+    type UserStatus,
+} from "@/features/users/domain/users";
 import type { OrganizationListItem } from "@/features/organizations/domain/organization-list";
 import {
     initialUserInviteFormValues,
@@ -59,12 +66,6 @@ const columns = [
     "Actions",
 ];
 
-function getStatusLabel(status: UserStatus) {
-    if (status === "active") return "Activé";
-    if (status === "pending") return "En attente";
-    return "Désactivé";
-}
-
 function getStatusClasses(status: UserStatus) {
     if (status === "active") return "bg-[#DDF8E6] text-[#2A8A41]";
     if (status === "pending") return "bg-[#FFF3D6] text-[#B77900]";
@@ -74,7 +75,7 @@ function getStatusClasses(status: UserStatus) {
 function UserStatusBadge({ status }: { status: UserStatus }) {
     return (
         <Box className={`inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-bold ${getStatusClasses(status)}`}>
-            {getStatusLabel(status)}
+            {getUserStatusLabel(status)}
         </Box>
     );
 }
@@ -334,23 +335,13 @@ export function UsersPage({ avatarUrl, initials, initialUsers, organizations }: 
                             <FilterSelect
                                 ariaLabel="Filtrer par statut"
                                 onChange={(value) => setStatusFilter(value as "all" | UserStatus)}
-                                options={[
-                                    { label: "Tous statuts", value: "all" },
-                                    { label: "Actifs", value: "active" },
-                                    { label: "En attente", value: "pending" },
-                                    { label: "Inactifs", value: "inactive" },
-                                ]}
+                                options={[...USER_STATUS_FILTER_OPTIONS]}
                                 value={statusFilter}
                             />
                             <FilterSelect
                                 ariaLabel="Filtrer par rôle"
                                 onChange={(value) => setRoleFilter(value as "all" | UserRole)}
-                                options={[
-                                    { label: "Tous rôles", value: "all" },
-                                    { label: "Admin", value: "Admin" },
-                                    { label: "Manager", value: "Manager" },
-                                    { label: "Learner", value: "Learner" },
-                                ]}
+                                options={[...USER_ROLE_FILTER_OPTIONS]}
                                 value={roleFilter}
                             />
                             <FilterSelect

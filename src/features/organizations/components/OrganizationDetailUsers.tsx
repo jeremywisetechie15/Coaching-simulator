@@ -8,15 +8,18 @@ import {
     demoOrganizationUsers,
     type OrganizationGroupRow,
 } from "@/features/organizations/domain/organization-detail";
-import { ORGANIZATION_MEMBER_STATUS_LABELS } from "@/features/organizations/domain/organization-member";
+import {
+    getOrganizationMemberRoleLabel,
+    ORGANIZATION_MEMBER_STATUS,
+    ORGANIZATION_MEMBER_STATUS_LABELS,
+} from "@/features/organizations/domain/organization-member";
 import {
     initialUserInviteFormValues,
     UserInviteModal,
     type UserInviteFormValues,
 } from "@/features/users/components/UserInviteModal";
-import { OrganizationProgressBar } from "./OrganizationProgressBar";
 
-const columns = ["Utilisateur", "Email", "Rôle", "Statut", "Formations", "Progression", "Actions"];
+const columns = ["Utilisateur", "Email", "Rôle", "Statut", "Roleplays", "Quizzes", "Actions"];
 
 interface ApiValidationIssue {
     message: string;
@@ -47,10 +50,6 @@ function getInitialCreateUserValues(organizationId: string): UserInviteFormValue
 interface OrganizationDetailUsersProps {
     organizationId: string;
     organizationName?: string;
-}
-
-function getRoleLabel(role: UserInviteFormValues["role"]) {
-    return role === "manager" ? "Manager" : "Learner";
 }
 
 function getInviteErrorMessage(status: number, payload: ApiErrorPayload | null) {
@@ -171,13 +170,13 @@ export function OrganizationDetailUsers({
             ...currentUsers,
             {
                 email,
-                formationCount: 0,
                 id: `${firstName.toLowerCase()}-${lastName.toLowerCase()}-${Date.now()}`,
                 initials: getInitials(firstName, lastName),
                 name: `${firstName} ${lastName}`,
-                progress: 0,
-                role: getRoleLabel(createUserValues.role),
-                status: "invited",
+                quizCount: 0,
+                role: getOrganizationMemberRoleLabel(createUserValues.role),
+                roleplayCount: 0,
+                status: ORGANIZATION_MEMBER_STATUS.invited,
             },
         ]);
         closeCreateModal();
@@ -251,17 +250,23 @@ export function OrganizationDetailUsers({
                                     </Box>
                                     <Box as="td" className="px-7 py-5">
                                         <Text className="text-[14px] font-extrabold text-[#171B2A]">
-                                            {user.formationCount} formations
+                                            {user.roleplayCount}
                                         </Text>
                                     </Box>
                                     <Box as="td" className="px-7 py-5">
-                                        <OrganizationProgressBar progress={user.progress} size="sm" />
+                                        <Text className="text-[14px] font-extrabold text-[#171B2A]">
+                                            {user.quizCount}
+                                        </Text>
                                     </Box>
                                     <Box as="td" className="px-7 py-5">
                                         <Box className="flex items-center gap-5 text-[#9AA2B2]">
-                                            {[Eye, Pencil].map((icon) => (
+                                            {[
+                                                { icon: Eye, label: "Voir" },
+                                                { icon: Pencil, label: "Éditer" },
+                                            ].map(({ icon, label }) => (
                                                 <Button
-                                                    key={icon.displayName ?? icon.name}
+                                                    key={label}
+                                                    aria-label={`${label} ${user.name}`}
                                                     className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
                                                 >
                                                     <InlineIcon icon={icon} className="h-5 w-5" />

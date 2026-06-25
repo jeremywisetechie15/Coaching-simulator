@@ -13,7 +13,8 @@ const columns = [
     "Entreprise",
     "Groupes",
     "Utilisateurs",
-    "Formations",
+    "Roleplays",
+    "Quizzes",
     "Date de création",
     "Statut",
     "Actions",
@@ -70,7 +71,12 @@ export function OrganizationsTable({ organizations, totalOrganizationCount }: Or
                                     </Box>
                                     <Box as="td" className="p-[17px] text-center md:text-left">
                                         <Text className="text-[14px] font-semibold text-[#202636]">
-                                            {organization.programCount}
+                                            {organization.roleplayCount}
+                                        </Text>
+                                    </Box>
+                                    <Box as="td" className="p-[17px] text-center md:text-left">
+                                        <Text className="text-[14px] font-semibold text-[#202636]">
+                                            {organization.quizCount}
                                         </Text>
                                     </Box>
                                     <Box as="td" className="p-[17px]">

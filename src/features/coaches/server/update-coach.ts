@@ -19,7 +19,7 @@ export async function updateCoach(coachId: string, input: SaveCoachDto): Promise
             voice_id: input.voiceId,
         })
         .eq("id", coachId)
-        .select("id, name, voice_id, system_instructions, avatar_url, created_at")
+        .select("id, name, voice_id, system_instructions, avatar_url, created_at, status")
         .maybeSingle<CoachRow>();
 
     if (error) {

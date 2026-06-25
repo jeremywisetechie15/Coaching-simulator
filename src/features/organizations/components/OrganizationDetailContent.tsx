@@ -8,14 +8,15 @@ import {
 } from "@/features/organizations/domain/create-organization-form";
 import type { OrganizationDetail } from "@/features/organizations/domain/organization-detail";
 import type { OrganizationStatus } from "@/features/organizations/domain/organization-list";
+import { OrganizationDetailEvaluations } from "./OrganizationDetailEvaluations";
 import { OrganizationDetailGroups } from "./OrganizationDetailGroups";
 import { OrganizationDetailHeader } from "./OrganizationDetailHeader";
 import { OrganizationDetailOverview } from "./OrganizationDetailOverview";
+import { OrganizationDetailRoleplays } from "./OrganizationDetailRoleplays";
 import {
     OrganizationDetailTabs,
     type OrganizationDetailTab,
 } from "./OrganizationDetailTabs";
-import { OrganizationDetailTrainings } from "./OrganizationDetailTrainings";
 import { OrganizationDetailUsers } from "./OrganizationDetailUsers";
 
 interface OrganizationDetailContentProps {
@@ -185,7 +186,8 @@ export function OrganizationDetailContent({
                             organizationName={currentOrganization.name}
                         />
                     )}
-                    {activeTab === "trainings" && <OrganizationDetailTrainings />}
+                    {activeTab === "roleplays" && <OrganizationDetailRoleplays />}
+                    {activeTab === "evaluations" && <OrganizationDetailEvaluations />}
                 </CardSurface>
             </Box>
         </Box>

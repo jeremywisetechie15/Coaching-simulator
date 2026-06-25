@@ -2,6 +2,7 @@ import type {
     PersonaEditorValues,
     PersonaListItem,
 } from "@/features/personas/domain/persona-list";
+import { CONTENT_STATUS, normalizeContentStatus, type ContentStatus } from "@/features/content/domain";
 import { getPersonaAvatarPublicUrl } from "@/features/personas/domain/persona-list";
 import { getOpenAIRealtimeVoice, isOpenAIRealtimeVoiceId } from "@/lib/openai/realtime-voices";
 
@@ -12,6 +13,7 @@ export interface PersonaRow {
     id: string;
     name: string;
     role: string | null;
+    status?: ContentStatus | string | null;
     system_instructions: string;
     voice_id: string | null;
 }
@@ -25,6 +27,7 @@ export function mapPersonaRowToListItem(row: PersonaRow): PersonaListItem {
         id: row.id,
         name: row.name,
         role: row.role ?? "",
+        status: normalizeContentStatus(row.status, CONTENT_STATUS.published),
         voiceCharacteristic: voice?.characteristic ?? null,
         voiceId: row.voice_id,
         voiceName: voice?.name ?? row.voice_id ?? "Non configurée",

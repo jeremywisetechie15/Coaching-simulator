@@ -1,14 +1,14 @@
 import { AppShell } from "@/features/app-shell/components";
+import type { Method } from "@/features/methods/data/methods";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
-import type { Method } from "@/features/methods/data/methods";
 import { RoleplayStepsPageContent } from "./RoleplayStepsPageContent";
 
 interface RoleplayStepsPageProps {
+    method: Method;
     profileValues: ProfileFormValues;
     roleplay: RoleplayItem;
-    method: Method;
 }
 
 export function RoleplayStepsPage({ profileValues, roleplay, method }: RoleplayStepsPageProps) {

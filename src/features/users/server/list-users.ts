@@ -1,7 +1,18 @@
 import type { User as SupabaseUser } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/features/auth/server";
-import type { UserListItem, UserRole, UserStatus } from "@/features/users/domain/users";
+import {
+    PLATFORM_ROLE,
+    USER_ROLE,
+    USER_STATUS,
+    type UserListItem,
+    type UserRole,
+    type UserStatus,
+} from "@/features/users/domain/users";
+import {
+    ORGANIZATION_MEMBER_ROLE,
+    ORGANIZATION_MEMBER_STATUS,
+} from "@/features/organizations/domain/organization-member";
 
 interface ProfileRow {
     email: string | null;
@@ -84,31 +95,37 @@ function getInitials(name: string, email: string) {
 }
 
 function getUserRole(profile: ProfileRow | undefined, memberships: MembershipRow[]): UserRole {
-    if (profile?.platform_role === "admin") {
-        return "Admin";
+    if (profile?.platform_role === PLATFORM_ROLE.admin) {
+        return USER_ROLE.admin;
     }
 
-    if (memberships.some((membership) => membership.role === "manager")) {
-        return "Manager";
+    if (memberships.some((membership) => membership.role === ORGANIZATION_MEMBER_ROLE.manager)) {
+        return USER_ROLE.manager;
     }
 
-    return "Learner";
+    return USER_ROLE.learner;
 }
 
 function getUserStatus(profile: ProfileRow | undefined, memberships: MembershipRow[]): UserStatus {
-    if (memberships.some((membership) => membership.status === "active")) {
-        return "active";
+    if (memberships.some((membership) => membership.status === ORGANIZATION_MEMBER_STATUS.active)) {
+        return USER_STATUS.active;
     }
 
-    if (memberships.some((membership) => membership.status === "invited")) {
-        return "pending";
+    if (memberships.some((membership) => membership.status === ORGANIZATION_MEMBER_STATUS.invited)) {
+        return USER_STATUS.pending;
     }
 
-    if (memberships.some((membership) => membership.status === "suspended" || membership.status === "removed")) {
-        return "inactive";
+    if (
+        memberships.some(
+            (membership) =>
+                membership.status === ORGANIZATION_MEMBER_STATUS.suspended ||
+                membership.status === ORGANIZATION_MEMBER_STATUS.removed,
+        )
+    ) {
+        return USER_STATUS.inactive;
     }
 
-    return profile?.platform_role === "admin" ? "active" : "pending";
+    return profile?.platform_role === PLATFORM_ROLE.admin ? USER_STATUS.active : USER_STATUS.pending;
 }
 
 function getOrganizationLabel(
@@ -134,7 +151,7 @@ function getOrganizationLabel(
         return organizationNames.join(", ");
     }
 
-    return profile?.platform_role === "admin" ? "Plateforme" : "Aucune organisation";
+    return profile?.platform_role === PLATFORM_ROLE.admin ? "Plateforme" : "Aucune organisation";
 }
 
 export async function listUsers(): Promise<UserListItem[]> {

@@ -1,0 +1,41 @@
+/**
+ * Source unique de vérité (SSOT) pour les domaines, catégories et niveaux de contenu.
+ *
+ * Déclarés ici une seule fois puis réutilisés par toutes les features
+ * (évaluations, scorecards, méthodes, …) — ne pas redéclarer ces listes ailleurs.
+ */
+
+export const CONTENT_DOMAINS = [
+    "Commercial",
+    "Management",
+    "Communication",
+    "Ressources humaines",
+] as const;
+
+export type ContentDomain = (typeof CONTENT_DOMAINS)[number];
+
+/** Catégories disponibles pour chaque domaine. */
+export const CONTENT_CATEGORIES_BY_DOMAIN: Record<ContentDomain, readonly string[]> = {
+    Commercial: ["Prospection", "Négociation", "Vente", "Recommandation", "Prise de rendez-vous"],
+    Communication: ["Prise de parole", "Communication écrite"],
+    Management: ["Entretien de Remobilisation", "Feedback", "Pilotage"],
+    "Ressources humaines": ["Recrutement", "Onboarding"],
+};
+
+export const CONTENT_LEVELS = ["Débutant", "Moyen", "Avancé", "Expert"] as const;
+
+export type ContentLevel = (typeof CONTENT_LEVELS)[number];
+
+/** Catégories d'un domaine (vide si aucun domaine sélectionné ou domaine inconnu). */
+export function getCategoriesForDomain(domain: string | null | undefined): readonly string[] {
+    if (!domain) {
+        return [];
+    }
+
+    return CONTENT_CATEGORIES_BY_DOMAIN[domain as ContentDomain] ?? [];
+}
+
+/** Toutes les catégories, tous domaines confondus (dédupliquées). */
+export const ALL_CONTENT_CATEGORIES = Array.from(
+    new Set(Object.values(CONTENT_CATEGORIES_BY_DOMAIN).flat()),
+);

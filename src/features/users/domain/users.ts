@@ -1,5 +1,68 @@
-export type UserStatus = "active" | "inactive" | "pending";
-export type UserRole = "Admin" | "Manager" | "Learner";
+export const PLATFORM_ROLE = {
+    admin: "admin",
+    user: "user",
+} as const;
+
+export const PLATFORM_ROLES = [PLATFORM_ROLE.admin, PLATFORM_ROLE.user] as const;
+
+export type PlatformRole = (typeof PLATFORM_ROLES)[number];
+
+export const USER_STATUS = {
+    active: "active",
+    inactive: "inactive",
+    pending: "pending",
+} as const;
+
+export const USER_STATUSES = [USER_STATUS.active, USER_STATUS.inactive, USER_STATUS.pending] as const;
+
+export type UserStatus = (typeof USER_STATUSES)[number];
+
+export const USER_STATUS_LABELS: Record<UserStatus, string> = {
+    [USER_STATUS.active]: "Activé",
+    [USER_STATUS.inactive]: "Désactivé",
+    [USER_STATUS.pending]: "En attente",
+};
+
+export const USER_STATUS_FILTER_OPTIONS = [
+    { label: "Tous statuts", value: "all" },
+    { label: "Actifs", value: USER_STATUS.active },
+    { label: USER_STATUS_LABELS.pending, value: USER_STATUS.pending },
+    { label: "Inactifs", value: USER_STATUS.inactive },
+] as const;
+
+export const USER_ROLE = {
+    admin: "Admin",
+    learner: "Learner",
+    manager: "Manager",
+} as const;
+
+export const USER_ROLES = [USER_ROLE.admin, USER_ROLE.manager, USER_ROLE.learner] as const;
+
+export type UserRole = (typeof USER_ROLES)[number];
+
+export const USER_ROLE_LABELS: Record<UserRole, string> = {
+    [USER_ROLE.admin]: "Admin",
+    [USER_ROLE.learner]: "Learner",
+    [USER_ROLE.manager]: "Manager",
+};
+
+export const USER_ROLE_OPTIONS = USER_ROLES.map((role) => ({
+    label: USER_ROLE_LABELS[role],
+    value: role,
+}));
+
+export const USER_ROLE_FILTER_OPTIONS = [
+    { label: "Tous rôles", value: "all" },
+    ...USER_ROLE_OPTIONS,
+] as const;
+
+export function getUserStatusLabel(status: UserStatus) {
+    return USER_STATUS_LABELS[status];
+}
+
+export function getUserRoleLabel(role: UserRole) {
+    return USER_ROLE_LABELS[role];
+}
 
 export interface UserTraining {
     assignedAt: string;

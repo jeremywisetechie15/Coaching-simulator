@@ -2,73 +2,346 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import {
     ArrowLeft,
-    Building2,
     ChevronDown,
     ChevronUp,
-    Copy,
-    FileText,
-    GripVertical,
-    Image as ImageIcon,
-    Link as LinkIcon,
     Plus,
+    Sparkles,
     Trash2,
-    User,
-    Users,
     X,
-    type LucideIcon,
 } from "lucide-react";
-import { Box, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
-import { cn } from "@/lib/ui/utils/cn";
-import { methods } from "@/features/methods/data/methods";
-import { demoOrganizations } from "@/features/organizations/domain/organization-list";
+import type { ContentStatus } from "@/features/content/domain";
+import { CONTENT_STATUS, getCategoriesForDomain } from "@/features/content/domain";
 import {
-    demoOrganizationGroups,
-    demoOrganizationUsers,
-} from "@/features/organizations/domain/organization-detail";
-import {
-    createEmptyCategory,
-    createEmptyQuestion,
-    getInitialCreateQuizForm,
-    QUIZ_ASSIGNMENT_TYPES,
-    QUIZ_PARTICIPATION_OPTIONS,
-    QUIZ_QUESTION_TYPES,
+    QUIZ_PARTICIPATION_LABELS,
+    QUIZ_PARTICIPATIONS,
+    QUIZ_TYPE_LABELS,
     QUIZ_TYPES,
-    QUIZ_VISIBILITY_OPTIONS,
-    type CreateQuizFormValues,
-    type QuizAnswerDraft,
-    type QuizAssignmentType,
-    type QuizCategoryDraft,
+    type QuizDetail,
+    type QuizGroupOption,
+    type QuizMethodOption,
+    type QuizOrganizationOption,
     type QuizParticipation,
-    type QuizQuestionDraft,
-    type QuizQuestionTypeValue,
+    type QuizQuestionType,
     type QuizType,
-    type QuizVisibility,
-} from "@/features/evaluations/data/quiz-creation";
+    type QuizUserOption,
+} from "@/features/evaluations/domain";
+import type { SaveQuizInput } from "@/features/evaluations/dto";
+import type { SkillOption } from "@/features/skills/domain/skills";
+import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
+import { AlertMessage, SearchableMultiSelectField, SingleSelectField, type SearchableOption } from "@/lib/ui/molecules";
+import { uiTokens } from "@/lib/ui/tokens";
+import { cn } from "@/lib/ui/utils/cn";
+import { QuizQuestionEditor } from "./QuizQuestionEditor";
+import {
+    createQuizStepsFromMethod,
+    domainOptions,
+    emptyAttachment,
+    emptyChoice,
+    emptyQuestion,
+    emptyStep,
+    inferQuizAttachmentType,
+    integerFromText,
+    normalizeChoicesForQuestionType,
+    quizToFormState,
+    toSaveQuizInput,
+    type QuizAttachmentDeliveryType,
+    type QuizChoiceFormState,
+    type QuizFormState,
+    type QuizQuestionFormState,
+    type QuizStepFormState,
+} from "./quiz-form-state";
 
-const ALL_ORGS_SENTINEL = "__all_orgs__";
+interface ApiErrorPayload {
+    error?: string;
+    issues?: Array<{ message: string }>;
+    quiz?: QuizDetail;
+}
 
-const fieldLabelClass = "block text-[13px] font-semibold text-[#111827]";
-const inputBaseClass =
-    "w-full rounded-lg border border-[#E5E7EB] bg-[#F3F4F6] px-3.5 text-[14px] font-medium text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#5140F0] focus:bg-white focus:ring-2 focus:ring-[#5140F0]/15";
-const inputClass = `${inputBaseClass} h-11`;
-const textareaClass = `${inputBaseClass} py-3 resize-none`;
+interface CreateQuizPageContentProps {
+    groupOptions: QuizGroupOption[];
+    initialQuiz?: QuizDetail;
+    methodOptions: QuizMethodOption[];
+    organizationOptions: QuizOrganizationOption[];
+    skillOptions: SkillOption[];
+    userOptions: QuizUserOption[];
+}
 
-export function CreateQuizPageContent() {
-    const [form, setForm] = useState<CreateQuizFormValues>(getInitialCreateQuizForm);
-    const [tagDraft, setTagDraft] = useState("");
+interface QuizUploadFile {
+    clientFileId: string;
+    file: File;
+}
 
-    const totalQuestions = useMemo(
-        () => form.categories.reduce((sum, c) => sum + c.questions.length, 0),
-        [form.categories],
-    );
+function createClientFileId(prefix: string) {
+    return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
+}
 
-    function patch<K extends keyof CreateQuizFormValues>(key: K, value: CreateQuizFormValues[K]) {
-        setForm((prev) => ({ ...prev, [key]: value }));
+async function saveQuiz(quizId: string | undefined, values: SaveQuizInput, uploadFiles: QuizUploadFile[]) {
+    const hasFiles = uploadFiles.length > 0;
+    const body = hasFiles ? new FormData() : JSON.stringify(values);
+    const headers = hasFiles ? undefined : { "Content-Type": "application/json" };
+
+    if (body instanceof FormData) {
+        body.append("payload", JSON.stringify(values));
+        uploadFiles.forEach(({ clientFileId, file }) => {
+            body.append(`file:${clientFileId}`, file);
+        });
     }
 
-    function commitTag() {
+    const response = await fetch(quizId ? `/api/quizzes/${quizId}` : "/api/quizzes", {
+        body,
+        headers,
+        method: quizId ? "PATCH" : "POST",
+    });
+    const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+
+    if (!response.ok) {
+        const validationMessage = payload?.issues?.map((issue) => issue.message).join(" ");
+        throw new Error(validationMessage || payload?.error || "Impossible d'enregistrer le quiz.");
+    }
+
+    if (!payload?.quiz) {
+        throw new Error("Le quiz a été enregistré mais la réponse est incomplète.");
+    }
+
+    return payload.quiz;
+}
+
+export function CreateQuizPageContent({
+    groupOptions,
+    initialQuiz,
+    methodOptions,
+    organizationOptions,
+    skillOptions,
+    userOptions,
+}: CreateQuizPageContentProps) {
+    const router = useRouter();
+    const isEditing = Boolean(initialQuiz);
+    const returnHref = initialQuiz ? `/evaluations/${initialQuiz.id}` : "/evaluations";
+    const [form, setForm] = useState<QuizFormState>(() =>
+        quizToFormState(initialQuiz, groupOptions, userOptions),
+    );
+    const [formError, setFormError] = useState<string | null>(null);
+    const [savingStatus, setSavingStatus] = useState<ContentStatus | null>(null);
+    const [tagDraft, setTagDraft] = useState("");
+    const competenceOptions: SearchableOption[] = useMemo(
+        () =>
+            skillOptions.map((skill) => ({
+                group: skill.objective,
+                label: skill.name,
+                value: skill.id,
+            })),
+        [skillOptions],
+    );
+
+    const methodSelectOptions = [
+        { label: "Aucune", value: "" },
+        ...methodOptions.map((method) => ({
+            label: `${method.shortName} - ${method.name}`,
+            value: method.id,
+        })),
+    ];
+    const selectedMethod = methodOptions.find((method) => method.id === form.methodId) ?? null;
+    const methodGeneratedStepCount = form.steps.filter((step) => step.methodStepId !== null).length;
+    const organizationSelectOptions = organizationOptions.map((organization) => ({
+        label: organization.name,
+        value: organization.id,
+    }));
+    const groupSelectOptions = form.organizationId
+        ? groupOptions
+              .filter((group) => group.organizationId === form.organizationId)
+              .map((group) => ({ label: group.name, value: group.id }))
+        : [];
+    const userSelectOptions = form.groupId
+        ? userOptions
+              .filter((user) => user.groupIds.includes(form.groupId))
+              .map((user) => ({ label: user.name, value: user.id }))
+        : [];
+
+    const totalQuestions = useMemo(
+        () => form.steps.reduce((total, step) => total + step.questions.length, 0),
+        [form.steps],
+    );
+    const totalWeight = useMemo(
+        () => form.steps.reduce((total, step) => total + integerFromText(step.weight, 0), 0),
+        [form.steps],
+    );
+
+    const isPrivate = form.scope !== "public";
+    const scopeTargetReady =
+        form.scope === "public" ||
+        (form.scope === "organization" && Boolean(form.organizationId)) ||
+        (form.scope === "group" && Boolean(form.groupId.trim())) ||
+        (form.scope === "user" && Boolean(form.assignedUserId.trim()));
+    const canSubmit = form.title.trim().length > 0 && scopeTargetReady;
+    const canPublish =
+        canSubmit &&
+        form.description.trim().length > 0 &&
+        form.steps.length > 0 &&
+        totalQuestions > 0;
+    const isSaving = savingStatus !== null;
+
+    function patch<K extends keyof QuizFormState>(key: K, value: QuizFormState[K]) {
+        setForm((current) => ({ ...current, [key]: value }));
+    }
+
+    function updateStep(stepId: string, updater: (step: QuizStepFormState) => QuizStepFormState) {
+        patch(
+            "steps",
+            form.steps.map((step) => (step.id === stepId ? updater(step) : step)),
+        );
+    }
+
+    function updateQuestion(
+        stepId: string,
+        questionId: string,
+        updater: (question: QuizQuestionFormState) => QuizQuestionFormState,
+    ) {
+        updateStep(stepId, (step) => ({
+            ...step,
+            questions: step.questions.map((question) =>
+                question.id === questionId ? updater(question) : question,
+            ),
+        }));
+    }
+
+    function addStep() {
+        patch("steps", [...form.steps, emptyStep()]);
+    }
+
+    function removeStep(stepId: string) {
+        patch("steps", form.steps.filter((step) => step.id !== stepId));
+    }
+
+    function addQuestion(stepId: string) {
+        updateStep(stepId, (step) => ({
+            ...step,
+            collapsed: false,
+            questions: [...step.questions, emptyQuestion()],
+        }));
+    }
+
+    function removeQuestion(stepId: string, questionId: string) {
+        updateStep(stepId, (step) => ({
+            ...step,
+            questions: step.questions.filter((question) => question.id !== questionId),
+        }));
+    }
+
+    function updateChoice(
+        stepId: string,
+        questionId: string,
+        choiceId: string,
+        patchChoice: Partial<QuizChoiceFormState>,
+    ) {
+        updateQuestion(stepId, questionId, (question) => ({
+            ...question,
+            choices: question.choices.map((choice) =>
+                choice.id === choiceId
+                    ? {
+                          ...choice,
+                          ...patchChoice,
+                      }
+                    : question.type === "QCU" && patchChoice.isCorrect
+                      ? {
+                            ...choice,
+                            isCorrect: false,
+                        }
+                      : choice,
+            ),
+        }));
+    }
+
+    function setQuestionType(stepId: string, questionId: string, type: QuizQuestionType) {
+        updateQuestion(stepId, questionId, (question) => ({
+            ...question,
+            choices: normalizeChoicesForQuestionType(question.choices, type),
+            type,
+        }));
+    }
+
+    function setAttachmentDeliveryType(
+        stepId: string,
+        questionId: string,
+        attachmentId: string,
+        deliveryType: QuizAttachmentDeliveryType,
+    ) {
+        updateQuestion(stepId, questionId, (question) => ({
+            ...question,
+            attachments: question.attachments.map((attachment) =>
+                attachment.id === attachmentId
+                    ? {
+                          ...attachment,
+                          deliveryType,
+                          ...(deliveryType === "url"
+                              ? {
+                                    clientFileId: "",
+                                    file: null,
+                                    storageBucket: "",
+                                    storagePath: "",
+                                    uploadedFileName: "",
+                                    uploadedFileSizeBytes: null,
+                                }
+                              : {
+                                    externalUrl: "",
+                                    type: attachment.type === "link" ? "document" : attachment.type,
+                                }),
+                      }
+                    : attachment,
+            ),
+        }));
+    }
+
+    function updateAttachmentFromUpload(
+        stepId: string,
+        questionId: string,
+        attachmentId: string,
+        file: File,
+    ) {
+        updateQuestion(stepId, questionId, (question) => ({
+            ...question,
+            attachments: question.attachments.map((attachment) =>
+                attachment.id === attachmentId
+                    ? {
+                          ...attachment,
+                          clientFileId: createClientFileId("quiz-attachment"),
+                          deliveryType: "file",
+                          externalUrl: "",
+                          file,
+                          label: attachment.label || file.name,
+                          storageBucket: "",
+                          storagePath: "",
+                          type: inferQuizAttachmentType(file.type),
+                          uploadedFileName: file.name,
+                          uploadedFileSizeBytes: file.size,
+                      }
+                    : attachment,
+            ),
+        }));
+    }
+
+    function clearAttachmentUpload(stepId: string, questionId: string, attachmentId: string) {
+        updateQuestion(stepId, questionId, (question) => ({
+            ...question,
+            attachments: question.attachments.map((attachment) =>
+                attachment.id === attachmentId
+                    ? {
+                          ...attachment,
+                          clientFileId: "",
+                          file: null,
+                          storageBucket: "",
+                          storagePath: "",
+                          uploadedFileName: "",
+                          uploadedFileSizeBytes: null,
+                      }
+                    : attachment,
+            ),
+        }));
+    }
+
+    function addTag() {
         const value = tagDraft.trim();
         if (!value || form.tags.includes(value)) {
             setTagDraft("");
@@ -78,836 +351,681 @@ export function CreateQuizPageContent() {
         setTagDraft("");
     }
 
-    function removeTag(tag: string) {
-        patch(
-            "tags",
-            form.tags.filter((t) => t !== tag),
-        );
-    }
-
-    function updateCategory(id: string, updater: (cat: QuizCategoryDraft) => QuizCategoryDraft) {
-        patch(
-            "categories",
-            form.categories.map((cat) => (cat.id === id ? updater(cat) : cat)),
-        );
-    }
-
-    function addCategory() {
-        patch("categories", [...form.categories, createEmptyCategory()]);
-    }
-
-    function removeCategory(id: string) {
-        patch(
-            "categories",
-            form.categories.filter((c) => c.id !== id),
-        );
-    }
-
-    function addQuestion(categoryId: string) {
-        updateCategory(categoryId, (cat) => ({
-            ...cat,
-            collapsed: false,
-            questions: [...cat.questions, createEmptyQuestion()],
+    function selectOrganization(value: string) {
+        setForm((current) => ({
+            ...current,
+            assignedUserId: "",
+            groupId: "",
+            organizationId: value || null,
+            scope: value ? "organization" : "public",
         }));
     }
 
-    function updateQuestion(
-        categoryId: string,
-        questionId: string,
-        updater: (q: QuizQuestionDraft) => QuizQuestionDraft,
-    ) {
-        updateCategory(categoryId, (cat) => ({
-            ...cat,
-            questions: cat.questions.map((q) => (q.id === questionId ? updater(q) : q)),
+    function selectGroup(value: string) {
+        setForm((current) => ({
+            ...current,
+            assignedUserId: "",
+            groupId: value,
+            scope: value ? "group" : "organization",
         }));
     }
 
-    function removeQuestion(categoryId: string, questionId: string) {
-        updateCategory(categoryId, (cat) => ({
-            ...cat,
-            questions: cat.questions.filter((q) => q.id !== questionId),
+    function selectUser(value: string) {
+        setForm((current) => ({
+            ...current,
+            assignedUserId: value,
+            scope: value ? "user" : "group",
         }));
     }
 
-    function duplicateQuestion(categoryId: string, questionId: string) {
-        updateCategory(categoryId, (cat) => {
-            const index = cat.questions.findIndex((q) => q.id === questionId);
-            if (index === -1) return cat;
-            const source = cat.questions[index];
-            const clone: QuizQuestionDraft = {
-                ...source,
-                id: `${source.id}-copy-${Date.now()}`,
-                answers: source.answers.map((a, i) => ({ ...a, id: `${a.id}-copy-${i}-${Date.now()}` })),
-            };
-            const next = [...cat.questions];
-            next.splice(index + 1, 0, clone);
-            return { ...cat, questions: next };
-        });
+    function selectMethod(value: string) {
+        const methodId = value || null;
+        const selectedMethod = methodOptions.find((method) => method.id === methodId);
+
+        setForm((current) => ({
+            ...current,
+            methodId,
+            steps: selectedMethod
+                ? createQuizStepsFromMethod(selectedMethod)
+                : current.steps.map((step) => ({
+                      ...step,
+                      methodStepId: null,
+                  })),
+        }));
     }
 
-    function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-        event.preventDefault();
-        // À brancher côté serveur.
+    function collectUploadFiles(): QuizUploadFile[] {
+        return form.steps.flatMap((step) =>
+            step.questions.flatMap((question) =>
+                question.attachments.flatMap((attachment) =>
+                    attachment.file && attachment.clientFileId
+                        ? [{ clientFileId: attachment.clientFileId, file: attachment.file }]
+                        : [],
+                ),
+            ),
+        );
+    }
+
+    async function handleSave(status: ContentStatus) {
+        if (isSaving || (status === CONTENT_STATUS.published ? !canPublish : !canSubmit)) return;
+
+        setFormError(null);
+        setSavingStatus(status);
+
+        try {
+            const savedQuiz = await saveQuiz(initialQuiz?.id, toSaveQuizInput(form, status), collectUploadFiles());
+            router.push(`/evaluations/${savedQuiz.id}`);
+            router.refresh();
+        } catch (error) {
+            setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer le quiz.");
+        } finally {
+            setSavingStatus(null);
+        }
     }
 
     return (
-        <Box as="main" className="px-5 pb-12 md:px-9 lg:px-12">
-            <Box className="mx-auto max-w-[940px]">
-                <Box className="mb-7 flex items-start gap-5">
+        <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
+            <Box className="mx-auto max-w-[900px]">
+                <Box className="mb-6 flex items-center gap-4">
                     <Link
-                        href="/evaluations"
+                        href={returnHref}
                         aria-label="Retour"
-                        className="mt-2 flex h-9 w-9 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
+                        className={cn(
+                            "flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white",
+                            uiTokens.text.heading,
+                        )}
                     >
                         <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
                     </Link>
-                    <Box>
-                        <Text
-                            as="h1"
-                            className="text-[30px] font-extrabold leading-tight text-[#111827] md:text-[34px]"
-                        >
-                            Créer un quiz
-                        </Text>
-                        <Text className="mt-2 text-[15px] font-semibold text-[#596273]">
-                            Remplissez les informations ci-dessous pour créer votre quiz
-                        </Text>
-                    </Box>
+                    <Text as="h1" className={cn("text-[28px] font-extrabold leading-tight", uiTokens.text.heading)}>
+                        {isEditing ? "Modifier le quiz" : "Créer un quiz"}
+                    </Text>
                 </Box>
 
-                <form onSubmit={handleSubmit}>
-                    <CardSurface className="rounded-[18px] border border-[#E5E7EB] bg-white p-7 shadow-none">
-                        <Text as="h2" className="text-[18px] font-extrabold text-[#111827]">
-                            Informations générales
-                        </Text>
+                <Box className="space-y-6">
+                    {formError && <AlertMessage message={formError} />}
 
-                        <Box className="mt-5 flex flex-col gap-5">
-                            <Field label="Titre du quiz" required htmlFor="quiz-title">
-                                <input
-                                    id="quiz-title"
-                                    type="text"
+                    <CardSurface className={uiTokens.surface.formCard}>
+                        <SectionHeading title="Informations générales" />
+                        <Box className="mt-6 space-y-5">
+                            <Box>
+                                <FieldLabel className={uiTokens.form.label}>
+                                    Titre du quiz <RequiredMark />
+                                </FieldLabel>
+                                <TextInput
                                     value={form.title}
-                                    onChange={(e) => patch("title", e.target.value)}
+                                    onChange={(event) => patch("title", event.target.value)}
                                     placeholder="Ex: Quiz - DEEPMARK"
-                                    className={inputClass}
+                                    hasLeadingIcon={false}
                                 />
-                            </Field>
-
-                            <Field label="Type de quiz" htmlFor="quiz-type">
-                                <SelectField
-                                    id="quiz-type"
-                                    value={form.type}
-                                    onChange={(value) => patch("type", value as QuizType)}
-                                    options={QUIZ_TYPES.map((t) => ({ value: t, label: t }))}
+                            </Box>
+                            <Box>
+                                <FieldLabel className={uiTokens.form.label}>Type de quiz</FieldLabel>
+                                <SingleSelectField
+                                    options={QUIZ_TYPES.map((type) => ({
+                                        label: QUIZ_TYPE_LABELS[type],
+                                        value: type,
+                                    }))}
+                                    value={form.quizType}
+                                    placeholder="Sélectionner un type"
+                                    onChange={(value) => patch("quizType", value as QuizType)}
                                 />
-                            </Field>
-
-                            <Field label="Méthode associée (optionnel)" htmlFor="quiz-method">
-                                <SelectField
-                                    id="quiz-method"
-                                    value={form.methodId}
-                                    onChange={(value) => patch("methodId", value)}
-                                    options={[
-                                        { value: "", label: "Aucune" },
-                                        ...methods.map((m) => ({ value: m.id, label: m.name })),
-                                    ]}
+                            </Box>
+                            <Box>
+                                <FieldLabel className={uiTokens.form.label}>Domaines</FieldLabel>
+                                <SingleSelectField
+                                    options={domainOptions}
+                                    value={form.domain}
+                                    placeholder="Sélectionner un domaine"
+                                    onChange={(value) =>
+                                        setForm((current) => ({ ...current, category: null, domain: value }))
+                                    }
                                 />
-                            </Field>
-
-                            <Field label="Description" required htmlFor="quiz-description">
-                                <textarea
-                                    id="quiz-description"
+                            </Box>
+                            <Box>
+                                <FieldLabel className={uiTokens.form.label}>Catégorie</FieldLabel>
+                                <SingleSelectField
+                                    disabled={!form.domain}
+                                    options={[...getCategoriesForDomain(form.domain)]}
+                                    value={form.category}
+                                    placeholder={
+                                        form.domain ? "Sélectionner une catégorie" : "Sélectionnez d'abord un domaine"
+                                    }
+                                    onChange={(value) => patch("category", value)}
+                                />
+                            </Box>
+                            <Box>
+                                <FieldLabel className={uiTokens.form.label}>Méthode associée</FieldLabel>
+                                <SingleSelectField
+                                    options={methodSelectOptions}
+                                    value={form.methodId ?? ""}
+                                    placeholder="Aucune"
+                                    onChange={selectMethod}
+                                />
+                                {selectedMethod && methodGeneratedStepCount > 0 && (
+                                    <Text
+                                        className={cn(
+                                            "mt-2 flex items-center gap-1.5 text-[13px] font-semibold",
+                                            uiTokens.text.primary,
+                                        )}
+                                    >
+                                        <InlineIcon icon={Sparkles} className="h-4 w-4" />
+                                        {methodGeneratedStepCount} étape{methodGeneratedStepCount > 1 ? "s" : ""} →{" "}
+                                        {methodGeneratedStepCount} catégorie{methodGeneratedStepCount > 1 ? "s" : ""}{" "}
+                                        auto-générée{methodGeneratedStepCount > 1 ? "s" : ""}
+                                    </Text>
+                                )}
+                            </Box>
+                            <Box>
+                                <FieldLabel className={uiTokens.form.label}>
+                                    Description <RequiredMark />
+                                </FieldLabel>
+                                <TextArea
                                     value={form.description}
-                                    onChange={(e) => patch("description", e.target.value)}
-                                    placeholder="Ex: 40 questions pour valider la bonne maîtrise du document de référence"
-                                    rows={2}
-                                    className={textareaClass}
+                                    onChange={(event) => patch("description", event.target.value)}
+                                    placeholder="Décrivez l'objectif du quiz et les critères attendus."
+                                    rows={4}
                                 />
-                            </Field>
-
-                            <Field label="Durée estimée (en minutes)" htmlFor="quiz-duration">
-                                <input
-                                    id="quiz-duration"
+                            </Box>
+                            <Box>
+                                <FieldLabel className={uiTokens.form.label}>Durée estimée (en minutes)</FieldLabel>
+                                <TextInput
                                     type="number"
                                     min={1}
                                     value={form.durationMinutes}
-                                    onChange={(e) =>
-                                        patch("durationMinutes", Number(e.target.value) || 0)
-                                    }
-                                    className={inputClass}
+                                    onChange={(event) => patch("durationMinutes", event.target.value)}
+                                    placeholder="30"
+                                    hasLeadingIcon={false}
                                 />
-                            </Field>
-
-                            <Field label="Tags" htmlFor="quiz-tags">
+                            </Box>
+                            <Box>
+                                <FieldLabel className={uiTokens.form.label}>Seuil recommandé de validation</FieldLabel>
+                                <TextInput
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    value={form.validationThreshold}
+                                    onChange={(event) => patch("validationThreshold", event.target.value)}
+                                    placeholder="70"
+                                    hasLeadingIcon={false}
+                                />
+                            </Box>
+                            <Box>
+                                <FieldLabel className={uiTokens.form.label}>Tentatives max</FieldLabel>
+                                <TextInput
+                                    type="number"
+                                    min={1}
+                                    value={form.maxAttempts}
+                                    onChange={(event) => patch("maxAttempts", event.target.value)}
+                                    placeholder="3"
+                                    hasLeadingIcon={false}
+                                />
+                            </Box>
+                            <Box>
+                                <FieldLabel className={uiTokens.form.label}>Tags</FieldLabel>
+                                <Box className="flex gap-2">
+                                    <TextInput
+                                        value={tagDraft}
+                                        onChange={(event) => setTagDraft(event.target.value)}
+                                        onKeyDown={(event) => {
+                                            if (event.key === "Enter") {
+                                                event.preventDefault();
+                                                addTag();
+                                            }
+                                        }}
+                                        placeholder="Ajouter un tag..."
+                                        hasLeadingIcon={false}
+                                    />
+                                    <Button
+                                        aria-label="Ajouter le tag"
+                                        onClick={addTag}
+                                        className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-[#E5E7EB] bg-white text-[#374151] transition hover:border-[#D5D7DE] hover:text-[#5140F0]"
+                                    >
+                                        <InlineIcon icon={Plus} className="h-5 w-5" />
+                                    </Button>
+                                </Box>
                                 {form.tags.length > 0 && (
-                                    <Box className="mb-2 flex flex-wrap gap-2">
+                                    <Box className="mt-3 flex flex-wrap gap-2">
                                         {form.tags.map((tag) => (
                                             <Box
                                                 key={tag}
-                                                className="inline-flex h-7 items-center gap-1.5 rounded-md bg-[#F3F4F6] px-2.5 text-[12px] font-semibold text-[#4B5563]"
+                                                className="inline-flex h-8 items-center gap-1.5 rounded-full border border-[#E5E7EB] bg-[#F3F4F6] pl-3 pr-1.5 text-[12px] font-bold text-[#374151]"
                                             >
-                                                {tag}
-                                                <button
-                                                    type="button"
-                                                    onClick={() => removeTag(tag)}
-                                                    aria-label={`Supprimer ${tag}`}
-                                                    className="flex h-4 w-4 items-center justify-center rounded-full text-[#6B7280] hover:bg-[#E5E7EB] hover:text-[#111827]"
+                                                <Text as="span">{tag}</Text>
+                                                <Button
+                                                    aria-label={`Retirer ${tag}`}
+                                                    onClick={() =>
+                                                        patch(
+                                                            "tags",
+                                                            form.tags.filter((item) => item !== tag),
+                                                        )
+                                                    }
+                                                    className="flex h-5 w-5 items-center justify-center rounded-full text-[#6B7280] transition hover:bg-white hover:text-[#111827]"
                                                 >
-                                                    <X className="h-3 w-3" strokeWidth={2.5} />
-                                                </button>
+                                                    <InlineIcon icon={X} className="h-3.5 w-3.5" />
+                                                </Button>
                                             </Box>
                                         ))}
                                     </Box>
                                 )}
-                                <Box className="flex gap-2">
-                                    <input
-                                        id="quiz-tags"
-                                        type="text"
-                                        value={tagDraft}
-                                        onChange={(e) => setTagDraft(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === "Enter") {
-                                                e.preventDefault();
-                                                commitTag();
-                                            }
-                                        }}
-                                        placeholder="Ajouter un tag..."
-                                        className={inputClass}
-                                    />
-                                    <button
-                                        type="button"
-                                        onClick={commitTag}
-                                        aria-label="Ajouter le tag"
-                                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border border-[#E5E7EB] bg-white text-[#374151] transition hover:border-[#5140F0] hover:text-[#5140F0]"
-                                    >
-                                        <Plus className="h-4 w-4" strokeWidth={2.5} />
-                                    </button>
-                                </Box>
-                            </Field>
-
+                            </Box>
                             <Box>
-                                <Text className={fieldLabelClass}>Visibilité</Text>
-                                <Box className="mt-2 flex flex-col gap-2.5">
-                                    {QUIZ_VISIBILITY_OPTIONS.map((option) => {
-                                        const active = form.visibility === option.value;
-                                        return (
-                                            <RadioCard
-                                                key={option.value}
-                                                active={active}
-                                                title={option.title}
-                                                description={option.description}
-                                                onClick={() =>
-                                                    patch("visibility", option.value as QuizVisibility)
-                                                }
-                                            />
-                                        );
-                                    })}
+                                <FieldLabel className={uiTokens.form.label}>Participation</FieldLabel>
+                                <SingleSelectField
+                                    options={QUIZ_PARTICIPATIONS.map((participation) => ({
+                                        label: QUIZ_PARTICIPATION_LABELS[participation],
+                                        value: participation,
+                                    }))}
+                                    value={form.participation}
+                                    placeholder="Sélectionner"
+                                    onChange={(value) => patch("participation", value as QuizParticipation)}
+                                />
+                            </Box>
+                            <Box>
+                                <FieldLabel className={uiTokens.form.label}>Visibilité</FieldLabel>
+                                <Box className="space-y-2.5">
+                                    <VisibilityRadio
+                                        selected={!isPrivate}
+                                        title="Public"
+                                        description="Visible par tous les utilisateurs de la plateforme"
+                                        onSelect={() => patch("scope", "public")}
+                                    />
+                                    <VisibilityRadio
+                                        selected={isPrivate}
+                                        title="Privé"
+                                        description="Visible uniquement par une cible spécifique"
+                                        onSelect={() => {
+                                            if (!isPrivate) patch("scope", "organization");
+                                        }}
+                                    />
                                 </Box>
-
-                                {form.visibility === "private" && (
-                                    <Box className="mt-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB] p-4">
-                                        <Box className="flex flex-col gap-4">
-                                            <Field
-                                                label="Type d'assignation"
-                                                htmlFor="quiz-assignment-type"
-                                            >
-                                                <AssignmentTypeSelect
-                                                    id="quiz-assignment-type"
-                                                    value={form.assignmentType}
-                                                    onChange={(value) => {
-                                                        setForm((prev) => ({
-                                                            ...prev,
-                                                            assignmentType: value,
-                                                            assignmentTargetId: "",
-                                                            assignmentParentOrgId: "",
-                                                        }));
-                                                    }}
-                                                />
-                                            </Field>
-
-                                            {form.assignmentType === "organization" && (
-                                                <Field
-                                                    label="Sélectionner une organisation"
-                                                    htmlFor="quiz-assignment-target"
-                                                >
-                                                    <SelectField
-                                                        id="quiz-assignment-target"
-                                                        value={form.assignmentTargetId}
-                                                        onChange={(value) =>
-                                                            patch("assignmentTargetId", value)
-                                                        }
-                                                        options={[
-                                                            { value: "", label: "Choisir une organisation..." },
-                                                            ...demoOrganizations.map((org) => ({
-                                                                value: org.id,
-                                                                label: org.name,
-                                                            })),
-                                                        ]}
-                                                    />
-                                                </Field>
-                                            )}
-
-                                            {form.assignmentType === "group" && (
-                                                <>
-                                                    <Field
-                                                        label="Sélectionner une organisation"
-                                                        htmlFor="quiz-assignment-org"
-                                                    >
-                                                        <SelectField
-                                                            id="quiz-assignment-org"
-                                                            value={form.assignmentParentOrgId}
-                                                            onChange={(value) =>
-                                                                setForm((prev) => ({
-                                                                    ...prev,
-                                                                    assignmentParentOrgId: value,
-                                                                    assignmentTargetId:
-                                                                        value === ALL_ORGS_SENTINEL
-                                                                            ? ALL_ORGS_SENTINEL
-                                                                            : "",
-                                                                }))
-                                                            }
-                                                            options={[
-                                                                { value: "", label: "Choisir une organisation..." },
-                                                                {
-                                                                    value: ALL_ORGS_SENTINEL,
-                                                                    label: "Tous les groupes de toutes les organisations",
-                                                                },
-                                                                ...demoOrganizations.map((org) => ({
-                                                                    value: org.id,
-                                                                    label: org.name,
-                                                                })),
-                                                            ]}
-                                                        />
-                                                    </Field>
-                                                    {form.assignmentParentOrgId &&
-                                                        form.assignmentParentOrgId !== ALL_ORGS_SENTINEL && (
-                                                            <Field
-                                                                label="Sélectionner un groupe"
-                                                                htmlFor="quiz-assignment-target"
-                                                            >
-                                                                <SelectField
-                                                                    id="quiz-assignment-target"
-                                                                    value={form.assignmentTargetId}
-                                                                    onChange={(value) =>
-                                                                        patch("assignmentTargetId", value)
-                                                                    }
-                                                                    options={[
-                                                                        { value: "", label: "Choisir un groupe..." },
-                                                                        ...demoOrganizationGroups.map((g) => ({
-                                                                            value: g.id,
-                                                                            label: g.name,
-                                                                        })),
-                                                                    ]}
-                                                                />
-                                                            </Field>
-                                                        )}
-                                                </>
-                                            )}
-
-                                            {form.assignmentType === "user" && (
-                                                <Field
-                                                    label="Sélectionner un utilisateur"
-                                                    htmlFor="quiz-assignment-target"
-                                                >
-                                                    <SelectField
-                                                        id="quiz-assignment-target"
-                                                        value={form.assignmentTargetId}
-                                                        onChange={(value) =>
-                                                            patch("assignmentTargetId", value)
-                                                        }
-                                                        options={[
-                                                            { value: "", label: "Choisir un utilisateur..." },
-                                                            ...demoOrganizationUsers.map((u) => ({
-                                                                value: u.id,
-                                                                label: u.name,
-                                                            })),
-                                                        ]}
-                                                    />
-                                                </Field>
-                                            )}
-
-                                            <Box>
-                                                <Text className={fieldLabelClass}>
-                                                    Type de participation
-                                                </Text>
-                                                <Box className="mt-2 flex flex-col gap-2.5">
-                                                    {QUIZ_PARTICIPATION_OPTIONS.map((option) => {
-                                                        const active =
-                                                            form.participation === option.value;
-                                                        return (
-                                                            <RadioCard
-                                                                key={option.value}
-                                                                active={active}
-                                                                title={option.title}
-                                                                description={option.description}
-                                                                onClick={() =>
-                                                                    patch(
-                                                                        "participation",
-                                                                        option.value as QuizParticipation,
-                                                                    )
-                                                                }
-                                                            />
-                                                        );
-                                                    })}
-                                                </Box>
-                                            </Box>
+                                {isPrivate && (
+                                    <Box className="mt-3 space-y-4">
+                                        <Box>
+                                            <FieldLabel className={uiTokens.form.label}>Organisation</FieldLabel>
+                                            <SingleSelectField
+                                                options={organizationSelectOptions}
+                                                value={form.organizationId}
+                                                placeholder="Sélectionner une organisation..."
+                                                onChange={selectOrganization}
+                                            />
                                         </Box>
+                                        {form.organizationId && (
+                                            <Box>
+                                                <FieldLabel className={uiTokens.form.label}>Groupe</FieldLabel>
+                                                <SingleSelectField
+                                                    options={[
+                                                        { label: "Toute l'organisation", value: "" },
+                                                        ...groupSelectOptions,
+                                                    ]}
+                                                    value={form.groupId}
+                                                    placeholder="Toute l'organisation"
+                                                    onChange={selectGroup}
+                                                />
+                                            </Box>
+                                        )}
+                                        {form.groupId && (
+                                            <Box>
+                                                <FieldLabel className={uiTokens.form.label}>Utilisateur</FieldLabel>
+                                                <SingleSelectField
+                                                    options={[
+                                                        { label: "Tout le groupe", value: "" },
+                                                        ...userSelectOptions,
+                                                    ]}
+                                                    value={form.assignedUserId}
+                                                    placeholder="Tout le groupe"
+                                                    onChange={selectUser}
+                                                />
+                                            </Box>
+                                        )}
                                     </Box>
                                 )}
                             </Box>
                         </Box>
+                        <Box className={uiTokens.surface.divider} />
 
-                        <Box className="my-7 border-t border-[#E5E7EB]" />
-
-                        <Box className="flex items-start justify-between gap-4">
+                        <Box className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                             <Box>
-                                <Text as="h2" className="text-[18px] font-extrabold text-[#111827]">
-                                    Catégories et Questions
+                                <SectionHeading title="Étapes, compétences & questions" />
+                                <Box className="mt-2 flex flex-wrap items-center gap-2">
+                                    <Text className={cn("text-[13px] font-semibold", uiTokens.text.muted)}>
+                                        Total : {totalQuestions} question{totalQuestions > 1 ? "s" : ""} réparti
+                                        {totalQuestions > 1 ? "es" : "e"} en {form.steps.length} étape
+                                        {form.steps.length > 1 ? "s" : ""}
+                                    </Text>
+                                    {form.steps.length > 0 && (
+                                        <Box
+                                            className={cn(
+                                                "inline-flex items-center rounded-full px-2.5 py-1 text-[12px] font-bold",
+                                                totalWeight === 100
+                                                    ? "bg-[#ECFDF5] text-[#059669]"
+                                                    : "bg-[#FFF7ED] text-[#C2410C]",
+                                            )}
+                                        >
+                                            Pondération : {totalWeight}%
+                                            {totalWeight !== 100 ? " (manque 100%)" : ""}
+                                        </Box>
+                                    )}
+                                </Box>
+                            </Box>
+                            <Button onClick={addStep} className={cn(uiTokens.action.addButton, "shrink-0")}>
+                                <InlineIcon icon={Plus} className="h-4 w-4" />
+                                Ajouter une étape
+                            </Button>
+                        </Box>
+
+                        {form.steps.length === 0 ? (
+                            <Box className="mt-6 rounded-[16px] border border-dashed border-[#E5E7EB] py-12 text-center">
+                                <Text className={cn("text-[15px] font-bold", uiTokens.text.heading)}>
+                                    Aucune catégorie créée
                                 </Text>
-                                <Text className="mt-1 text-[13px] font-medium text-[#6B7280]">
-                                    Total : {totalQuestions} question(s) répartie(s) en{" "}
-                                    {form.categories.length} catégorie(s)
+                                <Text className={cn("mt-1 text-[13px]", uiTokens.text.muted)}>
+                                    Cliquez sur « Ajouter une étape » pour commencer
                                 </Text>
                             </Box>
-                            <button
-                                type="button"
-                                onClick={addCategory}
-                                className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-3 text-[13px] font-bold text-[#111827] transition hover:border-[#5140F0] hover:text-[#5140F0]"
-                            >
-                                <Plus className="h-4 w-4" strokeWidth={2.5} />
-                                Ajouter une catégorie
-                            </button>
-                        </Box>
+                        ) : (
+                            <Box className="mt-6 space-y-4">
+                                {form.steps.map((step, stepIndex) => {
+                                    const competenceCount = step.competenceIds.length;
+                                    const questionCount = step.questions.length;
+                                    const isFromMethod = step.methodStepId !== null;
 
-                        <Box className="mt-4 flex flex-col gap-4">
-                            {form.categories.length === 0 ? (
-                                <Box className="rounded-xl border border-dashed border-[#E5E7EB] py-10 text-center">
-                                    <Text className="text-[14px] font-semibold text-[#6B7280]">
-                                        Aucune catégorie créée
-                                    </Text>
-                                    <Text className="mt-1 text-[13px] font-medium text-[#9CA3AF]">
-                                        Cliquez sur &quot;Ajouter une catégorie&quot; pour commencer
-                                    </Text>
-                                </Box>
-                            ) : (
-                                form.categories.map((category) => (
-                                    <CategoryCard
-                                        key={category.id}
-                                        category={category}
-                                        onRename={(name) =>
-                                            updateCategory(category.id, (c) => ({ ...c, name }))
-                                        }
-                                        onToggleCollapse={() =>
-                                            updateCategory(category.id, (c) => ({
-                                                ...c,
-                                                collapsed: !c.collapsed,
-                                            }))
-                                        }
-                                        onRemove={() => removeCategory(category.id)}
-                                        onAddQuestion={() => addQuestion(category.id)}
-                                        onUpdateQuestion={(qid, updater) =>
-                                            updateQuestion(category.id, qid, updater)
-                                        }
-                                        onRemoveQuestion={(qid) => removeQuestion(category.id, qid)}
-                                        onDuplicateQuestion={(qid) =>
-                                            duplicateQuestion(category.id, qid)
-                                        }
-                                    />
-                                ))
-                            )}
-                        </Box>
+                                    return (
+                                        <CardSurface key={step.id} className={uiTokens.surface.stepCard}>
+                                            <Box className="flex flex-col gap-3 sm:flex-row sm:items-start">
+                                                <Box className="flex-1 space-y-1.5">
+                                                    {isFromMethod && (
+                                                        <Text className={cn("text-[12px] font-bold", uiTokens.text.primary)}>
+                                                            Étape {stepIndex + 1} · {selectedMethod?.shortName}
+                                                        </Text>
+                                                    )}
+                                                    <TextInput
+                                                        value={step.name}
+                                                        onChange={(event) =>
+                                                            updateStep(step.id, (current) => ({
+                                                                ...current,
+                                                                name: event.target.value,
+                                                            }))
+                                                        }
+                                                        placeholder="Nom de la catégorie..."
+                                                        hasLeadingIcon={false}
+                                                        readOnly={isFromMethod}
+                                                        className={
+                                                            isFromMethod
+                                                                ? uiTokens.form.controlReadonly
+                                                                : uiTokens.form.controlWhite
+                                                        }
+                                                    />
+                                                    <Text className={cn("text-[12px] font-semibold", uiTokens.text.muted)}>
+                                                        {questionCount} question{questionCount > 1 ? "s" : ""} ·{" "}
+                                                        {competenceCount} compétence{competenceCount > 1 ? "s" : ""}
+                                                    </Text>
+                                                </Box>
+                                                <Box className="flex items-end gap-3">
+                                                    <Box>
+                                                        <FieldLabel className={uiTokens.form.subLabel}>
+                                                            Pondération
+                                                        </FieldLabel>
+                                                        <Box className="flex items-center gap-1.5">
+                                                            <TextInput
+                                                                type="number"
+                                                                min={0}
+                                                                max={100}
+                                                                value={step.weight}
+                                                                onChange={(event) =>
+                                                                    updateStep(step.id, (current) => ({
+                                                                        ...current,
+                                                                        weight: event.target.value,
+                                                                    }))
+                                                                }
+                                                                placeholder="0"
+                                                                hasLeadingIcon={false}
+                                                                className={cn(uiTokens.form.controlWhite, "w-[72px]")}
+                                                            />
+                                                            <Text className={cn("text-[14px] font-semibold", uiTokens.text.muted)}>
+                                                                %
+                                                            </Text>
+                                                        </Box>
+                                                    </Box>
+                                                    <Box className="flex items-center gap-1 pb-0.5">
+                                                        <Button
+                                                            aria-label={step.collapsed ? "Déplier l'étape" : "Replier l'étape"}
+                                                            onClick={() =>
+                                                                updateStep(step.id, (current) => ({
+                                                                    ...current,
+                                                                    collapsed: !current.collapsed,
+                                                                }))
+                                                            }
+                                                            className={uiTokens.action.iconButtonGhost}
+                                                        >
+                                                            <InlineIcon
+                                                                icon={step.collapsed ? ChevronDown : ChevronUp}
+                                                                className="h-4 w-4"
+                                                            />
+                                                        </Button>
+                                                        <Button
+                                                            aria-label="Supprimer l'étape"
+                                                            onClick={() => removeStep(step.id)}
+                                                            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#9CA3AF] transition hover:bg-[#FEF2F2] hover:text-[#DC2626]"
+                                                        >
+                                                            <InlineIcon icon={Trash2} className="h-4 w-4" />
+                                                        </Button>
+                                                    </Box>
+                                                </Box>
+                                            </Box>
+
+                                            {!step.collapsed && (
+                                                <>
+                                                    <Box className="mt-4">
+                                                        <FieldLabel className={uiTokens.form.subLabel}>
+                                                            Compétences évaluées dans cette étape <RequiredMark />
+                                                        </FieldLabel>
+                                                        <SearchableMultiSelectField
+                                                            options={competenceOptions}
+                                                            selectedValues={step.competenceIds}
+                                                            addButtonClassName={uiTokens.action.addDashed}
+                                                            addLabel="Ajouter une compétence"
+                                                            searchPlaceholder="Rechercher une compétence..."
+                                                            emptyHint="Aucune compétence trouvée"
+                                                            onAdd={(value) =>
+                                                                updateStep(step.id, (current) => ({
+                                                                    ...current,
+                                                                    competenceIds: [...current.competenceIds, value],
+                                                                }))
+                                                            }
+                                                            onRemove={(value) =>
+                                                                updateStep(step.id, (current) => ({
+                                                                    ...current,
+                                                                    competenceIds: current.competenceIds.filter(
+                                                                        (id) => id !== value,
+                                                                    ),
+                                                                }))
+                                                            }
+                                                        />
+                                                    </Box>
+
+                                                    <Box className="mt-5 space-y-4">
+                                                        {step.questions.map((question, questionIndex) => (
+                                                            <QuizQuestionEditor
+                                                                key={question.id}
+                                                                question={question}
+                                                                questionIndex={questionIndex}
+                                                                removable={step.questions.length > 1}
+                                                                skillOptions={skillOptions}
+                                                                stepCompetenceIds={step.competenceIds}
+                                                                onRemove={() => removeQuestion(step.id, question.id)}
+                                                                onPatch={(patchQuestion) =>
+                                                                    updateQuestion(step.id, question.id, (current) => ({
+                                                                        ...current,
+                                                                        ...patchQuestion,
+                                                                    }))
+                                                                }
+                                                                onQuestionTypeChange={(type) =>
+                                                                    setQuestionType(step.id, question.id, type)
+                                                                }
+                                                                onChoicePatch={(choiceId, patchChoice) =>
+                                                                    updateChoice(step.id, question.id, choiceId, patchChoice)
+                                                                }
+                                                                onAddChoice={() =>
+                                                                    updateQuestion(step.id, question.id, (current) => ({
+                                                                        ...current,
+                                                                        choices: [...current.choices, emptyChoice()],
+                                                                    }))
+                                                                }
+                                                                onRemoveChoice={(choiceId) =>
+                                                                    updateQuestion(step.id, question.id, (current) => ({
+                                                                        ...current,
+                                                                        choices: normalizeChoicesForQuestionType(
+                                                                            current.choices.filter(
+                                                                                (choice) => choice.id !== choiceId,
+                                                                            ),
+                                                                            current.type,
+                                                                        ),
+                                                                    }))
+                                                                }
+                                                                onAddAttachment={(type) =>
+                                                                    updateQuestion(step.id, question.id, (current) => ({
+                                                                        ...current,
+                                                                        attachments: [
+                                                                            ...current.attachments,
+                                                                            emptyAttachment(type),
+                                                                        ],
+                                                                    }))
+                                                                }
+                                                                onAttachmentPatch={(attachmentId, patchAttachment) =>
+                                                                    updateQuestion(step.id, question.id, (current) => ({
+                                                                        ...current,
+                                                                        attachments: current.attachments.map((attachment) =>
+                                                                            attachment.id === attachmentId
+                                                                                ? { ...attachment, ...patchAttachment }
+                                                                                : attachment,
+                                                                        ),
+                                                                    }))
+                                                                }
+                                                                onAttachmentDeliveryTypeChange={(attachmentId, deliveryType) =>
+                                                                    setAttachmentDeliveryType(
+                                                                        step.id,
+                                                                        question.id,
+                                                                        attachmentId,
+                                                                        deliveryType,
+                                                                    )
+                                                                }
+                                                                onAttachmentFileSelected={(attachmentId, file) =>
+                                                                    updateAttachmentFromUpload(
+                                                                        step.id,
+                                                                        question.id,
+                                                                        attachmentId,
+                                                                        file,
+                                                                    )
+                                                                }
+                                                                onAttachmentUploadClear={(attachmentId) =>
+                                                                    clearAttachmentUpload(step.id, question.id, attachmentId)
+                                                                }
+                                                                onError={setFormError}
+                                                                onRemoveAttachment={(attachmentId) =>
+                                                                    updateQuestion(step.id, question.id, (current) => ({
+                                                                        ...current,
+                                                                        attachments: current.attachments.filter(
+                                                                            (attachment) => attachment.id !== attachmentId,
+                                                                        ),
+                                                                    }))
+                                                                }
+                                                            />
+                                                        ))}
+                                                        <Button
+                                                            onClick={() => addQuestion(step.id)}
+                                                            className={cn(uiTokens.action.addButton, "w-full justify-center")}
+                                                        >
+                                                            <InlineIcon icon={Plus} className="h-4 w-4" />
+                                                            Ajouter une question
+                                                        </Button>
+                                                    </Box>
+                                                </>
+                                            )}
+                                        </CardSurface>
+                                    );
+                                })}
+                            </Box>
+                        )}
                     </CardSurface>
 
-                    <Box className="mt-6 flex justify-end gap-3">
-                        <Link
-                            href="/evaluations"
-                            className="flex h-11 items-center justify-center rounded-lg border border-[#E5E7EB] bg-white px-5 text-[14px] font-bold text-[#111827] transition hover:border-[#D5D7DE]"
+                    <Box className="flex flex-col gap-3 sm:flex-row sm:justify-end">
+                        <Button
+                            disabled={!canSubmit || isSaving}
+                            onClick={() => void handleSave(CONTENT_STATUS.draft)}
+                            className={cn(uiTokens.action.secondaryButton, "disabled:cursor-not-allowed disabled:opacity-60")}
                         >
-                            Annuler
-                        </Link>
-                        <button
-                            type="submit"
-                            className="flex h-11 items-center justify-center rounded-lg bg-[#5140F0] px-5 text-[14px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7]"
+                            {savingStatus === CONTENT_STATUS.draft ? "Enregistrement..." : "Enregistrer en brouillon"}
+                        </Button>
+                        <Button
+                            disabled={!canPublish || isSaving}
+                            onClick={() => void handleSave(CONTENT_STATUS.published)}
+                            className={cn(
+                                "flex h-11 items-center justify-center rounded-xl px-6 text-[14px] font-bold text-white transition",
+                                canPublish && !isSaving
+                                    ? uiTokens.action.primaryButton
+                                    : uiTokens.action.primaryButtonDisabled,
+                            )}
                         >
-                            Créer le quiz
-                        </button>
+                            {savingStatus === CONTENT_STATUS.published ? "Publication..." : "Publier le quiz"}
+                        </Button>
                     </Box>
-                </form>
+                </Box>
             </Box>
         </Box>
     );
 }
 
-function RadioCard({
-    active,
-    title,
+function RequiredMark() {
+    return (
+        <Text as="span" className={uiTokens.text.required}>
+            *
+        </Text>
+    );
+}
+
+function SectionHeading({ title }: { title: string }) {
+    return (
+        <Text as="h2" className={cn("text-[18px] font-extrabold", uiTokens.text.heading)}>
+            {title}
+        </Text>
+    );
+}
+
+function VisibilityRadio({
     description,
-    onClick,
+    onSelect,
+    selected,
+    title,
 }: {
-    active: boolean;
-    title: string;
     description: string;
-    onClick: () => void;
+    onSelect: () => void;
+    selected: boolean;
+    title: string;
 }) {
     return (
-        <button
-            type="button"
-            onClick={onClick}
-            aria-pressed={active}
+        <Button
+            onClick={onSelect}
+            aria-pressed={selected}
             className={cn(
-                "flex w-full items-start gap-3 rounded-xl border px-4 py-3.5 text-left transition",
-                active ? "border-[#5140F0] bg-[#F4F3FE]" : "border-[#E5E7EB] bg-white hover:border-[#D5D7DE]",
+                uiTokens.radio.option,
+                selected ? uiTokens.radio.optionSelected : uiTokens.radio.optionIdle,
             )}
         >
-            <span
+            <Box
                 className={cn(
-                    "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition",
-                    active ? "border-[#5140F0]" : "border-[#111827]",
+                    uiTokens.radio.ring,
+                    selected ? uiTokens.radio.ringSelected : uiTokens.radio.ringIdle,
                 )}
             >
-                {active && <span className="h-2 w-2 rounded-full bg-[#5140F0]" />}
-            </span>
-            <Box>
-                <Text className="text-[14px] font-bold text-[#111827]">{title}</Text>
-                <Text className="mt-0.5 text-[13px] font-medium text-[#6B7280]">{description}</Text>
+                {selected && <Box className={uiTokens.radio.dot} />}
             </Box>
-        </button>
-    );
-}
-
-const assignmentTypeIcons: Record<QuizAssignmentType, LucideIcon> = {
-    organization: Building2,
-    group: Users,
-    user: User,
-};
-
-function AssignmentTypeSelect({
-    id,
-    value,
-    onChange,
-}: {
-    id?: string;
-    value: QuizAssignmentType | "";
-    onChange: (value: QuizAssignmentType | "") => void;
-}) {
-    const selected = QUIZ_ASSIGNMENT_TYPES.find((option) => option.value === value);
-    const Icon = selected ? assignmentTypeIcons[selected.value] : null;
-
-    return (
-        <Box className="relative">
-            <select
-                id={id}
-                value={value}
-                onChange={(e) => onChange(e.target.value as QuizAssignmentType | "")}
-                className={cn(inputClass, "appearance-none pr-10", Icon ? "pl-10" : undefined)}
-            >
-                <option value="">Sélectionner un type</option>
-                {QUIZ_ASSIGNMENT_TYPES.map((option) => (
-                    <option key={option.value} value={option.value}>
-                        {option.label}
-                    </option>
-                ))}
-            </select>
-            {Icon && (
-                <Icon className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
-            )}
-            <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
-        </Box>
-    );
-}
-
-interface FieldProps {
-    label: string;
-    htmlFor: string;
-    required?: boolean;
-    children: React.ReactNode;
-}
-
-function Field({ label, htmlFor, required, children }: FieldProps) {
-    return (
-        <Box>
-            <label htmlFor={htmlFor} className={`${fieldLabelClass} mb-1.5`}>
-                {label}
-                {required && <span className="ml-0.5 text-[#EF4444]">*</span>}
-            </label>
-            {children}
-        </Box>
-    );
-}
-
-interface SelectFieldProps {
-    id?: string;
-    value: string;
-    onChange: (value: string) => void;
-    options: { value: string; label: string }[];
-}
-
-function SelectField({ id, value, onChange, options }: SelectFieldProps) {
-    return (
-        <Box className="relative">
-            <select
-                id={id}
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                className={`${inputClass} appearance-none pr-10`}
-            >
-                {options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                        {option.label}
-                    </option>
-                ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[#6B7280]" />
-        </Box>
-    );
-}
-
-interface CategoryCardProps {
-    category: QuizCategoryDraft;
-    onRename: (name: string) => void;
-    onToggleCollapse: () => void;
-    onRemove: () => void;
-    onAddQuestion: () => void;
-    onUpdateQuestion: (id: string, updater: (q: QuizQuestionDraft) => QuizQuestionDraft) => void;
-    onRemoveQuestion: (id: string) => void;
-    onDuplicateQuestion: (id: string) => void;
-}
-
-function CategoryCard({
-    category,
-    onRename,
-    onToggleCollapse,
-    onRemove,
-    onAddQuestion,
-    onUpdateQuestion,
-    onRemoveQuestion,
-    onDuplicateQuestion,
-}: CategoryCardProps) {
-    return (
-        <Box className="rounded-xl border border-[#E5E7EB] bg-white p-3">
-            <Box className="flex items-center gap-2">
-                <button
-                    type="button"
-                    aria-label="Déplacer la catégorie"
-                    className="flex h-9 w-7 cursor-grab items-center justify-center text-[#9CA3AF] hover:text-[#6B7280]"
-                >
-                    <GripVertical className="h-4 w-4" />
-                </button>
-                <input
-                    type="text"
-                    value={category.name}
-                    onChange={(e) => onRename(e.target.value)}
-                    placeholder="Nom de la catégorie..."
-                    className={`${inputClass} h-10 flex-1`}
-                />
-                <Box className="inline-flex h-9 items-center rounded-md bg-[#F3F4F6] px-3 text-[12px] font-bold text-[#4B5563]">
-                    {category.questions.length} question(s)
-                </Box>
-                <button
-                    type="button"
-                    onClick={onToggleCollapse}
-                    aria-label={category.collapsed ? "Déplier" : "Replier"}
-                    className="flex h-9 w-9 items-center justify-center rounded-md text-[#6B7280] transition hover:bg-[#F3F4F6] hover:text-[#111827]"
-                >
-                    {category.collapsed ? (
-                        <ChevronDown className="h-4 w-4" />
-                    ) : (
-                        <ChevronUp className="h-4 w-4" />
-                    )}
-                </button>
-                <button
-                    type="button"
-                    onClick={onRemove}
-                    aria-label="Supprimer la catégorie"
-                    className="flex h-9 w-9 items-center justify-center rounded-md text-[#EF4444] transition hover:bg-[#FEF2F2]"
-                >
-                    <Trash2 className="h-4 w-4" />
-                </button>
-            </Box>
-
-            {!category.collapsed && (
-                <Box className="mt-3 flex flex-col gap-3">
-                    {category.questions.map((question, index) => (
-                        <QuestionCard
-                            key={question.id}
-                            question={question}
-                            index={index}
-                            onUpdate={(updater) => onUpdateQuestion(question.id, updater)}
-                            onRemove={() => onRemoveQuestion(question.id)}
-                            onDuplicate={() => onDuplicateQuestion(question.id)}
-                        />
-                    ))}
-                    <button
-                        type="button"
-                        onClick={onAddQuestion}
-                        className="flex h-11 w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[#D1D5DB] bg-white text-[14px] font-bold text-[#374151] transition hover:border-[#5140F0] hover:text-[#5140F0]"
-                    >
-                        <Plus className="h-4 w-4" strokeWidth={2.5} />
-                        Ajouter une question
-                    </button>
-                </Box>
-            )}
-        </Box>
-    );
-}
-
-interface QuestionCardProps {
-    question: QuizQuestionDraft;
-    index: number;
-    onUpdate: (updater: (q: QuizQuestionDraft) => QuizQuestionDraft) => void;
-    onRemove: () => void;
-    onDuplicate: () => void;
-}
-
-function QuestionCard({ question, index, onUpdate, onRemove, onDuplicate }: QuestionCardProps) {
-    function setAnswerCorrect(answerId: string) {
-        onUpdate((q) => ({
-            ...q,
-            answers: q.answers.map((a) =>
-                q.type === "QCU"
-                    ? { ...a, correct: a.id === answerId }
-                    : a.id === answerId
-                      ? { ...a, correct: !a.correct }
-                      : a,
-            ),
-        }));
-    }
-
-    function setAnswerText(answerId: string, text: string) {
-        onUpdate((q) => ({
-            ...q,
-            answers: q.answers.map((a) => (a.id === answerId ? { ...a, text } : a)),
-        }));
-    }
-
-    return (
-        <Box className="rounded-xl border border-[#E5E7EB] bg-[#FAFAFB] p-4">
-            <Box className="flex items-start gap-2">
-                <textarea
-                    value={question.prompt}
-                    onChange={(e) => onUpdate((q) => ({ ...q, prompt: e.target.value }))}
-                    placeholder={`Question ${index + 1}...`}
-                    rows={2}
-                    className={`${textareaClass} flex-1`}
-                />
-                <button
-                    type="button"
-                    onClick={onRemove}
-                    aria-label="Supprimer la question"
-                    className="flex h-9 w-9 items-center justify-center rounded-md text-[#EF4444] transition hover:bg-[#FEF2F2]"
-                >
-                    <Trash2 className="h-4 w-4" />
-                </button>
-            </Box>
-
-            <Box className="mt-3 flex items-center gap-2">
-                <Box className="w-[220px]">
-                    <SelectField
-                        value={question.type}
-                        onChange={(value) =>
-                            onUpdate((q) => ({ ...q, type: value as QuizQuestionTypeValue }))
-                        }
-                        options={QUIZ_QUESTION_TYPES.map((t) => ({ value: t.value, label: t.label }))}
-                    />
-                </Box>
-                <button
-                    type="button"
-                    onClick={onDuplicate}
-                    aria-label="Dupliquer la question"
-                    className="flex h-9 w-9 items-center justify-center rounded-md text-[#6B7280] transition hover:bg-[#F3F4F6] hover:text-[#111827]"
-                >
-                    <Copy className="h-4 w-4" />
-                </button>
-            </Box>
-
-            <Text className="mt-4 text-[12px] font-semibold text-[#6B7280]">
-                Choix de réponse — cliquez sur le rond pour définir la bonne réponse
+            <Text as="span" className="text-[14px] text-[#374151]">
+                <Text as="span" className="font-bold text-[#111827]">
+                    {title}
+                </Text>{" "}
+                — {description}
             </Text>
-
-            <Box className="mt-2 flex flex-col gap-2">
-                {question.answers.map((answer) => (
-                    <AnswerRow
-                        key={answer.id}
-                        answer={answer}
-                        onToggleCorrect={() => setAnswerCorrect(answer.id)}
-                        onTextChange={(text) => setAnswerText(answer.id, text)}
-                    />
-                ))}
-            </Box>
-
-            <Box className="mt-4">
-                <Text className={fieldLabelClass}>Explication de la bonne réponse</Text>
-                <textarea
-                    value={question.explanation}
-                    onChange={(e) => onUpdate((q) => ({ ...q, explanation: e.target.value }))}
-                    placeholder="Expliquez pourquoi cette réponse est correcte..."
-                    rows={2}
-                    className={`${textareaClass} mt-1.5`}
-                />
-            </Box>
-
-            <Box className="mt-4">
-                <Text className={fieldLabelClass}>Pièces jointes</Text>
-                <Box className="mt-2 flex flex-wrap gap-2">
-                    <AttachmentButton icon={LinkIcon} label="Lien" />
-                    <AttachmentButton icon={ImageIcon} label="Image" />
-                    <AttachmentButton icon={FileText} label="Document" />
-                </Box>
-            </Box>
-        </Box>
-    );
-}
-
-function AnswerRow({
-    answer,
-    onToggleCorrect,
-    onTextChange,
-}: {
-    answer: QuizAnswerDraft;
-    onToggleCorrect: () => void;
-    onTextChange: (value: string) => void;
-}) {
-    return (
-        <Box className="flex items-center gap-3">
-            <button
-                type="button"
-                role="radio"
-                aria-checked={answer.correct}
-                onClick={onToggleCorrect}
-                aria-label={answer.correct ? "Bonne réponse" : "Définir comme bonne réponse"}
-                className={cn(
-                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition",
-                    answer.correct
-                        ? "border-[#16A34A] bg-[#16A34A]"
-                        : "border-[#111827] hover:border-[#5140F0]",
-                )}
-            >
-                {answer.correct && <span className="h-2 w-2 rounded-full bg-white" />}
-            </button>
-            <input
-                type="text"
-                value={answer.text}
-                onChange={(e) => onTextChange(e.target.value)}
-                placeholder="Réponse..."
-                className={inputClass}
-            />
-        </Box>
-    );
-}
-
-function AttachmentButton({
-    icon,
-    label,
-}: {
-    icon: LucideIcon;
-    label: string;
-}) {
-    return (
-        <button
-            type="button"
-            className="inline-flex h-9 items-center gap-2 rounded-md border border-[#E5E7EB] bg-white px-3 text-[13px] font-semibold text-[#374151] transition hover:border-[#5140F0] hover:text-[#5140F0]"
-        >
-            <InlineIcon icon={icon} className="h-4 w-4" />
-            {label}
-        </button>
+        </Button>
     );
 }

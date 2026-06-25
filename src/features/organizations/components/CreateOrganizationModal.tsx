@@ -9,6 +9,7 @@ import {
     type CreateOrganizationFormValues,
     organizationRegionOptions,
 } from "@/features/organizations/domain/create-organization-form";
+import { organizationStatusOptions } from "@/features/organizations/domain/organization-list";
 import { OrganizationFormField } from "./OrganizationFormField";
 
 interface CreateOrganizationModalProps {
@@ -20,11 +21,6 @@ interface CreateOrganizationModalProps {
     onValueChange: (field: keyof CreateOrganizationFormValues, value: string) => void;
     values: CreateOrganizationFormValues;
 }
-
-const statusOptions = [
-    { label: "Actif", value: "active" },
-    { label: "Suspendu", value: "suspended" },
-];
 
 const regionOptions = [
     { label: "Sélectionnez une région", value: "" },
@@ -113,7 +109,7 @@ export function CreateOrganizationModal({
                         id="organization-status"
                         label="Statut"
                         type="select"
-                        options={statusOptions}
+                        options={organizationStatusOptions}
                         selectProps={{
                             onChange: (event) => onValueChange("status", event.target.value),
                             value: values.status,

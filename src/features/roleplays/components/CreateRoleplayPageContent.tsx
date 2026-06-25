@@ -1,54 +1,105 @@
 "use client";
 
 import Link from "next/link";
-import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import {
     ArrowLeft,
     Building2,
     Check,
     ChevronDown,
     Plus,
-    Upload,
     User,
     Users,
     X,
     type LucideIcon,
 } from "lucide-react";
-import { useEffect, useRef, useState, type ReactNode } from "react";
-import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { CONTENT_STATUS, CONTENT_VISIBILITY_SCOPE } from "@/features/content/domain";
 import { CreateCoachPageContent } from "@/features/coaches/components/CreateCoachPageContent";
 import type { CoachListItem } from "@/features/coaches/domain/coach-list";
+import { CreateMethodPageContent } from "@/features/methods/components/CreateMethodPageContent";
+import type { MethodDetail as CreatedMethodDetail } from "@/features/methods/domain/method";
 import { CreatePersonaPageContent } from "@/features/personas/components/CreatePersonaPageContent";
 import type { PersonaListItem } from "@/features/personas/domain/persona-list";
-import { skills } from "@/features/skills/data/skills";
+import type { SaveRoleplayInput } from "@/features/roleplays/dto";
+import {
+    type RoleplayCoachOption,
+    type RoleplayDetail,
+    type RoleplayDifficulty,
+    type RoleplayGroupOption,
+    type RoleplayMethodOption,
+    type RoleplayOrganizationOption,
+    type RoleplayPersonaOption,
+    type RoleplayQuizOption,
+    type RoleplayResource,
+    type RoleplayScorecardOption,
+    type RoleplaySkillOption,
+    type RoleplayUserOption,
+    ROLEPLAY_ROUTES,
+} from "@/features/roleplays/domain";
 import {
     roleplayCategoryOptions,
     roleplayDifficultyOptions,
     roleplayDomainOptions,
-    roleplayMethodOptions,
 } from "@/features/roleplays/data/roleplays";
-import { demoOrganizations } from "@/features/organizations/domain/organization-list";
 import {
-    demoOrganizationGroups,
-    demoOrganizationUsers,
-} from "@/features/organizations/domain/organization-detail";
+    CONTENT_RESOURCE_DELIVERY_OPTIONS,
+    type ContentResourceDeliveryType,
+    CONTENT_UPLOAD_PURPOSES,
+    getStoragePathFileName,
+    inferContentUploadResourceType,
+} from "@/lib/uploads/content-upload";
+import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextInput } from "@/lib/ui/atoms";
+import { AlertMessage, FileUploadField, SingleSelectField } from "@/lib/ui/molecules";
+import { uiTokens } from "@/lib/ui/tokens";
+import { cn } from "@/lib/ui/utils/cn";
 
 type RoleplayAssignmentType = "organization" | "group" | "user";
-type EntityEditor = "coach" | "persona";
+type EntityEditor = "coach" | "method" | "persona";
+type RoleplayResourceDeliveryType = ContentResourceDeliveryType;
 
 interface SelectOption {
     label: string;
     value: string;
 }
 
-interface PersonasPayload {
+interface RoleplayApiPayload {
     error?: string;
-    personas?: PersonaListItem[];
+    issues?: Array<{ message: string }>;
+    roleplay?: { id: string };
 }
 
-interface CoachesPayload {
-    coaches?: CoachListItem[];
-    error?: string;
+interface RoleplayUploadFile {
+    clientFileId: string;
+    file: File;
+}
+
+interface RoleplayResourceFormItem {
+    clientFileId: string;
+    deliveryType: RoleplayResourceDeliveryType;
+    externalUrl: string;
+    file: File | null;
+    id?: string;
+    label: string;
+    resourceType: RoleplayResource["resourceType"];
+    storageBucket: string;
+    storagePath: string;
+    uploadedFileName: string;
+    uploadedFileSizeBytes: number | null;
+}
+
+interface CreateRoleplayPageContentProps {
+    coachOptions: RoleplayCoachOption[];
+    groupOptions: RoleplayGroupOption[];
+    initialRoleplay?: RoleplayDetail;
+    methodOptions: RoleplayMethodOption[];
+    organizationOptions: RoleplayOrganizationOption[];
+    personaOptions: RoleplayPersonaOption[];
+    quizOptions: RoleplayQuizOption[];
+    roleplayId?: string;
+    scorecardOptions: RoleplayScorecardOption[];
+    skillOptions: RoleplaySkillOption[];
+    userOptions: RoleplayUserOption[];
 }
 
 const ALL_ORGS_SENTINEL = "__all_orgs__";
@@ -59,36 +110,78 @@ const ROLEPLAY_ASSIGNMENT_TYPES: { value: RoleplayAssignmentType; label: string;
     { value: "user", label: "Utilisateur", icon: User },
 ];
 
-
-const skillNames = skills.map((skill) => skill.name);
 const staticOptions = (options: string[]): SelectOption[] => options.map((option) => ({ label: option, value: option }));
 
 const fieldLabelClasses = "mb-2 block text-[14px] font-bold text-[#111827]";
 
-async function fetchPersonas() {
-    const response = await fetch("/api/personas", {
-        headers: { Accept: "application/json" },
-    });
-    const payload = (await response.json().catch(() => null)) as PersonasPayload | null;
-
-    if (!response.ok) {
-        throw new Error(payload?.error ?? "Impossible de charger les personas IA.");
-    }
-
-    return payload?.personas ?? [];
+function createClientFileId(prefix: string) {
+    return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 }
 
-async function fetchCoaches() {
-    const response = await fetch("/api/coaches", {
-        headers: { Accept: "application/json" },
-    });
-    const payload = (await response.json().catch(() => null)) as CoachesPayload | null;
+function emptyRoleplayResource(): RoleplayResourceFormItem {
+    return {
+        clientFileId: "",
+        deliveryType: "file",
+        externalUrl: "",
+        file: null,
+        label: "",
+        resourceType: "document",
+        storageBucket: "",
+        storagePath: "",
+        uploadedFileName: "",
+        uploadedFileSizeBytes: null,
+    };
+}
 
-    if (!response.ok) {
-        throw new Error(payload?.error ?? "Impossible de charger les coachs IA.");
+function roleplayResourceToForm(resource: RoleplayResource): RoleplayResourceFormItem {
+    return {
+        clientFileId: "",
+        deliveryType: resource.storagePath ? "file" : resource.externalUrl ? "url" : "file",
+        externalUrl: resource.externalUrl ?? "",
+        file: null,
+        id: resource.id,
+        label: resource.label || resource.storagePath || resource.externalUrl || "Ressource",
+        resourceType: resource.resourceType,
+        storageBucket: resource.storageBucket ?? "",
+        storagePath: resource.storagePath ?? "",
+        uploadedFileName: resource.storagePath ? resource.label || getStoragePathFileName(resource.storagePath) : "",
+        uploadedFileSizeBytes: null,
+    };
+}
+
+function roleplayResourceToInput(resource: RoleplayResourceFormItem): NonNullable<SaveRoleplayInput["resources"]>[number] {
+    const isUrlResource = resource.deliveryType === "url";
+    const hasSelectedFile = Boolean(resource.file && resource.clientFileId);
+
+    return {
+        clientFileId: !isUrlResource && hasSelectedFile ? resource.clientFileId : "",
+        externalUrl: isUrlResource ? resource.externalUrl : "",
+        id: resource.id,
+        label: resource.label || resource.externalUrl || resource.file?.name || resource.uploadedFileName || resource.storagePath,
+        resourceType: isUrlResource
+            ? "link"
+            : resource.file
+              ? inferContentUploadResourceType(resource.file.type)
+              : resource.resourceType,
+        storageBucket: isUrlResource || hasSelectedFile ? "" : resource.storageBucket,
+        storagePath: isUrlResource || hasSelectedFile ? "" : resource.storagePath,
+    };
+}
+
+function uploadedResourcePreview(resource: RoleplayResourceFormItem) {
+    if (resource.file) {
+        return {
+            fileName: resource.file.name,
+            sizeBytes: resource.file.size,
+        };
     }
 
-    return payload?.coaches ?? [];
+    if (!resource.storageBucket || !resource.storagePath) return null;
+
+    return {
+        fileName: resource.uploadedFileName || resource.label || getStoragePathFileName(resource.storagePath),
+        sizeBytes: resource.uploadedFileSizeBytes,
+    };
 }
 
 function useOutsideClose(onClose: () => void) {
@@ -378,41 +471,149 @@ function EntityEditorDialog({
 const textareaClasses =
     "w-full resize-none rounded-lg border border-[#E5E7EB] bg-[#F3F4F6] px-3.5 py-3 text-[14px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#5140F0] focus:bg-white focus:ring-4 focus:ring-[#5140F0]/10";
 
-export function CreateRoleplayPageContent() {
-    const personasQuery = useQuery({
-        queryFn: fetchPersonas,
-        queryKey: ["personas"],
-    });
-    const coachesQuery = useQuery({
-        queryFn: fetchCoaches,
-        queryKey: ["coaches"],
-    });
-    const [persona, setPersona] = useState<string | null>(null);
-    const [coach, setCoach] = useState<string | null>(null);
-    const [method, setMethod] = useState<string | null>(null);
-    const [targetSkills, setTargetSkills] = useState<string[]>([]);
-    const [domain, setDomain] = useState<string | null>(null);
-    const [category, setCategory] = useState<string | null>(null);
-    const [difficulty, setDifficulty] = useState<string | null>(null);
-    const [context, setContext] = useState("");
-    const [objective, setObjective] = useState("");
-    const [obstacles, setObstacles] = useState("");
-    const [assignment, setAssignment] = useState<"public" | "private">("public");
-    const [assignmentType, setAssignmentType] = useState<RoleplayAssignmentType | null>(null);
-    const [assignmentTargetId, setAssignmentTargetId] = useState<string | null>(null);
-    const [assignmentParentOrg, setAssignmentParentOrg] = useState<string | null>(null);
-    const [openEntityEditor, setOpenEntityEditor] = useState<EntityEditor | null>(null);
+async function saveRoleplay(roleplayId: string | undefined, values: SaveRoleplayInput, uploadFiles: RoleplayUploadFile[]) {
+    const hasFiles = uploadFiles.length > 0;
+    const body = hasFiles ? new FormData() : JSON.stringify(values);
+    const headers = hasFiles ? undefined : { "Content-Type": "application/json" };
 
-    const personaOptions =
-        personasQuery.data?.map((item) => ({
-            label: [item.name, item.role, item.company].filter(Boolean).join(" - "),
-            value: item.id,
-        })) ?? [];
-    const coachOptions =
-        coachesQuery.data?.map((item) => ({
-            label: item.name,
-            value: item.id,
-        })) ?? [];
+    if (body instanceof FormData) {
+        body.append("payload", JSON.stringify(values));
+        uploadFiles.forEach(({ clientFileId, file }) => {
+            body.append(`file:${clientFileId}`, file);
+        });
+    }
+
+    const response = await fetch(roleplayId ? ROLEPLAY_ROUTES.api.detail(roleplayId) : ROLEPLAY_ROUTES.api.collection, {
+        body,
+        headers,
+        method: roleplayId ? "PATCH" : "POST",
+    });
+    const payload = (await response.json().catch(() => null)) as RoleplayApiPayload | null;
+
+    if (!response.ok) {
+        const validationMessage = payload?.issues?.map((issue) => issue.message).join(" ");
+        throw new Error(validationMessage || payload?.error || "Impossible d'enregistrer le roleplay.");
+    }
+
+    if (!payload?.roleplay) {
+        throw new Error("Le roleplay a été enregistré mais la réponse est incomplète.");
+    }
+
+    return payload.roleplay;
+}
+
+function mapScopeToAssignmentType(scope: string): RoleplayAssignmentType | null {
+    if (scope === CONTENT_VISIBILITY_SCOPE.organization) return "organization";
+    if (scope === CONTENT_VISIBILITY_SCOPE.group) return "group";
+    if (scope === CONTENT_VISIBILITY_SCOPE.user) return "user";
+    return null;
+}
+
+function buildGeneratedTitle({
+    category,
+    initialTitle,
+    persona,
+    personaOptions,
+}: {
+    category: string | null;
+    initialTitle?: string;
+    persona: string | null;
+    personaOptions: RoleplayPersonaOption[];
+}) {
+    if (initialTitle?.trim()) return initialTitle.trim();
+    const personaName = personaOptions.find((option) => option.id === persona)?.name;
+    return [personaName, category].filter(Boolean).join(" - ") || "Nouveau scénario";
+}
+
+export function CreateRoleplayPageContent({
+    coachOptions,
+    groupOptions,
+    initialRoleplay,
+    methodOptions,
+    organizationOptions,
+    personaOptions,
+    quizOptions,
+    roleplayId,
+    skillOptions,
+    userOptions,
+}: CreateRoleplayPageContentProps) {
+    const router = useRouter();
+    const [localPersonaOptions, setLocalPersonaOptions] = useState(personaOptions);
+    const [localCoachOptions, setLocalCoachOptions] = useState(coachOptions);
+    const [localMethodOptions, setLocalMethodOptions] = useState(methodOptions);
+    const [persona, setPersona] = useState<string | null>(initialRoleplay?.personaId ?? null);
+    const [coach, setCoach] = useState<string | null>(initialRoleplay?.coachId ?? null);
+    const [method, setMethod] = useState<string | null>(initialRoleplay?.methodId ?? null);
+    const [targetSkills, setTargetSkills] = useState<string[]>([]);
+    const [domain, setDomain] = useState<string | null>(initialRoleplay?.domain || null);
+    const [category, setCategory] = useState<string | null>(initialRoleplay?.category || null);
+    const [difficulty, setDifficulty] = useState<string | null>(initialRoleplay?.difficulty ?? null);
+    const [context, setContext] = useState(initialRoleplay?.context ?? "");
+    const [objective, setObjective] = useState(initialRoleplay?.objective ?? "");
+    const [obstacles, setObstacles] = useState(initialRoleplay?.obstacles ?? "");
+    const [resources, setResources] = useState<RoleplayResourceFormItem[]>(() =>
+        (initialRoleplay?.resources ?? []).map(roleplayResourceToForm),
+    );
+    const [assignment, setAssignment] = useState<"public" | "private">(
+        initialRoleplay?.scope && initialRoleplay.scope !== CONTENT_VISIBILITY_SCOPE.public ? "private" : "public",
+    );
+    const [assignmentType, setAssignmentType] = useState<RoleplayAssignmentType | null>(
+        initialRoleplay?.scope ? mapScopeToAssignmentType(initialRoleplay.scope) : null,
+    );
+    const [assignmentTargetId, setAssignmentTargetId] = useState<string | null>(
+        initialRoleplay?.scope === CONTENT_VISIBILITY_SCOPE.organization
+            ? initialRoleplay.organizationId
+            : initialRoleplay?.scope === CONTENT_VISIBILITY_SCOPE.group
+              ? initialRoleplay.groupId
+              : initialRoleplay?.scope === CONTENT_VISIBILITY_SCOPE.user
+                ? initialRoleplay.assignedUserId
+                : null,
+    );
+    const [assignmentParentOrg, setAssignmentParentOrg] = useState<string | null>(initialRoleplay?.organizationId ?? null);
+    const [openEntityEditor, setOpenEntityEditor] = useState<EntityEditor | null>(null);
+    const [formError, setFormError] = useState<string | null>(null);
+    const [saving, setSaving] = useState(false);
+
+    const personaSelectOptions = useMemo(
+        () =>
+            localPersonaOptions.map((item) => ({
+                label: [item.name, item.role, item.company].filter(Boolean).join(" - "),
+                value: item.id,
+            })),
+        [localPersonaOptions],
+    );
+    const coachSelectOptions = useMemo(
+        () =>
+            localCoachOptions.map((item) => ({
+                label: item.name,
+                value: item.id,
+            })),
+        [localCoachOptions],
+    );
+    const methodSelectOptions = useMemo(
+        () =>
+            localMethodOptions.map((item) => ({
+                label: item.shortName || item.name,
+                value: item.id,
+            })),
+        [localMethodOptions],
+    );
+    const skillNames = useMemo(() => skillOptions.map((skill) => skill.name), [skillOptions]);
+    const organizationSelectOptions = useMemo(
+        () => organizationOptions.map((organization) => ({ label: organization.name, value: organization.id })),
+        [organizationOptions],
+    );
+    const groupSelectOptions = useMemo(
+        () =>
+            groupOptions
+                .filter((group) => !assignmentParentOrg || group.organizationId === assignmentParentOrg)
+                .map((group) => ({ label: group.name, value: group.id })),
+        [assignmentParentOrg, groupOptions],
+    );
+    const userSelectOptions = useMemo(
+        () => userOptions.map((user) => ({ label: user.name, value: user.id })),
+        [userOptions],
+    );
 
     function toggleSkill(value: string) {
         setTargetSkills((current) =>
@@ -420,16 +621,198 @@ export function CreateRoleplayPageContent() {
         );
     }
 
-    const canSubmit = Boolean(persona && coach && domain && category && difficulty);
+    function updateResource(resourceIndex: number, patch: Partial<RoleplayResourceFormItem>) {
+        setResources((current) =>
+            current.map((resource, index) => (index === resourceIndex ? { ...resource, ...patch } : resource)),
+        );
+    }
+
+    function updateResourceDeliveryType(resourceIndex: number, deliveryType: RoleplayResourceDeliveryType) {
+        updateResource(resourceIndex, {
+            deliveryType,
+            ...(deliveryType === "url"
+                ? {
+                      clientFileId: "",
+                      file: null,
+                      resourceType: "link",
+                      storageBucket: "",
+                      storagePath: "",
+                      uploadedFileName: "",
+                      uploadedFileSizeBytes: null,
+                  }
+                : {
+                      externalUrl: "",
+                      resourceType: "document",
+                  }),
+        });
+    }
+
+    function updateResourceFromUpload(resourceIndex: number, file: File) {
+        setResources((current) =>
+            current.map((resource, index) =>
+                index === resourceIndex
+                    ? {
+                          ...resource,
+                          clientFileId: createClientFileId(`scenario-resource-${resourceIndex + 1}`),
+                          deliveryType: "file",
+                          externalUrl: "",
+                          file,
+                          label: resource.label || file.name,
+                          resourceType: inferContentUploadResourceType(file.type),
+                          storageBucket: "",
+                          storagePath: "",
+                          uploadedFileName: file.name,
+                          uploadedFileSizeBytes: file.size,
+                      }
+                    : resource,
+            ),
+        );
+    }
+
+    function clearResourceUpload(resourceIndex: number) {
+        updateResource(resourceIndex, {
+            clientFileId: "",
+            file: null,
+            storageBucket: "",
+            storagePath: "",
+            uploadedFileName: "",
+            uploadedFileSizeBytes: null,
+        });
+    }
+
+    function removeResource(resourceIndex: number) {
+        setResources((current) => current.filter((_, index) => index !== resourceIndex));
+    }
+
+    function collectUploadFiles(): RoleplayUploadFile[] {
+        return resources.flatMap((resource) =>
+            resource.file && resource.clientFileId
+                ? [{ clientFileId: resource.clientFileId, file: resource.file }]
+                : [],
+        );
+    }
+
+    const scopeTargetReady =
+        assignment === "public" ||
+        (assignmentType === "organization" && Boolean(assignmentTargetId)) ||
+        (assignmentType === "group" &&
+            Boolean(assignmentParentOrg && assignmentTargetId && assignmentTargetId !== ALL_ORGS_SENTINEL)) ||
+        (assignmentType === "user" && Boolean(assignmentTargetId));
+    const canSubmit = Boolean(persona && coach && domain && category && difficulty && scopeTargetReady);
 
     function selectCreatedPersona(createdPersona: PersonaListItem) {
+        setLocalPersonaOptions((current) =>
+            current.some((option) => option.id === createdPersona.id)
+                ? current
+                : [
+                      ...current,
+                      {
+                          avatarUrl: createdPersona.avatarUrl,
+                          company: createdPersona.company,
+                          id: createdPersona.id,
+                          name: createdPersona.name,
+                          role: createdPersona.role,
+                      },
+                  ],
+        );
         setPersona(createdPersona.id);
         setOpenEntityEditor(null);
     }
 
     function selectCreatedCoach(createdCoach: CoachListItem) {
+        setLocalCoachOptions((current) =>
+            current.some((option) => option.id === createdCoach.id)
+                ? current
+                : [
+                      ...current,
+                      {
+                          id: createdCoach.id,
+                          name: createdCoach.name,
+                      },
+                  ],
+        );
         setCoach(createdCoach.id);
         setOpenEntityEditor(null);
+    }
+
+    function selectCreatedMethod(createdMethod: CreatedMethodDetail) {
+        setLocalMethodOptions((current) =>
+            current.some((option) => option.id === createdMethod.id)
+                ? current
+                : [
+                      ...current,
+                      {
+                          id: createdMethod.id,
+                          name: createdMethod.name,
+                          shortName: createdMethod.code || createdMethod.name,
+                      },
+                  ],
+        );
+        setMethod(createdMethod.id);
+        setOpenEntityEditor(null);
+    }
+
+    function toSaveInput(): SaveRoleplayInput {
+        const scope =
+            assignment === "public"
+                ? CONTENT_VISIBILITY_SCOPE.public
+                : assignmentType === "group"
+                  ? CONTENT_VISIBILITY_SCOPE.group
+                  : assignmentType === "user"
+                    ? CONTENT_VISIBILITY_SCOPE.user
+                    : CONTENT_VISIBILITY_SCOPE.organization;
+        const title = buildGeneratedTitle({
+            category,
+            initialTitle: initialRoleplay?.title,
+            persona,
+            personaOptions: localPersonaOptions,
+        });
+        const scorecardId = roleplayId && method === initialRoleplay?.methodId ? initialRoleplay.scorecardId : null;
+
+        return {
+            assignedUserId: scope === CONTENT_VISIBILITY_SCOPE.user ? assignmentTargetId : null,
+            category: category ?? "",
+            coachId: coach,
+            context,
+            description: initialRoleplay?.description || objective || context || title,
+            difficulty: (difficulty || "Moyen") as RoleplayDifficulty,
+            disc: initialRoleplay?.disc ?? "Stable",
+            domain: domain ?? "",
+            groupId: scope === CONTENT_VISIBILITY_SCOPE.group ? assignmentTargetId : null,
+            methodId: method,
+            objective,
+            obstacles,
+            organizationId:
+                scope === CONTENT_VISIBILITY_SCOPE.organization
+                    ? assignmentTargetId
+                    : scope === CONTENT_VISIBILITY_SCOPE.group
+                      ? assignmentParentOrg
+                      : null,
+            personaId: persona ?? "",
+            quizIds: initialRoleplay?.quizIds ?? [],
+            quizParticipation: "optional",
+            resources: resources.map(roleplayResourceToInput),
+            scope,
+            scorecardId,
+            status: CONTENT_STATUS.published,
+            title,
+        };
+    }
+
+    async function handleSave() {
+        if (!canSubmit || saving) return;
+
+        setFormError(null);
+        setSaving(true);
+        try {
+            const saved = await saveRoleplay(roleplayId, toSaveInput(), collectUploadFiles());
+            router.push(ROLEPLAY_ROUTES.app.detail(saved.id));
+            router.refresh();
+        } catch (error) {
+            setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer le roleplay.");
+        } finally {
+            setSaving(false);
+        }
     }
 
     return (
@@ -454,6 +837,7 @@ export function CreateRoleplayPageContent() {
                 </Box>
 
                 <CardSurface className="rounded-[24px] border border-[#E9E7FB] p-7 shadow-[0_1px_2px_rgba(17,24,39,0.04)] md:p-9">
+                    {formError && <AlertMessage message={formError} />}
                     <Box className="space-y-5">
                         <Box>
                             <Text as="span" className={fieldLabelClasses}>
@@ -462,10 +846,9 @@ export function CreateRoleplayPageContent() {
                             <Box className="flex gap-2.5">
                                 <Box className="flex-1">
                                     <SingleSelect
-                                        disabled={personasQuery.isPending}
-                                        options={personaOptions}
+                                        options={personaSelectOptions}
                                         value={persona}
-                                        placeholder={personasQuery.isPending ? "Chargement des personas..." : "Sélectionner un persona IA"}
+                                        placeholder="Sélectionner un persona IA"
                                         onChange={setPersona}
                                     />
                                 </Box>
@@ -474,11 +857,6 @@ export function CreateRoleplayPageContent() {
                                     onClick={() => setOpenEntityEditor("persona")}
                                 />
                             </Box>
-                            {personasQuery.isError && (
-                                <Text className="mt-2 text-[13px] font-semibold text-[#A43A3A]">
-                                    {personasQuery.error.message}
-                                </Text>
-                            )}
                         </Box>
 
                         <Box>
@@ -488,10 +866,9 @@ export function CreateRoleplayPageContent() {
                             <Box className="flex gap-2.5">
                                 <Box className="flex-1">
                                     <SingleSelect
-                                        disabled={coachesQuery.isPending}
-                                        options={coachOptions}
+                                        options={coachSelectOptions}
                                         value={coach}
-                                        placeholder={coachesQuery.isPending ? "Chargement des coachs..." : "Sélectionner un coach IA"}
+                                        placeholder="Sélectionner un coach IA"
                                         onChange={setCoach}
                                     />
                                 </Box>
@@ -500,11 +877,6 @@ export function CreateRoleplayPageContent() {
                                     onClick={() => setOpenEntityEditor("coach")}
                                 />
                             </Box>
-                            {coachesQuery.isError && (
-                                <Text className="mt-2 text-[13px] font-semibold text-[#A43A3A]">
-                                    {coachesQuery.error.message}
-                                </Text>
-                            )}
                         </Box>
                     </Box>
 
@@ -518,13 +890,16 @@ export function CreateRoleplayPageContent() {
                             <Box className="flex gap-2.5">
                                 <Box className="flex-1">
                                     <SingleSelect
-                                        options={staticOptions(roleplayMethodOptions)}
+                                        options={methodSelectOptions}
                                         value={method}
                                         placeholder="Sélectionner une méthode ou un playbook"
                                         onChange={setMethod}
                                     />
                                 </Box>
-                                <PlusButton label="Créer une nouvelle méthode" />
+                                <PlusButton
+                                    label="Créer une nouvelle méthode"
+                                    onClick={() => setOpenEntityEditor("method")}
+                                />
                             </Box>
                         </Box>
 
@@ -624,13 +999,91 @@ export function CreateRoleplayPageContent() {
                         </Box>
 
                         <Box>
-                            <Text as="span" className={fieldLabelClasses}>
-                                Documents d&apos;accompagnement (optionnel)
-                            </Text>
-                            <Button className="flex h-12 w-full items-center justify-center gap-2 rounded-lg border border-[#E5E7EB] bg-white text-[14px] font-semibold text-[#374151] transition hover:border-[#D5D7DE] hover:text-[#5140F0]">
-                                <InlineIcon icon={Upload} className="h-4 w-4" />
-                                Ajouter un document
-                            </Button>
+                            <Box className="flex items-center justify-between">
+                                <Text as="span" className={fieldLabelClasses}>
+                                    Documents d&apos;accompagnement (optionnel)
+                                </Text>
+                                <Button
+                                    onClick={() => setResources((current) => [...current, emptyRoleplayResource()])}
+                                    className={uiTokens.action.addButton}
+                                >
+                                    <InlineIcon icon={Plus} className="h-3.5 w-3.5" />
+                                    Ajouter un document
+                                </Button>
+                            </Box>
+                            {resources.length > 0 && (
+                                <Box className="mt-3 space-y-3">
+                                    {resources.map((resource, resourceIndex) => (
+                                        <Box
+                                            key={resource.id ?? resource.clientFileId ?? resourceIndex}
+                                            className={cn("space-y-4", uiTokens.surface.nestedCard)}
+                                        >
+                                            <Box className="flex items-center justify-between gap-3">
+                                                <Text as="span" className={cn("text-[13px] font-extrabold", uiTokens.text.heading)}>
+                                                    Document {resourceIndex + 1}
+                                                </Text>
+                                                <Button
+                                                    aria-label={`Retirer le document ${resourceIndex + 1}`}
+                                                    onClick={() => removeResource(resourceIndex)}
+                                                    className={uiTokens.action.iconButtonGhost}
+                                                >
+                                                    <InlineIcon icon={X} className="h-4 w-4" />
+                                                </Button>
+                                            </Box>
+                                            <Box>
+                                                <FieldLabel className={uiTokens.form.subLabel}>Nom du document</FieldLabel>
+                                                <TextInput
+                                                    value={resource.label}
+                                                    onChange={(event) => updateResource(resourceIndex, { label: event.target.value })}
+                                                    placeholder="Ex: Fiche produit, grille de préparation..."
+                                                    hasLeadingIcon={false}
+                                                    className={uiTokens.form.controlWhite}
+                                                />
+                                            </Box>
+                                            <Box>
+                                                <FieldLabel className={uiTokens.form.subLabel}>Type de document</FieldLabel>
+                                                <SingleSelectField
+                                                    options={[...CONTENT_RESOURCE_DELIVERY_OPTIONS]}
+                                                    value={resource.deliveryType}
+                                                    placeholder="Sélectionner un type"
+                                                    onChange={(value) =>
+                                                        updateResourceDeliveryType(
+                                                            resourceIndex,
+                                                            value as RoleplayResourceDeliveryType,
+                                                        )
+                                                    }
+                                                />
+                                            </Box>
+                                            {resource.deliveryType === "file" ? (
+                                                <Box>
+                                                    <FieldLabel className={uiTokens.form.subLabel}>Fichier du document</FieldLabel>
+                                                    <FileUploadField
+                                                        inputId={`roleplay-resource-upload-${resourceIndex}`}
+                                                        file={uploadedResourcePreview(resource)}
+                                                        uploadPurpose={CONTENT_UPLOAD_PURPOSES.scenarioResource}
+                                                        onFileSelected={(file) => updateResourceFromUpload(resourceIndex, file)}
+                                                        onClear={() => clearResourceUpload(resourceIndex)}
+                                                        onError={setFormError}
+                                                    />
+                                                </Box>
+                                            ) : (
+                                                <Box>
+                                                    <FieldLabel className={uiTokens.form.subLabel}>URL du document</FieldLabel>
+                                                    <TextInput
+                                                        value={resource.externalUrl}
+                                                        onChange={(event) =>
+                                                            updateResource(resourceIndex, { externalUrl: event.target.value })
+                                                        }
+                                                        placeholder="https://..."
+                                                        hasLeadingIcon={false}
+                                                        className={uiTokens.form.controlWhite}
+                                                    />
+                                                </Box>
+                                            )}
+                                        </Box>
+                                    ))}
+                                </Box>
+                            )}
                         </Box>
                     </Box>
 
@@ -661,7 +1114,14 @@ export function CreateRoleplayPageContent() {
                                         type="button"
                                         role="radio"
                                         aria-checked={isSelected}
-                                        onClick={() => setAssignment(option.value)}
+                                        onClick={() => {
+                                            setAssignment(option.value);
+                                            if (option.value === "public") {
+                                                setAssignmentType(null);
+                                                setAssignmentTargetId(null);
+                                                setAssignmentParentOrg(null);
+                                            }
+                                        }}
                                         className={`flex w-full items-start gap-3 rounded-xl border px-4 py-3.5 text-left transition ${
                                             isSelected
                                                 ? "border-[#5140F0] bg-[#F4F3FE]"
@@ -711,7 +1171,7 @@ export function CreateRoleplayPageContent() {
                                                 Sélectionner une organisation
                                             </Text>
                                             <SingleSelect
-                                                options={staticOptions(demoOrganizations.map((o) => o.name))}
+                                                options={organizationSelectOptions}
                                                 value={assignmentTargetId}
                                                 placeholder="Choisir une organisation..."
                                                 onChange={setAssignmentTargetId}
@@ -726,38 +1186,34 @@ export function CreateRoleplayPageContent() {
                                                     Sélectionner une organisation
                                                 </Text>
                                                 <SingleSelect
-                                                    options={staticOptions([
-                                                        "Tous les groupes de toutes les organisations",
-                                                        ...demoOrganizations.map((o) => o.name),
-                                                    ])}
+                                                    options={[
+                                                        {
+                                                            label: "Tous les groupes de toutes les organisations",
+                                                            value: ALL_ORGS_SENTINEL,
+                                                        },
+                                                        ...organizationSelectOptions,
+                                                    ]}
                                                     value={assignmentParentOrg}
                                                     placeholder="Choisir une organisation..."
                                                     onChange={(next) => {
                                                         setAssignmentParentOrg(next);
-                                                        setAssignmentTargetId(
-                                                            next ===
-                                                                "Tous les groupes de toutes les organisations"
-                                                                ? ALL_ORGS_SENTINEL
-                                                                : null,
-                                                        );
+                                                        setAssignmentTargetId(next === ALL_ORGS_SENTINEL ? ALL_ORGS_SENTINEL : null);
                                                     }}
                                                 />
                                             </Box>
-                                            {assignmentParentOrg &&
-                                                assignmentParentOrg !==
-                                                    "Tous les groupes de toutes les organisations" && (
-                                                    <Box>
-                                                        <Text as="span" className={fieldLabelClasses}>
-                                                            Sélectionner un groupe
-                                                        </Text>
-                                                        <SingleSelect
-                                                            options={staticOptions(demoOrganizationGroups.map((g) => g.name))}
-                                                            value={assignmentTargetId}
-                                                            placeholder="Choisir un groupe..."
-                                                            onChange={setAssignmentTargetId}
-                                                        />
-                                                    </Box>
-                                                )}
+                                            {assignmentParentOrg && assignmentParentOrg !== ALL_ORGS_SENTINEL && (
+                                                <Box>
+                                                    <Text as="span" className={fieldLabelClasses}>
+                                                        Sélectionner un groupe
+                                                    </Text>
+                                                    <SingleSelect
+                                                        options={groupSelectOptions}
+                                                        value={assignmentTargetId}
+                                                        placeholder="Choisir un groupe..."
+                                                        onChange={setAssignmentTargetId}
+                                                    />
+                                                </Box>
+                                            )}
                                         </>
                                     )}
 
@@ -767,7 +1223,7 @@ export function CreateRoleplayPageContent() {
                                                 Sélectionner un utilisateur
                                             </Text>
                                             <SingleSelect
-                                                options={staticOptions(demoOrganizationUsers.map((u) => u.name))}
+                                                options={userSelectOptions}
                                                 value={assignmentTargetId}
                                                 placeholder="Choisir un utilisateur..."
                                                 onChange={setAssignmentTargetId}
@@ -788,14 +1244,15 @@ export function CreateRoleplayPageContent() {
                         Annuler
                     </Link>
                     <Button
-                        disabled={!canSubmit}
+                        disabled={!canSubmit || saving}
+                        onClick={() => void handleSave()}
                         className={`flex h-11 items-center justify-center rounded-xl px-6 text-[14px] font-bold text-white transition ${
-                            canSubmit
+                            canSubmit && !saving
                                 ? "bg-[#5140F0] shadow-[0_10px_20px_rgba(81,64,240,0.18)] hover:bg-[#4635E7]"
                                 : "cursor-not-allowed bg-[#B9B2F8]"
                         }`}
                     >
-                        Créer le scénario
+                        {saving ? "Enregistrement..." : "Créer le scénario"}
                     </Button>
                 </Box>
             </Box>
@@ -809,6 +1266,17 @@ export function CreateRoleplayPageContent() {
             {openEntityEditor === "coach" && (
                 <EntityEditorDialog title="Créer un coach IA" onClose={() => setOpenEntityEditor(null)}>
                     <CreateCoachPageContent embedded onSaved={selectCreatedCoach} />
+                </EntityEditorDialog>
+            )}
+
+            {openEntityEditor === "method" && (
+                <EntityEditorDialog title="Créer une méthode" onClose={() => setOpenEntityEditor(null)}>
+                    <CreateMethodPageContent
+                        embedded
+                        onSaved={selectCreatedMethod}
+                        organizationOptions={organizationOptions}
+                        quizOptions={quizOptions}
+                    />
                 </EntityEditorDialog>
             )}
         </Box>

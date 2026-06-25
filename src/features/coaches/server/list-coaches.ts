@@ -1,17 +1,23 @@
 import { requireAuth } from "@/features/auth/server";
 import type { CoachListItem } from "@/features/coaches/domain/coach-list";
+import { CONTENT_STATUS } from "@/features/content/domain";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapCoachRowToListItem, type CoachRow } from "./coach.mapper";
 
 export async function listCoaches(): Promise<CoachListItem[]> {
-    await requireAuth();
+    const context = await requireAuth();
 
     const adminSupabase = createAdminClient();
-    const { data, error } = await adminSupabase
+    let query = adminSupabase
         .from("coaches")
-        .select("id, name, voice_id, system_instructions, avatar_url, created_at")
-        .order("created_at", { ascending: false })
-        .returns<CoachRow[]>();
+        .select("id, name, voice_id, system_instructions, avatar_url, created_at, status")
+        .order("created_at", { ascending: false });
+
+    if (context.platformRole !== "admin") {
+        query = query.eq("status", CONTENT_STATUS.published);
+    }
+
+    const { data, error } = await query.returns<CoachRow[]>();
 
     if (error) {
         throw error;

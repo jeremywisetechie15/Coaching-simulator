@@ -9,7 +9,7 @@ export async function getPersonaById(personaId: string): Promise<PersonaEditorVa
     const adminSupabase = createAdminClient();
     const { data, error } = await adminSupabase
         .from("personas")
-        .select("id, name, role, company, voice_id, system_instructions, avatar_url, created_at")
+        .select("id, name, role, company, voice_id, system_instructions, avatar_url, created_at, status")
         .eq("id", personaId)
         .maybeSingle<PersonaRow>();
 

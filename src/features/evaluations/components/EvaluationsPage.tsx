@@ -1,13 +1,15 @@
 import { AppShell } from "@/features/app-shell/components";
+import type { QuizListItem } from "@/features/evaluations/domain";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import { EvaluationsPageContent } from "./EvaluationsPageContent";
 
 interface EvaluationsPageProps {
     profileValues: ProfileFormValues;
+    quizzes: QuizListItem[];
 }
 
-export function EvaluationsPage({ profileValues }: EvaluationsPageProps) {
+export function EvaluationsPage({ profileValues, quizzes }: EvaluationsPageProps) {
     return (
         <AppShell
             activePrimaryItem="Évaluations"
@@ -17,7 +19,7 @@ export function EvaluationsPage({ profileValues }: EvaluationsPageProps) {
             email={profileValues.email}
             searchPlaceholder="Rechercher..."
         >
-            <EvaluationsPageContent />
+            <EvaluationsPageContent quizzes={quizzes} />
         </AppShell>
     );
 }

@@ -1,153 +1,308 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import {
     ArrowLeft,
-    BookOpen,
+    Check,
     CheckCircle2,
-    Phone,
-    RotateCcw,
-    ShieldCheck,
-    Target,
+    ChevronLeft,
+    ChevronRight,
+    Eye,
+    FileText,
+    Info,
+    X,
 } from "lucide-react";
-import type { LucideIcon } from "lucide-react";
-import { Box, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import {
+    EVALUATION_ROUTES,
+    QUIZ_DIMENSION_LABELS,
+    scoreQuizAnswers,
+    type QuizDetail,
+    type QuizQuestion,
+    type QuizQuestionAttachment,
+    type QuizStep,
+} from "@/features/evaluations/domain";
+import type { SkillOption } from "@/features/skills/domain/skills";
+import { getStoragePathFileName } from "@/lib/uploads/content-upload";
+import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import { FilePreviewCard, type FilePreviewKind } from "@/lib/ui/molecules";
+import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
-import type { Evaluation, QuizSectionIcon } from "@/features/evaluations/data/evaluations";
 
 interface EvaluationQuizPageContentProps {
-    evaluation: Evaluation;
+    quiz: QuizDetail;
+    skillOptions: SkillOption[];
 }
 
-const sectionIcons: Record<QuizSectionIcon, LucideIcon> = {
-    phone: Phone,
-    target: Target,
-    shield: ShieldCheck,
-    check: CheckCircle2,
-    book: BookOpen,
-};
+type QuizMode = "quiz" | "results" | "review";
 
-export function EvaluationQuizPageContent({ evaluation }: EvaluationQuizPageContentProps) {
-    /** Liste à plat de toutes les questions avec leur index de section. */
-    const flatQuestions = useMemo(
-        () =>
-            evaluation.sections.flatMap((section, sectionIndex) =>
-                section.questions.map((question) => ({ question, sectionIndex })),
-            ),
-        [evaluation],
-    );
-
-    const [answers, setAnswers] = useState<Record<string, number>>({});
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const [showResults, setShowResults] = useState(false);
-
-    const current = flatQuestions[currentIndex];
-    const isLast = currentIndex === flatQuestions.length - 1;
-    const currentAnswered = answers[current.question.id] !== undefined;
-
-    function selectOption(optionIndex: number) {
-        setAnswers((prev) => ({ ...prev, [current.question.id]: optionIndex }));
+function scoreTone(pct: number, threshold: number) {
+    if (pct >= threshold) {
+        return {
+            bg: "bg-[#DCFCE7]",
+            dot: "bg-[#16A34A]",
+            soft: "bg-[#F0FDF4]",
+            text: "text-[#16A34A]",
+        };
     }
 
-    function goToSection(sectionIndex: number) {
-        const target = flatQuestions.findIndex((item) => item.sectionIndex === sectionIndex);
-        if (target >= 0) {
-            setCurrentIndex(target);
+    if (pct >= 50) {
+        return {
+            bg: "bg-[#FEF3C7]",
+            dot: "bg-[#F59E0B]",
+            soft: "bg-[#FFFBEB]",
+            text: "text-[#B45309]",
+        };
+    }
+
+    return {
+        bg: "bg-[#FEE2E2]",
+        dot: "bg-[#EF4444]",
+        soft: "bg-[#FEF2F2]",
+        text: "text-[#DC2626]",
+    };
+}
+
+function isQuestionCorrect(question: QuizQuestion, selectedChoiceIds: string[]) {
+    const correctChoiceIds = question.choices.filter((choice) => choice.isCorrect).map((choice) => choice.id);
+
+    return (
+        selectedChoiceIds.length === correctChoiceIds.length &&
+        correctChoiceIds.every((choiceId) => selectedChoiceIds.includes(choiceId))
+    );
+}
+
+function computeCompetenceScore(
+    step: QuizStep,
+    competenceId: string,
+    selectedChoiceIdsByQuestionId: Record<string, string[]>,
+) {
+    const questions = step.questions.filter((question) => question.competenceId === competenceId);
+    const maxPoints = questions.reduce((sum, question) => sum + question.points, 0);
+    const earnedPoints = questions.reduce((sum, question) => {
+        const selected = selectedChoiceIdsByQuestionId[question.id] ?? [];
+        return sum + (isQuestionCorrect(question, selected) ? question.points : 0);
+    }, 0);
+
+    return maxPoints > 0 ? Math.round((earnedPoints / maxPoints) * 100) : 0;
+}
+
+export function EvaluationQuizPageContent({ quiz, skillOptions }: EvaluationQuizPageContentProps) {
+    const skillNameById = useMemo(
+        () => new Map(skillOptions.map((skill) => [skill.id, skill.name])),
+        [skillOptions],
+    );
+    const flatQuestions = useMemo(
+        () =>
+            quiz.steps.flatMap((step, stepIndex) =>
+                step.questions.map((question) => ({
+                    question,
+                    step,
+                    stepIndex,
+                })),
+            ),
+        [quiz.steps],
+    );
+
+    const [answers, setAnswers] = useState<Record<string, string[]>>({});
+    const [currentIndex, setCurrentIndex] = useState(0);
+    const [mode, setMode] = useState<QuizMode>("quiz");
+    const [openStepId, setOpenStepId] = useState<string | null>(null);
+
+    const score = useMemo(() => scoreQuizAnswers(quiz, answers), [answers, quiz]);
+    const threshold = quiz.validationThreshold ?? 70;
+    const current = flatQuestions[currentIndex];
+    const reviewing = mode === "review";
+
+    if (flatQuestions.length === 0) {
+        return (
+            <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
+                <Box className="mx-auto max-w-[820px]">
+                    <CardSurface className={uiTokens.surface.formCard}>
+                        <Text as="h1" className={cn("text-[24px] font-extrabold", uiTokens.text.heading)}>
+                            Quiz vide
+                        </Text>
+                        <Text className={cn("mt-2 text-[14px] font-semibold", uiTokens.text.muted)}>
+                            Ce quiz ne contient pas encore de question.
+                        </Text>
+                        <Link
+                            href={`/evaluations/${quiz.id}`}
+                            className={cn(uiTokens.action.secondaryButton, "mt-5 w-fit")}
+                        >
+                            Retour au détail
+                        </Link>
+                    </CardSurface>
+                </Box>
+            </Box>
+        );
+    }
+
+    const selectedChoiceIds = answers[current.question.id] ?? [];
+    const currentAnswered = selectedChoiceIds.length > 0;
+    const isLastQuestion = currentIndex === flatQuestions.length - 1;
+    const nextLabel = isLastQuestion ? "Valider le quiz" : "Question suivante";
+
+    function toggleChoice(choiceId: string) {
+        if (reviewing) return;
+
+        setAnswers((currentAnswers) => {
+            const selected = currentAnswers[current.question.id] ?? [];
+
+            if (current.question.type === "QCU") {
+                return {
+                    ...currentAnswers,
+                    [current.question.id]: [choiceId],
+                };
+            }
+
+            return {
+                ...currentAnswers,
+                [current.question.id]: selected.includes(choiceId)
+                    ? selected.filter((id) => id !== choiceId)
+                    : [...selected, choiceId],
+            };
+        });
+    }
+
+    function goNext() {
+        if (!reviewing && !currentAnswered) return;
+
+        if (isLastQuestion) {
+            setMode("results");
+            return;
+        }
+
+        setCurrentIndex((index) => index + 1);
+    }
+
+    function goPrevious() {
+        setCurrentIndex((index) => Math.max(0, index - 1));
+    }
+
+    function goToStep(stepIndex: number) {
+        const targetIndex = flatQuestions.findIndex((item) => item.stepIndex === stepIndex);
+        if (targetIndex >= 0) {
+            setCurrentIndex(targetIndex);
         }
     }
 
-    function answeredCountForSection(sectionIndex: number) {
-        return evaluation.sections[sectionIndex].questions.filter(
-            (question) => answers[question.id] !== undefined,
-        ).length;
-    }
-
-    function restart() {
-        setAnswers({});
-        setCurrentIndex(0);
-        setShowResults(false);
-    }
-
-    if (showResults) {
-        const correct = flatQuestions.filter(
-            ({ question }) =>
-                answers[question.id] !== undefined &&
-                question.options[answers[question.id]]?.correct,
-        ).length;
-        const total = flatQuestions.length;
-        const score = Math.round((correct / total) * 100);
-        const passed = score >= 70;
+    if (mode === "results") {
+        const tone = scoreTone(score.score, threshold);
 
         return (
             <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
-                <Box className="mx-auto max-w-[760px]">
-                    <CardSurface className="rounded-[20px] border border-[#E9E7FB] p-8 text-center shadow-[0_1px_2px_rgba(17,24,39,0.04)]">
-                        <Box
-                            className="mx-auto flex h-20 w-20 items-center justify-center rounded-full"
-                            style={{ backgroundColor: passed ? "#F0FDF4" : "#FEF2F2" }}
-                        >
-                            <Text
-                                className="text-[24px] font-extrabold"
-                                style={{ color: passed ? "#16A34A" : "#DC2626" }}
-                            >
-                                {score}%
+                <Box className="mx-auto max-w-[860px]">
+                    <Text as="h1" className={cn("mb-5 text-[26px] font-extrabold", uiTokens.text.heading)}>
+                        Résultat du quiz
+                    </Text>
+
+                    <CardSurface className={uiTokens.surface.formCard}>
+                        <Box className={cn("flex items-center justify-between rounded-[14px] px-5 py-4", tone.soft)}>
+                            <Box className="flex items-center gap-3">
+                                <InlineIcon icon={CheckCircle2} className={cn("h-6 w-6", tone.text)} />
+                                <Box>
+                                    <Text className={cn("text-[12px] font-semibold", uiTokens.text.muted)}>
+                                        Score du quiz
+                                    </Text>
+                                    <Text className={cn("text-[16px] font-extrabold", uiTokens.text.heading)}>
+                                        {quiz.title}
+                                    </Text>
+                                </Box>
+                            </Box>
+                            <Box className={cn("inline-flex items-center rounded-lg px-3 py-1 text-[18px] font-extrabold", tone.bg, tone.text)}>
+                                {score.score}%
+                            </Box>
+                        </Box>
+
+                        <Box className="mt-4 flex items-start gap-2.5 rounded-[14px] border border-[#FDE68A] bg-[#FFFBEB] px-4 py-3.5">
+                            <InlineIcon icon={Info} className="mt-0.5 h-5 w-5 shrink-0 text-[#D97706]" />
+                            <Text className="text-[13px] font-medium leading-6 text-[#92400E]">
+                                {score.passed
+                                    ? `Le seuil recommandé de ${threshold}% est atteint.`
+                                    : `Le score est sous le seuil recommandé de ${threshold}%. Revoir les étapes aide à cibler les compétences à renforcer.`}
                             </Text>
                         </Box>
-                        <Text as="h1" className="mt-4 text-[24px] font-extrabold text-[#111827]">
-                            {passed ? "Évaluation réussie !" : "Évaluation à retravailler"}
-                        </Text>
-                        <Text className="mt-1 text-[15px] font-medium text-[#596273]">
-                            {correct} bonne(s) réponse(s) sur {total} questions
-                        </Text>
 
-                        <Box className="mt-6 space-y-2.5 text-left">
-                            {evaluation.sections.map((section, sectionIndex) => {
-                                const sectionCorrect = section.questions.filter(
-                                    (question) =>
-                                        answers[question.id] !== undefined &&
-                                        question.options[answers[question.id]]?.correct,
-                                ).length;
+                        <Box className="mt-5 space-y-3">
+                            {quiz.steps.map((step) => {
+                                const sectionScore = score.sections.find((section) => section.stepId === step.id);
+                                const stepScore = sectionScore?.score ?? 0;
+                                const stepTone = scoreTone(stepScore, threshold);
+                                const open = openStepId === step.id;
+
                                 return (
                                     <Box
-                                        key={section.id}
-                                        className="flex items-center justify-between rounded-xl border border-[#E5E7EB] bg-white px-4 py-3"
+                                        key={step.id}
+                                        className="overflow-hidden rounded-[14px] border border-[#E5E7EB] bg-white"
                                     >
-                                        <Box className="flex items-center gap-2.5">
-                                            <InlineIcon
-                                                icon={sectionIcons[section.icon]}
-                                                className="h-4 w-4 text-[#5140F0]"
-                                            />
-                                            <Text className="text-[14px] font-bold text-[#374151]">
-                                                {section.title}
+                                        <Button
+                                            onClick={() => setOpenStepId(open ? null : step.id)}
+                                            className="flex w-full items-center gap-3 px-5 py-4 text-left"
+                                        >
+                                            <InlineIcon icon={FileText} className={cn("h-5 w-5", uiTokens.text.primary)} />
+                                            <Text className={cn("flex-1 text-[15px] font-bold", uiTokens.text.heading)}>
+                                                {step.name}
                                             </Text>
-                                        </Box>
-                                        <Text className="text-[14px] font-bold text-[#4B5563]">
-                                            {sectionCorrect}/{section.questions.length}
-                                        </Text>
-                                        <span className="sr-only">section {sectionIndex + 1}</span>
+                                            <Box className={cn("inline-flex items-center rounded-lg px-2.5 py-0.5 text-[13px] font-extrabold", stepTone.bg, stepTone.text)}>
+                                                {stepScore}%
+                                            </Box>
+                                        </Button>
+
+                                        {open && step.competenceIds.length > 0 && (
+                                            <Box className="border-t border-[#EEF0F4] px-5 py-4">
+                                                <Text className={cn("text-[11px] font-extrabold uppercase tracking-[0.08em]", uiTokens.text.muted)}>
+                                                    Compétences évaluées
+                                                </Text>
+                                                <Box className="mt-3 flex flex-col gap-2.5">
+                                                    {step.competenceIds.map((competenceId) => {
+                                                        const competenceScore = computeCompetenceScore(step, competenceId, answers);
+                                                        const competenceTone = scoreTone(competenceScore, threshold);
+
+                                                        return (
+                                                            <Box
+                                                                key={competenceId}
+                                                                className="flex items-center justify-between gap-4"
+                                                            >
+                                                                <Box className="flex items-center gap-2.5">
+                                                                    <Box className={cn("h-2 w-2 rounded-full", competenceTone.dot)} />
+                                                                    <Text className={cn("text-[14px] font-semibold", uiTokens.text.subtle)}>
+                                                                        {skillNameById.get(competenceId) ?? competenceId}
+                                                                    </Text>
+                                                                </Box>
+                                                                <Box className={cn("inline-flex items-center rounded-lg px-2.5 py-0.5 text-[13px] font-extrabold", competenceTone.bg, competenceTone.text)}>
+                                                                    {competenceScore}%
+                                                                </Box>
+                                                            </Box>
+                                                        );
+                                                    })}
+                                                </Box>
+                                            </Box>
+                                        )}
                                     </Box>
                                 );
                             })}
                         </Box>
-
-                        <Box className="mt-7 flex flex-wrap justify-center gap-3">
-                            <button
-                                type="button"
-                                onClick={restart}
-                                className="flex h-11 items-center justify-center gap-2 rounded-xl border border-[#C9C2FB] bg-white px-5 text-[14px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
-                            >
-                                <InlineIcon icon={RotateCcw} className="h-4 w-4" />
-                                Recommencer
-                            </button>
-                            <Link
-                                href="/evaluations"
-                                className="flex h-11 items-center justify-center rounded-xl bg-[#5140F0] px-5 text-[14px] font-bold text-white transition hover:bg-[#4635E7]"
-                            >
-                                Retour aux évaluations
-                            </Link>
-                        </Box>
                     </CardSurface>
+
+                    <Box className="mt-6 flex flex-wrap justify-center gap-3">
+                        <Button
+                            onClick={() => {
+                                setMode("review");
+                                setCurrentIndex(0);
+                            }}
+                            className={cn(uiTokens.action.secondaryButton, "gap-2")}
+                        >
+                            <InlineIcon icon={Eye} className="h-4 w-4" />
+                            Revoir mes réponses
+                        </Button>
+                        <Link
+                            href={`/evaluations/${quiz.id}`}
+                            className={cn("flex h-11 items-center justify-center rounded-xl px-5 text-[14px] font-bold text-white transition", uiTokens.action.primaryButton)}
+                        >
+                            Valider et continuer
+                        </Link>
+                    </Box>
                 </Box>
             </Box>
         );
@@ -155,145 +310,240 @@ export function EvaluationQuizPageContent({ evaluation }: EvaluationQuizPageCont
 
     return (
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
-            <Box className="mx-auto max-w-[1180px]">
-                <Box className="mb-5 flex items-center gap-4">
+            <Box className="mx-auto max-w-[1120px]">
+                <Box className="mb-5 flex items-center justify-between">
                     <Link
-                        href={`/evaluations/${evaluation.id}`}
+                        href={`/evaluations/${quiz.id}`}
                         aria-label="Retour"
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
+                        className={cn(
+                            "flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white",
+                            uiTokens.text.heading,
+                        )}
                     >
                         <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
                     </Link>
-                    <Box>
-                        <Text as="h1" className="text-[24px] font-extrabold text-[#111827]">
-                            {evaluation.quizTitle}
-                        </Text>
-                        <Text className="text-[14px] font-medium text-[#6B7280]">
-                            {evaluation.quizSubtitle}
-                        </Text>
-                    </Box>
+                    <Text className={cn("text-[13px] font-bold", uiTokens.text.muted)}>
+                        Question {currentIndex + 1}/{flatQuestions.length}
+                    </Text>
                 </Box>
 
                 <Box className="grid gap-5 lg:grid-cols-[300px_1fr]">
-                    {/* Sidebar des étapes */}
-                    <Box className="flex flex-col gap-3">
-                        {evaluation.sections.map((section, sectionIndex) => {
-                            const isActive = sectionIndex === current.sectionIndex;
-                            const answered = answeredCountForSection(sectionIndex);
-                            const totalQuestions = section.questions.length;
-                            const progress = (answered / totalQuestions) * 100;
+                    <QuizStepNav
+                        steps={quiz.steps}
+                        answers={answers}
+                        currentStepIndex={current.stepIndex}
+                        onSelectStep={goToStep}
+                    />
+
+                    <CardSurface className={cn(uiTokens.surface.formCard, "min-w-0")}>
+                    <Box className="flex flex-wrap items-center gap-2">
+                        <Badge>Étape {current.stepIndex + 1}</Badge>
+                        <Badge>{current.step.name}</Badge>
+                        <Badge>{QUIZ_DIMENSION_LABELS[current.question.dimension]}</Badge>
+                    </Box>
+
+                    <Text as="h1" className={cn("mt-5 text-[24px] font-extrabold leading-8", uiTokens.text.heading)}>
+                        {current.question.prompt}
+                    </Text>
+                    <Text className={cn("mt-2 text-[13px] font-semibold", uiTokens.text.muted)}>
+                        Compétence :{" "}
+                        {(skillNameById.get(current.question.competenceId) ??
+                            current.question.competenceId) ||
+                            "Non renseignée"}
+                    </Text>
+
+                    <QuestionAttachments attachments={current.question.attachments} quizId={quiz.id} />
+
+                    <Box className="mt-6 space-y-3">
+                        {current.question.choices.map((choice) => {
+                            const selected = selectedChoiceIds.includes(choice.id);
+                            const showCorrection = reviewing;
+                            const isRight = choice.isCorrect;
+                            const isWrongSelected = showCorrection && selected && !isRight;
 
                             return (
-                                <button
-                                    key={section.id}
-                                    type="button"
-                                    onClick={() => goToSection(sectionIndex)}
+                                <Button
+                                    key={choice.id}
+                                    onClick={() => toggleChoice(choice.id)}
                                     className={cn(
-                                        "rounded-[14px] border p-4 text-left transition",
-                                        isActive
-                                            ? "border-[#C9D8F4] bg-[#EFF4FD]"
+                                        "flex w-full items-start gap-3 rounded-[14px] border px-4 py-3.5 text-left transition",
+                                        selected && !showCorrection
+                                            ? "border-[#5140F0] bg-[#F4F3FE]"
                                             : "border-[#E5E7EB] bg-white hover:border-[#D5D7DE]",
+                                        showCorrection && isRight && "border-[#86EFAC] bg-[#F0FDF4]",
+                                        isWrongSelected && "border-[#FCA5A5] bg-[#FEF2F2]",
                                     )}
                                 >
-                                    <Box className="flex items-center gap-2.5">
-                                        <InlineIcon
-                                            icon={sectionIcons[section.icon]}
-                                            className={cn(
-                                                "h-4 w-4",
-                                                isActive ? "text-[#3061C8]" : "text-[#9CA3AF]",
-                                            )}
-                                        />
-                                        <Text className="text-[13px] font-bold uppercase tracking-wide text-[#374151]">
-                                            {section.title}
-                                        </Text>
+                                    <Box
+                                        className={cn(
+                                            "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2",
+                                            selected || (showCorrection && isRight)
+                                                ? "border-[#5140F0]"
+                                                : "border-[#9CA3AF]",
+                                        )}
+                                    >
+                                        {(selected || (showCorrection && isRight)) && (
+                                            <InlineIcon
+                                                icon={isWrongSelected ? X : Check}
+                                                className={cn(
+                                                    "h-3.5 w-3.5",
+                                                    isWrongSelected ? uiTokens.text.danger : uiTokens.text.primary,
+                                                )}
+                                            />
+                                        )}
                                     </Box>
-                                    <Text className="mt-1.5 text-[12px] font-semibold text-[#6B7280]">
-                                        {answered}/{totalQuestions} questions
+                                    <Text className={cn("flex-1 text-[15px] font-semibold leading-6", uiTokens.text.heading)}>
+                                        {choice.label}
                                     </Text>
-                                    <Box className="mt-2.5 h-1.5 w-full overflow-hidden rounded-full bg-[#E5E7EB]">
-                                        <Box
-                                            className="h-full rounded-full bg-[#5140F0] transition-all"
-                                            style={{ width: `${progress}%` }}
-                                        />
-                                    </Box>
-                                </button>
+                                </Button>
                             );
                         })}
                     </Box>
 
-                    {/* Panneau question */}
-                    <Box className="flex flex-col">
-                        <CardSurface className="rounded-[18px] border border-[#C9D8F4] bg-gradient-to-b from-[#EFF4FD] to-white p-7 shadow-none">
-                            <Box className="flex items-start justify-between gap-4">
-                                <Text as="h2" className="text-[20px] font-extrabold text-[#111827]">
-                                    {current.question.prompt}
-                                </Text>
-                                <Box className="inline-flex h-7 shrink-0 items-center rounded-md border border-[#E5E7EB] bg-white px-2.5 text-[12px] font-bold text-[#6B7280]">
-                                    {current.question.type}
-                                </Box>
-                            </Box>
-
-                            <Box className="mt-5 space-y-3">
-                                {current.question.options.map((option, optionIndex) => {
-                                    const selected = answers[current.question.id] === optionIndex;
-                                    return (
-                                        <button
-                                            key={option.label}
-                                            type="button"
-                                            onClick={() => selectOption(optionIndex)}
-                                            className={cn(
-                                                "flex w-full items-center rounded-xl border bg-white px-4 py-3.5 text-left text-[15px] font-medium transition",
-                                                selected
-                                                    ? "border-[#5140F0] bg-[#F4F3FE] text-[#1F2937] shadow-[0_0_0_1px_#5140F0]"
-                                                    : "border-[#E5E7EB] text-[#374151] hover:border-[#C9C2FB]",
-                                            )}
-                                        >
-                                            <span
-                                                className={cn(
-                                                    "mr-3 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border",
-                                                    selected
-                                                        ? "border-[#5140F0]"
-                                                        : "border-[#C9CED8]",
-                                                )}
-                                            >
-                                                {selected && (
-                                                    <span className="h-2.5 w-2.5 rounded-full bg-[#5140F0]" />
-                                                )}
-                                            </span>
-                                            {option.label}
-                                        </button>
-                                    );
-                                })}
-                            </Box>
-                        </CardSurface>
-
-                        <Box className="mt-5 flex items-center justify-between">
-                            <button
-                                type="button"
-                                disabled={currentIndex === 0}
-                                onClick={() => setCurrentIndex((index) => Math.max(0, index - 1))}
-                                className="flex h-11 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-5 text-[14px] font-bold text-[#4B5563] transition hover:border-[#D5D7DE] disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                                Question précédente
-                            </button>
-                            <button
-                                type="button"
-                                disabled={!currentAnswered}
-                                onClick={() => {
-                                    if (isLast) {
-                                        setShowResults(true);
-                                    } else {
-                                        setCurrentIndex((index) => index + 1);
-                                    }
-                                }}
-                                className="flex h-11 items-center justify-center rounded-xl bg-[#5140F0] px-5 text-[14px] font-bold text-white transition hover:bg-[#4635E7] disabled:cursor-not-allowed disabled:opacity-40"
-                            >
-                                {isLast ? "Terminer l'évaluation" : "Question suivante"}
-                            </button>
+                    {reviewing && current.question.explanation && (
+                        <Box className="mt-5 rounded-[14px] border border-[#E5E7EB] bg-[#F7F8FB] p-4">
+                            <Text className={cn("text-[13px] font-extrabold", uiTokens.text.heading)}>
+                                Explication
+                            </Text>
+                            <Text className={cn("mt-1 text-[14px] font-medium leading-6", uiTokens.text.muted)}>
+                                {current.question.explanation}
+                            </Text>
                         </Box>
+                    )}
+
+                    <Box className="mt-7 flex items-center justify-between gap-3">
+                        <Button
+                            disabled={currentIndex === 0}
+                            onClick={goPrevious}
+                            className={cn(uiTokens.action.secondaryButton, "gap-2 disabled:cursor-not-allowed disabled:opacity-50")}
+                        >
+                            <InlineIcon icon={ChevronLeft} className="h-4 w-4" />
+                            Précédent
+                        </Button>
+                        <Button
+                            disabled={!reviewing && !currentAnswered}
+                            onClick={goNext}
+                            className={cn(
+                                "flex h-11 items-center justify-center gap-2 rounded-xl px-5 text-[14px] font-bold text-white transition disabled:cursor-not-allowed",
+                                !reviewing && !currentAnswered
+                                    ? uiTokens.action.primaryButtonDisabled
+                                    : uiTokens.action.primaryButton,
+                            )}
+                        >
+                            {nextLabel}
+                            <InlineIcon icon={ChevronRight} className="h-4 w-4" />
+                        </Button>
                     </Box>
+                </CardSurface>
                 </Box>
             </Box>
+        </Box>
+    );
+}
+
+function QuestionAttachments({
+    attachments,
+    quizId,
+}: {
+    attachments: QuizQuestionAttachment[];
+    quizId: string;
+}) {
+    if (attachments.length === 0) return null;
+
+    return (
+        <Box className="mt-5 space-y-2">
+            <Text className={cn("text-[13px] font-extrabold", uiTokens.text.heading)}>
+                {attachments.length === 1 ? "Document de la question" : "Documents de la question"}
+            </Text>
+            <Box className="space-y-2">
+                {attachments.map((attachment) => {
+                    const hasLocation =
+                        Boolean(attachment.externalUrl) ||
+                        Boolean(attachment.storageBucket && attachment.storagePath);
+                    const meta = attachment.storagePath
+                        ? getStoragePathFileName(attachment.storagePath)
+                        : attachment.externalUrl
+                          ? "URL"
+                          : "";
+                    const title = attachment.label || meta || "Document";
+
+                    return (
+                        <FilePreviewCard
+                            key={attachment.id}
+                            href={hasLocation ? EVALUATION_ROUTES.api.attachment(quizId, attachment.id) : undefined}
+                            kind={attachment.type as FilePreviewKind}
+                            meta={meta}
+                            previewName={attachment.storagePath ?? attachment.externalUrl}
+                            title={title}
+                        />
+                    );
+                })}
+            </Box>
+        </Box>
+    );
+}
+
+function QuizStepNav({
+    answers,
+    currentStepIndex,
+    onSelectStep,
+    steps,
+}: {
+    answers: Record<string, string[]>;
+    currentStepIndex: number;
+    onSelectStep: (stepIndex: number) => void;
+    steps: QuizStep[];
+}) {
+    return (
+        <Box className="space-y-3 self-start">
+            {steps.map((step, stepIndex) => {
+                const total = step.questions.length;
+                const answered = step.questions.filter(
+                    (question) => (answers[question.id] ?? []).length > 0,
+                ).length;
+                const percent = total > 0 ? Math.round((answered / total) * 100) : 0;
+                const active = stepIndex === currentStepIndex;
+
+                return (
+                    <Button
+                        key={step.id}
+                        onClick={() => onSelectStep(stepIndex)}
+                        disabled={total === 0}
+                        className={cn(
+                            active ? uiTokens.surface.rowCardActive : uiTokens.surface.rowCard,
+                            "flex w-full items-start gap-3 text-left transition disabled:cursor-not-allowed disabled:opacity-60",
+                        )}
+                    >
+                        <Box className={active ? uiTokens.badge.stepNumber : uiTokens.badge.stepNumberMuted}>
+                            {stepIndex + 1}
+                        </Box>
+                        <Box className="min-w-0 flex-1">
+                            <Text
+                                className={cn(
+                                    "text-[13px] font-bold leading-snug",
+                                    active ? uiTokens.text.heading : uiTokens.text.subtle,
+                                )}
+                            >
+                                {step.name || `Étape ${stepIndex + 1}`}
+                            </Text>
+                            <Text className={cn("mt-1 text-[12px] font-semibold", uiTokens.text.muted)}>
+                                {answered}/{total} question{total > 1 ? "s" : ""}
+                            </Text>
+                            <Box className={cn("mt-2", uiTokens.progress.track)}>
+                                <Box className={uiTokens.progress.fill} style={{ width: `${percent}%` }} />
+                            </Box>
+                        </Box>
+                    </Button>
+                );
+            })}
+        </Box>
+    );
+}
+
+function Badge({ children }: { children: ReactNode }) {
+    return (
+        <Box className="inline-flex h-7 items-center rounded-md border border-[#E5E7EB] bg-[#F3F4F6] px-2.5 text-[12px] font-semibold text-[#4B5563]">
+            {children}
         </Box>
     );
 }

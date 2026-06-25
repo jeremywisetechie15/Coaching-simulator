@@ -2,6 +2,7 @@ import {
     DEFAULT_OPENAI_REALTIME_VOICE_ID,
     type VoiceId,
 } from "@/lib/openai/realtime-voices";
+import type { ContentStatus } from "@/features/content/domain";
 
 export interface PersonaListItem {
     avatarUrl: string | null;
@@ -9,6 +10,7 @@ export interface PersonaListItem {
     id: string;
     name: string;
     role: string;
+    status: ContentStatus;
     voiceCharacteristic: string | null;
     voiceId: string | null;
     voiceName: string;

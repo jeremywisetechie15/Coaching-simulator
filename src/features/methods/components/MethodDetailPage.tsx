@@ -1,12 +1,12 @@
 import { AppShell } from "@/features/app-shell/components";
+import type { MethodDetail } from "@/features/methods/domain/method";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
-import type { Method } from "@/features/methods/data/methods";
 import { MethodDetailPageContent } from "./MethodDetailPageContent";
 
 interface MethodDetailPageProps {
     profileValues: ProfileFormValues;
-    method: Method;
+    method: MethodDetail;
 }
 
 export function MethodDetailPage({ profileValues, method }: MethodDetailPageProps) {

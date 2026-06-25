@@ -1,10 +1,11 @@
 import { requireAdmin } from "@/features/auth/server";
+import { PUBLISHED_CONTENT_STATUS } from "@/features/content/domain";
 import type { PersonaListItem } from "@/features/personas/domain/persona-list";
 import type { SavePersonaDto } from "@/features/personas/dto/save-persona.dto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapPersonaRowToListItem, type PersonaRow } from "./persona.mapper";
 
-const personaSelect = "id, name, role, company, voice_id, system_instructions, avatar_url, created_at";
+const personaSelect = "id, name, role, company, voice_id, system_instructions, avatar_url, created_at, status";
 
 export async function createPersona(input: SavePersonaDto): Promise<PersonaListItem> {
     const context = await requireAdmin();
@@ -20,6 +21,7 @@ export async function createPersona(input: SavePersonaDto): Promise<PersonaListI
             created_by: context.userId,
             name: input.name,
             role: input.role || null,
+            status: PUBLISHED_CONTENT_STATUS,
             system_instructions: input.systemInstructions,
             updated_at: now,
             voice_id: input.voiceId,

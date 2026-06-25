@@ -4,8 +4,8 @@ import Link from "next/link";
 import { ArrowLeft, Lightbulb } from "lucide-react";
 import { Box, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { difficultyBadgeStyles, discBadgeStyles } from "@/features/roleplays/data/roleplays";
-import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import type { Method } from "@/features/methods/data/methods";
+import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 
 interface RoleplayStepsPageContentProps {
     roleplay: RoleplayItem;

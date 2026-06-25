@@ -10,14 +10,18 @@ import {
     skillFunctionOptions,
     skillObjectiveOptions,
     skillTypeOptions,
-    skills,
-} from "@/features/skills/data/skills";
+    type SkillListItem,
+} from "@/features/skills/domain/skills";
 
 interface FilterState {
     domain: string;
     type: string;
     function: string;
     objective: string;
+}
+
+interface SkillsPageContentProps {
+    skills: SkillListItem[];
 }
 
 const defaultFilters: FilterState = {
@@ -86,7 +90,7 @@ function FilterSelect({
     );
 }
 
-export function SkillsPageContent() {
+export function SkillsPageContent({ skills }: SkillsPageContentProps) {
     const [query, setQuery] = useState("");
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [appliedFilters, setAppliedFilters] = useState<FilterState>(defaultFilters);
@@ -95,12 +99,22 @@ export function SkillsPageContent() {
     const filteredSkills = useMemo(() => {
         const normalized = query.trim().toLowerCase();
         return skills.filter((skill) => {
-            const matchesQuery = !normalized || skill.name.toLowerCase().includes(normalized);
+            const matchesQuery =
+                !normalized ||
+                [skill.name, skill.description, skill.domain, skill.objective]
+                    .some((value) => value.toLowerCase().includes(normalized));
+            const matchesDomain =
+                appliedFilters.domain === skillDomainOptions[0] || skill.domain === appliedFilters.domain;
             const matchesType =
                 appliedFilters.type === skillTypeOptions[0] || skill.category === appliedFilters.type;
-            return matchesQuery && matchesType;
+            const matchesFunction =
+                appliedFilters.function === skillFunctionOptions[0] ||
+                skill.functions.includes(appliedFilters.function);
+            const matchesObjective =
+                appliedFilters.objective === skillObjectiveOptions[0] || skill.objective === appliedFilters.objective;
+            return matchesQuery && matchesDomain && matchesType && matchesFunction && matchesObjective;
         });
-    }, [query, appliedFilters]);
+    }, [query, appliedFilters, skills]);
 
     const activeFilterCount = useMemo(
         () =>
@@ -187,9 +201,10 @@ export function SkillsPageContent() {
                         {filteredSkills.map((skill) => {
                             const style = skillCategoryStyles[skill.category];
                             return (
-                                <CardSurface
+                                <Link
                                     key={skill.id}
-                                    className="relative flex min-h-[132px] flex-col rounded-[14px] border border-[#E5E7EB] p-6 shadow-none transition duration-200 hover:-translate-y-0.5 hover:border-[#D8DCE6] hover:shadow-[0_14px_34px_rgba(17,24,39,0.10)]"
+                                    href={`/skills/${skill.id}`}
+                                    className="relative flex min-h-[132px] flex-col rounded-[14px] border border-[#E5E7EB] bg-white p-6 transition duration-200 hover:-translate-y-0.5 hover:border-[#D8DCE6] hover:shadow-[0_14px_34px_rgba(17,24,39,0.10)]"
                                 >
                                     <Box className="absolute right-5 top-5 h-2.5 w-2.5 rounded-full bg-[#22C55E]" />
                                     <Text as="h3" className="max-w-[85%] text-[17px] font-bold leading-6 text-[#111827]">
@@ -205,7 +220,7 @@ export function SkillsPageContent() {
                                     >
                                         {skill.category}
                                     </Box>
-                                </CardSurface>
+                                </Link>
                             );
                         })}
                     </Box>

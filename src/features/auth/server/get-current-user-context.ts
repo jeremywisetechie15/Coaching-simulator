@@ -6,6 +6,8 @@ import {
     type OrganizationMembershipContext,
     type UserContext,
 } from "@/features/auth/domain/user-context";
+import { ORGANIZATION_MEMBER_STATUS } from "@/features/organizations/domain/organization-member";
+import { PLATFORM_ROLE } from "@/features/users/domain/users";
 
 interface ProfileRow {
     email: string | null;
@@ -60,14 +62,15 @@ export async function getCurrentUserContext(): Promise<UserContext | null> {
         ];
     });
 
-    const activeMembership = memberships.find((membership) => membership.status === "active") ?? null;
+    const activeMembership =
+        memberships.find((membership) => membership.status === ORGANIZATION_MEMBER_STATUS.active) ?? null;
 
     return {
         activeOrganizationId: activeMembership?.organizationId ?? null,
         activeOrganizationRole: activeMembership?.role ?? null,
         email: profile?.email ?? user.email ?? "",
         memberships,
-        platformRole: isPlatformRole(profile?.platform_role) ? profile.platform_role : "user",
+        platformRole: isPlatformRole(profile?.platform_role) ? profile.platform_role : PLATFORM_ROLE.user,
         userId: user.id,
     };
 }

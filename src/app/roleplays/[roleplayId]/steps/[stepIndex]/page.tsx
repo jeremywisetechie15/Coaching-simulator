@@ -1,36 +1,74 @@
 import { notFound, redirect } from "next/navigation";
+import { getRoleplayMethod } from "@/features/roleplays/data/roleplays";
+import { getMethodById } from "@/features/methods/server";
 import { RoleplayStepCoachPage } from "@/features/roleplays/components";
-import { getRoleplayMethod, roleplays } from "@/features/roleplays/data/roleplays";
+import {
+    findMockRoleplayById,
+    isUuid,
+    mapDbRoleplayToUi,
+    mapMethodDetailToUi,
+} from "@/features/roleplays/data/roleplay-ui-adapter";
+import { getRoleplayById } from "@/features/roleplays/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
-import { UnauthorizedError } from "@/lib/server/errors";
+import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
 
 interface PageProps {
     params: Promise<{ roleplayId: string; stepIndex: string }>;
 }
 
-export async function generateMetadata({ params }: PageProps) {
-    const { roleplayId, stepIndex } = await params;
-    const roleplay = roleplays.find((item) => item.id === roleplayId);
-    const method = roleplay ? getRoleplayMethod(roleplay) : null;
-    const step = method?.steps[Number(stepIndex) - 1];
-
+export async function generateMetadata() {
     return {
-        title: step
-            ? `${step.title} — Coach IA | MaiaCoach`
-            : "Coach IA | Roleplays | MaiaCoach",
+        title: `Coach IA | Roleplays | MaiaCoach`,
     };
 }
 
 export default async function Page({ params }: PageProps) {
     const { roleplayId, stepIndex } = await params;
-    const roleplay = roleplays.find((item) => item.id === roleplayId);
+    let profile;
+    let dbMethodId: string | null = null;
+
+    try {
+        profile = await getCurrentProfile();
+    } catch (error) {
+        if (error instanceof UnauthorizedError) {
+            redirect(`/auth?redirect=/roleplays/${roleplayId}/steps/${stepIndex}`);
+        }
+
+        throw error;
+    }
+
+    let roleplay = findMockRoleplayById(roleplayId);
+
+    try {
+        if (isUuid(roleplayId)) {
+            const dbRoleplay = await getRoleplayById(roleplayId);
+            dbMethodId = dbRoleplay.methodId;
+            roleplay = mapDbRoleplayToUi(dbRoleplay);
+        }
+    } catch (error) {
+        if (error instanceof NotFoundError) {
+            roleplay = findMockRoleplayById(roleplayId);
+        } else {
+            throw error;
+        }
+    }
 
     if (!roleplay) {
         notFound();
     }
 
-    const method = getRoleplayMethod(roleplay);
+    let method = getRoleplayMethod(roleplay);
+
+    if (dbMethodId) {
+        try {
+            method = mapMethodDetailToUi(await getMethodById(dbMethodId));
+        } catch (error) {
+            if (!(error instanceof NotFoundError)) {
+                throw error;
+            }
+        }
+    }
 
     if (!method) {
         notFound();
@@ -41,18 +79,6 @@ export default async function Page({ params }: PageProps) {
 
     if (!step) {
         notFound();
-    }
-
-    let profile;
-
-    try {
-        profile = await getCurrentProfile();
-    } catch (error) {
-        if (!(error instanceof UnauthorizedError)) {
-            throw error;
-        }
-
-        redirect(`/auth?redirect=/roleplays/${roleplayId}/steps/${stepIndex}`);
     }
 
     return (

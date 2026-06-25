@@ -7,6 +7,8 @@ export interface OrganizationRow {
     id: string;
     name: string;
     program_count?: number;
+    quiz_count?: number;
+    roleplay_count?: number;
     status: string | null;
     user_count?: number;
 }
@@ -52,7 +54,8 @@ export function mapOrganizationRowToListItem(row: OrganizationRow): Organization
         groupCount: row.group_count ?? 0,
         id: row.id,
         name: row.name,
-        programCount: row.program_count ?? 0,
+        quizCount: row.quiz_count ?? 0,
+        roleplayCount: row.roleplay_count ?? row.program_count ?? 0,
         status: mapStatus(row.status),
         userCount: row.user_count ?? 0,
     };

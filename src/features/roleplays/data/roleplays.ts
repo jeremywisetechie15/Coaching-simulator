@@ -1,4 +1,6 @@
 import { methods, type Method } from "@/features/methods/data/methods";
+import { ALL_CONTENT_CATEGORIES, CONTENT_DOMAINS } from "@/features/content/domain";
+import type { PrepDocument, PrepQuiz } from "./preparation";
 
 export type RoleplayDifficulty = "Facile" | "Moyen" | "Difficile";
 export type RoleplayDisc = "Dominant" | "Influent" | "Stable" | "Consciencieux";
@@ -29,6 +31,10 @@ export interface RoleplayItem {
     methodId: string;
     /** UUID Supabase du scénario, requis pour lancer le coach IA. */
     scenarioId?: string;
+    /** Documents réellement attachés au scénario DB ; absent pour les mocks historiques. */
+    prepDocuments?: PrepDocument[];
+    /** Quiz réellement attachés au scénario DB ; absent pour les mocks historiques. */
+    prepQuizzes?: PrepQuiz[];
     detail: RoleplayDetail;
 }
 
@@ -211,22 +217,9 @@ export const discBadgeStyles: Record<RoleplayDisc, { bg: string; text: string }>
     Consciencieux: { bg: "#DBEAFE", text: "#2563EB" },
 };
 
-export const roleplayDomainFilterOptions = [
-    "Tous les domaines",
-    "Commercial",
-    "Management",
-    "Communication",
-    "Ressources humaines",
-];
+export const roleplayDomainFilterOptions = ["Tous les domaines", ...CONTENT_DOMAINS];
 
-export const roleplayCategoryFilterOptions = [
-    "Toutes les catégories",
-    "Négociation",
-    "Vente",
-    "Recommandation",
-    "Prise de rendez-vous",
-    "Entretien de Remobilisation",
-];
+export const roleplayCategoryFilterOptions = ["Toutes les catégories", ...ALL_CONTENT_CATEGORIES];
 
 export const roleplayLevelFilterOptions = ["Tous les niveaux", "Facile", "Moyen", "Difficile"];
 
@@ -255,15 +248,16 @@ export const roleplayCoachOptions = ["Pierre Laurent"];
 
 export const roleplayMethodOptions = ["Méthode DAGO", "Méthode 4C", "Méthode ACDC"];
 
-export const roleplayDomainOptions = ["Commercial", "Management", "Communication", "Ressources humaines"];
-
-export const roleplayCategoryOptions = [
-    "Négociation",
-    "Vente",
-    "Recommandation",
+export const roleplayEvaluationOptions = [
+    "Quiz - DEEPMARK",
+    "Entretien Commercial",
+    "Découverte des besoins",
     "Prise de rendez-vous",
-    "Entretien de Remobilisation",
 ];
+
+export const roleplayDomainOptions = [...CONTENT_DOMAINS];
+
+export const roleplayCategoryOptions = [...ALL_CONTENT_CATEGORIES];
 
 export const roleplayDifficultyOptions: RoleplayDifficulty[] = ["Facile", "Moyen", "Difficile"];
 

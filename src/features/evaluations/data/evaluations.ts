@@ -13,12 +13,20 @@ export interface QuizQuestion {
     type: "QCU" | "QCM";
     prompt: string;
     options: QuizOption[];
+    /** Compétence évaluée par la question (badge affiché sous l'énoncé). */
+    competence?: string;
+    /** Explication de la bonne réponse, affichée en mode révision. */
+    explanation?: string;
 }
 
 export interface QuizSection {
     id: string;
     title: string;
     icon: QuizSectionIcon;
+    /** Pondération de l'étape dans le score final (en %). */
+    weight?: number;
+    /** Compétences évaluées dans l'étape. */
+    competences?: string[];
     questions: QuizQuestion[];
 }
 
@@ -32,10 +40,21 @@ export interface Evaluation {
     tags: string[];
     quizTitle: string;
     quizSubtitle: string;
+    /** Seuil recommandé de validation (en %). */
+    recommendedThreshold?: number;
+    /** Nombre de tentatives autorisées. */
+    maxAttempts?: number;
     sections: QuizSection[];
 }
 
-function qcu(id: string, prompt: string, correct: string, wrong: string[]): QuizQuestion {
+function qcu(
+    id: string,
+    prompt: string,
+    correct: string,
+    wrong: string[],
+    competence?: string,
+    explanation?: string,
+): QuizQuestion {
     return {
         id,
         type: "QCU",
@@ -44,14 +63,18 @@ function qcu(id: string, prompt: string, correct: string, wrong: string[]): Quiz
             { label: correct, correct: true },
             ...wrong.map((label) => ({ label, correct: false })),
         ],
+        competence,
+        explanation,
     };
 }
 
 const priseRdvSections: QuizSection[] = [
     {
         id: "demarrer",
-        title: "Démarrer l'appel",
+        title: "Démarrer l'appel et passer le barrage du standard",
         icon: "phone",
+        weight: 25,
+        competences: ["Accès au décideur"],
         questions: [
             qcu(
                 "rdv-1-1",
@@ -62,6 +85,8 @@ const priseRdvSections: QuizSection[] = [
                     "Donner toutes les informations techniques",
                     "Demander directement un rendez-vous",
                 ],
+                "Accès au décideur",
+                "Le démarrage d'un appel a pour seul objectif de créer un climat favorable et de capter l'attention du prospect. Vouloir vendre ou demander un rendez-vous dès les premières secondes brûle les étapes et provoque un rejet immédiat. La confiance se construit en amont, avant tout argument commercial.",
             ),
             qcu(
                 "rdv-1-2",
@@ -72,6 +97,8 @@ const priseRdvSections: QuizSection[] = [
                     "Donner uniquement son prénom",
                     "Poser des questions avant de se présenter",
                 ],
+                "Accès au décideur",
+                "Une présentation claire (nom, entreprise, motif) installe immédiatement votre légitimité et rassure l'interlocuteur, ce qui facilite la mise en relation.",
             ),
             qcu(
                 "rdv-1-3",
@@ -82,6 +109,8 @@ const priseRdvSections: QuizSection[] = [
                     "Annoncer un long argumentaire commercial",
                     "Refuser de préciser le motif de l'appel",
                 ],
+                "Accès au décideur",
+                "Rester courtois et factuel en demandant directement la mise en relation évite de déclencher le réflexe de filtrage du standard.",
             ),
             qcu(
                 "rdv-1-4",
@@ -92,13 +121,17 @@ const priseRdvSections: QuizSection[] = [
                     "Rester vague en disant « au sujet de… »",
                     "Détailler l'ensemble de l'offre",
                 ],
+                "Accès au décideur",
+                "Une réponse courte et orientée bénéfice pour le décideur donne une raison de vous transférer sans éveiller le réflexe de refus.",
             ),
         ],
     },
     {
         id: "accroche",
-        title: "Accroche",
+        title: "Se présenter et accrocher le prospect",
         icon: "target",
+        weight: 25,
+        competences: ["Présentation structurée", "Création d'intérêt immédiat"],
         questions: [
             qcu(
                 "rdv-2-1",
@@ -109,6 +142,8 @@ const priseRdvSections: QuizSection[] = [
                     "Obtenir un paiement immédiat",
                     "Terminer l'appel au plus vite",
                 ],
+                "Création d'intérêt immédiat",
+                "L'accroche doit capter l'intérêt du prospect en quelques secondes autour d'un enjeu qui le concerne, et non dérouler un catalogue de services.",
             ),
             qcu(
                 "rdv-2-2",
@@ -119,6 +154,8 @@ const priseRdvSections: QuizSection[] = [
                     "L'historique de votre entreprise",
                     "Une promotion tarifaire générique",
                 ],
+                "Création d'intérêt immédiat",
+                "Une bonne accroche s'appuie sur un enjeu ou un signal métier propre au prospect : c'est ce qui la rend pertinente et donne envie d'écouter.",
             ),
             qcu(
                 "rdv-2-3",
@@ -129,6 +166,8 @@ const priseRdvSections: QuizSection[] = [
                     "Poser une question d'intérêt",
                     "Annoncer la durée de l'échange",
                 ],
+                "Présentation structurée",
+                "Ouvrir directement sur un pitch produit déclenche le filtre du prospect : il faut d'abord contextualiser l'appel à sa situation.",
             ),
             qcu(
                 "rdv-2-4",
@@ -139,13 +178,17 @@ const priseRdvSections: QuizSection[] = [
                     "Énumérer toutes vos références clients",
                     "Demander tout de suite sa décision",
                 ],
+                "Présentation structurée",
+                "Poser une question d'intérêt centrée sur sa situation engage le prospect tôt et installe un échange à deux voix.",
             ),
         ],
     },
     {
         id: "objections",
-        title: "Gestion des objections",
+        title: "Gérer les objections du prospect",
         icon: "shield",
+        weight: 25,
+        competences: ["Gestion des objections", "Posture persuasive"],
         questions: [
             qcu(
                 "rdv-3-1",
@@ -156,6 +199,8 @@ const priseRdvSections: QuizSection[] = [
                     "Ignorer l'objection et poursuivre",
                     "Justifier longuement votre démarche",
                 ],
+                "Gestion des objections",
+                "Accueillir et reformuler l'objection avant d'y répondre montre que vous l'avez comprise et désamorce la tension.",
             ),
             qcu(
                 "rdv-3-2",
@@ -166,6 +211,8 @@ const priseRdvSections: QuizSection[] = [
                     "Raccrocher poliment",
                     "Envoyer immédiatement un email",
                 ],
+                "Gestion des objections",
+                "Proposer un échange court et cadré dans le temps répond au « je n'ai pas le temps » sans braquer le prospect.",
             ),
             qcu(
                 "rdv-3-3",
@@ -176,6 +223,8 @@ const priseRdvSections: QuizSection[] = [
                     "Montrer de l'agacement",
                     "Couper la parole au prospect",
                 ],
+                "Posture persuasive",
+                "Rester calme et voir l'objection comme un signal d'intérêt maintient une posture persuasive et crédible.",
             ),
             qcu(
                 "rdv-3-4",
@@ -186,13 +235,17 @@ const priseRdvSections: QuizSection[] = [
                     "Conclure l'appel sans rien proposer",
                     "Reprendre l'argumentaire depuis le début",
                 ],
+                "Posture persuasive",
+                "Après avoir répondu, recentrer l'échange vers la demande de rendez-vous évite de s'enliser dans les objections.",
             ),
         ],
     },
     {
         id: "conclusion",
-        title: "Conclusion / Prise de rendez-vous",
+        title: "Conclure l'appel et Obtenir un Rendez-Vous",
         icon: "check",
+        weight: 25,
+        competences: ["Closing du rendez-vous", "Sécurisation du rendez-vous"],
         questions: [
             qcu(
                 "rdv-4-1",
@@ -203,6 +256,8 @@ const priseRdvSections: QuizSection[] = [
                     "Proposer une dizaine de créneaux",
                     "Ne pas évoquer de date précise",
                 ],
+                "Closing du rendez-vous",
+                "Proposer un choix limité de deux créneaux datés facilite la décision du prospect et conclut efficacement l'appel.",
             ),
             qcu(
                 "rdv-4-2",
@@ -213,6 +268,8 @@ const priseRdvSections: QuizSection[] = [
                     "Pour vérifier son identité",
                     "Ce n'est pas nécessaire",
                 ],
+                "Sécurisation du rendez-vous",
+                "Verrouiller l'adresse email sécurise l'envoi de l'invitation agenda et limite le risque de no-show.",
             ),
             qcu(
                 "rdv-4-3",
@@ -223,6 +280,8 @@ const priseRdvSections: QuizSection[] = [
                     "Reformuler l'objet du rendez-vous",
                     "Annoncer la durée de la rencontre",
                 ],
+                "Closing du rendez-vous",
+                "Laisser un rendez-vous flou (« on se rappelle ») est l'erreur classique : un créneau daté et confirmé est indispensable.",
             ),
             qcu(
                 "rdv-4-4",
@@ -233,6 +292,8 @@ const priseRdvSections: QuizSection[] = [
                     "Attendre que le prospect confirme seul",
                     "Reporter la confirmation à la veille",
                 ],
+                "Sécurisation du rendez-vous",
+                "Confirmer le créneau par écrit et envoyer une invitation agenda sécurise la présence du prospect au rendez-vous.",
             ),
         ],
     },
@@ -511,6 +572,8 @@ export const evaluations: Evaluation[] = [
         tags: ["DAGO", "Prise de RDV"],
         quizTitle: "Quiz de Connaissance",
         quizSubtitle: "Testez vos connaissances sur les 4 étapes de la prise de rendez-vous",
+        recommendedThreshold: 75,
+        maxAttempts: 3,
         sections: priseRdvSections,
     },
     {
@@ -524,6 +587,8 @@ export const evaluations: Evaluation[] = [
         tags: ["AC/DC", "Entretien commercial", "BtoB"],
         quizTitle: "Quiz de Connaissance",
         quizSubtitle: "Testez vos connaissances sur les 4 étapes de l'entretien commercial",
+        recommendedThreshold: 70,
+        maxAttempts: 3,
         sections: entretienSections,
     },
     {
@@ -537,6 +602,8 @@ export const evaluations: Evaluation[] = [
         tags: ["Vente", "Négociation", "BtoB"],
         quizTitle: "Quiz de Connaissance",
         quizSubtitle: "Testez votre maîtrise du document de référence DEEPMARK",
+        recommendedThreshold: 70,
+        maxAttempts: 3,
         sections: deepmarkSections,
     },
 ];
@@ -544,4 +611,15 @@ export const evaluations: Evaluation[] = [
 /** Nombre total de questions d'une évaluation. */
 export function getEvaluationQuestionCount(evaluation: Evaluation): number {
     return evaluation.sections.reduce((total, section) => total + section.questions.length, 0);
+}
+
+/** Nombre de compétences distinctes évaluées dans une évaluation. */
+export function getEvaluationCompetenceCount(evaluation: Evaluation): number {
+    const set = new Set<string>();
+    for (const section of evaluation.sections) {
+        for (const competence of section.competences ?? []) {
+            set.add(competence);
+        }
+    }
+    return set.size;
 }

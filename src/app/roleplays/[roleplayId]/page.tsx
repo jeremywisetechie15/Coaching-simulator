@@ -1,41 +1,51 @@
 import { notFound, redirect } from "next/navigation";
 import { RoleplayDetailPage } from "@/features/roleplays/components";
-import { roleplays } from "@/features/roleplays/data/roleplays";
+import { findMockRoleplayById, isUuid, mapDbRoleplayToUi } from "@/features/roleplays/data/roleplay-ui-adapter";
+import { getRoleplayById } from "@/features/roleplays/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
-import { UnauthorizedError } from "@/lib/server/errors";
+import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
 
 interface PageProps {
     params: Promise<{ roleplayId: string }>;
 }
 
-export async function generateMetadata({ params }: PageProps) {
-    const { roleplayId } = await params;
-    const roleplay = roleplays.find((item) => item.id === roleplayId);
-
+export async function generateMetadata() {
     return {
-        title: roleplay ? `${roleplay.name} | Roleplays | MaiaCoach` : "Roleplay | MaiaCoach",
+        title: `Roleplay | MaiaCoach`,
     };
 }
 
 export default async function Page({ params }: PageProps) {
     const { roleplayId } = await params;
-    const roleplay = roleplays.find((item) => item.id === roleplayId);
-
-    if (!roleplay) {
-        notFound();
-    }
-
     let profile;
 
     try {
         profile = await getCurrentProfile();
     } catch (error) {
-        if (!(error instanceof UnauthorizedError)) {
-            throw error;
+        if (error instanceof UnauthorizedError) {
+            redirect(`/auth?redirect=/roleplays/${roleplayId}`);
         }
 
-        redirect(`/auth?redirect=/roleplays/${roleplayId}`);
+        throw error;
+    }
+
+    let roleplay = findMockRoleplayById(roleplayId);
+
+    try {
+        if (isUuid(roleplayId)) {
+            roleplay = mapDbRoleplayToUi(await getRoleplayById(roleplayId));
+        }
+    } catch (error) {
+        if (error instanceof NotFoundError) {
+            roleplay = findMockRoleplayById(roleplayId);
+        } else {
+            throw error;
+        }
+    }
+
+    if (!roleplay) {
+        notFound();
     }
 
     return <RoleplayDetailPage profileValues={toProfileFormValues(profile)} roleplay={roleplay} />;

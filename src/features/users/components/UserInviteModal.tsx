@@ -14,8 +14,10 @@ import {
     TextInput,
 } from "@/lib/ui/atoms";
 import { AlertMessage } from "@/lib/ui/molecules";
-
-export type UserInviteRole = "member" | "manager";
+import {
+    organizationMemberRoleOptions,
+    type OrganizationMemberRole,
+} from "@/features/organizations/domain/organization-member";
 
 export interface UserInviteFormValues {
     email: string;
@@ -23,7 +25,7 @@ export interface UserInviteFormValues {
     groupId: string;
     lastName: string;
     organizationId: string;
-    role: UserInviteRole;
+    role: OrganizationMemberRole;
 }
 
 export interface UserInviteOption {
@@ -52,11 +54,6 @@ interface UserInviteModalProps {
     organizationSelectDisabled?: boolean;
     values: UserInviteFormValues;
 }
-
-const roleOptions: UserInviteOption[] = [
-    { label: "Learner", value: "member" },
-    { label: "Manager", value: "manager" },
-];
 
 function RequiredMark() {
     return (
@@ -227,7 +224,7 @@ export function UserInviteModal({
                         id="user-role"
                         label="Rôle dans l'organisation"
                         onChange={(value) => onValueChange("role", value)}
-                        options={roleOptions}
+                        options={organizationMemberRoleOptions}
                         required
                         value={values.role}
                     />

@@ -1,13 +1,15 @@
 import { AppShell } from "@/features/app-shell/components";
+import type { MethodListItem } from "@/features/methods/domain/method";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import { MethodsPageContent } from "./MethodsPageContent";
 
 interface MethodsPageProps {
+    methods: MethodListItem[];
     profileValues: ProfileFormValues;
 }
 
-export function MethodsPage({ profileValues }: MethodsPageProps) {
+export function MethodsPage({ methods, profileValues }: MethodsPageProps) {
     return (
         <AppShell
             activePrimaryItem="Méthodes et Playbook"
@@ -17,7 +19,7 @@ export function MethodsPage({ profileValues }: MethodsPageProps) {
             email={profileValues.email}
             searchPlaceholder="Rechercher..."
         >
-            <MethodsPageContent />
+            <MethodsPageContent methods={methods} />
         </AppShell>
     );
 }

@@ -3,16 +3,11 @@ import { AppError, UnauthorizedError } from "@/lib/server/errors";
 import { jsonError } from "@/lib/server/http";
 import { createClient } from "@/lib/supabase/server";
 import {
+    getProfileAvatarExtension,
     getProfileAvatarPublicUrl,
+    PROFILE_AVATAR_MAX_SIZE_BYTES,
     PROFILE_AVATAR_BUCKET,
 } from "@/features/profile/domain/profile-avatar";
-
-const maxAvatarSizeBytes = 2 * 1024 * 1024;
-const allowedAvatarTypes = new Map([
-    ["image/jpeg", "jpg"],
-    ["image/png", "png"],
-    ["image/webp", "webp"],
-]);
 
 export async function POST(request: NextRequest) {
     try {
@@ -33,13 +28,13 @@ export async function POST(request: NextRequest) {
             throw new AppError("Avatar manquant.", 400, "INVALID_AVATAR");
         }
 
-        const extension = allowedAvatarTypes.get(avatar.type);
+        const extension = getProfileAvatarExtension(avatar.type);
 
         if (!extension) {
             throw new AppError("Format d'avatar non supporté.", 400, "INVALID_AVATAR_TYPE");
         }
 
-        if (avatar.size > maxAvatarSizeBytes) {
+        if (avatar.size > PROFILE_AVATAR_MAX_SIZE_BYTES) {
             throw new AppError("L'avatar ne doit pas dépasser 2 Mo.", 400, "AVATAR_TOO_LARGE");
         }
 

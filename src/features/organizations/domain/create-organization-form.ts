@@ -1,4 +1,4 @@
-import type { OrganizationStatus } from "./organization-list";
+import { ORGANIZATION_STATUS, type OrganizationStatus } from "./organization-list";
 
 export interface CreateOrganizationFormValues {
     contactEmail: string;
@@ -17,7 +17,7 @@ export const initialCreateOrganizationFormValues: CreateOrganizationFormValues =
     name: "",
     phone: "",
     region: "",
-    status: "active",
+    status: ORGANIZATION_STATUS.active,
 };
 
 export const organizationRegionOptions = [
@@ -27,3 +27,7 @@ export const organizationRegionOptions = [
     { label: "Afrique", value: "africa" },
     { label: "International", value: "international" },
 ];
+
+export function getOrganizationRegionLabel(region: string) {
+    return organizationRegionOptions.find((option) => option.value === region)?.label ?? region;
+}

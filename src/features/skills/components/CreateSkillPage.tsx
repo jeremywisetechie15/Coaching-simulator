@@ -1,13 +1,15 @@
 import { AppShell } from "@/features/app-shell/components";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
+import type { SkillDetail } from "@/features/skills/domain/skills";
 import { CreateSkillPageContent } from "./CreateSkillPageContent";
 
 interface CreateSkillPageProps {
+    initialSkill?: SkillDetail;
     profileValues: ProfileFormValues;
 }
 
-export function CreateSkillPage({ profileValues }: CreateSkillPageProps) {
+export function CreateSkillPage({ initialSkill, profileValues }: CreateSkillPageProps) {
     return (
         <AppShell
             activePrimaryItem="Compétences"
@@ -17,7 +19,7 @@ export function CreateSkillPage({ profileValues }: CreateSkillPageProps) {
             email={profileValues.email}
             searchPlaceholder="Rechercher..."
         >
-            <CreateSkillPageContent />
+            <CreateSkillPageContent initialSkill={initialSkill} />
         </AppShell>
     );
 }

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { SkillsPage } from "@/features/skills/components";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
+import { listSkills } from "@/features/skills/server";
 import { UnauthorizedError } from "@/lib/server/errors";
 
 export const metadata = {
@@ -21,5 +22,7 @@ export default async function Page() {
         redirect("/auth?redirect=/skills");
     }
 
-    return <SkillsPage profileValues={toProfileFormValues(profile)} />;
+    const skills = await listSkills();
+
+    return <SkillsPage profileValues={toProfileFormValues(profile)} skills={skills} />;
 }

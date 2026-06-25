@@ -21,7 +21,7 @@ export async function updatePersona(personaId: string, input: SavePersonaDto): P
             voice_id: input.voiceId,
         })
         .eq("id", personaId)
-        .select("id, name, role, company, voice_id, system_instructions, avatar_url, created_at")
+        .select("id, name, role, company, voice_id, system_instructions, avatar_url, created_at, status")
         .maybeSingle<PersonaRow>();
 
     if (error) {

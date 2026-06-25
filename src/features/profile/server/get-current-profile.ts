@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAuth } from "@/features/auth/server";
 import type { ProfileView } from "@/features/profile/domain/profile";
+import { PLATFORM_ROLE } from "@/features/users/domain/users";
 import { mapProfileRowToView, type ProfileRow } from "./profile.mapper";
 
 const profileSelect = "email, name, first_name, last_name, bio, avatar_path";
@@ -41,7 +42,7 @@ export async function getCurrentProfile(): Promise<ProfileView> {
             .insert({
                 id: context.userId,
                 email: context.email,
-                platform_role: "user",
+                platform_role: PLATFORM_ROLE.user,
             })
             .select(profileSelect)
             .single<ProfileRow>();

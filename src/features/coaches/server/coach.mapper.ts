@@ -1,4 +1,5 @@
 import type { CoachEditorValues, CoachListItem } from "@/features/coaches/domain/coach-list";
+import { CONTENT_STATUS, normalizeContentStatus, type ContentStatus } from "@/features/content/domain";
 import { getOpenAIRealtimeVoice, isOpenAIRealtimeVoiceId } from "@/lib/openai/realtime-voices";
 
 export interface CoachRow {
@@ -6,6 +7,7 @@ export interface CoachRow {
     created_at: string | null;
     id: string;
     name: string;
+    status?: ContentStatus | string | null;
     system_instructions: string;
     voice_id: string | null;
 }
@@ -30,6 +32,7 @@ export function mapCoachRowToListItem(row: CoachRow): CoachListItem {
         createdAt: formatDate(row.created_at),
         id: row.id,
         name: row.name,
+        status: normalizeContentStatus(row.status, CONTENT_STATUS.published),
         voiceCharacteristic: voice?.characteristic ?? null,
         voiceId: row.voice_id,
         voiceName: voice?.name ?? row.voice_id ?? "Non configurée",

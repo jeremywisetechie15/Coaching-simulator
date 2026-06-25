@@ -1,9 +1,10 @@
 import { notFound, redirect } from "next/navigation";
 import { EvaluationQuizPage } from "@/features/evaluations/components";
-import { evaluations } from "@/features/evaluations/data/evaluations";
+import { getQuizById } from "@/features/evaluations/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
-import { UnauthorizedError } from "@/lib/server/errors";
+import { listSkillOptions } from "@/features/skills/server";
+import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
 
 interface PageProps {
     params: Promise<{ evaluationId: string }>;
@@ -11,23 +12,22 @@ interface PageProps {
 
 export async function generateMetadata({ params }: PageProps) {
     const { evaluationId } = await params;
-    const evaluation = evaluations.find((item) => item.id === evaluationId);
 
-    return {
-        title: evaluation
-            ? `Quiz — ${evaluation.title} | MaiaCoach`
-            : "Quiz | Évaluations | MaiaCoach",
-    };
+    try {
+        const quiz = await getQuizById(evaluationId);
+
+        return {
+            title: `Quiz - ${quiz.title} | MaiaCoach`,
+        };
+    } catch {
+        return {
+            title: "Quiz | Évaluations | MaiaCoach",
+        };
+    }
 }
 
 export default async function Page({ params }: PageProps) {
     const { evaluationId } = await params;
-    const evaluation = evaluations.find((item) => item.id === evaluationId);
-
-    if (!evaluation) {
-        notFound();
-    }
-
     let profile;
 
     try {
@@ -40,7 +40,19 @@ export default async function Page({ params }: PageProps) {
         redirect(`/auth?redirect=/evaluations/${evaluationId}/quiz`);
     }
 
-    return (
-        <EvaluationQuizPage profileValues={toProfileFormValues(profile)} evaluation={evaluation} />
-    );
+    let quiz;
+
+    try {
+        quiz = await getQuizById(evaluationId);
+    } catch (error) {
+        if (error instanceof NotFoundError) {
+            notFound();
+        }
+
+        throw error;
+    }
+
+    const skillOptions = await listSkillOptions();
+
+    return <EvaluationQuizPage profileValues={toProfileFormValues(profile)} quiz={quiz} skillOptions={skillOptions} />;
 }

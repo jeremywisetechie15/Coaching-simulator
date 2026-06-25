@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { PUBLISHED_CONTENT_STATUS } from '@/features/content/domain';
 
 // --- HEADERS CORS ---
 function setCorsHeaders(response: NextResponse) {
@@ -359,6 +360,7 @@ async function loadNotationMethodConfig(
             .select("id, code, version, is_active, prompt_synthese_id, prompt_methodo_id, prompt_discours_id, prompt_transcription_id")
             .eq("id", notationMethodId)
             .eq("is_active", true)
+            .eq("status", PUBLISHED_CONTENT_STATUS)
             .maybeSingle();
 
         if (error) {
@@ -374,6 +376,7 @@ async function loadNotationMethodConfig(
             .select("id, code, version, is_active, prompt_synthese_id, prompt_methodo_id, prompt_discours_id, prompt_transcription_id")
             .eq("is_default", true)
             .eq("is_active", true)
+            .eq("status", PUBLISHED_CONTENT_STATUS)
             .maybeSingle();
 
         if (error) {
@@ -502,6 +505,7 @@ async function loadNotationOutputSchemas(
         .from("notation_output_schemas")
         .select("tab, name, schema_json, is_active")
         .eq("is_active", true)
+        .eq("status", PUBLISHED_CONTENT_STATUS)
         .in("tab", NOTATION_TABS);
 
     if (error) {

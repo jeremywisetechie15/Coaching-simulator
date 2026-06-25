@@ -2,10 +2,15 @@
 
 import Link from "next/link";
 import { ArrowLeft, BookOpen, Plus } from "lucide-react";
+import { CONTENT_STATUS_LABELS } from "@/features/content/domain";
+import { getMethodScopeLabel, type MethodListItem } from "@/features/methods/domain/method";
 import { Box, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
-import { methods } from "@/features/methods/data/methods";
 
-export function MethodsPageContent() {
+interface MethodsPageContentProps {
+    methods: MethodListItem[];
+}
+
+export function MethodsPageContent({ methods }: MethodsPageContentProps) {
     return (
         <Box as="main" className="px-5 pb-12 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1260px]">
@@ -45,10 +50,23 @@ export function MethodsPageContent() {
                                     {method.name}
                                 </Text>
                                 <Text className="mt-2 flex-1 text-[14px] font-medium leading-6 text-[#596273]">
-                                    {method.subtitle}
+                                    {method.subtitle || method.description || "Méthode pédagogique configurable"}
                                 </Text>
-                                <Box className="mt-4 inline-flex h-7 w-fit items-center rounded-md border border-[#93C5FD] bg-[#EFF6FF] px-2.5 text-[12px] font-semibold text-[#2563EB]">
-                                    {method.category}
+                                <Box className="mt-4 flex flex-wrap gap-2">
+                                    {(method.domain || method.category) && (
+                                        <Box className="inline-flex h-7 w-fit items-center rounded-md border border-[#93C5FD] bg-[#EFF6FF] px-2.5 text-[12px] font-semibold text-[#2563EB]">
+                                            {method.domain || method.category}
+                                        </Box>
+                                    )}
+                                    <Box className="inline-flex h-7 w-fit items-center rounded-md border border-[#C7D2FE] bg-[#EEF2FF] px-2.5 text-[12px] font-semibold text-[#4338CA]">
+                                        {method.stepCount} étape{method.stepCount > 1 ? "s" : ""}
+                                    </Box>
+                                    <Box className="inline-flex h-7 w-fit items-center rounded-md border border-[#BBF7D0] bg-[#F0FDF4] px-2.5 text-[12px] font-semibold text-[#15803D]">
+                                        {CONTENT_STATUS_LABELS[method.status]}
+                                    </Box>
+                                    <Box className="inline-flex h-7 w-fit items-center rounded-md border border-[#E5E7EB] bg-white px-2.5 text-[12px] font-semibold text-[#4B5563]">
+                                        {getMethodScopeLabel(method)}
+                                    </Box>
                                 </Box>
                             </CardSurface>
                         </Link>

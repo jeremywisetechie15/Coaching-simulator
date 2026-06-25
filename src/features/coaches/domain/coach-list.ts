@@ -1,3 +1,4 @@
+import type { ContentStatus } from "@/features/content/domain";
 import { DEFAULT_COACH_VOICE_ID, type VoiceId } from "@/lib/openai/realtime-voices";
 
 export interface CoachListItem {
@@ -5,6 +6,7 @@ export interface CoachListItem {
     createdAt: string;
     id: string;
     name: string;
+    status: ContentStatus;
     voiceCharacteristic: string | null;
     voiceId: string | null;
     voiceName: string;

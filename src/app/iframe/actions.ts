@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { Persona, Coach } from "@/types";
 
 export interface IframeSessionConfig {
@@ -87,6 +88,7 @@ export async function prepareIframeSession(params: PrepareParams): Promise<{
 
     try {
         const supabase = await createClient();
+        const adminSupabase = createAdminClient();
 
         // =============================================
         // MODE COACH (mode=coach)
@@ -125,7 +127,7 @@ export async function prepareIframeSession(params: PrepareParams): Promise<{
                 }
 
                 // Fetch prompt from DB
-                const { data: promptData } = await supabase
+                const { data: promptData } = await adminSupabase
                     .from("prompts")
                     .select("prompt")
                     .eq("title", "coach.before_training")
@@ -184,7 +186,7 @@ ${COACH_CONTEXT_GUARDRAILS}
                 }
 
                 // Fetch prompt from DB
-                const { data: promptData } = await supabase
+                const { data: promptData } = await adminSupabase
                     .from("prompts")
                     .select("prompt")
                     .eq("title", "coach.after_training")
@@ -282,7 +284,7 @@ ${COACH_CONTEXT_GUARDRAILS}
                 }
 
                 // Fetch prompt from DB
-                const { data: promptData } = await supabase
+                const { data: promptData } = await adminSupabase
                     .from("prompts")
                     .select("prompt")
                     .eq("title", "coach.notation.synthese")
@@ -513,7 +515,7 @@ ${COACH_CONTEXT_GUARDRAILS}
             }
 
             // Fetch prompt from DB
-            const { data: variantPromptData } = await supabase
+            const { data: variantPromptData } = await adminSupabase
                 .from("prompts")
                 .select("prompt")
                 .eq("title", "persona.variant.feedback")

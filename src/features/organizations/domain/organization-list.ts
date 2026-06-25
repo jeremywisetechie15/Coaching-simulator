@@ -1,11 +1,33 @@
-export type OrganizationStatus = "active" | "suspended";
+export const ORGANIZATION_STATUS = {
+    active: "active",
+    suspended: "suspended",
+} as const;
+
+export const ORGANIZATION_STATUSES = [ORGANIZATION_STATUS.active, ORGANIZATION_STATUS.suspended] as const;
+
+export type OrganizationStatus = (typeof ORGANIZATION_STATUSES)[number];
+
+export const ORGANIZATION_STATUS_LABELS: Record<OrganizationStatus, string> = {
+    [ORGANIZATION_STATUS.active]: "Actif",
+    [ORGANIZATION_STATUS.suspended]: "Suspendu",
+};
+
+export const organizationStatusOptions = ORGANIZATION_STATUSES.map((status) => ({
+    label: ORGANIZATION_STATUS_LABELS[status],
+    value: status,
+}));
+
+export function getOrganizationStatusLabel(status: OrganizationStatus) {
+    return ORGANIZATION_STATUS_LABELS[status];
+}
 
 export interface OrganizationListItem {
     createdAt: string;
     groupCount: number;
     id: string;
     name: string;
-    programCount: number;
+    quizCount: number;
+    roleplayCount: number;
     status: OrganizationStatus;
     userCount: number;
 }
@@ -16,7 +38,8 @@ export const demoOrganizations: OrganizationListItem[] = [
         groupCount: 3,
         id: "deepmark",
         name: "Deepmark",
-        programCount: 5,
+        quizCount: 4,
+        roleplayCount: 5,
         status: "active",
         userCount: 2,
     },
@@ -25,7 +48,8 @@ export const demoOrganizations: OrganizationListItem[] = [
         groupCount: 2,
         id: "tech-corp",
         name: "Tech Corp",
-        programCount: 3,
+        quizCount: 2,
+        roleplayCount: 3,
         status: "active",
         userCount: 8,
     },
@@ -34,7 +58,8 @@ export const demoOrganizations: OrganizationListItem[] = [
         groupCount: 4,
         id: "innovate-sas",
         name: "Innovate SAS",
-        programCount: 7,
+        quizCount: 4,
+        roleplayCount: 7,
         status: "active",
         userCount: 12,
     },
@@ -43,7 +68,8 @@ export const demoOrganizations: OrganizationListItem[] = [
         groupCount: 1,
         id: "digital-france",
         name: "Digital France",
-        programCount: 2,
+        quizCount: 1,
+        roleplayCount: 2,
         status: "suspended",
         userCount: 5,
     },
@@ -52,7 +78,8 @@ export const demoOrganizations: OrganizationListItem[] = [
         groupCount: 5,
         id: "sales-academy",
         name: "Sales Academy",
-        programCount: 10,
+        quizCount: 6,
+        roleplayCount: 10,
         status: "active",
         userCount: 20,
     },

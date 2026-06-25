@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { Coach } from "@/types";
 
 const FALLBACK_COACH_PROMPT = `Tu es un coach professionnel expert en communication et techniques de vente.
@@ -27,6 +28,7 @@ export async function prepareHeygenTestSession(params: PrepareParams = {}): Prom
     try {
         const { scenarioId, coachMode = "after_training" } = params;
         const supabase = await createClient();
+        const adminSupabase = createAdminClient();
 
         // 1. Fetch the default coach
         const defaultCoachId = process.env.DEFAULT_COACH_ID;
@@ -94,7 +96,7 @@ export async function prepareHeygenTestSession(params: PrepareParams = {}): Prom
             ? "coach.before_training"
             : "coach.after_training";
 
-        const { data: promptData } = await supabase
+        const { data: promptData } = await adminSupabase
             .from("prompts")
             .select("prompt")
             .eq("title", promptTitle)

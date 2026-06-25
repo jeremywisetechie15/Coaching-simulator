@@ -1,6 +1,8 @@
 import type { OrganizationStatus } from "./organization-list";
 import type { OrganizationMemberStatus } from "./organization-member";
 
+export type OrganizationActivityStatus = "not_started" | "in_progress" | "completed";
+
 export interface OrganizationDetail {
     contactEmail: string;
     createdAt: string;
@@ -17,108 +19,166 @@ export interface OrganizationDetail {
 
 export interface OrganizationGroupRow {
     description?: string;
-    formationCount: number;
     id: string;
     memberCount: number;
     name: string;
-    progress: number;
+    quizCount: number;
+    roleplayCount: number;
     status?: "active" | "archived";
 }
 
 export interface OrganizationUserRow {
     email: string;
-    formationCount: number;
     id: string;
     initials: string;
     name: string;
-    progress: number;
+    quizCount: number;
     role: string;
+    roleplayCount: number;
     status: OrganizationMemberStatus;
 }
 
-export interface OrganizationTrainingRow {
+export interface OrganizationRoleplayRow {
     assignedAt: string;
     groupName: string;
     id: string;
     learnerCount: number;
-    progress: number;
-    status: "not_started" | "in_progress" | "completed";
+    persona: string;
+    status: OrganizationActivityStatus;
     title: string;
 }
 
+export interface OrganizationEvaluationRow {
+    assignedAt: string;
+    groupName: string;
+    id: string;
+    learnerCount: number;
+    status: OrganizationActivityStatus;
+    title: string;
+    type: string;
+}
+
 export const demoOrganizationGroups: OrganizationGroupRow[] = [
-    { formationCount: 3, id: "sales", memberCount: 2, name: "Sales", progress: 65 },
-    { formationCount: 4, id: "marketing", memberCount: 2, name: "Marketing", progress: 48 },
-    { formationCount: 2, id: "direction", memberCount: 2, name: "Direction", progress: 82 },
+    { id: "sales", memberCount: 2, name: "Sales", quizCount: 2, roleplayCount: 3 },
+    { id: "marketing", memberCount: 2, name: "Marketing", quizCount: 3, roleplayCount: 4 },
+    { id: "direction", memberCount: 2, name: "Direction", quizCount: 1, roleplayCount: 2 },
 ];
 
 export const demoOrganizationUsers: OrganizationUserRow[] = [
     {
         email: "paul.laverdure@deepmark.fr",
-        formationCount: 4,
         id: "paul-laverdure",
         initials: "PL",
         name: "Paul Laverdure",
-        progress: 67,
-        role: "Admin",
+        quizCount: 4,
+        role: "SuperAdmin",
+        roleplayCount: 5,
         status: "active",
     },
     {
         email: "thomas.bernard@deepmark.fr",
-        formationCount: 3,
         id: "thomas-bernard",
         initials: "TB",
         name: "Thomas Bernard",
-        progress: 52,
+        quizCount: 2,
         role: "Learner",
+        roleplayCount: 3,
         status: "active",
     },
 ];
 
-export const demoOrganizationTrainings: OrganizationTrainingRow[] = [
+export const demoOrganizationRoleplays: OrganizationRoleplayRow[] = [
     {
-        assignedAt: "10 mars 2024",
+        assignedAt: "15 mars 2024",
         groupName: "Sales",
-        id: "objections",
-        learnerCount: 2,
-        progress: 0,
+        id: "qualifier-besoin",
+        learnerCount: 3,
+        persona: "Thomas Lion",
         status: "not_started",
-        title: "Gestion des objections",
+        title: "Qualifier un besoin de formation",
     },
     {
-        assignedAt: "12 mars 2024",
+        assignedAt: "20 mars 2024",
         groupName: "Marketing",
-        id: "closing",
-        learnerCount: 3,
-        progress: 0,
+        id: "premier-rdv",
+        learnerCount: 2,
+        persona: "Rachid HAMRANI",
         status: "not_started",
-        title: "Techniques de closing",
+        title: "Décrocher un premier rendez-vous",
     },
     {
         assignedAt: "1 février 2024",
         groupName: "Sales",
-        id: "prospect-meeting",
+        id: "conclure-negociation",
         learnerCount: 2,
-        progress: 65,
+        persona: "Sophie Martin",
         status: "in_progress",
-        title: "Prise de rendez-vous prospect",
+        title: "Conclure une négociation commerciale",
+    },
+    {
+        assignedAt: "10 février 2024",
+        groupName: "Marketing",
+        id: "demonstration-produit",
+        learnerCount: 3,
+        persona: "Marc Dubois",
+        status: "in_progress",
+        title: "Convaincre avec une démonstration produit",
+    },
+    {
+        assignedAt: "10 janvier 2024",
+        groupName: "RH",
+        id: "recadrer-collaborateur",
+        learnerCount: 2,
+        persona: "Claude SAVARY",
+        status: "completed",
+        title: "Recadrer et remobiliser un collaborateur",
+    },
+];
+
+export const demoOrganizationEvaluations: OrganizationEvaluationRow[] = [
+    {
+        assignedAt: "10 mars 2024",
+        groupName: "Marketing",
+        id: "quiz-deepmark",
+        learnerCount: 2,
+        status: "not_started",
+        title: "Quiz - DEEPMARK",
+        type: "Quiz de Connaissance",
+    },
+    {
+        assignedAt: "18 mars 2024",
+        groupName: "Sales",
+        id: "decouverte-besoins",
+        learnerCount: 3,
+        status: "not_started",
+        title: "Découverte des besoins",
+        type: "Quiz d'Auto-Positionnement",
     },
     {
         assignedAt: "15 février 2024",
-        groupName: "Marketing",
-        id: "persuasive-communication",
-        learnerCount: 3,
-        progress: 40,
+        groupName: "Sales",
+        id: "entretien-commercial",
+        learnerCount: 2,
         status: "in_progress",
-        title: "Communication persuasive",
+        title: "Entretien Commercial",
+        type: "Quiz de Connaissance",
+    },
+    {
+        assignedAt: "20 février 2024",
+        groupName: "Marketing",
+        id: "techniques-closing",
+        learnerCount: 3,
+        status: "in_progress",
+        title: "Techniques de closing",
+        type: "Quiz d'Auto-Positionnement",
     },
     {
         assignedAt: "15 janvier 2024",
         groupName: "Sales",
-        id: "intro-sales",
+        id: "prise-rendez-vous",
         learnerCount: 2,
-        progress: 100,
         status: "completed",
-        title: "Introduction à la vente",
+        title: "Prise de rendez-vous",
+        type: "Quiz de Connaissance",
     },
 ];

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { ArrowLeft, Check, ChevronDown, MoreVertical, Phone, Plus } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import {
     categoryBadgeStyles,
     difficultyBadgeStyles,
@@ -12,8 +11,29 @@ import {
     roleplayDiscFilterOptions,
     roleplayDomainFilterOptions,
     roleplayLevelFilterOptions,
-    roleplays,
 } from "@/features/roleplays/data/roleplays";
+import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
+import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+
+interface RoleplaysPageContentProps {
+    roleplays: RoleplayItem[];
+}
+
+const CARD_DESCRIPTION_MAX_LENGTH = 145;
+
+function getCardDescriptionExcerpt(description: string) {
+    const normalizedDescription = description.replace(/\s+/g, " ").trim();
+
+    if (normalizedDescription.length <= CARD_DESCRIPTION_MAX_LENGTH) {
+        return normalizedDescription;
+    }
+
+    const excerpt = normalizedDescription.slice(0, CARD_DESCRIPTION_MAX_LENGTH);
+    const lastSpaceIndex = excerpt.lastIndexOf(" ");
+    const safeExcerpt = lastSpaceIndex > 80 ? excerpt.slice(0, lastSpaceIndex) : excerpt;
+
+    return `${safeExcerpt.trim()}...`;
+}
 
 function FilterSelect({
     options,
@@ -74,7 +94,7 @@ function FilterSelect({
     );
 }
 
-export function RoleplaysPageContent() {
+export function RoleplaysPageContent({ roleplays }: RoleplaysPageContentProps) {
     const [domain, setDomain] = useState(roleplayDomainFilterOptions[0]);
     const [category, setCategory] = useState(roleplayCategoryFilterOptions[0]);
     const [level, setLevel] = useState(roleplayLevelFilterOptions[0]);
@@ -89,7 +109,7 @@ export function RoleplaysPageContent() {
                 const matchesDisc = disc === roleplayDiscFilterOptions[0] || roleplay.disc === disc;
                 return matchesCategory && matchesLevel && matchesDisc;
             }),
-        [category, level, disc],
+        [category, level, disc, roleplays],
     );
 
     return (
@@ -148,6 +168,7 @@ export function RoleplaysPageContent() {
                                 categoryBadgeStyles[roleplay.category] ?? { bg: "#F3E8FD", text: "#8B2FD6" };
                             const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
                             const discStyle = discBadgeStyles[roleplay.disc];
+                            const cardDescription = getCardDescriptionExcerpt(roleplay.description);
 
                             return (
                                 <CardSurface
@@ -210,8 +231,11 @@ export function RoleplaysPageContent() {
 
                                         <Box className="my-4 h-px w-full bg-[#ECEEF3]" />
 
-                                        <Text className="flex-1 text-center text-[14px] font-medium leading-6 text-[#4B5563]">
-                                            {roleplay.description}
+                                        <Text
+                                            title={roleplay.description}
+                                            className="flex-1 text-center text-[14px] font-medium leading-6 text-[#4B5563]"
+                                        >
+                                            {cardDescription}
                                         </Text>
 
                                         <Link
