@@ -17,7 +17,6 @@ export async function loadScorecardNotationPrompts(supabase: SupabaseClient) {
     const { data, error } = await supabase
         .from("prompts")
         .select("title, prompt")
-        .eq("is_active", true)
         .eq("status", PUBLISHED_CONTENT_STATUS)
         .in("title", entries.map(([, title]) => title));
 

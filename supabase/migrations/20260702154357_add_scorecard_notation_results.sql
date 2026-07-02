@@ -270,8 +270,8 @@ with scorecard_prompts(title, prompt) as (
             'Tu es un assistant de transcription analytique. Structure la transcription fournie en moments cles utiles pour comprendre la simulation et relier les preuves observees aux etapes de la methode. Ne modifie pas les scores. Retourne uniquement le JSON attendu par le schema.'
         )
 )
-insert into public.prompts (title, prompt, status, is_active)
-select scorecard_prompts.title, scorecard_prompts.prompt, 'published'::public.content_status, true
+insert into public.prompts (title, prompt, status)
+select scorecard_prompts.title, scorecard_prompts.prompt, 'published'::public.content_status
 from scorecard_prompts
 where not exists (
     select 1
@@ -301,8 +301,7 @@ with scorecard_prompts(title, prompt) as (
 update public.prompts
 set
     prompt = scorecard_prompts.prompt,
-    status = 'published'::public.content_status,
-    is_active = true
+    status = 'published'::public.content_status
 from scorecard_prompts
 where public.prompts.title = scorecard_prompts.title;
 
