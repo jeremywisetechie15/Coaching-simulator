@@ -1,6 +1,21 @@
 import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { PUBLISHED_CONTENT_STATUS } from '@/features/content/domain';
+import {
+    ROLEPLAY_NOTATION_SOURCE,
+    ROLEPLAY_NOTATION_STATUS,
+    type RoleplayNotationCriterionRef,
+    type RoleplayNotationScoreResult,
+} from '@/features/roleplays/domain';
+import {
+    buildRoleplayScorecardNotationContext,
+    buildScoreGlobalFromScorecard,
+    calculateScorecardNotationResult,
+    loadScorecardNotationPrompts,
+    persistRoleplayScorecardNotationResults,
+    type RoleplayScorecardNotationContext,
+} from '@/features/roleplays/server';
+import { createClient as createServerSupabaseClient } from '@/lib/supabase/server';
 
 // --- HEADERS CORS ---
 function setCorsHeaders(response: NextResponse) {
@@ -12,6 +27,19 @@ function setCorsHeaders(response: NextResponse) {
 
 export async function OPTIONS() {
     return setCorsHeaders(NextResponse.json({}, { status: 200 }));
+}
+
+async function getAuthenticatedUserId() {
+    try {
+        const supabase = await createServerSupabaseClient();
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+
+        return user?.id ?? null;
+    } catch {
+        return null;
+    }
 }
 
 // Les 4 tabs de notation
@@ -28,12 +56,15 @@ type MethodoEtape = {
     titre: string;
     score: number; // 0..100
     score_max?: number; // 100
+    points_obtenus?: number;
+    points_max?: number;
     poids?: number;
     contribution_score_global?: number;
     timecode_start?: string;
     timecode_end?: string;
     criteres_reussis?: string[];
     criteres_a_ameliorer?: string[];
+    criteres?: Array<Record<string, unknown>>;
     commentaire_coach?: string;
     messages_ids?: number[];
 };
@@ -118,6 +149,16 @@ const DEFAULT_NOTATION_CONFIG: NotationMethodConfig = {
     files: DEFAULT_NOTATION_FILES,
     promptIds: {},
     source: "fallback",
+};
+
+const SCORECARD_NOTATION_CONFIG: NotationMethodConfig = {
+    id: null,
+    code: "scorecard",
+    version: "generic",
+    steps: [],
+    files: [],
+    promptIds: {},
+    source: "supabase",
 };
 
 // --- Fonctions utilitaires pour le calcul de score ---
@@ -579,6 +620,281 @@ async function buildNotationFileInputs(
     }));
 }
 
+async function updateSessionNotationStatus(
+    supabase: SupabaseClient,
+    sessionId: string,
+    payload: Record<string, unknown>,
+) {
+    const { error } = await supabase
+        .from("sessions")
+        .update(payload)
+        .eq("id", sessionId);
+
+    if (error) {
+        console.warn("⚠️ Impossible de mettre à jour le statut de notation:", error.message);
+    }
+}
+
+function extractOpenAIOutputText(data: Record<string, unknown>) {
+    if (typeof data.output_text === "string") {
+        return data.output_text;
+    }
+
+    if (Array.isArray(data.output)) {
+        return data.output
+            .flatMap((outputItem: { content?: Array<{ type: string; text?: string }> }) => outputItem.content ?? [])
+            .filter((contentItem: { type: string; text?: string }) => contentItem.type === "output_text" && typeof contentItem.text === "string")
+            .map((contentItem: { text?: string }) => contentItem.text as string)
+            .join("");
+    }
+
+    const choices = data.choices;
+    if (Array.isArray(choices) && choices[0]?.message?.content) {
+        return String(choices[0].message.content);
+    }
+
+    return "";
+}
+
+async function callOpenAIJson(
+    tab: NotationTab,
+    promptText: string,
+    inputText: string,
+    outputSchema?: OpenAIJsonSchemaFormat,
+) {
+    try {
+        const requestBody: Record<string, unknown> = {
+            model: "gpt-4.1",
+            instructions: promptText,
+            max_output_tokens: tab === "methodo" ? 24000 : 8000,
+            input: [
+                {
+                    role: "user",
+                    content: [
+                        {
+                            type: "input_text",
+                            text: inputText,
+                        },
+                    ],
+                },
+            ],
+        };
+
+        if (outputSchema) {
+            requestBody.text = {
+                format: outputSchema,
+            };
+        }
+
+        const response = await fetch("https://api.openai.com/v1/responses", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+            },
+            body: JSON.stringify(requestBody),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            console.error(`❌ Erreur OpenAI pour ${tab}:`, errorData);
+            return { result: null, error: errorData.error?.message || "Erreur du service IA" };
+        }
+
+        const data = await response.json() as Record<string, unknown>;
+        const content = extractOpenAIOutputText(data);
+        const jsonStr = content.replace(/```json\s*|```\s*/g, "").trim();
+
+        try {
+            return { result: JSON.parse(jsonStr) as Record<string, unknown>, error: undefined };
+        } catch (parseError) {
+            console.error(`❌ Erreur parsing JSON scorecard pour ${tab}:`, parseError);
+            console.error(`❌ Réponse brute ${tab}:`, content.slice(0, 2000));
+            return { result: null, error: "Format de réponse invalide" };
+        }
+    } catch (error) {
+        console.error(`❌ Erreur appel OpenAI scorecard pour ${tab}:`, error);
+        return { result: null, error: error instanceof Error ? error.message : "Erreur inconnue" };
+    }
+}
+
+function criterionRefToPrompt(ref: RoleplayNotationCriterionRef) {
+    return {
+        ref: ref.ref,
+        etape: ref.stepTitle,
+        critere: ref.criterionKey,
+        competence: ref.skillName,
+        dimension: ref.dimension,
+        item_dimension: ref.dimensionItemLabel,
+        preuve_attendue: ref.expectedEvidence,
+        verbatim_conformes: ref.verbatim,
+        points_max: ref.maxPoints,
+    };
+}
+
+function buildScorecardMethodoInput(context: RoleplayScorecardNotationContext) {
+    return `CONTEXTE DU SCENARIO:
+${JSON.stringify(context.scenario, null, 2)}
+
+METHODE:
+${JSON.stringify(context.method, null, 2)}
+
+SCORECARD:
+${JSON.stringify(context.scorecard, null, 2)}
+
+REFERENCES CRITERES A UTILISER STRICTEMENT:
+${JSON.stringify(context.criterionRefs.map(criterionRefToPrompt), null, 2)}
+
+REGLES:
+- Retourne uniquement un JSON valide.
+- N'invente aucun critere.
+- Ne renomme aucune ref.
+- Pour chaque ref fournie, retourne un resultat avec ref, points_obtenus, preuve, commentaire et conseil.
+- Les points_obtenus doivent etre entre 0 et points_max.
+
+TRANSCRIPTION:
+---
+${context.transcript}
+---`;
+}
+
+function buildScorecardFollowupInput(
+    context: RoleplayScorecardNotationContext,
+    notation: NotationPayload,
+    tab: Exclude<NotationTab, "methodo">,
+) {
+    return `CONTEXTE DU SCENARIO:
+${JSON.stringify(context.scenario, null, 2)}
+
+METHODE:
+${JSON.stringify(context.method, null, 2)}
+
+RESULTAT METHODOLOGIQUE DE REFERENCE:
+${JSON.stringify({ score_global: notation.score_global, methodo: notation.methodo }, null, 2)}
+
+ONGLET A PRODUIRE: ${tab}
+
+REGLES:
+- Retourne uniquement un JSON valide.
+- Reste coherent avec le score global et l'analyse methodologique deja calculee.
+- Ne modifie aucun score.
+
+TRANSCRIPTION:
+---
+${context.transcript}
+---`;
+}
+
+function buildScorecardMethodoPayload(
+    rawMethodo: Record<string, unknown> | null,
+    scoreResult: RoleplayNotationScoreResult,
+    criterionRefs: RoleplayNotationCriterionRef[],
+): NotationPayload["methodo"] {
+    const refsByRef = new Map(criterionRefs.map((criterionRef) => [criterionRef.ref, criterionRef]));
+    const raw = rawMethodo && typeof rawMethodo === "object" ? rawMethodo : {};
+
+    return {
+        ...raw,
+        onglet: raw.onglet ?? "AnalyseMethodologique",
+        etapes: scoreResult.steps.map((step) => ({
+            numero: step.stepOrder,
+            titre: step.title,
+            score: step.scorePercent,
+            score_max: 100,
+            points_obtenus: step.pointsAwarded,
+            points_max: step.pointsMax,
+            commentaire_coach: step.coachComment,
+            criteres: step.criteria.map((criterion) => {
+                const criterionRef = refsByRef.get(criterion.ref);
+
+                return {
+                    ref: criterion.ref,
+                    critere: criterionRef?.criterionKey ?? criterion.ref,
+                    competence: criterionRef?.skillName,
+                    dimension: criterionRef?.dimension,
+                    item_dimension: criterionRef?.dimensionItemLabel,
+                    points_obtenus: criterion.pointsAwarded,
+                    points_max: criterion.pointsMax,
+                    score: criterion.scorePercent,
+                    preuve: criterion.evidence,
+                    commentaire: criterion.coachComment,
+                    conseil: criterion.advice,
+                    preuves_attendues: criterionRef?.expectedEvidence,
+                    verbatim: criterionRef?.verbatim,
+                };
+            }),
+        })),
+    };
+}
+
+async function runScorecardNotation(
+    supabase: SupabaseClient,
+    context: RoleplayScorecardNotationContext,
+) {
+    const promptsMap = await loadScorecardNotationPrompts(supabase);
+    const missingPrompts = NOTATION_TABS.filter((tab) => !promptsMap.has(tab));
+
+    if (missingPrompts.length > 0) {
+        throw new Error(`Prompts scorecard manquants: ${missingPrompts.map((tab) => `notation.scorecard.${tab}`).join(", ")}`);
+    }
+
+    const outputSchemasMap = await loadNotationOutputSchemas(supabase, SCORECARD_NOTATION_CONFIG);
+    const notation: NotationPayload = {};
+    const errors: string[] = [];
+
+    const methodoPrompt = promptsMap.get("methodo");
+    if (!methodoPrompt) {
+        throw new Error("Prompt scorecard methodo manquant.");
+    }
+
+    const methodoResult = await callOpenAIJson(
+        "methodo",
+        methodoPrompt,
+        buildScorecardMethodoInput(context),
+        outputSchemasMap.get("methodo"),
+    );
+
+    if (!methodoResult.result) {
+        throw new Error(methodoResult.error || "Réponse methodo scorecard absente.");
+    }
+
+    const scoreResult = calculateScorecardNotationResult(methodoResult.result, context.criterionRefs);
+    notation.methodo = buildScorecardMethodoPayload(methodoResult.result, scoreResult, context.criterionRefs);
+    notation.score_global = buildScoreGlobalFromScorecard(scoreResult);
+
+    const followupResults = await Promise.all(
+        PARALLEL_NOTATION_TABS.map(async (tab) => {
+            const prompt = promptsMap.get(tab);
+            if (!prompt) return { tab, result: null, error: `Prompt ${tab} manquant.` };
+
+            const response = await callOpenAIJson(
+                tab,
+                prompt,
+                buildScorecardFollowupInput(context, notation, tab),
+                outputSchemasMap.get(tab),
+            );
+
+            return { tab, ...response };
+        }),
+    );
+
+    for (const tabResult of followupResults) {
+        if (tabResult.result) {
+            notation[tabResult.tab] = tabResult.result;
+        } else {
+            const tabError = tabResult.error || `Réponse ${tabResult.tab} absente, invalide ou incomplète.`;
+            errors.push(`${tabResult.tab}: ${tabError}`);
+            notation[tabResult.tab] = buildTabError(tabResult.tab, tabError);
+        }
+    }
+
+    return {
+        errors,
+        notation,
+        scoreResult,
+    };
+}
+
 // =============================================
 // POST /api/notation
 // Body: { session_id } ou { scenario_id } ou { persona_id }
@@ -606,6 +922,7 @@ export async function POST(req: Request) {
         }
 
         const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        const authenticatedUserId = await getAuthenticatedUserId();
 
         // 1. RÉSOUDRE LA SESSION ET RÉCUPÉRER LE SCÉNARIO
         let effectiveSessionId = session_id;
@@ -629,6 +946,10 @@ export async function POST(req: Request) {
 
             if (persona_id) {
                 latestSessionQuery = latestSessionQuery.eq('scenarios.persona_id', persona_id);
+            }
+
+            if (authenticatedUserId) {
+                latestSessionQuery = latestSessionQuery.eq('user_id', authenticatedUserId);
             }
 
             const { data: latestSession, error: sessionError } = await latestSessionQuery.single();
@@ -674,10 +995,11 @@ export async function POST(req: Request) {
         console.log("📊 Scenario:", scenarioTitle);
         console.log("📊 Scenario description:", scenarioDescription);
 
-        const notationConfig = await loadNotationMethodConfig(supabase, notationMethodId);
-
-        console.log("📊 Notation method:", `${notationConfig.code}@${notationConfig.version}`, notationConfig.source);
-        console.log("📊 Notation steps:", notationConfig.steps.map(step => `${step.numero}.${step.key}:${step.poids}`).join(", "));
+        if (!effectiveSessionId) {
+            return setCorsHeaders(
+                NextResponse.json({ error: "Session introuvable pour la notation" }, { status: 404 })
+            );
+        }
 
         // 2. RÉCUPÉRER LE TRANSCRIPT DEPUIS LA TABLE MESSAGES
         const { data: messages, error: messagesError } = await supabase
@@ -706,6 +1028,70 @@ export async function POST(req: Request) {
         console.log("📊 Transcript built, length:", transcript.length, "characters");
         console.log("📊 Transcript:", transcript);
 
+        const scorecardContext = await buildRoleplayScorecardNotationContext(supabase, effectiveSessionId, messages);
+
+        if (scorecardContext) {
+            console.log("📊 Scorecard notation mode:", scorecardContext.scorecard.name);
+            await updateSessionNotationStatus(supabase, effectiveSessionId, {
+                notation_error: null,
+                notation_source: ROLEPLAY_NOTATION_SOURCE.scorecard,
+                notation_status: ROLEPLAY_NOTATION_STATUS.processing,
+            });
+
+            try {
+                const { errors, notation, scoreResult } = await runScorecardNotation(supabase, scorecardContext);
+                const generatedAt = new Date().toISOString();
+
+                const { error: updateError } = await supabase
+                    .from("sessions")
+                    .update({
+                        notation_error: errors.length > 0 ? errors.join("\n") : null,
+                        notation_generated_at: generatedAt,
+                        notation_json: notation,
+                        notation_source: ROLEPLAY_NOTATION_SOURCE.scorecard,
+                        notation_status: ROLEPLAY_NOTATION_STATUS.completed,
+                    })
+                    .eq("id", effectiveSessionId);
+
+                if (updateError) {
+                    throw updateError;
+                }
+
+                await persistRoleplayScorecardNotationResults(supabase, scorecardContext, scoreResult);
+
+                return setCorsHeaders(NextResponse.json({
+                    success: true,
+                    session_id: effectiveSessionId,
+                    tabs_processed: Object.keys(notation),
+                    errors: errors.length > 0 ? errors : undefined,
+                    notation,
+                }));
+            } catch (error) {
+                const errorMessage = error instanceof Error ? error.message : "Erreur inconnue";
+                console.error("❌ Erreur notation scorecard:", error);
+                await updateSessionNotationStatus(supabase, effectiveSessionId, {
+                    notation_error: errorMessage,
+                    notation_source: ROLEPLAY_NOTATION_SOURCE.scorecard,
+                    notation_status: ROLEPLAY_NOTATION_STATUS.failed,
+                });
+
+                return setCorsHeaders(
+                    NextResponse.json({ error: "Erreur notation scorecard", details: errorMessage }, { status: 500 })
+                );
+            }
+        }
+
+        await updateSessionNotationStatus(supabase, effectiveSessionId, {
+            notation_error: null,
+            notation_source: ROLEPLAY_NOTATION_SOURCE.legacyPdf,
+            notation_status: ROLEPLAY_NOTATION_STATUS.processing,
+        });
+
+        const notationConfig = await loadNotationMethodConfig(supabase, notationMethodId);
+
+        console.log("📊 Notation method:", `${notationConfig.code}@${notationConfig.version}`, notationConfig.source);
+        console.log("📊 Notation steps:", notationConfig.steps.map(step => `${step.numero}.${step.key}:${step.poids}`).join(", "));
+
         // 3. TÉLÉCHARGER LES FICHIERS DE LA MÉTHODE (une seule fois)
         let notationFileInputs: OpenAIFileInput[] = [];
 
@@ -713,6 +1099,11 @@ export async function POST(req: Request) {
             notationFileInputs = await buildNotationFileInputs(supabase, notationConfig.files);
         } catch (fileError) {
             console.error("❌ Erreur téléchargement fichier de notation:", fileError);
+            await updateSessionNotationStatus(supabase, effectiveSessionId, {
+                notation_error: fileError instanceof Error ? fileError.message : "Erreur fichier de notation",
+                notation_source: ROLEPLAY_NOTATION_SOURCE.legacyPdf,
+                notation_status: ROLEPLAY_NOTATION_STATUS.failed,
+            });
             return setCorsHeaders(
                 NextResponse.json({
                     error: "Fichier de notation non trouvé dans Supabase",
@@ -726,6 +1117,11 @@ export async function POST(req: Request) {
         const missingPrompts = NOTATION_TABS.filter(tab => !promptsMap.has(tab));
 
         if (missingPrompts.length > 0) {
+            await updateSessionNotationStatus(supabase, effectiveSessionId, {
+                notation_error: `Prompts manquants: ${missingPrompts.map(tab => `notation.${tab}`).join(", ")}`,
+                notation_source: ROLEPLAY_NOTATION_SOURCE.legacyPdf,
+                notation_status: ROLEPLAY_NOTATION_STATUS.failed,
+            });
             return setCorsHeaders(
                 NextResponse.json({
                     error: "Prompts de notation non trouvés dans la base",
@@ -888,11 +1284,22 @@ Analyse cet appel et réponds uniquement avec un JSON valide.`
 
             const { error: updateError } = await supabase
                 .from('sessions')
-                .update({ notation_json: notation })
+                .update({
+                    notation_error: errors.length > 0 ? errors.join("\n") : null,
+                    notation_generated_at: new Date().toISOString(),
+                    notation_json: notation,
+                    notation_source: ROLEPLAY_NOTATION_SOURCE.legacyPdf,
+                    notation_status: ROLEPLAY_NOTATION_STATUS.completed,
+                })
                 .eq('id', effectiveSessionId);
 
             if (updateError) {
                 console.error("❌ Erreur sauvegarde notation:", updateError);
+                await updateSessionNotationStatus(supabase, effectiveSessionId, {
+                    notation_error: updateError.message,
+                    notation_source: ROLEPLAY_NOTATION_SOURCE.legacyPdf,
+                    notation_status: ROLEPLAY_NOTATION_STATUS.failed,
+                });
                 return setCorsHeaders(
                     NextResponse.json({ error: "Erreur sauvegarde en base", details: updateError.message }, { status: 500 })
                 );
