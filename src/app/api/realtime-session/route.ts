@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import type { VoiceId, Persona } from "@/types";
 import { DEFAULT_OPENAI_REALTIME_VOICE_ID, isOpenAIRealtimeVoiceId } from "@/lib/openai/realtime-voices";
 
-const OPENAI_REALTIME_SESSIONS_URL = "https://api.openai.com/v1/realtime/sessions";
+const OPENAI_REALTIME_CLIENT_SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets";
 
 
 const DEFAULT_MODEL = "gpt-realtime-1.5";
@@ -12,7 +12,8 @@ const VALID_MODELS = [
     "gpt-4o-realtime-preview",
     "gpt-realtime",
     "gpt-realtime-1.5",
-    "gpt-realtime-mini"
+    "gpt-realtime-mini",
+    "gpt-realtime-2",
 ];
 
 interface RequestBody {
@@ -20,6 +21,12 @@ interface RequestBody {
     system_instructions?: string;
     voice?: string;
     model?: string;
+}
+
+interface RealtimeClientSecretResponse {
+    expires_at: number;
+    session?: unknown;
+    value: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -90,29 +97,40 @@ export async function POST(request: NextRequest) {
 
 
 
-        const openaiResponse = await fetch(OPENAI_REALTIME_SESSIONS_URL, {
+        const openaiResponse = await fetch(OPENAI_REALTIME_CLIENT_SECRETS_URL, {
             method: "POST",
             headers: {
                 "Authorization": `Bearer ${openaiApiKey}`,
                 "Content-Type": "application/json",
             },
             body: JSON.stringify({
-                model: selectedModel,
-                voice: voiceId,
-                instructions: instructions,
-                modalities: ["audio", "text"],
-                input_audio_format: "pcm16",
-                output_audio_format: "pcm16",
-                max_response_output_tokens: 4096,
-                input_audio_transcription: {
-                    model: "whisper-1",
+                expires_after: {
+                    anchor: "created_at",
+                    seconds: 600,
                 },
-                turn_detection: {
-                    type: "server_vad",
-                    threshold: 0.8,
-                    prefix_padding_ms: 300,
-                    silence_duration_ms: 600,
-                    create_response: true,
+                session: {
+                    type: "realtime",
+                    model: selectedModel,
+                    instructions,
+                    output_modalities: ["audio"],
+                    max_output_tokens: 4096,
+                    audio: {
+                        input: {
+                            transcription: {
+                                model: "whisper-1",
+                            },
+                            turn_detection: {
+                                type: "server_vad",
+                                threshold: 0.8,
+                                prefix_padding_ms: 300,
+                                silence_duration_ms: 600,
+                                create_response: true,
+                            },
+                        },
+                        output: {
+                            voice: voiceId,
+                        },
+                    },
                 },
             }),
         });
@@ -121,17 +139,20 @@ export async function POST(request: NextRequest) {
             const errorText = await openaiResponse.text();
             console.error("OpenAI API Error:", errorText);
             return NextResponse.json(
-                { error: `Voice service error: ${openaiResponse.status} - ${errorText}` },
+                { error: `OpenAI API error: ${openaiResponse.status} - ${errorText}` },
                 { status: openaiResponse.status }
             );
         }
 
-        const sessionData = await openaiResponse.json();
+        const clientSecretData = await openaiResponse.json() as RealtimeClientSecretResponse;
 
 
         return NextResponse.json({
             data: {
-                client_secret: sessionData.client_secret,
+                client_secret: {
+                    value: clientSecretData.value,
+                    expires_at: clientSecretData.expires_at,
+                },
             },
             model: selectedModel,
             voice: voiceId,

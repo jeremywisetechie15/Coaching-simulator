@@ -614,6 +614,9 @@ export async function createIframeSession(scenarioId: string): Promise<{
 }> {
     try {
         const supabase = await createClient();
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
 
         const { data: session, error: sessionError } = await supabase
             .from("sessions")
@@ -621,6 +624,7 @@ export async function createIframeSession(scenarioId: string): Promise<{
                 scenario_id: scenarioId,
                 status: "active",
                 duration_seconds: 0,
+                user_id: user?.id ?? null,
             })
             .select()
             .single();
@@ -644,13 +648,18 @@ export async function createIframeSession(scenarioId: string): Promise<{
 export async function completeIframeSession(sessionId: string, durationSeconds: number): Promise<boolean> {
     try {
         const supabase = await createClient();
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        const updatePayload = {
+            status: "completed",
+            duration_seconds: durationSeconds,
+            ...(user?.id ? { user_id: user.id } : {}),
+        };
 
         const { error } = await supabase
             .from("sessions")
-            .update({
-                status: "completed",
-                duration_seconds: durationSeconds
-            })
+            .update(updatePayload)
             .eq("id", sessionId);
 
         return !error;

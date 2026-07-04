@@ -5,7 +5,7 @@ import {
     type ContentStatus,
     type ContentVisibilityScope,
 } from "@/features/content/domain";
-import type { QuizParticipation, QuizType } from "@/features/evaluations/domain";
+import type { QuizKind, QuizParticipation, QuizType } from "@/features/evaluations/domain";
 
 export const ROLEPLAY_DIFFICULTIES = ["Facile", "Moyen", "Difficile"] as const;
 
@@ -44,6 +44,7 @@ export interface RoleplayMethodOption {
 
 export interface RoleplayQuizOption {
     id: string;
+    kind: QuizKind;
     methodId: string | null;
     questionCount: number;
     title: string;
@@ -71,11 +72,6 @@ export interface RoleplayUserOption {
     id: string;
     name: string;
     organizationIds: string[];
-}
-
-export interface RoleplaySkillOption {
-    id: string;
-    name: string;
 }
 
 export interface RoleplayQuizLink {

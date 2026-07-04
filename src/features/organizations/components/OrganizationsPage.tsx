@@ -1,8 +1,7 @@
-import { AppShell } from "@/features/app-shell/components";
+import { AccessDeniedState, AppShell } from "@/features/app-shell/components";
 import type { OrganizationListItem } from "@/features/organizations/domain/organization-list";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
-import { OrganizationsAccessDeniedContent } from "./OrganizationsAccessDeniedContent";
 import { OrganizationsPageContent } from "./OrganizationsPageContent";
 
 interface OrganizationsPageProps {
@@ -20,15 +19,12 @@ export function OrganizationsPage({
         <AppShell
             activePrimaryItem="Organisations"
             avatarUrl={profileValues.avatarUrl}
+            platformRole={profileValues.platformRole}
             initials={getProfileInitials(profileValues)}
             fullName={`${profileValues.firstName} ${profileValues.lastName}`.trim()}
             email={profileValues.email}
         >
-            {accessDenied ? (
-                <OrganizationsAccessDeniedContent />
-            ) : (
-                <OrganizationsPageContent initialOrganizations={initialOrganizations} />
-            )}
+            {accessDenied ? <AccessDeniedState /> : <OrganizationsPageContent initialOrganizations={initialOrganizations} />}
         </AppShell>
     );
 }

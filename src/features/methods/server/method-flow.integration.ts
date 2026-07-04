@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { describe, expect, it } from "vitest";
 import { CONTENT_STATUS } from "@/features/content/domain";
 import { getMethodScopeLabel, METHOD_SCOPE } from "@/features/methods/domain/method";
@@ -12,7 +13,6 @@ import { createResourceRows } from "./method.persistence";
 describe("method write/read flow", () => {
     it("keeps method persistence independent from quiz association", () => {
         const input = saveMethodDto.parse({
-            businessObjective: "Obtenir un rendez-vous qualifié",
             name: "Méthode DAGO",
             organizationId: "11111111-1111-4111-8111-111111111110",
             scope: METHOD_SCOPE.organization,
@@ -26,7 +26,6 @@ describe("method write/read flow", () => {
 
         const detail = mapMethodRowsToDetail(
             {
-                business_objective: input.businessObjective,
                 id: "11111111-1111-4111-8111-111111111100",
                 name: input.name,
                 organization_id: input.organizationId,
@@ -68,7 +67,6 @@ describe("method write/read flow", () => {
         );
 
         expect(detail.name).toBe("Méthode DAGO");
-        expect(detail.businessObjective).toBe(input.businessObjective);
         expect(detail.resources).toHaveLength(2);
         expect(detail.resources.map((resource) => resource.label)).toEqual(["Guide DAGO", "Checklist"]);
         expect(detail.resources[0].notationFileId).toBe("11111111-1111-4111-8111-111111111104");
@@ -242,9 +240,10 @@ describe("method write/read flow", () => {
                     return {
                         upload(
                             path: string,
-                            _body: ArrayBuffer,
+                            body: Buffer,
                             options: { contentType?: string },
                         ) {
+                            expect(Buffer.isBuffer(body)).toBe(true);
                             uploads.push({ bucket, contentType: options.contentType, path });
                             return Promise.resolve({ error: null });
                         },

@@ -1,4 +1,9 @@
 import { notFound, redirect } from "next/navigation";
+import { AccessDeniedPage } from "@/features/app-shell/components";
+import {
+    APP_NAVIGATION_RESOURCE,
+    canManageAppResource,
+} from "@/features/auth/domain/access-control";
 import { CreateQuizPage } from "@/features/evaluations/components";
 import {
     getQuizById,
@@ -46,6 +51,18 @@ export default async function Page({ params }: PageProps) {
         redirect(`/auth?redirect=/evaluations/${evaluationId}/edit`);
     }
 
+    const profileValues = toProfileFormValues(profile);
+
+    if (!canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.evaluations)) {
+        return (
+            <AccessDeniedPage
+                activePrimaryItem="Évaluations"
+                profileValues={profileValues}
+                searchPlaceholder="Rechercher..."
+            />
+        );
+    }
+
     let quiz;
 
     try {
@@ -71,7 +88,7 @@ export default async function Page({ params }: PageProps) {
             groupOptions={groupOptions}
             methodOptions={methodOptions}
             organizationOptions={organizationOptions}
-            profileValues={toProfileFormValues(profile)}
+            profileValues={profileValues}
             quiz={quiz}
             skillOptions={skillOptions}
             userOptions={userOptions}

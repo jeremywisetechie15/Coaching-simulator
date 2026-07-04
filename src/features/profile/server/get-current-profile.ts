@@ -34,7 +34,7 @@ export async function getCurrentProfile(): Promise<ProfileView> {
         }
 
         if (existingProfile) {
-            return mapProfileRowToView(existingProfile, context.email);
+            return mapProfileRowToView(existingProfile, context.email, context.platformRole);
         }
 
         const { data: createdProfile, error: createError } = await adminSupabase
@@ -51,8 +51,8 @@ export async function getCurrentProfile(): Promise<ProfileView> {
             throw createError;
         }
 
-        return mapProfileRowToView(createdProfile, context.email);
+        return mapProfileRowToView(createdProfile, context.email, context.platformRole);
     }
 
-    return mapProfileRowToView(profile, context.email);
+    return mapProfileRowToView(profile, context.email, context.platformRole);
 }

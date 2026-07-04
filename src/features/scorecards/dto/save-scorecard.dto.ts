@@ -1,7 +1,6 @@
 import { z } from "zod";
 import { CONTENT_STATUSES } from "@/features/content/domain";
-import { SCORECARD_VISIBILITIES } from "@/features/scorecards/domain";
-import { SKILL_DIMENSIONS } from "@/features/skills/domain/skills";
+import { SCORECARD_CRITERION_DIMENSIONS, SCORECARD_VISIBILITIES } from "@/features/scorecards/domain";
 
 const optionalTextDto = (max: number, message: string) =>
     z.string().trim().max(max, message).optional().default("");
@@ -10,7 +9,7 @@ const criterionDto = z
     .object({
         aiInstruction: optionalTextDto(1600, "La consigne IA est trop longue."),
         competenceId: z.string().trim().max(160, "La compétence est trop longue.").optional().default(""),
-        dimension: z.enum(SKILL_DIMENSIONS).nullable().optional().default(null),
+        dimension: z.enum(SCORECARD_CRITERION_DIMENSIONS).nullable().optional().default(null),
         dimensionItemId: z
             .preprocess(
                 (value) => (value === "" ? null : value),
@@ -99,6 +98,14 @@ export const saveScorecardDto = z
                         code: "custom",
                         message: "Les preuves attendues sont requises.",
                         path: [...path, "expectedEvidence"],
+                    });
+                }
+
+                if (!criterion.verbatim.trim()) {
+                    ctx.addIssue({
+                        code: "custom",
+                        message: "L'exemple de verbatim conformes est requis.",
+                        path: [...path, "verbatim"],
                     });
                 }
 

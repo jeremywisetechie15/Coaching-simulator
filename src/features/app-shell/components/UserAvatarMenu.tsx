@@ -6,6 +6,7 @@ import { LogOut, Settings, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Box, InlineIcon, Text } from "@/lib/ui/atoms";
 import { signOutAction } from "@/features/auth/server/sign-out";
+import { SHOW_ROLES_PERMISSIONS_NAVIGATION } from "@/features/permissions/domain";
 
 interface UserAvatarMenuProps {
     avatarUrl: string | null;
@@ -23,7 +24,9 @@ interface MenuLink {
 
 const menuLinks: MenuLink[] = [
     { label: "Mon Profil", icon: UserRound, href: "/profile" },
-    { label: "Paramètres", icon: Settings, href: "/roles-permissions" },
+    ...(SHOW_ROLES_PERMISSIONS_NAVIGATION
+        ? [{ label: "Paramètres", icon: Settings, href: "/roles-permissions" }]
+        : []),
 ];
 
 export function UserAvatarMenu({ avatarUrl, initials, fullName, email }: UserAvatarMenuProps) {

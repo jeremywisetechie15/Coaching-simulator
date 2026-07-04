@@ -2,7 +2,7 @@ import { requireAuth } from "@/features/auth/server";
 import type { CoachListItem } from "@/features/coaches/domain/coach-list";
 import { CONTENT_STATUS } from "@/features/content/domain";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { mapCoachRowToListItem, type CoachRow } from "./coach.mapper";
+import { COACH_SELECT, mapCoachRowToListItem, type CoachRow } from "./coach.mapper";
 
 export async function listCoaches(): Promise<CoachListItem[]> {
     const context = await requireAuth();
@@ -10,7 +10,7 @@ export async function listCoaches(): Promise<CoachListItem[]> {
     const adminSupabase = createAdminClient();
     let query = adminSupabase
         .from("coaches")
-        .select("id, name, voice_id, system_instructions, avatar_url, created_at, status")
+        .select(COACH_SELECT)
         .order("created_at", { ascending: false });
 
     if (context.platformRole !== "admin") {

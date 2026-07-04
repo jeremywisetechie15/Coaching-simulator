@@ -1,4 +1,9 @@
 import { notFound, redirect } from "next/navigation";
+import { AccessDeniedPage } from "@/features/app-shell/components";
+import {
+    APP_NAVIGATION_RESOURCE,
+    canManageAppResource,
+} from "@/features/auth/domain/access-control";
 import { CreateRoleplayPage } from "@/features/roleplays/components";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
@@ -11,7 +16,6 @@ import {
     listRoleplayPersonaOptions,
     listRoleplayQuizOptions,
     listRoleplayScorecardOptions,
-    listRoleplaySkillOptions,
     listRoleplayUserOptions,
 } from "@/features/roleplays/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
@@ -30,12 +34,30 @@ export default async function Page({ params }: PageProps) {
     let roleplay;
 
     try {
-        [profile, roleplay] = await Promise.all([getCurrentProfile(), getRoleplayById(roleplayId)]);
+        profile = await getCurrentProfile();
     } catch (error) {
         if (error instanceof UnauthorizedError) {
             redirect(`/auth?redirect=/roleplays/${roleplayId}/edit`);
         }
 
+        throw error;
+    }
+
+    const profileValues = toProfileFormValues(profile);
+
+    if (!canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.roleplays)) {
+        return (
+            <AccessDeniedPage
+                activePrimaryItem="Roleplays"
+                profileValues={profileValues}
+                searchPlaceholder="Rechercher..."
+            />
+        );
+    }
+
+    try {
+        roleplay = await getRoleplayById(roleplayId);
+    } catch (error) {
         if (error instanceof NotFoundError) {
             notFound();
         }
@@ -49,7 +71,6 @@ export default async function Page({ params }: PageProps) {
         methodOptions,
         quizOptions,
         scorecardOptions,
-        skillOptions,
         organizationOptions,
         groupOptions,
         userOptions,
@@ -59,7 +80,6 @@ export default async function Page({ params }: PageProps) {
         listRoleplayMethodOptions(),
         listRoleplayQuizOptions(),
         listRoleplayScorecardOptions(),
-        listRoleplaySkillOptions(),
         listRoleplayOrganizationOptions(),
         listRoleplayGroupOptions(),
         listRoleplayUserOptions(),
@@ -73,11 +93,10 @@ export default async function Page({ params }: PageProps) {
             methodOptions={methodOptions}
             organizationOptions={organizationOptions}
             personaOptions={personaOptions}
-            profileValues={toProfileFormValues(profile)}
+            profileValues={profileValues}
             quizOptions={quizOptions}
             roleplayId={roleplayId}
             scorecardOptions={scorecardOptions}
-            skillOptions={skillOptions}
             userOptions={userOptions}
         />
     );

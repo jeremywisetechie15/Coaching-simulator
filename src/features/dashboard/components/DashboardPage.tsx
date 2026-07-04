@@ -12,6 +12,7 @@ export function DashboardPage({ profileValues }: DashboardPageProps) {
         <AppShell
             activePrimaryItem="Tableau de bord"
             avatarUrl={profileValues.avatarUrl}
+            platformRole={profileValues.platformRole}
             initials={getProfileInitials(profileValues)}
             fullName={`${profileValues.firstName} ${profileValues.lastName}`.trim()}
             email={profileValues.email}

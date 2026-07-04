@@ -29,6 +29,24 @@ export const CONTENT_TARGET_SCOPES = [
 
 export type ContentTargetScope = (typeof CONTENT_TARGET_SCOPES)[number];
 
+export interface ContentTargetOrganizationOption {
+    id: string;
+    name: string;
+}
+
+export interface ContentTargetGroupOption {
+    id: string;
+    name: string;
+    organizationId: string;
+}
+
+export interface ContentTargetUserOption {
+    groupIds: string[];
+    id: string;
+    name: string;
+    organizationIds: string[];
+}
+
 export const CONTENT_VISIBILITY_SCOPE_LABELS: Record<ContentVisibilityScope, string> = {
     [CONTENT_VISIBILITY_SCOPE.group]: "Privé groupe",
     [CONTENT_VISIBILITY_SCOPE.organization]: "Privé organisation",

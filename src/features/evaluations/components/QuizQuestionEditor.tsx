@@ -286,7 +286,7 @@ export function QuizQuestionEditor({
                         {canAddAttachment && (
                             <Button onClick={() => onAddAttachment("document")} className={uiTokens.action.addButton}>
                                 <InlineIcon icon={FileText} className="h-4 w-4" />
-                                Ajouter un document
+                                Ajouter une pièce jointe
                             </Button>
                         )}
                     </Box>
@@ -298,10 +298,12 @@ export function QuizQuestionEditor({
                                         as="span"
                                         className={cn("text-[13px] font-extrabold", uiTokens.text.heading)}
                                     >
-                                        {question.attachments.length === 1 ? "Document" : `Document ${attachmentIndex + 1}`}
+                                        {question.attachments.length === 1
+                                            ? "Pièce jointe"
+                                            : `Pièce jointe ${attachmentIndex + 1}`}
                                     </Text>
                                     <Button
-                                        aria-label={`Retirer le document ${attachmentIndex + 1}`}
+                                        aria-label={`Retirer la pièce jointe ${attachmentIndex + 1}`}
                                         onClick={() => onRemoveAttachment(attachment.id)}
                                         className={uiTokens.action.iconButtonGhost}
                                     >

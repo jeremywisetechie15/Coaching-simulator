@@ -1,4 +1,9 @@
 import { redirect } from "next/navigation";
+import { AccessDeniedPage } from "@/features/app-shell/components";
+import {
+    APP_NAVIGATION_RESOURCE,
+    canManageAppResource,
+} from "@/features/auth/domain/access-control";
 import { listQuizOptions } from "@/features/evaluations/server";
 import { CreateMethodPage } from "@/features/methods/components";
 import { listOrganizations } from "@/features/organizations/server";
@@ -23,6 +28,18 @@ export default async function Page() {
         redirect("/auth?redirect=/methods/new");
     }
 
+    const profileValues = toProfileFormValues(profile);
+
+    if (!canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.methods)) {
+        return (
+            <AccessDeniedPage
+                activePrimaryItem="Méthodes et Playbook"
+                profileValues={profileValues}
+                searchPlaceholder="Rechercher..."
+            />
+        );
+    }
+
     const [organizations, quizOptions] = await Promise.all([
         listOrganizations(),
         listQuizOptions({ unassignedOnly: true }),
@@ -35,7 +52,7 @@ export default async function Page() {
     return (
         <CreateMethodPage
             organizationOptions={organizationOptions}
-            profileValues={toProfileFormValues(profile)}
+            profileValues={profileValues}
             quizOptions={quizOptions}
         />
     );

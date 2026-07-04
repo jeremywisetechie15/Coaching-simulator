@@ -4,7 +4,15 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, ChevronDown, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { CONTENT_STATUS, type ContentStatus } from "@/features/content/domain";
+import {
+    CONTENT_STATUS,
+    CONTENT_VISIBILITY_SCOPE,
+    type ContentStatus,
+    type ContentTargetGroupOption,
+    type ContentTargetOrganizationOption,
+    type ContentTargetUserOption,
+} from "@/features/content/domain";
+import { ContentTargetScopeField, type ContentTargetScopeValue } from "@/features/content/components";
 import type { SaveSkillInput } from "@/features/skills/dto";
 import type { SkillCategory, SkillDetail } from "@/features/skills/domain/skills";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
@@ -12,14 +20,12 @@ import { AlertMessage } from "@/lib/ui/molecules";
 import {
     skillDomainOptions,
     skillFunctionOptions,
-    skillObjectiveOptions,
     skillTypeOptions,
 } from "@/features/skills/domain/skills";
 
 const functionChoices = skillFunctionOptions.slice(1);
 const typeChoices = skillTypeOptions.slice(1);
 const domainChoices = skillDomainOptions.slice(1);
-const objectiveChoices = skillObjectiveOptions.slice(1);
 
 const fieldLabelClasses = "block text-[14px] font-bold text-[#111827]";
 const inputClasses =
@@ -32,7 +38,10 @@ interface ApiErrorPayload {
 }
 
 interface CreateSkillPageContentProps {
+    groupOptions: ContentTargetGroupOption[];
     initialSkill?: SkillDetail;
+    organizationOptions: ContentTargetOrganizationOption[];
+    userOptions: ContentTargetUserOption[];
 }
 
 interface SkillDimensionFormItem {
@@ -272,7 +281,44 @@ function editableDimensionItems(
     return items.length > 0 ? items : [{ label: "" }];
 }
 
-export function CreateSkillPageContent({ initialSkill }: CreateSkillPageContentProps) {
+function getInitialTargetScopeValue(
+    initialSkill: SkillDetail | undefined,
+    groupOptions: ContentTargetGroupOption[],
+    userOptions: ContentTargetUserOption[],
+): ContentTargetScopeValue {
+    const scope = initialSkill?.scope ?? CONTENT_VISIBILITY_SCOPE.public;
+    const assignedUserId = initialSkill?.assignedUserId ?? "";
+    let groupId = initialSkill?.groupId ?? "";
+    let organizationId = initialSkill?.organizationId ?? null;
+
+    if (scope === CONTENT_VISIBILITY_SCOPE.user && assignedUserId) {
+        const user = userOptions.find((option) => option.id === assignedUserId);
+
+        if (user) {
+            if (!groupId) groupId = user.groupIds[0] ?? "";
+            if (!organizationId) organizationId = user.organizationIds[0] ?? null;
+        }
+    }
+
+    if ((scope === CONTENT_VISIBILITY_SCOPE.user || scope === CONTENT_VISIBILITY_SCOPE.group) && groupId) {
+        const group = groupOptions.find((option) => option.id === groupId);
+        if (group) organizationId = group.organizationId;
+    }
+
+    return {
+        assignedUserId,
+        groupId,
+        organizationId,
+        scope,
+    };
+}
+
+export function CreateSkillPageContent({
+    groupOptions,
+    initialSkill,
+    organizationOptions,
+    userOptions,
+}: CreateSkillPageContentProps) {
     const router = useRouter();
     const isEditing = Boolean(initialSkill);
     const [name, setName] = useState(initialSkill?.name ?? "");
@@ -280,7 +326,9 @@ export function CreateSkillPageContent({ initialSkill }: CreateSkillPageContentP
     const [functions, setFunctions] = useState<string[]>(initialSkill?.functions ?? []);
     const [type, setType] = useState<SkillCategory | null>(initialSkill?.category ?? null);
     const [domain, setDomain] = useState<string | null>(initialSkill?.domain || null);
-    const [objective, setObjective] = useState<string | null>(initialSkill?.objective || null);
+    const [targetScope, setTargetScope] = useState<ContentTargetScopeValue>(() =>
+        getInitialTargetScopeValue(initialSkill, groupOptions, userOptions),
+    );
     const [knowledge, setKnowledge] = useState<SkillDimensionFormItem[]>(
         editableDimensionItems(initialSkill, "savoir"),
     );
@@ -293,7 +341,14 @@ export function CreateSkillPageContent({ initialSkill }: CreateSkillPageContentP
     const [formError, setFormError] = useState<string | null>(null);
     const [savingStatus, setSavingStatus] = useState<ContentStatus | null>(null);
 
-    const canSubmit = name.trim().length > 0;
+    const scopeTargetReady =
+        targetScope.scope === CONTENT_VISIBILITY_SCOPE.public ||
+        (targetScope.scope === CONTENT_VISIBILITY_SCOPE.organization && Boolean(targetScope.organizationId)) ||
+        (targetScope.scope === CONTENT_VISIBILITY_SCOPE.group &&
+            Boolean(targetScope.organizationId) &&
+            Boolean(targetScope.groupId.trim())) ||
+        (targetScope.scope === CONTENT_VISIBILITY_SCOPE.user && Boolean(targetScope.assignedUserId.trim()));
+    const canSubmit = name.trim().length > 0 && scopeTargetReady;
     const isSaving = savingStatus !== null;
 
     function toggleFunction(value: string) {
@@ -322,8 +377,15 @@ export function CreateSkillPageContent({ initialSkill }: CreateSkillPageContentP
             },
             domain: domain ?? "",
             functions,
+            assignedUserId: targetScope.scope === CONTENT_VISIBILITY_SCOPE.user ? targetScope.assignedUserId : null,
+            groupId: targetScope.scope === CONTENT_VISIBILITY_SCOPE.group ? targetScope.groupId : null,
             name,
-            objective: objective ?? "",
+            organizationId:
+                targetScope.scope === CONTENT_VISIBILITY_SCOPE.organization ||
+                targetScope.scope === CONTENT_VISIBILITY_SCOPE.group
+                    ? targetScope.organizationId
+                    : null,
+            scope: targetScope.scope,
             status,
         };
     }
@@ -431,17 +493,13 @@ export function CreateSkillPageContent({ initialSkill }: CreateSkillPageContentP
                             </Box>
                         </Box>
 
-                        <Box>
-                            <Text as="span" className={`${fieldLabelClasses} mb-2`}>
-                                Objectif métier
-                            </Text>
-                            <SingleSelect
-                                options={objectiveChoices}
-                                value={objective}
-                                placeholder="Sélectionner un objectif"
-                                onChange={setObjective}
-                            />
-                        </Box>
+                        <ContentTargetScopeField
+                            groupOptions={groupOptions}
+                            organizationOptions={organizationOptions}
+                            userOptions={userOptions}
+                            value={targetScope}
+                            onChange={setTargetScope}
+                        />
                     </Box>
 
                     <Box className="my-8 h-px bg-[#ECEEF3]" />

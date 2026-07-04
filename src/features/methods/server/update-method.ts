@@ -11,6 +11,7 @@ import {
 } from "./method.mapper";
 import { syncMethodNotationFiles } from "./method-notation-files";
 import { withMethodOrganizationNames } from "./method-organization-names";
+import { syncMethodQuizAssociation } from "./method-quiz-association";
 import { cleanupStaleMethodResourceFiles } from "./method-resource-cleanup";
 import {
     createMethodUpdate,
@@ -262,6 +263,7 @@ export async function updateMethod(
     }
 
     await cleanupStaleMethodResourceFiles(adminSupabase, existingResources, resourceRows);
+    await syncMethodQuizAssociation(adminSupabase, methodId, normalizedInput.quizId);
 
     const [methodWithOrganizationName] = await withMethodOrganizationNames([methodRow]);
 

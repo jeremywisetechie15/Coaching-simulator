@@ -1,4 +1,9 @@
 import { notFound, redirect } from "next/navigation";
+import { AccessDeniedPage } from "@/features/app-shell/components";
+import {
+    APP_NAVIGATION_RESOURCE,
+    canManageAppResource,
+} from "@/features/auth/domain/access-control";
 import { CreatePersonaPage } from "@/features/personas/components";
 import { getPersonaById } from "@/features/personas/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
@@ -22,14 +27,37 @@ export default async function Page({ params }: PageProps) {
 
     try {
         profile = await getCurrentProfile();
-        persona = await getPersonaById(personaId);
     } catch (error) {
         if (error instanceof UnauthorizedError) {
             redirect(`/auth?redirect=/personas/${personaId}`);
         }
 
+        throw error;
+    }
+
+    const profileValues = toProfileFormValues(profile);
+
+    if (!canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.personas)) {
+        return (
+            <AccessDeniedPage
+                activePrimaryItem="Mes Personas IA"
+                profileValues={profileValues}
+                searchPlaceholder="Rechercher..."
+            />
+        );
+    }
+
+    try {
+        persona = await getPersonaById(personaId);
+    } catch (error) {
         if (error instanceof ForbiddenError) {
-            notFound();
+            return (
+                <AccessDeniedPage
+                    activePrimaryItem="Mes Personas IA"
+                    profileValues={profileValues}
+                    searchPlaceholder="Rechercher..."
+                />
+            );
         }
 
         throw error;
@@ -43,7 +71,7 @@ export default async function Page({ params }: PageProps) {
         <CreatePersonaPage
             initialValues={persona}
             personaId={personaId}
-            profileValues={toProfileFormValues(profile)}
+            profileValues={profileValues}
         />
     );
 }

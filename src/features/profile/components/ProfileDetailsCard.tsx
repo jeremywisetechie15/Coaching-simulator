@@ -1,5 +1,5 @@
 import { Box, CardSurface } from "@/lib/ui/atoms";
-import type { ProfileFormValues } from "@/features/profile/domain/profile";
+import type { ProfileEditableField, ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { ProfileField } from "./ProfileField";
@@ -8,7 +8,7 @@ import { ProfileSectionTitle } from "./ProfileSectionTitle";
 interface ProfileDetailsCardProps {
     isEditing: boolean;
     onAvatarChange: (file: File) => void;
-    onChange: (field: keyof ProfileFormValues, value: string) => void;
+    onChange: (field: ProfileEditableField, value: string) => void;
     values: ProfileFormValues;
 }
 

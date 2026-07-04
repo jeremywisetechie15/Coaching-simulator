@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
+import { QUIZ_PARTICIPATION, QUIZ_PARTICIPATION_LABELS, type QuizParticipation } from "@/features/evaluations/domain";
 import type { PrepQuiz, PrepQuizStatus } from "@/features/roleplays/data/preparation";
 import { Box, Button, InlineIcon, Text } from "@/lib/ui/atoms";
 import { Modal } from "@/lib/ui/organisms";
@@ -20,6 +21,10 @@ function statusLabel(quiz: PrepQuiz) {
     if (quiz.status === "completed") return `Terminé (${quiz.scorePercent ?? 0}%)`;
     if (quiz.status === "in_progress") return `En cours (${quiz.scorePercent ?? 0}%)`;
     return "Non commencé";
+}
+
+function participationTone(participation: QuizParticipation) {
+    return participation === QUIZ_PARTICIPATION.mandatory ? uiTokens.tone.primary.soft : uiTokens.tone.neutral.soft;
 }
 
 interface RoleplayQuizModalProps {
@@ -68,6 +73,16 @@ export function RoleplayQuizModal({ onClose, quizzes }: RoleplayQuizModalProps) 
                                             )}
                                         >
                                             Recommandé
+                                        </Box>
+                                    )}
+                                    {quiz.participation && (
+                                        <Box
+                                            className={cn(
+                                                "inline-flex h-6 items-center rounded-full border px-2.5 text-[11px] font-bold",
+                                                participationTone(quiz.participation),
+                                            )}
+                                        >
+                                            {QUIZ_PARTICIPATION_LABELS[quiz.participation]}
                                         </Box>
                                     )}
                                 </Box>

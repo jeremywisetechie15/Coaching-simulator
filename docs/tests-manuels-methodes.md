@@ -73,7 +73,7 @@ Résultat attendu :
 
 - [ ] Aller sur `/methods/new`.
 - [ ] Saisir un nom unique.
-- [ ] Renseigner domaine, catégorie, objectif métier, description.
+- [ ] Renseigner domaine, catégorie, description.
 - [ ] Ajouter une étape avec un titre.
 - [ ] Laisser la visibilité sur `Public`.
 - [ ] Cliquer `Enregistrer en brouillon`.
@@ -233,7 +233,7 @@ Contrôles Supabase :
 
 - [ ] Ouvrir le détail d'une méthode.
 - [ ] Cliquer `Modifier`.
-- [ ] Modifier nom, objectif métier, description, objectifs, enjeux.
+- [ ] Modifier nom, description, objectifs, enjeux.
 - [ ] Ajouter une étape.
 - [ ] Retirer une étape.
 - [ ] Enregistrer.

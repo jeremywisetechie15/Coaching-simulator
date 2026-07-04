@@ -15,6 +15,7 @@ import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
 
 interface PageProps {
     params: Promise<{ roleplayId: string }>;
+    searchParams: Promise<{ coach?: string }>;
 }
 
 export async function generateMetadata() {
@@ -23,8 +24,10 @@ export async function generateMetadata() {
     };
 }
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
     const { roleplayId } = await params;
+    const { coach } = await searchParams;
+    const variant = coach === "after" ? "improve" : "prepare";
     let profile;
     let dbMethodId: string | null = null;
 
@@ -79,6 +82,7 @@ export default async function Page({ params }: PageProps) {
             profileValues={toProfileFormValues(profile)}
             roleplay={roleplay}
             method={method}
+            variant={variant}
         />
     );
 }

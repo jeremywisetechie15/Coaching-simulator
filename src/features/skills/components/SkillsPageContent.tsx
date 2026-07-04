@@ -8,7 +8,6 @@ import {
     skillCategoryStyles,
     skillDomainOptions,
     skillFunctionOptions,
-    skillObjectiveOptions,
     skillTypeOptions,
     type SkillListItem,
 } from "@/features/skills/domain/skills";
@@ -17,10 +16,10 @@ interface FilterState {
     domain: string;
     type: string;
     function: string;
-    objective: string;
 }
 
 interface SkillsPageContentProps {
+    canManage: boolean;
     skills: SkillListItem[];
 }
 
@@ -28,7 +27,6 @@ const defaultFilters: FilterState = {
     domain: skillDomainOptions[0],
     type: skillTypeOptions[0],
     function: skillFunctionOptions[0],
-    objective: skillObjectiveOptions[0],
 };
 
 function FilterSelect({
@@ -90,7 +88,7 @@ function FilterSelect({
     );
 }
 
-export function SkillsPageContent({ skills }: SkillsPageContentProps) {
+export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps) {
     const [query, setQuery] = useState("");
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [appliedFilters, setAppliedFilters] = useState<FilterState>(defaultFilters);
@@ -101,7 +99,7 @@ export function SkillsPageContent({ skills }: SkillsPageContentProps) {
         return skills.filter((skill) => {
             const matchesQuery =
                 !normalized ||
-                [skill.name, skill.description, skill.domain, skill.objective]
+                [skill.name, skill.description, skill.domain]
                     .some((value) => value.toLowerCase().includes(normalized));
             const matchesDomain =
                 appliedFilters.domain === skillDomainOptions[0] || skill.domain === appliedFilters.domain;
@@ -110,9 +108,7 @@ export function SkillsPageContent({ skills }: SkillsPageContentProps) {
             const matchesFunction =
                 appliedFilters.function === skillFunctionOptions[0] ||
                 skill.functions.includes(appliedFilters.function);
-            const matchesObjective =
-                appliedFilters.objective === skillObjectiveOptions[0] || skill.objective === appliedFilters.objective;
-            return matchesQuery && matchesDomain && matchesType && matchesFunction && matchesObjective;
+            return matchesQuery && matchesDomain && matchesType && matchesFunction;
         });
     }, [query, appliedFilters, skills]);
 
@@ -156,13 +152,15 @@ export function SkillsPageContent({ skills }: SkillsPageContentProps) {
                         </Box>
                     </Box>
 
-                    <Link
-                        href="/skills/new"
-                        className="mt-1 flex h-9 items-center justify-center gap-2.5 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7] md:mt-2"
-                    >
-                        <InlineIcon icon={Plus} className="h-4 w-4" />
-                        Ajouter une compétence
-                    </Link>
+                    {canManage && (
+                        <Link
+                            href="/skills/new"
+                            className="mt-1 flex h-9 items-center justify-center gap-2.5 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7] md:mt-2"
+                        >
+                            <InlineIcon icon={Plus} className="h-4 w-4" />
+                            Ajouter une compétence
+                        </Link>
+                    )}
                 </Box>
 
                 <Box className="mb-6 flex items-center gap-3">
@@ -288,18 +286,6 @@ export function SkillsPageContent({ skills }: SkillsPageContentProps) {
                                     value={draftFilters.function}
                                     onChange={(value) =>
                                         setDraftFilters((current) => ({ ...current, function: value }))
-                                    }
-                                />
-                            </Box>
-                            <Box>
-                                <Text as="span" className="mb-2 block text-[14px] font-bold text-[#111827]">
-                                    Objectif métier
-                                </Text>
-                                <FilterSelect
-                                    options={skillObjectiveOptions}
-                                    value={draftFilters.objective}
-                                    onChange={(value) =>
-                                        setDraftFilters((current) => ({ ...current, objective: value }))
                                     }
                                 />
                             </Box>

@@ -7,7 +7,7 @@ interface GroupMemberCountRow {
     group_id: string | null;
 }
 
-function countMembersByGroupId(rows: GroupMemberCountRow[]) {
+function countByGroupId(rows: GroupMemberCountRow[]) {
     return rows.reduce<Map<string, number>>((counts, row) => {
         if (!row.group_id) {
             return counts;
@@ -28,6 +28,7 @@ export async function listOrganizationGroups(organizationId: string): Promise<Or
         .from("groups")
         .select("id, name, description, status, created_at")
         .eq("organization_id", organizationId)
+        .neq("status", "archived")
         .order("created_at", { ascending: true })
         .returns<OrganizationGroupDbRow[]>();
 
@@ -41,17 +42,48 @@ export async function listOrganizationGroups(organizationId: string): Promise<Or
         return [];
     }
 
-    const { data: members, error: membersError } = await supabase
-        .from("group_members")
-        .select("group_id")
-        .in("group_id", groupIds)
-        .returns<GroupMemberCountRow[]>();
+    const [membersResult, roleplaysResult, quizzesResult] = await Promise.all([
+        supabase
+            .from("group_members")
+            .select("group_id")
+            .in("group_id", groupIds)
+            .returns<GroupMemberCountRow[]>(),
+        supabase
+            .from("scenarios")
+            .select("group_id")
+            .in("group_id", groupIds)
+            .neq("status", "archived")
+            .returns<GroupMemberCountRow[]>(),
+        supabase
+            .from("quizzes")
+            .select("group_id")
+            .in("group_id", groupIds)
+            .neq("status", "archived")
+            .returns<GroupMemberCountRow[]>(),
+    ]);
 
-    if (membersError) {
-        throw membersError;
+    if (membersResult.error) {
+        throw membersResult.error;
     }
 
-    const memberCounts = countMembersByGroupId(members ?? []);
+    if (roleplaysResult.error) {
+        throw roleplaysResult.error;
+    }
 
-    return (groups ?? []).map((group) => mapOrganizationGroupRow(group, memberCounts.get(group.id) ?? 0));
+    if (quizzesResult.error) {
+        throw quizzesResult.error;
+    }
+
+    const memberCounts = countByGroupId(membersResult.data ?? []);
+    const roleplayCounts = countByGroupId(roleplaysResult.data ?? []);
+    const quizCounts = countByGroupId(quizzesResult.data ?? []);
+
+    return (groups ?? []).map((group) =>
+        mapOrganizationGroupRow(
+            group,
+            memberCounts.get(group.id) ?? 0,
+            roleplayCounts.get(group.id) ?? 0,
+            quizCounts.get(group.id) ?? 0,
+        ),
+    );
 }

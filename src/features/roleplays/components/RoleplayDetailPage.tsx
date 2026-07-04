@@ -14,6 +14,7 @@ export function RoleplayDetailPage({ profileValues, roleplay }: RoleplayDetailPa
         <AppShell
             activePrimaryItem="Roleplays"
             avatarUrl={profileValues.avatarUrl}
+            platformRole={profileValues.platformRole}
             initials={getProfileInitials(profileValues)}
             fullName={`${profileValues.firstName} ${profileValues.lastName}`.trim()}
             email={profileValues.email}

@@ -1,3 +1,5 @@
+import type { PlatformRole } from "@/features/users/domain/users";
+
 export interface ProfileFormValues {
     avatarPath: string | null;
     avatarUrl: string | null;
@@ -6,7 +8,10 @@ export interface ProfileFormValues {
     firstName: string;
     lastName: string;
     password: string;
+    platformRole: PlatformRole;
 }
+
+export type ProfileEditableField = Exclude<keyof ProfileFormValues, "platformRole">;
 
 export interface ProfileView {
     avatarPath: string | null;
@@ -15,6 +20,7 @@ export interface ProfileView {
     email: string;
     firstName: string;
     lastName: string;
+    platformRole: PlatformRole;
 }
 
 export function toProfileFormValues(profile: ProfileView): ProfileFormValues {
@@ -26,5 +32,6 @@ export function toProfileFormValues(profile: ProfileView): ProfileFormValues {
         firstName: profile.firstName,
         lastName: profile.lastName,
         password: "••••••••••••",
+        platformRole: profile.platformRole,
     };
 }

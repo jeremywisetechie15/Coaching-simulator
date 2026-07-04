@@ -123,6 +123,47 @@ describe("scorecard notation scoring", () => {
         expect(result.globalScorePercent).toBe(26.67);
     });
 
+    it("maps legacy schema criterion code, normalized score and evidence arrays", () => {
+        const result = calculateScorecardNotationResult(
+            {
+                etapes: [
+                    {
+                        titre: "Découvrir",
+                        grille_calcul: {
+                            criteres: [
+                                {
+                                    code: "C1",
+                                    score_obtenu: 50,
+                                    score_max: 100,
+                                    preuves_observees: [
+                                        {
+                                            speaker: "Apprenant",
+                                            timecode: "00:12",
+                                            texte: "Quel est votre enjeu prioritaire ?",
+                                        },
+                                    ],
+                                    justification_score: "Question posée mais qualification partielle.",
+                                    conseils_amelioration: ["Creuser l'impact métier avant de poursuivre."],
+                                },
+                            ],
+                        },
+                    },
+                ],
+            },
+            refs,
+        );
+
+        expect(result.criteria[0]).toMatchObject({
+            advice: "Creuser l'impact métier avant de poursuivre.",
+            coachComment: "Question posée mais qualification partielle.",
+            evidence: "00:12 Apprenant: Quel est votre enjeu prioritaire ?",
+            pointsAwarded: 2,
+            ref: "C1",
+            scorePercent: 50,
+        });
+        expect(result.globalScorePercent).toBe(13.33);
+    });
+
     it("builds a score_global payload with inferred step weights", () => {
         const result = calculateScorecardNotationResult(
             {

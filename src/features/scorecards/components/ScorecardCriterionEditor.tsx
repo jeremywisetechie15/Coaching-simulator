@@ -41,7 +41,7 @@ export function ScorecardCriterionEditor({
                 </Button>
             </Box>
 
-            <Box className="grid gap-4 sm:grid-cols-[1fr_110px]">
+            <Box className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_110px]">
                 <Box>
                     <FieldLabel className={uiTokens.form.subLabel}>
                         Critère clé <RequiredMark />
@@ -83,7 +83,7 @@ export function ScorecardCriterionEditor({
                 />
             </Box>
 
-            <Box className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_110px]">
+            <Box className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_110px]">
                 <Box>
                     <FieldLabel className={uiTokens.form.subLabel}>
                         Compétence associée <RequiredMark />
@@ -163,7 +163,7 @@ export function ScorecardCriterionEditor({
 
             <Box>
                 <FieldLabel className={uiTokens.form.subLabel}>
-                    Verbatim recommandé <OptionalHint />
+                    Exemple de verbatim conformes <RequiredMark />
                 </FieldLabel>
                 <TextArea
                     value={criterion.verbatim}

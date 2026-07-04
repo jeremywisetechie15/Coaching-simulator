@@ -25,6 +25,7 @@ import {
 export const domainOptions = [...CONTENT_DOMAINS];
 
 export const attachmentTypeLabels: Record<QuizAttachmentType, string> = {
+    audio: "Audio",
     document: "Document",
     image: "Image",
     link: "Lien",
@@ -221,7 +222,9 @@ export function cleanList(items: string[]) {
 export function inferQuizAttachmentType(mimeType: string): Exclude<QuizAttachmentType, "link"> {
     const resourceType = inferContentUploadResourceType(mimeType);
 
-    return resourceType === "image" || resourceType === "video" ? resourceType : "document";
+    return resourceType === "image" || resourceType === "video" || resourceType === "audio"
+        ? resourceType
+        : "document";
 }
 
 export function normalizeChoicesForQuestionType(

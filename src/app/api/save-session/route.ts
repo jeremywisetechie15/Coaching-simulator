@@ -26,6 +26,9 @@ export async function POST(request: NextRequest) {
         }
 
         const supabase = await createClient();
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
 
         // Create the session
         const { data: session, error: sessionError } = await supabase
@@ -34,6 +37,7 @@ export async function POST(request: NextRequest) {
                 scenario_id,
                 duration_seconds: duration_seconds || 0,
                 status: "completed",
+                user_id: user?.id ?? null,
             })
             .select()
             .single();

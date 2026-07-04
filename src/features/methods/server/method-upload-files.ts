@@ -8,6 +8,7 @@ import {
     sanitizeUploadFileName,
     validateContentUploadFile,
 } from "@/lib/uploads/content-upload";
+import { fileToStorageUploadBody } from "@/lib/uploads/storage-upload-body";
 import { AppError } from "@/lib/server/errors";
 
 export type MethodUploadFilesByClientId = Map<string, File>;
@@ -40,7 +41,7 @@ async function uploadMethodResourceFile(
 ) {
     const { error } = await supabase.storage
         .from(CONTENT_UPLOAD_BUCKET)
-        .upload(path, await file.arrayBuffer(), {
+        .upload(path, await fileToStorageUploadBody(file), {
             cacheControl: "3600",
             contentType: file.type,
             upsert: false,

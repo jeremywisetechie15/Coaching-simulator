@@ -8,6 +8,7 @@ import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { getCoachInitials, type CoachListItem } from "@/features/coaches/domain/coach-list";
 
 interface CoachesPageContentProps {
+    canManage: boolean;
     initialCoaches: CoachListItem[];
 }
 
@@ -31,7 +32,7 @@ async function fetchCoaches() {
     return payload?.coaches ?? [];
 }
 
-export function CoachesPageContent({ initialCoaches }: CoachesPageContentProps) {
+export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageContentProps) {
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const coachesQuery = useQuery({
         initialData: initialCoaches,
@@ -62,13 +63,15 @@ export function CoachesPageContent({ initialCoaches }: CoachesPageContentProps) 
                         </Box>
                     </Box>
 
-                    <Link
-                        href="/coaches/new"
-                        className="mt-1 flex h-9 items-center justify-center gap-2.5 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7] md:mt-2"
-                    >
-                        <InlineIcon icon={Plus} className="h-4 w-4" />
-                        Créer un coach IA
-                    </Link>
+                    {canManage && (
+                        <Link
+                            href="/coaches/new"
+                            className="mt-1 flex h-9 items-center justify-center gap-2.5 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7] md:mt-2"
+                        >
+                            <InlineIcon icon={Plus} className="h-4 w-4" />
+                            Créer un coach IA
+                        </Link>
+                    )}
                 </Box>
 
                 {coachesQuery.isError && (
@@ -91,16 +94,18 @@ export function CoachesPageContent({ initialCoaches }: CoachesPageContentProps) 
                                         <Box className="inline-flex h-7 items-center rounded-full bg-[#5140F0] px-3.5 text-[12px] font-bold text-white">
                                             Coach IA
                                         </Box>
-                                        <Button
-                                            aria-label={`Actions pour ${coach.name}`}
-                                            onClick={() => setOpenMenuId(isMenuOpen ? null : coach.id)}
-                                            className="flex h-7 w-7 items-center justify-center rounded-lg text-[#596273] transition hover:bg-[#F3F4F8] hover:text-[#111827]"
-                                        >
-                                            <InlineIcon icon={MoreVertical} className="h-4 w-4" />
-                                        </Button>
+                                        {canManage && (
+                                            <Button
+                                                aria-label={`Actions pour ${coach.name}`}
+                                                onClick={() => setOpenMenuId(isMenuOpen ? null : coach.id)}
+                                                className="flex h-7 w-7 items-center justify-center rounded-lg text-[#596273] transition hover:bg-[#F3F4F8] hover:text-[#111827]"
+                                            >
+                                                <InlineIcon icon={MoreVertical} className="h-4 w-4" />
+                                            </Button>
+                                        )}
                                     </Box>
 
-                                    {isMenuOpen && (
+                                    {canManage && isMenuOpen && (
                                         <CardSurface className="absolute right-5 top-14 z-10 w-max rounded-lg border border-[#E1E4EB] px-1 py-1.5 text-left shadow-[0_12px_28px_rgba(17,24,39,0.14)]">
                                             <Link
                                                 href={`/coaches/${coach.id}`}

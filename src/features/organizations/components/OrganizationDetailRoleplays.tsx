@@ -1,10 +1,8 @@
 import { Fragment } from "react";
-import { ChevronDown, UsersRound } from "lucide-react";
+import { UsersRound } from "lucide-react";
 import { Box, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
-import {
-    demoOrganizationRoleplays,
-    type OrganizationRoleplayRow,
-} from "@/features/organizations/domain/organization-detail";
+import { GroupedTableSectionHeader } from "@/lib/ui/molecules";
+import type { OrganizationRoleplayRow } from "@/features/organizations/domain/organization-detail";
 
 const columns = ["Titre", "Persona", "Groupe", "Apprenants", "Date d'assignation"];
 
@@ -14,29 +12,41 @@ const sectionLabels = {
     not_started: "Roleplays non commencés",
 };
 
-const groupedRoleplays: Array<{
+function groupRoleplays(roleplays: OrganizationRoleplayRow[]): Array<{
     roleplays: OrganizationRoleplayRow[];
     status: OrganizationRoleplayRow["status"];
-}> = [
-    {
-        roleplays: demoOrganizationRoleplays.filter((roleplay) => roleplay.status === "not_started"),
-        status: "not_started",
-    },
-    {
-        roleplays: demoOrganizationRoleplays.filter((roleplay) => roleplay.status === "in_progress"),
-        status: "in_progress",
-    },
-    {
-        roleplays: demoOrganizationRoleplays.filter((roleplay) => roleplay.status === "completed"),
-        status: "completed",
-    },
-];
+}> {
+    return [
+        {
+            roleplays: roleplays.filter((roleplay) => roleplay.status === "not_started"),
+            status: "not_started",
+        },
+        {
+            roleplays: roleplays.filter((roleplay) => roleplay.status === "in_progress"),
+            status: "in_progress",
+        },
+        {
+            roleplays: roleplays.filter((roleplay) => roleplay.status === "completed"),
+            status: "completed",
+        },
+    ];
+}
 
-export function OrganizationDetailRoleplays() {
+interface OrganizationDetailRoleplaysProps {
+    roleplays?: OrganizationRoleplayRow[];
+    title?: string;
+}
+
+export function OrganizationDetailRoleplays({
+    roleplays = [],
+    title = "Roleplays assignés (vue consolidée)",
+}: OrganizationDetailRoleplaysProps) {
+    const groupedRoleplays = groupRoleplays(roleplays);
+
     return (
         <Box className="px-7 py-7">
             <Text as="h2" className="mb-6 text-[18px] font-extrabold text-[#171B2A]">
-                Roleplays assignés (vue consolidée)
+                {title}
             </Text>
 
             <CardSurface className="overflow-hidden rounded-[14px] border border-[#E1E4EB] shadow-none">
@@ -58,16 +68,11 @@ export function OrganizationDetailRoleplays() {
                         <Box as="tbody">
                             {groupedRoleplays.map((group) => (
                                 <Fragment key={group.status}>
-                                    <Box as="tr" className="border-b border-[#E7E9EF] bg-[#FBFCFE]">
-                                        <Box as="td" colSpan={columns.length} className="px-7 py-4">
-                                            <Box className="flex items-center gap-3">
-                                                <InlineIcon icon={ChevronDown} className="h-5 w-5 text-[#4F5868]" />
-                                                <Text className="text-[15px] font-extrabold text-[#171B2A]">
-                                                    {sectionLabels[group.status]} ({group.roleplays.length})
-                                                </Text>
-                                            </Box>
-                                        </Box>
-                                    </Box>
+                                    <GroupedTableSectionHeader
+                                        colSpan={columns.length}
+                                        count={group.roleplays.length}
+                                        label={sectionLabels[group.status]}
+                                    />
                                     {group.roleplays.map((roleplay) => (
                                         <Box
                                             as="tr"
@@ -108,6 +113,18 @@ export function OrganizationDetailRoleplays() {
                                     ))}
                                 </Fragment>
                             ))}
+                            {roleplays.length === 0 && (
+                                <Box as="tr">
+                                    <Box as="td" colSpan={columns.length} className="px-7 py-12 text-center">
+                                        <Text className="text-[14px] font-bold text-[#171B2A]">
+                                            Aucun roleplay assigné
+                                        </Text>
+                                        <Text className="mt-2 text-[14px] font-semibold text-[#A0A6B5]">
+                                            Aucun roleplay n&apos;est ciblé sur ce groupe.
+                                        </Text>
+                                    </Box>
+                                </Box>
+                            )}
                         </Box>
                     </Box>
                 </Box>

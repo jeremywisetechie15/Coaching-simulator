@@ -15,6 +15,7 @@ import { AppShell } from "@/features/app-shell/components";
 import { Box, Button, CardSurface, InlineIcon, SelectInput, Text, TextInput } from "@/lib/ui/atoms";
 import {
     getUserStatusLabel,
+    type PlatformRole,
     type UserListItem,
     type UserRole,
     USER_ROLE_FILTER_OPTIONS,
@@ -33,6 +34,7 @@ interface UsersPageProps {
     initials: string;
     initialUsers: UserListItem[];
     organizations: OrganizationListItem[];
+    platformRole: PlatformRole;
 }
 
 interface ApiValidationIssue {
@@ -168,7 +170,7 @@ function getInviteErrorMessage(status: number, payload: ApiErrorPayload | null) 
     return `Erreur ${status} : ${message}`;
 }
 
-export function UsersPage({ avatarUrl, initials, initialUsers, organizations }: UsersPageProps) {
+export function UsersPage({ avatarUrl, initials, initialUsers, organizations, platformRole }: UsersPageProps) {
     const queryClient = useQueryClient();
     const [query, setQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<"all" | UserStatus>("all");
@@ -283,6 +285,7 @@ export function UsersPage({ avatarUrl, initials, initialUsers, organizations }: 
             activePrimaryItem="Utilisateurs"
             avatarUrl={avatarUrl}
             initials={initials}
+            platformRole={platformRole}
             searchPlaceholder="Rechercher..."
         >
             <Box as="main" className="px-5 pb-12 md:px-9 lg:px-14">

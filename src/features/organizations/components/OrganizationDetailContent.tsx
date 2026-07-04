@@ -1,12 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Box, CardSurface } from "@/lib/ui/atoms";
 import {
     type CreateOrganizationFieldErrors,
     type CreateOrganizationFormValues,
 } from "@/features/organizations/domain/create-organization-form";
-import type { OrganizationDetail } from "@/features/organizations/domain/organization-detail";
+import type {
+    OrganizationDetail,
+    OrganizationEvaluationRow,
+    OrganizationRoleplayRow,
+} from "@/features/organizations/domain/organization-detail";
 import type { OrganizationStatus } from "@/features/organizations/domain/organization-list";
 import { OrganizationDetailEvaluations } from "./OrganizationDetailEvaluations";
 import { OrganizationDetailGroups } from "./OrganizationDetailGroups";
@@ -20,8 +24,10 @@ import {
 import { OrganizationDetailUsers } from "./OrganizationDetailUsers";
 
 interface OrganizationDetailContentProps {
+    evaluations?: OrganizationEvaluationRow[];
     initialIsEditing?: boolean;
     organization: OrganizationDetail;
+    roleplays?: OrganizationRoleplayRow[];
 }
 
 interface ApiValidationIssue {
@@ -67,9 +73,19 @@ function mapValidationIssuesToFieldErrors(issues: ApiValidationIssue[] | undefin
     return fieldErrors;
 }
 
+function clearEditSearchParam() {
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has("edit")) return;
+
+    url.searchParams.delete("edit");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
 export function OrganizationDetailContent({
+    evaluations = [],
     initialIsEditing = false,
     organization,
+    roleplays = [],
 }: OrganizationDetailContentProps) {
     const [activeTab, setActiveTab] = useState<OrganizationDetailTab>("overview");
     const [currentOrganization, setCurrentOrganization] = useState(organization);
@@ -78,6 +94,12 @@ export function OrganizationDetailContent({
     const [fieldErrors, setFieldErrors] = useState<CreateOrganizationFieldErrors>({});
     const [formError, setFormError] = useState<string | null>(null);
     const [formValues, setFormValues] = useState(() => getFormValuesFromOrganization(organization));
+
+    useEffect(() => {
+        if (initialIsEditing) {
+            clearEditSearchParam();
+        }
+    }, [initialIsEditing]);
 
     const startEditing = () => {
         setActiveTab("overview");
@@ -186,8 +208,8 @@ export function OrganizationDetailContent({
                             organizationName={currentOrganization.name}
                         />
                     )}
-                    {activeTab === "roleplays" && <OrganizationDetailRoleplays />}
-                    {activeTab === "evaluations" && <OrganizationDetailEvaluations />}
+                    {activeTab === "roleplays" && <OrganizationDetailRoleplays roleplays={roleplays} />}
+                    {activeTab === "evaluations" && <OrganizationDetailEvaluations evaluations={evaluations} />}
                 </CardSurface>
             </Box>
         </Box>

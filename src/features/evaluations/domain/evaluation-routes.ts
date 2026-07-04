@@ -6,6 +6,14 @@ export const EVALUATION_ROUTES = {
     api: {
         attachment: (quizId: string, attachmentId: string) =>
             `/api/quizzes/${encodeRouteSegment(quizId)}/attachments/${encodeRouteSegment(attachmentId)}`,
+        attemptAnswers: (quizId: string, attemptId: string) =>
+            `/api/quizzes/${encodeRouteSegment(quizId)}/attempts/${encodeRouteSegment(attemptId)}/answers`,
+        attemptSubmit: (quizId: string, attemptId: string) =>
+            `/api/quizzes/${encodeRouteSegment(quizId)}/attempts/${encodeRouteSegment(attemptId)}/submit`,
+        attempts: (quizId: string) => `/api/quizzes/${encodeRouteSegment(quizId)}/attempts`,
+        latestAttempt: (quizId: string) => `/api/quizzes/${encodeRouteSegment(quizId)}/attempts/latest`,
+        latestResultAttempt: (quizId: string) =>
+            `/api/quizzes/${encodeRouteSegment(quizId)}/attempts/latest?view=results`,
         collection: "/api/quizzes",
         detail: (quizId: string) => `/api/quizzes/${encodeRouteSegment(quizId)}`,
         duplicate: (quizId: string) => `/api/quizzes/${encodeRouteSegment(quizId)}/duplicate`,
@@ -16,5 +24,6 @@ export const EVALUATION_ROUTES = {
         edit: (quizId: string) => `/evaluations/${encodeRouteSegment(quizId)}/edit`,
         new: "/evaluations/new",
         quiz: (quizId: string) => `/evaluations/${encodeRouteSegment(quizId)}/quiz`,
+        results: (quizId: string) => `/evaluations/${encodeRouteSegment(quizId)}/quiz?result=1`,
     },
 } as const;

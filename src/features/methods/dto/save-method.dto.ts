@@ -67,7 +67,6 @@ const stepDto = z.object({
 
 export const saveMethodDto = z
     .object({
-        businessObjective: z.string().trim().max(500, "L'objectif métier est trop long.").optional().default(""),
         category: z.string().trim().max(120, "La catégorie est trop longue.").optional().default(""),
         challenges: textArrayDto,
         description: z.string().trim().max(4000, "La description est trop longue.").optional().default(""),
@@ -79,6 +78,7 @@ export const saveMethodDto = z
             .max(180, "Le nom de la méthode est trop long."),
         organizationId: z.string().uuid("L'organisation sélectionnée est invalide.").nullable().optional().default(null),
         objectives: textArrayDto,
+        quizId: z.string().uuid("Le quiz associé est invalide.").nullable().optional().default(null),
         readingTimeMinutes: z
             .number()
             .int("Le temps de lecture doit être un nombre entier.")

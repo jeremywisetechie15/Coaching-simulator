@@ -84,7 +84,7 @@ const DOCUMENT_UPLOAD_MIME_TYPES = Object.entries(CONTENT_UPLOAD_MIME_TYPES)
 export const DOCUMENT_UPLOAD_ACCEPT = DOCUMENT_UPLOAD_MIME_TYPES.join(",");
 
 const QUIZ_ATTACHMENT_UPLOAD_MIME_TYPES = Object.entries(CONTENT_UPLOAD_MIME_TYPES)
-    .filter(([, config]) => ["document", "image", "video"].includes(config.resourceType))
+    .filter(([, config]) => ["document", "image", "video", "audio"].includes(config.resourceType))
     .map(([mimeType]) => mimeType);
 
 export const QUIZ_ATTACHMENT_UPLOAD_ACCEPT = QUIZ_ATTACHMENT_UPLOAD_MIME_TYPES.join(",");
@@ -124,8 +124,11 @@ export function validateContentUploadFile(
         return "Les ressources complémentaires acceptent uniquement des documents.";
     }
 
-    if (purpose === CONTENT_UPLOAD_PURPOSES.quizAttachment && !["document", "image", "video"].includes(mimeConfig.resourceType)) {
-        return "Les pièces jointes de quiz acceptent uniquement des documents, images ou vidéos.";
+    if (
+        purpose === CONTENT_UPLOAD_PURPOSES.quizAttachment &&
+        !["document", "image", "video", "audio"].includes(mimeConfig.resourceType)
+    ) {
+        return "Les pièces jointes de quiz acceptent uniquement des documents, images, vidéos ou audios.";
     }
 
     if (file.size <= 0) {

@@ -76,7 +76,7 @@ export const QUIZ_DIMENSION_LABELS: Record<QuizDimension, string> = {
     savoir_faire: "Savoir-faire",
 };
 
-export const QUIZ_ATTACHMENT_TYPES = ["link", "image", "video", "document"] as const;
+export const QUIZ_ATTACHMENT_TYPES = ["link", "image", "video", "audio", "document"] as const;
 
 export type QuizAttachmentType = (typeof QUIZ_ATTACHMENT_TYPES)[number];
 
@@ -114,6 +114,7 @@ export interface QuizUserOption {
 
 export interface QuizOption {
     id: string;
+    kind: QuizKind;
     methodId: string | null;
     questionCount: number;
     title: string;
@@ -272,4 +273,74 @@ export function scoreQuizAnswers(
         totalEarnedPoints,
         totalMaxPoints,
     };
+}
+
+export function getQuizResumeQuestionIndex(
+    quiz: Pick<QuizDetail, "steps">,
+    selectedChoiceIdsByQuestionId: Record<string, string[]>,
+) {
+    const questions = quiz.steps.flatMap((step) => step.questions);
+
+    if (questions.length === 0) {
+        return 0;
+    }
+
+    const firstUnansweredQuestionIndex = questions.findIndex(
+        (question) => (selectedChoiceIdsByQuestionId[question.id] ?? []).length === 0,
+    );
+
+    return firstUnansweredQuestionIndex >= 0 ? firstUnansweredQuestionIndex : questions.length - 1;
+}
+
+// MVP: diagnostic deterministe base sur le score, gardant le libelle UI "Diagnostic IA".
+// Cette regle pourra etre remplacee plus tard par une generation IA sans changer le composant.
+export function getQuizDimensionDiagnostic(scorePercent: number, threshold: number) {
+    if (scorePercent >= threshold) {
+        return "Cette compétence est maîtrisée. Continuez à l'entretenir lors de vos prochains entraînements.";
+    }
+
+    if (scorePercent >= 50) {
+        return "Les bases sont là, mais des points restent à consolider. Quelques révisions ciblées suffiront.";
+    }
+
+    return "Des lacunes importantes ont été identifiées. Une révision approfondie de cette compétence est nécessaire.";
+}
+
+export type QuizAttemptStatus = "in_progress" | "completed";
+
+export interface QuizAttemptAnswer {
+    choiceIds: string[];
+    questionId: string;
+}
+
+export interface QuizAttemptStepScore {
+    earnedPoints: number;
+    maxPoints: number;
+    scorePercent: number;
+    stepId: string;
+    weight: number;
+}
+
+export interface QuizAttemptDetail {
+    answers: QuizAttemptAnswer[];
+    attemptNumber: number;
+    completedAt: string | null;
+    earnedPoints: number;
+    id: string;
+    maxPoints: number;
+    passed: boolean | null;
+    quizId: string;
+    scorePercent: number | null;
+    startedAt: string;
+    status: QuizAttemptStatus;
+    stepScores: QuizAttemptStepScore[];
+    userId: string;
+}
+
+export interface QuizAttemptSession {
+    attempt: QuizAttemptDetail | null;
+    attemptsRemaining: number;
+    attemptsUsed: number;
+    canStartNewAttempt: boolean;
+    maxAttempts: number;
 }

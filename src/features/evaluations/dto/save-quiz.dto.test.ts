@@ -95,7 +95,7 @@ describe("saveQuizDto", () => {
         expect(result.status).toBe(CONTENT_STATUS.published);
     });
 
-    it("accepts uploaded document, image or video attachments", () => {
+    it("accepts uploaded document, image, video or audio attachments", () => {
         const result = saveQuizDto.parse(
             publishedQuiz({
                 steps: [
@@ -111,6 +111,12 @@ describe("saveQuizDto", () => {
                                         storagePath: "quizzes/quiz-1/questions/question-1/attachments/video.mp4",
                                         type: "video",
                                     },
+                                    {
+                                        label: "Audio objection",
+                                        storageBucket: "quizzes",
+                                        storagePath: "quizzes/quiz-1/questions/question-1/attachments/audio.mp3",
+                                        type: "audio",
+                                    },
                                 ],
                             },
                         ],
@@ -125,6 +131,13 @@ describe("saveQuizDto", () => {
             storageBucket: "quizzes",
             storagePath: "quizzes/quiz-1/questions/question-1/attachments/video.mp4",
             type: "video",
+        });
+        expect(result.steps[0].questions[0].attachments[1]).toMatchObject({
+            externalUrl: "",
+            label: "Audio objection",
+            storageBucket: "quizzes",
+            storagePath: "quizzes/quiz-1/questions/question-1/attachments/audio.mp3",
+            type: "audio",
         });
     });
 
@@ -153,7 +166,7 @@ describe("saveQuizDto", () => {
 
         expect(result.success).toBe(false);
         expect(result.error?.issues.map((issue) => issue.message)).toContain(
-            "Un fichier uploadé doit être de type document, image ou vidéo.",
+            "Un fichier uploadé doit être de type document, image, vidéo ou audio.",
         );
     });
 

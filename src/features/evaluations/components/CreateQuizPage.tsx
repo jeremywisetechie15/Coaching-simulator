@@ -1,4 +1,8 @@
-import { AppShell } from "@/features/app-shell/components";
+import { AccessDeniedState, AppShell } from "@/features/app-shell/components";
+import {
+    APP_NAVIGATION_RESOURCE,
+    canManageAppResource,
+} from "@/features/auth/domain/access-control";
 import type {
     QuizDetail,
     QuizGroupOption,
@@ -30,23 +34,30 @@ export function CreateQuizPage({
     skillOptions,
     userOptions,
 }: CreateQuizPageProps) {
+    const canManageEvaluations = canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.evaluations);
+
     return (
         <AppShell
             activePrimaryItem="Évaluations"
             avatarUrl={profileValues.avatarUrl}
+            platformRole={profileValues.platformRole}
             initials={getProfileInitials(profileValues)}
             fullName={`${profileValues.firstName} ${profileValues.lastName}`.trim()}
             email={profileValues.email}
             searchPlaceholder="Rechercher..."
         >
-            <CreateQuizPageContent
-                groupOptions={groupOptions}
-                initialQuiz={quiz}
-                methodOptions={methodOptions}
-                organizationOptions={organizationOptions}
-                skillOptions={skillOptions}
-                userOptions={userOptions}
-            />
+            {canManageEvaluations ? (
+                <CreateQuizPageContent
+                    groupOptions={groupOptions}
+                    initialQuiz={quiz}
+                    methodOptions={methodOptions}
+                    organizationOptions={organizationOptions}
+                    skillOptions={skillOptions}
+                    userOptions={userOptions}
+                />
+            ) : (
+                <AccessDeniedState />
+            )}
         </AppShell>
     );
 }

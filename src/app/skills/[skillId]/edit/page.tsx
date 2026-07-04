@@ -1,6 +1,16 @@
 import { notFound, redirect } from "next/navigation";
+import { AccessDeniedPage } from "@/features/app-shell/components";
+import {
+    APP_NAVIGATION_RESOURCE,
+    canManageAppResource,
+} from "@/features/auth/domain/access-control";
 import { CreateSkillPage } from "@/features/skills/components";
-import { getSkillById } from "@/features/skills/server";
+import {
+    getSkillById,
+    listSkillGroupOptions,
+    listSkillOrganizationOptions,
+    listSkillUserOptions,
+} from "@/features/skills/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
@@ -39,6 +49,18 @@ export default async function Page({ params }: PageProps) {
         redirect(`/auth?redirect=/skills/${skillId}/edit`);
     }
 
+    const profileValues = toProfileFormValues(profile);
+
+    if (!canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.skills)) {
+        return (
+            <AccessDeniedPage
+                activePrimaryItem="Compétences"
+                profileValues={profileValues}
+                searchPlaceholder="Rechercher..."
+            />
+        );
+    }
+
     let skill;
 
     try {
@@ -51,5 +73,19 @@ export default async function Page({ params }: PageProps) {
         throw error;
     }
 
-    return <CreateSkillPage initialSkill={skill} profileValues={toProfileFormValues(profile)} />;
+    const [organizationOptions, groupOptions, userOptions] = await Promise.all([
+        listSkillOrganizationOptions(),
+        listSkillGroupOptions(),
+        listSkillUserOptions(),
+    ]);
+
+    return (
+        <CreateSkillPage
+            groupOptions={groupOptions}
+            initialSkill={skill}
+            organizationOptions={organizationOptions}
+            profileValues={profileValues}
+            userOptions={userOptions}
+        />
+    );
 }

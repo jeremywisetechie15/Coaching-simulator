@@ -1,4 +1,9 @@
 import { redirect } from "next/navigation";
+import { AccessDeniedPage } from "@/features/app-shell/components";
+import {
+    APP_NAVIGATION_RESOURCE,
+    canManageAppResource,
+} from "@/features/auth/domain/access-control";
 import { CreateCoachPage } from "@/features/coaches/components";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
@@ -21,5 +26,17 @@ export default async function Page() {
         redirect("/auth?redirect=/coaches/new");
     }
 
-    return <CreateCoachPage profileValues={toProfileFormValues(profile)} />;
+    const profileValues = toProfileFormValues(profile);
+
+    if (!canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.coaches)) {
+        return (
+            <AccessDeniedPage
+                activePrimaryItem="Mes Coachs IA"
+                profileValues={profileValues}
+                searchPlaceholder="Rechercher..."
+            />
+        );
+    }
+
+    return <CreateCoachPage profileValues={profileValues} />;
 }

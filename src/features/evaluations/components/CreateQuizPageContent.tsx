@@ -129,7 +129,7 @@ export function CreateQuizPageContent({
     const competenceOptions: SearchableOption[] = useMemo(
         () =>
             skillOptions.map((skill) => ({
-                group: skill.objective,
+                group: skill.domain || "Compétences",
                 label: skill.name,
                 value: skill.id,
             })),

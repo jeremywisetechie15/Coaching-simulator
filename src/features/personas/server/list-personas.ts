@@ -2,7 +2,7 @@ import { requireAuth } from "@/features/auth/server";
 import { CONTENT_STATUS } from "@/features/content/domain";
 import type { PersonaListItem } from "@/features/personas/domain/persona-list";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { mapPersonaRowToListItem, type PersonaRow } from "./persona.mapper";
+import { mapPersonaRowToListItem, PERSONA_SELECT, type PersonaRow } from "./persona.mapper";
 
 export async function listPersonas(): Promise<PersonaListItem[]> {
     const context = await requireAuth();
@@ -11,7 +11,7 @@ export async function listPersonas(): Promise<PersonaListItem[]> {
 
     let query = adminSupabase
         .from("personas")
-        .select("id, name, role, company, voice_id, system_instructions, avatar_url, created_at, status")
+        .select(PERSONA_SELECT)
         .order("created_at", { ascending: false });
 
     if (context.platformRole !== "admin") {

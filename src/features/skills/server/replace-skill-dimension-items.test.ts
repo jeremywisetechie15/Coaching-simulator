@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it } from "vitest";
-import { CONTENT_STATUS } from "@/features/content/domain";
+import { CONTENT_STATUS, CONTENT_VISIBILITY_SCOPE } from "@/features/content/domain";
 import type { SaveSkillDto } from "@/features/skills/dto";
 import { replaceSkillDimensionItems } from "./replace-skill-dimension-items";
 
@@ -18,11 +18,14 @@ const editedSkillInput: SaveSkillDto = {
             { label: "Traitement des objections" },
         ],
     },
+    assignedUserId: null,
     domain: "Commercial",
     functions: ["Sales"],
+    groupId: null,
     id: "",
     name: "Gestion des objections",
-    objective: "Prise de rendez-vous prospect qualifié",
+    organizationId: null,
+    scope: CONTENT_VISIBILITY_SCOPE.public,
     status: CONTENT_STATUS.published,
 };
 

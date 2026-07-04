@@ -2,14 +2,22 @@ import { describe, expect, it } from "vitest";
 import { CONTENT_STATUS, CONTENT_VISIBILITY_SCOPE } from "@/features/content/domain";
 import { EVALUATION_ROUTES } from "@/features/evaluations/domain";
 import { ROLEPLAY_ROUTES, type RoleplayDetail } from "@/features/roleplays/domain";
-import { mapDbRoleplayToUi } from "./roleplay-ui-adapter";
+import { mapDbRoleplayListToUi, mapDbRoleplayToUi, mergeRoleplayListWithMocks } from "./roleplay-ui-adapter";
 
 function createRoleplayDetail({
+    description = "Objectif",
+    id = "scenario-1",
+    name = "Rachid HAMRANI",
     quizzes = [],
     resources = [],
+    title = name,
 }: {
+    description?: string;
+    id?: string;
+    name?: string;
     quizzes?: RoleplayDetail["quizzes"];
     resources?: RoleplayDetail["resources"];
+    title?: string;
 } = {}): RoleplayDetail {
     return {
         assignedUserId: null,
@@ -21,18 +29,18 @@ function createRoleplayDetail({
         company: "CLEANTECH",
         context: "Contexte",
         createdAt: null,
-        description: "Objectif",
+        description,
         difficulty: "Moyen",
         disc: "Stable",
         domain: "Commercial",
         groupId: null,
         groupName: null,
-        id: "scenario-1",
+        id,
         isActive: true,
         methodId: "method-1",
         methodName: "DAGO",
         methodStepCount: 4,
-        name: "Rachid HAMRANI",
+        name,
         objective: "Obtenir un rendez-vous",
         obstacles: "Pas le temps",
         organizationId: null,
@@ -44,7 +52,7 @@ function createRoleplayDetail({
         quizzes,
         resources,
         role: "Dirigeant",
-        scenarioId: "scenario-1",
+        scenarioId: id,
         scope: CONTENT_VISIBILITY_SCOPE.public,
         scorecardId: null,
         scorecardName: null,
@@ -56,7 +64,7 @@ function createRoleplayDetail({
             simulations: 0,
         },
         status: CONTENT_STATUS.published,
-        title: "Rachid HAMRANI",
+        title,
         updatedAt: null,
     };
 }
@@ -149,6 +157,7 @@ describe("roleplay UI adapter", () => {
             {
                 durationMinutes: 20,
                 id: "quiz-1",
+                participation: "mandatory",
                 questionCount: 12,
                 recommended: true,
                 status: "not_started",
@@ -159,6 +168,7 @@ describe("roleplay UI adapter", () => {
             {
                 durationMinutes: 15,
                 id: "quiz-2",
+                participation: "optional",
                 questionCount: 8,
                 recommended: false,
                 status: "not_started",
@@ -167,5 +177,52 @@ describe("roleplay UI adapter", () => {
                 url: EVALUATION_ROUTES.app.quiz("quiz-2"),
             },
         ]);
+    });
+
+    it("includes DB roleplays that do not match an existing mock", () => {
+        const roleplay = createRoleplayDetail({
+            description: "Objectif personnalisé",
+            id: "5beb42b6-3f59-411c-b826-7fb739d5174a",
+            name: "Nouveau persona",
+            title: "Nouveau scénario",
+        });
+
+        const mergedRoleplays = mergeRoleplayListWithMocks([roleplay]);
+
+        expect(mergedRoleplays[0]).toMatchObject({
+            description: "Objectif personnalisé",
+            id: "5beb42b6-3f59-411c-b826-7fb739d5174a",
+            name: "Nouveau persona",
+            scenarioId: "5beb42b6-3f59-411c-b826-7fb739d5174a",
+        });
+    });
+
+    it("maps the list from DB without appending historical mocks", () => {
+        const roleplay = createRoleplayDetail({
+            description: "Objectif personnalisé",
+            id: "5beb42b6-3f59-411c-b826-7fb739d5174a",
+            name: "Nouveau persona",
+            title: "Nouveau scénario",
+        });
+
+        const mappedRoleplays = mapDbRoleplayListToUi([roleplay]);
+
+        expect(mappedRoleplays).toHaveLength(1);
+        expect(mappedRoleplays[0]).toMatchObject({
+            id: "5beb42b6-3f59-411c-b826-7fb739d5174a",
+            name: "Nouveau persona",
+        });
+    });
+
+    it("keeps empty DB stats instead of falling back to historical mock stats", () => {
+        const roleplay = mapDbRoleplayToUi(createRoleplayDetail());
+
+        expect(roleplay.detail).toMatchObject({
+            lastDate: "Aucune session",
+            lastDuration: "0s",
+            meilleurScore: 0,
+            scoreActuel: 0,
+            simulations: 0,
+        });
     });
 });

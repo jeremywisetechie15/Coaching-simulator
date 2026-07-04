@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Box } from "@/lib/ui/atoms";
 import { AlertMessage } from "@/lib/ui/molecules";
-import type { ProfileFormValues } from "@/features/profile/domain/profile";
+import type { ProfileEditableField, ProfileFormValues } from "@/features/profile/domain/profile";
 import { ProfileDetailsCard } from "./ProfileDetailsCard";
 import { ProfilePageHeader } from "./ProfilePageHeader";
 
@@ -28,7 +28,7 @@ export function ProfilePageContent({ initialProfileValues }: ProfilePageContentP
         };
     }, [avatarPreviewUrl]);
 
-    const updateDraftValue = (field: keyof ProfileFormValues, value: string) => {
+    const updateDraftValue = (field: ProfileEditableField, value: string) => {
         setDraftValues((currentValues) => ({
             ...currentValues,
             [field]: value,

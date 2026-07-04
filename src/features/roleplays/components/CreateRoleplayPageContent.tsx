@@ -4,19 +4,17 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
     ArrowLeft,
-    Building2,
     Check,
     ChevronDown,
     Plus,
-    User,
-    Users,
     X,
-    type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { CONTENT_STATUS, CONTENT_VISIBILITY_SCOPE } from "@/features/content/domain";
+import { ContentTargetScopeField, type ContentTargetScopeValue } from "@/features/content/components";
 import { CreateCoachPageContent } from "@/features/coaches/components/CreateCoachPageContent";
 import type { CoachListItem } from "@/features/coaches/domain/coach-list";
+import { QUIZ_PARTICIPATION_LABELS, QUIZ_PARTICIPATIONS, type QuizParticipation } from "@/features/evaluations/domain";
 import { CreateMethodPageContent } from "@/features/methods/components/CreateMethodPageContent";
 import type { MethodDetail as CreatedMethodDetail } from "@/features/methods/domain/method";
 import { CreatePersonaPageContent } from "@/features/personas/components/CreatePersonaPageContent";
@@ -33,9 +31,9 @@ import {
     type RoleplayQuizOption,
     type RoleplayResource,
     type RoleplayScorecardOption,
-    type RoleplaySkillOption,
     type RoleplayUserOption,
     ROLEPLAY_ROUTES,
+    getAssignableRoleplayQuizOptions,
 } from "@/features/roleplays/domain";
 import {
     roleplayCategoryOptions,
@@ -54,7 +52,6 @@ import { AlertMessage, FileUploadField, SingleSelectField } from "@/lib/ui/molec
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
-type RoleplayAssignmentType = "organization" | "group" | "user";
 type EntityEditor = "coach" | "method" | "persona";
 type RoleplayResourceDeliveryType = ContentResourceDeliveryType;
 
@@ -98,17 +95,8 @@ interface CreateRoleplayPageContentProps {
     quizOptions: RoleplayQuizOption[];
     roleplayId?: string;
     scorecardOptions: RoleplayScorecardOption[];
-    skillOptions: RoleplaySkillOption[];
     userOptions: RoleplayUserOption[];
 }
-
-const ALL_ORGS_SENTINEL = "__all_orgs__";
-
-const ROLEPLAY_ASSIGNMENT_TYPES: { value: RoleplayAssignmentType; label: string; icon: LucideIcon }[] = [
-    { value: "organization", label: "Organisation", icon: Building2 },
-    { value: "group", label: "Groupe", icon: Users },
-    { value: "user", label: "Utilisateur", icon: User },
-];
 
 const staticOptions = (options: string[]): SelectOption[] => options.map((option) => ({ label: option, value: option }));
 
@@ -198,70 +186,6 @@ function useOutsideClose(onClose: () => void) {
     return ref;
 }
 
-function AssignmentTypeSelect({
-    value,
-    onChange,
-}: {
-    value: RoleplayAssignmentType | null;
-    onChange: (value: RoleplayAssignmentType) => void;
-}) {
-    const [open, setOpen] = useState(false);
-    const ref = useOutsideClose(() => setOpen(false));
-    const selected = ROLEPLAY_ASSIGNMENT_TYPES.find((option) => option.value === value);
-
-    return (
-        <div ref={ref} className="relative">
-            <Button
-                onClick={() => setOpen((current) => !current)}
-                aria-expanded={open}
-                className={`flex h-12 w-full items-center justify-between rounded-lg border border-[#E5E7EB] bg-[#F3F4F6] px-3.5 text-[14px] transition hover:border-[#D5D7DE] ${
-                    selected ? "font-medium text-[#111827]" : "text-[#9CA3AF]"
-                }`}
-            >
-                <Box className="flex items-center gap-2">
-                    {selected && <InlineIcon icon={selected.icon} className="h-4 w-4 text-[#6B7280]" />}
-                    <Text as="span">{selected ? selected.label : "Sélectionner un type"}</Text>
-                </Box>
-                <InlineIcon
-                    icon={ChevronDown}
-                    className={`h-4 w-4 text-[#9CA3AF] transition-transform ${open ? "rotate-180" : ""}`}
-                />
-            </Button>
-
-            {open && (
-                <CardSurface className="absolute left-0 right-0 top-[56px] z-30 overflow-hidden rounded-xl border border-[#E5E7EB] p-1.5 shadow-[0_18px_40px_rgba(17,24,39,0.16)]">
-                    {ROLEPLAY_ASSIGNMENT_TYPES.map((option) => {
-                        const isSelected = option.value === value;
-                        return (
-                            <Button
-                                key={option.value}
-                                onClick={() => {
-                                    onChange(option.value);
-                                    setOpen(false);
-                                }}
-                                className={`flex h-11 w-full items-center justify-between gap-2 rounded-lg px-3 text-left text-[14px] font-medium transition hover:bg-[#F6F7FB] ${
-                                    isSelected ? "text-[#5140F0]" : "text-[#111827]"
-                                }`}
-                            >
-                                <Box className="flex items-center gap-2">
-                                    <InlineIcon
-                                        icon={option.icon}
-                                        className={`h-4 w-4 ${isSelected ? "text-[#5140F0]" : "text-[#6B7280]"}`}
-                                    />
-                                    <Text as="span">{option.label}</Text>
-                                </Box>
-                                {isSelected && (
-                                    <InlineIcon icon={Check} className="h-4 w-4 shrink-0 text-[#5140F0]" />
-                                )}
-                            </Button>
-                        );
-                    })}
-                </CardSurface>
-            )}
-        </div>
-    );
-}
-
 function SingleSelect({
     options,
     value,
@@ -321,80 +245,136 @@ function SingleSelect({
     );
 }
 
-function MultiSelect({
+function QuizParticipationField({
+    disabled = false,
+    emptyMessage = "Aucun quiz disponible",
     options,
-    selected,
-    placeholder,
+    placeholder = "Ajouter un quiz d'évaluation...",
+    selectedIds,
+    participation,
     onToggle,
+    onParticipationChange,
 }: {
-    options: string[];
-    selected: string[];
-    placeholder: string;
-    onToggle: (value: string) => void;
+    disabled?: boolean;
+    emptyMessage?: string;
+    options: RoleplayQuizOption[];
+    placeholder?: string;
+    selectedIds: string[];
+    participation: QuizParticipation;
+    onToggle: (id: string) => void;
+    onParticipationChange: (value: QuizParticipation) => void;
 }) {
     const [open, setOpen] = useState(false);
     const ref = useOutsideClose(() => setOpen(false));
+    const selectedQuizzes = selectedIds
+        .map((id) => options.find((option) => option.id === id))
+        .filter((option): option is RoleplayQuizOption => Boolean(option));
 
     return (
-        <div ref={ref} className="relative">
-            {selected.length > 0 && (
-                <Box className="mb-2.5 flex flex-wrap gap-2">
-                    {selected.map((value) => (
-                        <Box
-                            key={value}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#EEF0FF] pl-3 pr-2 text-[13px] font-semibold text-[#5140F0]"
-                        >
-                            {value}
-                            <Button
-                                aria-label={`Retirer ${value}`}
-                                onClick={() => onToggle(value)}
-                                className="flex h-5 w-5 items-center justify-center rounded-md text-[#5140F0] transition hover:bg-[#DDE0FF]"
+        <Box>
+            <Text as="span" className={fieldLabelClasses}>
+                Évaluation <Text as="span" className="font-medium text-[#9CA3AF]">(optionnel)</Text>
+            </Text>
+            <div ref={ref} className="relative">
+                {selectedQuizzes.length > 0 && (
+                    <Box className="mb-2.5 flex flex-wrap gap-2">
+                        {selectedQuizzes.map((quiz) => (
+                            <Box
+                                key={quiz.id}
+                                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#EEF0FF] pl-3 pr-2 text-[13px] font-semibold text-[#5140F0]"
                             >
-                                <InlineIcon icon={X} className="h-3.5 w-3.5" />
-                            </Button>
-                        </Box>
-                    ))}
-                </Box>
-            )}
+                                {quiz.title}
+                                <Button
+                                    aria-label={`Retirer ${quiz.title}`}
+                                    onClick={() => onToggle(quiz.id)}
+                                    className="flex h-5 w-5 items-center justify-center rounded-md text-[#5140F0] transition hover:bg-[#DDE0FF]"
+                                >
+                                    <InlineIcon icon={X} className="h-3.5 w-3.5" />
+                                </Button>
+                            </Box>
+                        ))}
+                    </Box>
+                )}
 
-            <Button
-                onClick={() => setOpen((current) => !current)}
-                aria-expanded={open}
-                className="flex h-12 w-full items-center justify-between rounded-lg border border-[#E5E7EB] bg-[#F3F4F6] px-3.5 text-[14px] text-[#9CA3AF] transition hover:border-[#D5D7DE]"
-            >
-                <Text as="span">{placeholder}</Text>
-                <InlineIcon
-                    icon={ChevronDown}
-                    className={`h-4 w-4 text-[#9CA3AF] transition-transform ${open ? "rotate-180" : ""}`}
-                />
-            </Button>
+                <Button
+                    disabled={disabled}
+                    onClick={() => !disabled && setOpen((current) => !current)}
+                    aria-expanded={open}
+                    className="flex h-12 w-full items-center justify-between rounded-lg border border-[#E5E7EB] bg-[#F3F4F6] px-3.5 text-[14px] text-[#9CA3AF] transition hover:border-[#D5D7DE] disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                    <Text as="span">{placeholder}</Text>
+                    <InlineIcon
+                        icon={ChevronDown}
+                        className={`h-4 w-4 text-[#9CA3AF] transition-transform ${open ? "rotate-180" : ""}`}
+                    />
+                </Button>
 
-            {open && (
-                <CardSurface className="absolute left-0 right-0 top-[56px] z-30 max-h-[280px] overflow-y-auto rounded-xl border border-[#E5E7EB] p-1.5 shadow-[0_18px_40px_rgba(17,24,39,0.16)]">
-                    {options.map((option) => {
-                        const isChecked = selected.includes(option);
+                {open && (
+                    <CardSurface className="absolute left-0 right-0 top-[56px] z-30 max-h-[280px] overflow-y-auto rounded-xl border border-[#E5E7EB] p-1.5 shadow-[0_18px_40px_rgba(17,24,39,0.16)]">
+                        {options.length === 0 ? (
+                            <Text className="px-3 py-6 text-center text-[13px] text-[#9CA3AF]">
+                                {emptyMessage}
+                            </Text>
+                        ) : (
+                            options.map((quiz) => {
+                                const isChecked = selectedIds.includes(quiz.id);
+                                return (
+                                    <Button
+                                        key={quiz.id}
+                                        onClick={() => onToggle(quiz.id)}
+                                        className="flex h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-[14px] font-medium text-[#111827] transition hover:bg-[#F6F7FB]"
+                                    >
+                                        <Box
+                                            className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border transition ${
+                                                isChecked
+                                                    ? "border-[#5140F0] bg-[#5140F0] text-white"
+                                                    : "border-[#CDD0DA] bg-white"
+                                            }`}
+                                        >
+                                            {isChecked && <InlineIcon icon={Check} className="h-3.5 w-3.5" />}
+                                        </Box>
+                                        <Text as="span" className="flex-1">
+                                            {quiz.title}
+                                        </Text>
+                                        <Text as="span" className="text-[12px] font-semibold text-[#9CA3AF]">
+                                            {quiz.questionCount} Q
+                                        </Text>
+                                    </Button>
+                                );
+                            })
+                        )}
+                    </CardSurface>
+                )}
+            </div>
+
+            {selectedQuizzes.length > 0 && (
+                <Box className="mt-3 flex flex-wrap items-center gap-x-6 gap-y-2">
+                    <Text as="span" className="text-[14px] font-bold text-[#111827]">
+                        Participation
+                    </Text>
+                    {QUIZ_PARTICIPATIONS.map((option) => {
+                        const isSelected = participation === option;
                         return (
                             <Button
                                 key={option}
-                                onClick={() => onToggle(option)}
-                                className="flex h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-[14px] font-medium text-[#111827] transition hover:bg-[#F6F7FB]"
+                                onClick={() => onParticipationChange(option)}
+                                aria-pressed={isSelected}
+                                className="flex items-center gap-2 text-[14px] font-semibold text-[#374151]"
                             >
                                 <Box
-                                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border transition ${
-                                        isChecked
-                                            ? "border-[#5140F0] bg-[#5140F0] text-white"
-                                            : "border-[#CDD0DA] bg-white"
+                                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition ${
+                                        isSelected ? "border-[#5140F0]" : "border-[#9CA3AF]"
                                     }`}
                                 >
-                                    {isChecked && <InlineIcon icon={Check} className="h-3.5 w-3.5" />}
+                                    {isSelected && <Box className="h-2.5 w-2.5 rounded-full bg-[#5140F0]" />}
                                 </Box>
-                                {option}
+                                {QUIZ_PARTICIPATION_LABELS[option]}
                             </Button>
                         );
                     })}
-                </CardSurface>
+                </Box>
             )}
-        </div>
+        </Box>
     );
 }
 
@@ -502,13 +482,6 @@ async function saveRoleplay(roleplayId: string | undefined, values: SaveRoleplay
     return payload.roleplay;
 }
 
-function mapScopeToAssignmentType(scope: string): RoleplayAssignmentType | null {
-    if (scope === CONTENT_VISIBILITY_SCOPE.organization) return "organization";
-    if (scope === CONTENT_VISIBILITY_SCOPE.group) return "group";
-    if (scope === CONTENT_VISIBILITY_SCOPE.user) return "user";
-    return null;
-}
-
 function buildGeneratedTitle({
     category,
     initialTitle,
@@ -525,6 +498,49 @@ function buildGeneratedTitle({
     return [personaName, category].filter(Boolean).join(" - ") || "Nouveau scénario";
 }
 
+function getInitialTargetScope(
+    initialRoleplay: RoleplayDetail | undefined,
+    groupOptions: RoleplayGroupOption[],
+    userOptions: RoleplayUserOption[],
+): ContentTargetScopeValue {
+    const scope = initialRoleplay?.scope ?? CONTENT_VISIBILITY_SCOPE.public;
+
+    if (scope === CONTENT_VISIBILITY_SCOPE.public) {
+        return {
+            assignedUserId: "",
+            groupId: "",
+            organizationId: null,
+            scope,
+        };
+    }
+
+    const assignedUserId = initialRoleplay?.assignedUserId ?? "";
+    let groupId = initialRoleplay?.groupId ?? "";
+    let organizationId = initialRoleplay?.organizationId ?? null;
+
+    if (scope === CONTENT_VISIBILITY_SCOPE.user && assignedUserId) {
+        const user = userOptions.find((option) => option.id === assignedUserId);
+        groupId ||= user?.groupIds[0] ?? "";
+
+        if (!organizationId && groupId) {
+            organizationId = groupOptions.find((group) => group.id === groupId)?.organizationId ?? null;
+        }
+
+        organizationId ||= user?.organizationIds[0] ?? null;
+    }
+
+    if (scope === CONTENT_VISIBILITY_SCOPE.group && groupId && !organizationId) {
+        organizationId = groupOptions.find((group) => group.id === groupId)?.organizationId ?? null;
+    }
+
+    return {
+        assignedUserId: scope === CONTENT_VISIBILITY_SCOPE.user ? assignedUserId : "",
+        groupId: scope === CONTENT_VISIBILITY_SCOPE.group || scope === CONTENT_VISIBILITY_SCOPE.user ? groupId : "",
+        organizationId,
+        scope,
+    };
+}
+
 export function CreateRoleplayPageContent({
     coachOptions,
     groupOptions,
@@ -534,7 +550,7 @@ export function CreateRoleplayPageContent({
     personaOptions,
     quizOptions,
     roleplayId,
-    skillOptions,
+    scorecardOptions,
     userOptions,
 }: CreateRoleplayPageContentProps) {
     const router = useRouter();
@@ -544,7 +560,11 @@ export function CreateRoleplayPageContent({
     const [persona, setPersona] = useState<string | null>(initialRoleplay?.personaId ?? null);
     const [coach, setCoach] = useState<string | null>(initialRoleplay?.coachId ?? null);
     const [method, setMethod] = useState<string | null>(initialRoleplay?.methodId ?? null);
-    const [targetSkills, setTargetSkills] = useState<string[]>([]);
+    const [scorecard, setScorecard] = useState<string | null>(initialRoleplay?.scorecardId ?? null);
+    const [quizIds, setQuizIds] = useState<string[]>(initialRoleplay?.quizIds ?? []);
+    const [quizParticipation, setQuizParticipation] = useState<QuizParticipation>(
+        initialRoleplay?.quizzes[0]?.participation ?? "optional",
+    );
     const [domain, setDomain] = useState<string | null>(initialRoleplay?.domain || null);
     const [category, setCategory] = useState<string | null>(initialRoleplay?.category || null);
     const [difficulty, setDifficulty] = useState<string | null>(initialRoleplay?.difficulty ?? null);
@@ -554,22 +574,9 @@ export function CreateRoleplayPageContent({
     const [resources, setResources] = useState<RoleplayResourceFormItem[]>(() =>
         (initialRoleplay?.resources ?? []).map(roleplayResourceToForm),
     );
-    const [assignment, setAssignment] = useState<"public" | "private">(
-        initialRoleplay?.scope && initialRoleplay.scope !== CONTENT_VISIBILITY_SCOPE.public ? "private" : "public",
+    const [targetScope, setTargetScope] = useState<ContentTargetScopeValue>(() =>
+        getInitialTargetScope(initialRoleplay, groupOptions, userOptions),
     );
-    const [assignmentType, setAssignmentType] = useState<RoleplayAssignmentType | null>(
-        initialRoleplay?.scope ? mapScopeToAssignmentType(initialRoleplay.scope) : null,
-    );
-    const [assignmentTargetId, setAssignmentTargetId] = useState<string | null>(
-        initialRoleplay?.scope === CONTENT_VISIBILITY_SCOPE.organization
-            ? initialRoleplay.organizationId
-            : initialRoleplay?.scope === CONTENT_VISIBILITY_SCOPE.group
-              ? initialRoleplay.groupId
-              : initialRoleplay?.scope === CONTENT_VISIBILITY_SCOPE.user
-                ? initialRoleplay.assignedUserId
-                : null,
-    );
-    const [assignmentParentOrg, setAssignmentParentOrg] = useState<string | null>(initialRoleplay?.organizationId ?? null);
     const [openEntityEditor, setOpenEntityEditor] = useState<EntityEditor | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
@@ -598,26 +605,55 @@ export function CreateRoleplayPageContent({
             })),
         [localMethodOptions],
     );
-    const skillNames = useMemo(() => skillOptions.map((skill) => skill.name), [skillOptions]);
-    const organizationSelectOptions = useMemo(
-        () => organizationOptions.map((organization) => ({ label: organization.name, value: organization.id })),
-        [organizationOptions],
-    );
-    const groupSelectOptions = useMemo(
+    const scorecardSelectOptions = useMemo(
         () =>
-            groupOptions
-                .filter((group) => !assignmentParentOrg || group.organizationId === assignmentParentOrg)
-                .map((group) => ({ label: group.name, value: group.id })),
-        [assignmentParentOrg, groupOptions],
+            scorecardOptions
+                .filter((item) => method && item.methodId === method)
+                .map((item) => ({
+                    label: item.name,
+                    value: item.id,
+                })),
+        [method, scorecardOptions],
     );
-    const userSelectOptions = useMemo(
-        () => userOptions.map((user) => ({ label: user.name, value: user.id })),
-        [userOptions],
+    const assignableQuizOptions = useMemo(
+        () => getAssignableRoleplayQuizOptions(quizOptions, method),
+        [method, quizOptions],
+    );
+    const assignableQuizIds = useMemo(
+        () => new Set(assignableQuizOptions.map((quiz) => quiz.id)),
+        [assignableQuizOptions],
     );
 
-    function toggleSkill(value: string) {
-        setTargetSkills((current) =>
-            current.includes(value) ? current.filter((item) => item !== value) : [...current, value],
+    useEffect(() => {
+        if (!scorecard) return;
+
+        const scorecardStillMatchesMethod = scorecardOptions.some(
+            (option) => option.id === scorecard && option.methodId === method,
+        );
+
+        if (!method || !scorecardStillMatchesMethod) {
+            setScorecard(null);
+        }
+    }, [method, scorecard, scorecardOptions]);
+
+    useEffect(() => {
+        setQuizIds((current) => current.filter((quizId) => assignableQuizIds.has(quizId)));
+    }, [assignableQuizIds]);
+
+    function selectMethod(methodId: string) {
+        setMethod(methodId);
+        setScorecard((current) =>
+            scorecardOptions.some((option) => option.id === current && option.methodId === methodId)
+                ? current
+                : null,
+        );
+    }
+
+    function toggleQuiz(id: string) {
+        if (!assignableQuizIds.has(id)) return;
+
+        setQuizIds((current) =>
+            current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
         );
     }
 
@@ -693,12 +729,11 @@ export function CreateRoleplayPageContent({
     }
 
     const scopeTargetReady =
-        assignment === "public" ||
-        (assignmentType === "organization" && Boolean(assignmentTargetId)) ||
-        (assignmentType === "group" &&
-            Boolean(assignmentParentOrg && assignmentTargetId && assignmentTargetId !== ALL_ORGS_SENTINEL)) ||
-        (assignmentType === "user" && Boolean(assignmentTargetId));
-    const canSubmit = Boolean(persona && coach && domain && category && difficulty && scopeTargetReady);
+        targetScope.scope === CONTENT_VISIBILITY_SCOPE.public ||
+        (targetScope.scope === CONTENT_VISIBILITY_SCOPE.organization && Boolean(targetScope.organizationId)) ||
+        (targetScope.scope === CONTENT_VISIBILITY_SCOPE.group && Boolean(targetScope.organizationId && targetScope.groupId)) ||
+        (targetScope.scope === CONTENT_VISIBILITY_SCOPE.user && Boolean(targetScope.assignedUserId));
+    const canSubmit = Boolean(persona && coach && method && scorecard && domain && category && difficulty && scopeTargetReady);
 
     function selectCreatedPersona(createdPersona: PersonaListItem) {
         setLocalPersonaOptions((current) =>
@@ -748,29 +783,20 @@ export function CreateRoleplayPageContent({
                       },
                   ],
         );
-        setMethod(createdMethod.id);
+        selectMethod(createdMethod.id);
         setOpenEntityEditor(null);
     }
 
     function toSaveInput(): SaveRoleplayInput {
-        const scope =
-            assignment === "public"
-                ? CONTENT_VISIBILITY_SCOPE.public
-                : assignmentType === "group"
-                  ? CONTENT_VISIBILITY_SCOPE.group
-                  : assignmentType === "user"
-                    ? CONTENT_VISIBILITY_SCOPE.user
-                    : CONTENT_VISIBILITY_SCOPE.organization;
+        const scope = targetScope.scope;
         const title = buildGeneratedTitle({
             category,
             initialTitle: initialRoleplay?.title,
             persona,
             personaOptions: localPersonaOptions,
         });
-        const scorecardId = roleplayId && method === initialRoleplay?.methodId ? initialRoleplay.scorecardId : null;
-
         return {
-            assignedUserId: scope === CONTENT_VISIBILITY_SCOPE.user ? assignmentTargetId : null,
+            assignedUserId: scope === CONTENT_VISIBILITY_SCOPE.user ? targetScope.assignedUserId : null,
             category: category ?? "",
             coachId: coach,
             context,
@@ -778,22 +804,22 @@ export function CreateRoleplayPageContent({
             difficulty: (difficulty || "Moyen") as RoleplayDifficulty,
             disc: initialRoleplay?.disc ?? "Stable",
             domain: domain ?? "",
-            groupId: scope === CONTENT_VISIBILITY_SCOPE.group ? assignmentTargetId : null,
+            groupId: scope === CONTENT_VISIBILITY_SCOPE.group ? targetScope.groupId : null,
             methodId: method,
             objective,
             obstacles,
             organizationId:
                 scope === CONTENT_VISIBILITY_SCOPE.organization
-                    ? assignmentTargetId
+                    ? targetScope.organizationId
                     : scope === CONTENT_VISIBILITY_SCOPE.group
-                      ? assignmentParentOrg
+                      ? targetScope.organizationId
                       : null,
             personaId: persona ?? "",
-            quizIds: initialRoleplay?.quizIds ?? [],
-            quizParticipation: "optional",
+            quizIds,
+            quizParticipation,
             resources: resources.map(roleplayResourceToInput),
             scope,
-            scorecardId,
+            scorecardId: scorecard,
             status: CONTENT_STATUS.published,
             title,
         };
@@ -893,7 +919,7 @@ export function CreateRoleplayPageContent({
                                         options={methodSelectOptions}
                                         value={method}
                                         placeholder="Sélectionner une méthode ou un playbook"
-                                        onChange={setMethod}
+                                        onChange={selectMethod}
                                     />
                                 </Box>
                                 <PlusButton
@@ -905,15 +931,36 @@ export function CreateRoleplayPageContent({
 
                         <Box>
                             <Text as="span" className={fieldLabelClasses}>
-                                Compétences ciblées (optionnel)
+                                Scorecard de la méthode sélectionnée
                             </Text>
-                            <MultiSelect
-                                options={skillNames}
-                                selected={targetSkills}
-                                placeholder="Ajouter une compétence..."
-                                onToggle={toggleSkill}
+                            <SingleSelectField
+                                disabled={!method || scorecardSelectOptions.length === 0}
+                                options={scorecardSelectOptions}
+                                value={scorecard}
+                                placeholder={
+                                    !method
+                                        ? "Sélectionnez d'abord une méthode"
+                                        : scorecardSelectOptions.length > 0
+                                          ? "Sélectionner une scorecard"
+                                          : "Aucune scorecard pour cette méthode"
+                                }
+                                onChange={setScorecard}
                             />
                         </Box>
+
+                        <QuizParticipationField
+                            disabled={!method}
+                            emptyMessage="Aucun quiz libre disponible pour cette méthode"
+                            options={assignableQuizOptions}
+                            placeholder={
+                                method ? "Ajouter un quiz d'évaluation..." : "Sélectionnez d'abord une méthode"
+                            }
+                            selectedIds={quizIds}
+                            participation={quizParticipation}
+                            onToggle={toggleQuiz}
+                            onParticipationChange={setQuizParticipation}
+                        />
+
                     </Box>
 
                     <Box className="my-7 h-px bg-[#ECEEF3]" />
@@ -1093,146 +1140,15 @@ export function CreateRoleplayPageContent({
                         <Text as="span" className="text-[16px] font-extrabold text-[#111827]">
                             Assignation
                         </Text>
-                        <Box className="mt-4 space-y-3">
-                            {[
-                                {
-                                    value: "public" as const,
-                                    title: "Public (Maia Coach)",
-                                    description: "Visible par tous les utilisateurs de la plateforme",
-                                },
-                                {
-                                    value: "private" as const,
-                                    title: "Privé",
-                                    description:
-                                        "Visible uniquement par une cible spécifique (organisation, groupe ou utilisateur)",
-                                },
-                            ].map((option) => {
-                                const isSelected = assignment === option.value;
-                                return (
-                                    <button
-                                        key={option.value}
-                                        type="button"
-                                        role="radio"
-                                        aria-checked={isSelected}
-                                        onClick={() => {
-                                            setAssignment(option.value);
-                                            if (option.value === "public") {
-                                                setAssignmentType(null);
-                                                setAssignmentTargetId(null);
-                                                setAssignmentParentOrg(null);
-                                            }
-                                        }}
-                                        className={`flex w-full items-start gap-3 rounded-xl border px-4 py-3.5 text-left transition ${
-                                            isSelected
-                                                ? "border-[#5140F0] bg-[#F4F3FE]"
-                                                : "border-[#E5E7EB] bg-white hover:border-[#D5D7DE]"
-                                        }`}
-                                    >
-                                        <Box
-                                            className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 transition ${
-                                                isSelected ? "border-[#5140F0]" : "border-[#9CA3AF]"
-                                            }`}
-                                        >
-                                            {isSelected && <Box className="h-2.5 w-2.5 rounded-full bg-[#5140F0]" />}
-                                        </Box>
-                                        <Box>
-                                            <Text className="text-[14px] font-bold text-[#111827]">
-                                                {option.title}
-                                            </Text>
-                                            <Text className="mt-0.5 text-[13px] font-medium text-[#6B7280]">
-                                                {option.description}
-                                            </Text>
-                                        </Box>
-                                    </button>
-                                );
-                            })}
+                        <Box className="mt-4">
+                            <ContentTargetScopeField
+                                groupOptions={groupOptions}
+                                organizationOptions={organizationOptions}
+                                userOptions={userOptions}
+                                value={targetScope}
+                                onChange={setTargetScope}
+                            />
                         </Box>
-
-                        {assignment === "private" && (
-                            <Box className="mt-4 rounded-xl border border-[#E5E7EB] bg-[#FAFAFB] p-4">
-                                <Box className="space-y-4">
-                                    <Box>
-                                        <Text as="span" className={fieldLabelClasses}>
-                                            Type d&apos;assignation
-                                        </Text>
-                                        <AssignmentTypeSelect
-                                            value={assignmentType}
-                                            onChange={(next) => {
-                                                setAssignmentType(next);
-                                                setAssignmentTargetId(null);
-                                                setAssignmentParentOrg(null);
-                                            }}
-                                        />
-                                    </Box>
-
-                                    {assignmentType === "organization" && (
-                                        <Box>
-                                            <Text as="span" className={fieldLabelClasses}>
-                                                Sélectionner une organisation
-                                            </Text>
-                                            <SingleSelect
-                                                options={organizationSelectOptions}
-                                                value={assignmentTargetId}
-                                                placeholder="Choisir une organisation..."
-                                                onChange={setAssignmentTargetId}
-                                            />
-                                        </Box>
-                                    )}
-
-                                    {assignmentType === "group" && (
-                                        <>
-                                            <Box>
-                                                <Text as="span" className={fieldLabelClasses}>
-                                                    Sélectionner une organisation
-                                                </Text>
-                                                <SingleSelect
-                                                    options={[
-                                                        {
-                                                            label: "Tous les groupes de toutes les organisations",
-                                                            value: ALL_ORGS_SENTINEL,
-                                                        },
-                                                        ...organizationSelectOptions,
-                                                    ]}
-                                                    value={assignmentParentOrg}
-                                                    placeholder="Choisir une organisation..."
-                                                    onChange={(next) => {
-                                                        setAssignmentParentOrg(next);
-                                                        setAssignmentTargetId(next === ALL_ORGS_SENTINEL ? ALL_ORGS_SENTINEL : null);
-                                                    }}
-                                                />
-                                            </Box>
-                                            {assignmentParentOrg && assignmentParentOrg !== ALL_ORGS_SENTINEL && (
-                                                <Box>
-                                                    <Text as="span" className={fieldLabelClasses}>
-                                                        Sélectionner un groupe
-                                                    </Text>
-                                                    <SingleSelect
-                                                        options={groupSelectOptions}
-                                                        value={assignmentTargetId}
-                                                        placeholder="Choisir un groupe..."
-                                                        onChange={setAssignmentTargetId}
-                                                    />
-                                                </Box>
-                                            )}
-                                        </>
-                                    )}
-
-                                    {assignmentType === "user" && (
-                                        <Box>
-                                            <Text as="span" className={fieldLabelClasses}>
-                                                Sélectionner un utilisateur
-                                            </Text>
-                                            <SingleSelect
-                                                options={userSelectOptions}
-                                                value={assignmentTargetId}
-                                                placeholder="Choisir un utilisateur..."
-                                                onChange={setAssignmentTargetId}
-                                            />
-                                        </Box>
-                                    )}
-                                </Box>
-                            </Box>
-                        )}
                     </Box>
                 </CardSurface>
 

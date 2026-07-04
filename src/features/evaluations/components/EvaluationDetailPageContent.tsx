@@ -1,24 +1,27 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
 import {
     ArrowLeft,
     ClipboardCheck,
     Clock,
     Edit3,
+    Eye,
     FileText,
     Gauge,
     RefreshCw,
     Star,
 } from "lucide-react";
 import {
+    EVALUATION_ROUTES,
     getQuizCompetenceCount,
     getQuizKindLabel,
     getQuizQuestionCount,
     getQuizScopeLabel,
     getQuizStatusLabel,
     getQuizTypeLabel,
+    type QuizAttemptSession,
     type QuizDetail,
 } from "@/features/evaluations/domain";
 import type { SkillOption } from "@/features/skills/domain/skills";
@@ -27,6 +30,7 @@ import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
 interface EvaluationDetailPageContentProps {
+    canManage?: boolean;
     quiz: QuizDetail;
     skillOptions: SkillOption[];
 }
@@ -38,11 +42,36 @@ const stepAccents = [
     { badge: "bg-[#DCFCE7] text-[#16A34A]", chip: "bg-[#ECFDF3] text-[#16A34A]" },
 ];
 
-export function EvaluationDetailPageContent({ quiz, skillOptions }: EvaluationDetailPageContentProps) {
+export function EvaluationDetailPageContent({ canManage = false, quiz, skillOptions }: EvaluationDetailPageContentProps) {
     const skillNameById = new Map(skillOptions.map((skill) => [skill.id, skill.name]));
     const questionCount = getQuizQuestionCount(quiz);
     const competenceCount = getQuizCompetenceCount(quiz);
     const threshold = quiz.validationThreshold ?? 70;
+
+    const quizHref = `/evaluations/${quiz.id}/quiz`;
+    const resultHref = EVALUATION_ROUTES.app.results(quiz.id);
+    const [attemptSession, setAttemptSession] = useState<QuizAttemptSession | null>(null);
+
+    useEffect(() => {
+        let active = true;
+
+        void fetch(EVALUATION_ROUTES.api.latestAttempt(quiz.id), { cache: "no-store" })
+            .then((response) => (response.ok ? response.json() : null))
+            .then((session: QuizAttemptSession | null) => {
+                if (active && session) setAttemptSession(session);
+            })
+            .catch(() => undefined);
+
+        return () => {
+            active = false;
+        };
+    }, [quiz.id]);
+
+    const hasCompletedAttempt = attemptSession?.attempt?.status === "completed";
+    const hasInProgressAttempt = attemptSession?.attempt?.status === "in_progress";
+    const attemptsUsed = attemptSession?.attemptsUsed ?? 0;
+    const maxAttempts = attemptSession?.maxAttempts ?? quiz.maxAttempts;
+    const canRetry = attemptSession?.canStartNewAttempt ?? true;
 
     const stats = [
         {
@@ -70,13 +99,15 @@ export function EvaluationDetailPageContent({ quiz, skillOptions }: EvaluationDe
                     >
                         <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
                     </Link>
-                    <Link
-                        href={`/evaluations/${quiz.id}/edit`}
-                        className={cn(uiTokens.action.secondaryButton, "h-10 gap-2 px-4")}
-                    >
-                        <InlineIcon icon={Edit3} className="h-4 w-4" />
-                        Modifier
-                    </Link>
+                    {canManage && (
+                        <Link
+                            href={`/evaluations/${quiz.id}/edit`}
+                            className={cn(uiTokens.action.secondaryButton, "h-10 gap-2 px-4")}
+                        >
+                            <InlineIcon icon={Edit3} className="h-4 w-4" />
+                            Modifier
+                        </Link>
+                    )}
                 </Box>
 
                 <CardSurface className={uiTokens.surface.formCard}>
@@ -174,15 +205,36 @@ export function EvaluationDetailPageContent({ quiz, skillOptions }: EvaluationDe
                         </Box>
                     </Box>
 
-                    <Link
-                        href={`/evaluations/${quiz.id}/quiz`}
-                        className={cn(
-                            "mt-7 flex h-12 w-fit items-center justify-center rounded-xl px-7 text-[15px] font-bold text-white transition",
-                            uiTokens.action.primaryButton,
-                        )}
-                    >
-                        Commencer le quiz
-                    </Link>
+                    {hasCompletedAttempt ? (
+                        <Box className="mt-7 flex flex-wrap gap-3">
+                            <Link href={resultHref} className={cn(uiTokens.action.secondaryButton, "h-12 gap-2 px-6")}>
+                                <InlineIcon icon={Eye} className="h-5 w-5" />
+                                Revoir mes réponses
+                            </Link>
+                            {canRetry && (
+                                <Link
+                                    href={`${quizHref}?retry=1`}
+                                    className={cn(
+                                        "flex h-12 items-center justify-center gap-2 rounded-xl px-7 text-[15px] font-bold text-white transition",
+                                        uiTokens.action.primaryButton,
+                                    )}
+                                >
+                                    <InlineIcon icon={RefreshCw} className="h-5 w-5" />
+                                    Retenter le quiz ({attemptsUsed}/{maxAttempts} tentatives)
+                                </Link>
+                            )}
+                        </Box>
+                    ) : (
+                        <Link
+                            href={quizHref}
+                            className={cn(
+                                "mt-7 flex h-12 w-fit items-center justify-center rounded-xl px-7 text-[15px] font-bold text-white transition",
+                                uiTokens.action.primaryButton,
+                            )}
+                        >
+                            {hasInProgressAttempt ? "Reprendre le quiz" : "Commencer le quiz"}
+                        </Link>
+                    )}
                 </CardSurface>
             </Box>
         </Box>

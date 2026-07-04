@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { CONTENT_STATUS } from "@/features/content/domain";
+import { CONTENT_STATUS, CONTENT_VISIBILITY_SCOPE } from "@/features/content/domain";
 import type { SaveSkillDto } from "@/features/skills/dto";
-import { createSkillDimensionItemRows, slugifySkillValue } from "./skills.persistence";
+import { createSkillDimensionItemRows, createSkillInsert, slugifySkillValue } from "./skills.persistence";
 
 const skillInput: SaveSkillDto = {
     category: "Métier",
@@ -11,16 +11,21 @@ const skillInput: SaveSkillDto = {
         savoir_etre: [{ label: "Posture professionnelle" }],
         savoir_faire: [{ label: "Application en situation" }, { label: "Traitement des objections" }],
     },
+    assignedUserId: null,
     domain: "Commercial",
     functions: ["Sales"],
+    groupId: null,
     id: "",
     name: "Gestion des objections",
-    objective: "Prise de rendez-vous prospect qualifié",
+    organizationId: null,
+    scope: CONTENT_VISIBILITY_SCOPE.public,
     status: CONTENT_STATUS.published,
 };
 
 const savoirItemId = "11111111-1111-4111-8111-111111111111";
 const savoirFaireItemId = "22222222-2222-4222-8222-222222222222";
+const organizationId = "44444444-4444-4444-8444-444444444444";
+const groupId = "55555555-5555-4555-8555-555555555555";
 
 describe("skills.persistence", () => {
     it("creates stable slug ids from skill names", () => {
@@ -61,6 +66,27 @@ describe("skills.persistence", () => {
                 skill_id: "gestion-objections",
             },
         ]);
+    });
+
+    it("persists private group targeting without objective", () => {
+        const row = createSkillInsert(
+            {
+                ...skillInput,
+                groupId,
+                organizationId,
+                scope: CONTENT_VISIBILITY_SCOPE.group,
+            },
+            "gestion-objections",
+            "66666666-6666-4666-8666-666666666666",
+        );
+
+        expect(row).toMatchObject({
+            assigned_user_id: null,
+            group_id: groupId,
+            organization_id: organizationId,
+            visibility_scope: CONTENT_VISIBILITY_SCOPE.group,
+        });
+        expect(row).not.toHaveProperty("objective");
     });
 
     it("keeps existing dimension item ids when editing a skill", () => {

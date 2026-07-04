@@ -2,12 +2,24 @@ export type StepStatus = "À renforcer" | "À consolider" | "À maintenir";
 
 export interface EvaluationCriterion {
     critere: string;
+    competence?: string;
     preuvesAttendues: string;
     points: string;
     preuvesObservees: { quote: string; speaker: string; time: string }[];
     analyse: string;
     conseils: string;
     verbatim: string;
+}
+
+export interface StepTranscriptLine {
+    speaker: "you" | "persona";
+    text: string;
+}
+
+export interface StepReformulation {
+    original: string;
+    pourquoi: string;
+    suggestion: string;
 }
 
 export interface EvaluationStep {
@@ -17,6 +29,13 @@ export interface EvaluationStep {
     score: number;
     status: StepStatus;
     total: string;
+    /** Sections affichées dans l'accordéon de l'étape (optionnelles : absentes tant que la data n'est pas branchée). */
+    commentaireCoach?: string;
+    criteresReussis?: string[];
+    criteresAAmeliorer?: string[];
+    stepTranscript?: { start: string; end: string; lines: StepTranscriptLine[] };
+    reformulations?: StepReformulation[];
+    /** Grille détaillée affichée dans la dialog « Voir l'analyse détaillée ». */
     criteria: EvaluationCriterion[];
 }
 
@@ -40,6 +59,17 @@ export interface Evaluation {
     axesAmelioration: string[];
     prioriteStrategique: string;
     planEtape: { number: number; title: string; text: string };
+    planEtapes?: { number: number; title: string; text: string }[];
+    scoreDetails?: {
+        rows: {
+            contribution: number;
+            poids: number;
+            score: number;
+            stepNumber: number;
+            title: string;
+        }[];
+        total: number;
+    };
     steps: EvaluationStep[];
     discourse: DiscourseMetric[];
     transcript: TranscriptMessage[];
@@ -80,6 +110,36 @@ export const evaluation: Evaluation = {
             score: 50,
             status: "À renforcer",
             total: "10/20",
+            commentaireCoach:
+                "L'ouverture est correcte mais le motif d'appel reste trop générique : le ciblage et le signal business ne sont pas assez explicites pour capter immédiatement l'attention.",
+            criteresReussis: ["Identité et société annoncées clairement", "Ton professionnel dès le décroché"],
+            criteresAAmeliorer: [
+                "Contextualiser le motif d'appel par un signal métier précis",
+                "Énoncer l'objectif de l'appel dès les premières secondes",
+            ],
+            stepTranscript: {
+                start: "00:00",
+                end: "01:12",
+                lines: [
+                    {
+                        speaker: "you",
+                        text: "Bonjour, Paul Laverdure de la Société Générale, je souhaiterais parler à Monsieur Amrani.",
+                    },
+                    { speaker: "persona", text: "C'est à quel sujet ?" },
+                    {
+                        speaker: "you",
+                        text: "Un point sur l'optimisation de votre poste client qui mérite quelques minutes d'échange.",
+                    },
+                ],
+            },
+            reformulations: [
+                {
+                    original: "Je vous appelle pour vous présenter nos services bancaires.",
+                    suggestion:
+                        "Je vous appelle car nous aidons des dirigeants comme vous à libérer de la trésorerie sur leur poste client — c'est un sujet d'actualité chez vous ?",
+                    pourquoi: "Remplace un motif générique par un bénéfice contextualisé et une question d'engagement.",
+                },
+            ],
             criteria: [
                 {
                     critere: "Préparation visible et ciblage précis",
@@ -171,6 +231,32 @@ export const evaluation: Evaluation = {
             score: 62,
             status: "À consolider",
             total: "12.5/20",
+            commentaireCoach:
+                "L'accroche capte l'intérêt mais reste centrée produit. La valeur perçue gagnerait à être reliée plus tôt à un enjeu concret du prospect.",
+            criteresReussis: ["Présentation claire et légitime", "Bonne énergie et écoute des réactions"],
+            criteresAAmeliorer: [
+                "Relier l'accroche à un enjeu métier spécifique",
+                "Poser une question d'ouverture avant de dérouler l'offre",
+            ],
+            stepTranscript: {
+                start: "01:12",
+                end: "01:30",
+                lines: [
+                    {
+                        speaker: "you",
+                        text: "On accompagne les entreprises de votre secteur sur la gestion du poste client et du BFR.",
+                    },
+                    { speaker: "persona", text: "On a déjà une banque, qu'est-ce que vous faites de différent ?" },
+                ],
+            },
+            reformulations: [
+                {
+                    original: "On propose une gamme complète de services bancaires.",
+                    suggestion:
+                        "Beaucoup de dirigeants de votre secteur perdent du cash sur leurs délais de paiement — comment gérez-vous ça aujourd'hui ?",
+                    pourquoi: "Passe d'un pitch catalogue à un enjeu concret + question de découverte.",
+                },
+            ],
             criteria: [
                 {
                     critere: "Phrase d'accroche centrée sur un enjeu",
@@ -211,6 +297,44 @@ export const evaluation: Evaluation = {
             score: 60,
             status: "À consolider",
             total: "12/20",
+            commentaireCoach:
+                "Les objections principales (prix, mesure de l'impact) sont identifiées, reformulées et traitées avec des arguments concrets et chiffrés. L'alternative du groupe pilote est acceptée mais pourrait être plus cadrée (date, processus précis). Bonne qualité relationnelle, aucune confrontation.",
+            criteresReussis: ["Traite en détail l'objection prix/valeur", "Climat professionnel et factuel"],
+            criteresAAmeliorer: [
+                "Renforcer la structure sur chaque objection complexe",
+                "Proposer une alternative plus cadrée (date, format précis)",
+            ],
+            stepTranscript: {
+                start: "01:30",
+                end: "03:29",
+                lines: [
+                    {
+                        speaker: "persona",
+                        text: "Maintenant, comment mesurez-vous l'impact concret sur nos équipes pour justifier cet investissement ?",
+                    },
+                    {
+                        speaker: "you",
+                        text: "Vous aurez l'occasion de tester les compétences de vos collaborateurs grâce à notre plateforme Maya Coach, avec un diagnostic personnalisé avant et après la formation.",
+                    },
+                    {
+                        speaker: "you",
+                        text: "On constate en général un niveau d'environ 50 à 60 %, proche de 80 à 90 % en fin de formation — soit un gain d'environ 30 points.",
+                    },
+                    {
+                        speaker: "you",
+                        text: "Si vous avez besoin d'être rassurée, je peux vous montrer à travers un groupe pilote l'évolution des compétences sur une base factuelle et observable.",
+                    },
+                ],
+            },
+            reformulations: [
+                {
+                    original:
+                        "Si vous avez besoin d'être rassuré, oui, pas de souci. Je pourrais vous montrer à travers ce groupe pilote l'évolution des compétences sur une base factuelle et observable.",
+                    suggestion:
+                        "C'est pertinent en effet. Je vous propose : on débute avec un groupe pilote, on mesure l'avant-après avec Maya Coach, puis on présente ensemble les résultats d'ici 3 semaines. Ok pour formaliser ce plan ?",
+                    pourquoi: "Formalise l'alternative, ajoute un cadrage de timing et d'étape suivante.",
+                },
+            ],
             criteria: [
                 {
                     critere: "Écoute et reformulation de l'objection",
@@ -251,6 +375,32 @@ export const evaluation: Evaluation = {
             score: 93,
             status: "À maintenir",
             total: "18.5/20",
+            commentaireCoach:
+                "La conclusion est efficace : le rendez-vous est sécurisé avec un format et un créneau clairs. L'engagement réciproque est bien posé.",
+            criteresReussis: [
+                "Rendez-vous sécurisé avec créneau et format précis",
+                "Récapitulatif clair de l'objectif du prochain échange",
+            ],
+            criteresAAmeliorer: ["Confirmer par écrit immédiatement après l'appel"],
+            stepTranscript: {
+                start: "03:29",
+                end: "04:10",
+                lines: [
+                    {
+                        speaker: "you",
+                        text: "Je vous propose qu'on se cale 30 minutes en visio jeudi à 10h pour formaliser le plan, ça vous convient ?",
+                    },
+                    { speaker: "persona", text: "Oui, jeudi 10h c'est parfait." },
+                ],
+            },
+            reformulations: [
+                {
+                    original: "Je vous rappelle pour fixer un rendez-vous.",
+                    suggestion:
+                        "Je vous envoie tout de suite une invitation visio de 30 minutes jeudi 10h avec l'ordre du jour — vous confirmez ?",
+                    pourquoi: "Verrouille le RDV (canal, durée, créneau) et déclenche une confirmation immédiate.",
+                },
+            ],
             criteria: [
                 {
                     critere: "Proposition d'un créneau précis",

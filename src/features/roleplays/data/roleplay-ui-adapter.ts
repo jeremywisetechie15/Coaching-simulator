@@ -64,6 +64,7 @@ function mapDbQuizzesToPrepQuizzes(roleplay: DbRoleplayDetail): PrepQuiz[] {
     return roleplay.quizzes.map((quiz, index) => ({
         durationMinutes: quiz.durationMinutes,
         id: quiz.id,
+        participation: quiz.participation,
         questionCount: quiz.questionCount,
         recommended: index === 0,
         status: "not_started",
@@ -108,7 +109,7 @@ function buildDetail(roleplay: RoleplayListItem | DbRoleplayDetail, mock: Rolepl
     };
     const dbDetail = "stats" in roleplay ? roleplay : null;
     const dbStats = dbDetail?.stats;
-    const hasDbStats = Boolean(dbStats && dbStats.simulations > 0);
+    const hasDbStats = Boolean(dbStats);
 
     return {
         context: dbDetail ? textOrMock(dbDetail.context, mockDetail.context) : mockDetail.context,
@@ -146,13 +147,22 @@ export function mapDbRoleplayToUi(roleplay: RoleplayListItem | DbRoleplayDetail,
 }
 
 export function mergeRoleplayListWithMocks(dbRoleplays: RoleplayListItem[]) {
-    return roleplays.map((mock) => {
-        const dbRoleplay =
-            dbRoleplays.find((roleplay) => roleplay.id === mock.scenarioId || roleplay.id === mock.id) ??
-            dbRoleplays.find((roleplay) => normalize(roleplay.name) === normalize(mock.name));
+    const matchedMockIds = new Set<string>();
+    const mappedDbRoleplays = dbRoleplays.map((dbRoleplay) => {
+        const mock = findMockRoleplayForDb(dbRoleplay);
+        if (mock) {
+            matchedMockIds.add(mock.id);
+        }
 
-        return dbRoleplay ? mapDbRoleplayToUi(dbRoleplay, mock) : mock;
+        return mapDbRoleplayToUi(dbRoleplay, mock);
     });
+    const remainingMocks = roleplays.filter((mock) => !matchedMockIds.has(mock.id));
+
+    return [...mappedDbRoleplays, ...remainingMocks];
+}
+
+export function mapDbRoleplayListToUi(dbRoleplays: RoleplayListItem[]) {
+    return dbRoleplays.map((dbRoleplay) => mapDbRoleplayToUi(dbRoleplay, null));
 }
 
 export function mapMethodDetailToUi(method: MethodDetail): Method {
@@ -167,7 +177,7 @@ export function mapMethodDetailToUi(method: MethodDetail): Method {
         enjeux: listOrMock(method.challenges, mock?.enjeux ?? []),
         id: method.id,
         name: textOrMock(method.name, mock?.name ?? ""),
-        objectifMetier: textOrMock(method.businessObjective, mock?.objectifMetier ?? ""),
+        objectifMetier: mock?.objectifMetier ?? "",
         objectifs: listOrMock(method.objectives, mock?.objectifs ?? []),
         quizQuestions: mock?.quizQuestions ?? 0,
         readingTime: textOrMock(method.readingTimeLabel, mock?.readingTime ?? ""),

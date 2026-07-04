@@ -1,3 +1,4 @@
+import { requireAuth } from "@/features/auth/server";
 import { NotFoundError } from "@/lib/server/errors";
 import { assertHttpUrl } from "@/lib/server/http-url";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -20,6 +21,7 @@ export async function getRoleplayResourceAccess(
     roleplayId: string,
     resourceId: string,
 ): Promise<RoleplayResourceAccess> {
+    await requireAuth();
     const supabase = await createClient();
     const { data: resource, error } = await supabase
         .from("scenario_resources")

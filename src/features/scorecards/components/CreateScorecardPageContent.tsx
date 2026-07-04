@@ -11,13 +11,16 @@ import {
     type ContentStatus,
 } from "@/features/content/domain";
 import { CONTENT_DOMAINS } from "@/features/content/domain";
-import { QUIZ_DIMENSION_LABELS, QUIZ_DIMENSIONS } from "@/features/evaluations/domain";
 import type { SaveScorecardInput } from "@/features/scorecards/dto";
 import {
+    SCORECARD_CRITERION_DIMENSION_LABELS,
+    SCORECARD_CRITERION_DIMENSIONS,
+    SCORECARD_ROUTES,
     SCORECARD_VISIBILITY,
     SCORECARD_VISIBILITY_DESCRIPTIONS,
     SCORECARD_VISIBILITY_LABELS,
     SCORECARD_VISIBILITIES,
+    type ScorecardDetail,
     type ScorecardMethodOption,
     type ScorecardMethodStep,
     type ScorecardOrganizationOption,
@@ -33,6 +36,7 @@ import {
     emptyCriterion,
     emptyScorecardFormState,
     integerFromText,
+    scorecardDetailToFormState,
     stepsFromMethod,
     toSaveScorecardInput,
     type ScorecardCriterionFormState,
@@ -40,8 +44,8 @@ import {
     type ScorecardStepFormState,
 } from "./scorecard-form-state";
 
-const dimensionOptions: SingleSelectOption[] = QUIZ_DIMENSIONS.map((dimension) => ({
-    label: QUIZ_DIMENSION_LABELS[dimension],
+const dimensionOptions: SingleSelectOption[] = SCORECARD_CRITERION_DIMENSIONS.map((dimension) => ({
+    label: SCORECARD_CRITERION_DIMENSION_LABELS[dimension],
     value: dimension,
 }));
 
@@ -61,17 +65,22 @@ interface ScorecardApiPayload {
 }
 
 interface CreateScorecardPageContentProps {
+    initialScorecard?: ScorecardDetail;
     methodOptions: ScorecardMethodOption[];
     organizationOptions: ScorecardOrganizationOption[];
+    scorecardId?: string;
     skillOptions: SkillOption[];
 }
 
-async function saveScorecard(values: SaveScorecardInput) {
-    const response = await fetch("/api/scorecards", {
-        body: JSON.stringify(values),
-        headers: { "Content-Type": "application/json" },
-        method: "POST",
-    });
+async function saveScorecard(values: SaveScorecardInput, scorecardId?: string) {
+    const response = await fetch(
+        scorecardId ? SCORECARD_ROUTES.api.detail(scorecardId) : SCORECARD_ROUTES.api.collection,
+        {
+            body: JSON.stringify(values),
+            headers: { "Content-Type": "application/json" },
+            method: scorecardId ? "PATCH" : "POST",
+        },
+    );
     const payload = (await response.json().catch(() => null)) as ScorecardApiPayload | null;
 
     if (!response.ok) {
@@ -87,12 +96,17 @@ async function saveScorecard(values: SaveScorecardInput) {
 }
 
 export function CreateScorecardPageContent({
+    initialScorecard,
     methodOptions,
     organizationOptions,
+    scorecardId,
     skillOptions,
 }: CreateScorecardPageContentProps) {
     const router = useRouter();
-    const [form, setForm] = useState<ScorecardFormState>(() => emptyScorecardFormState());
+    const isEditing = Boolean(scorecardId);
+    const [form, setForm] = useState<ScorecardFormState>(() =>
+        initialScorecard ? scorecardDetailToFormState(initialScorecard) : emptyScorecardFormState(),
+    );
     const [formError, setFormError] = useState<string | null>(null);
     const [importingMethod, setImportingMethod] = useState(false);
     const [savingStatus, setSavingStatus] = useState<ContentStatus | null>(null);
@@ -125,6 +139,7 @@ export function CreateScorecardPageContent({
                 (criterion) =>
                     criterion.key.trim().length > 0 &&
                     criterion.expectedEvidence.trim().length > 0 &&
+                    criterion.verbatim.trim().length > 0 &&
                     Boolean(criterion.competenceId) &&
                     Boolean(criterion.dimension) &&
                     Boolean(criterion.dimensionItemId) &&
@@ -134,6 +149,11 @@ export function CreateScorecardPageContent({
     const canSubmit = form.name.trim().length > 0 && Boolean(form.methodId) && scopeTargetReady;
     const canPublish = canSubmit && form.steps.length > 0 && totalCriteria > 0 && criteriaComplete;
     const isSaving = savingStatus !== null;
+    const primarySaveStatus =
+        isEditing && initialScorecard?.status === CONTENT_STATUS.published
+            ? CONTENT_STATUS.published
+            : CONTENT_STATUS.draft;
+    const canPrimarySave = primarySaveStatus === CONTENT_STATUS.published ? canPublish : canSubmit;
 
     function patch<K extends keyof ScorecardFormState>(key: K, value: ScorecardFormState[K]) {
         setForm((current) => ({ ...current, [key]: value }));
@@ -231,8 +251,8 @@ export function CreateScorecardPageContent({
         setSavingStatus(status);
 
         try {
-            await saveScorecard(toSaveScorecardInput(form, status));
-            router.push("/scorecards");
+            const saved = await saveScorecard(toSaveScorecardInput(form, status), scorecardId);
+            router.push(isEditing ? SCORECARD_ROUTES.app.detail(saved.id) : SCORECARD_ROUTES.app.collection);
             router.refresh();
         } catch (error) {
             setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer la scorecard.");
@@ -246,7 +266,11 @@ export function CreateScorecardPageContent({
             <Box className="mx-auto max-w-[900px]">
                 <Box className="mb-6 flex items-center gap-4">
                     <Link
-                        href="/scorecards"
+                        href={
+                            isEditing && scorecardId
+                                ? SCORECARD_ROUTES.app.detail(scorecardId)
+                                : SCORECARD_ROUTES.app.collection
+                        }
                         aria-label="Retour"
                         className={cn(
                             "flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white",
@@ -256,7 +280,7 @@ export function CreateScorecardPageContent({
                         <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
                     </Link>
                     <Text as="h1" className={cn("text-[28px] font-extrabold leading-tight", uiTokens.text.heading)}>
-                        Ajouter une scorecard
+                        {isEditing ? "Modifier la scorecard" : "Ajouter une scorecard"}
                     </Text>
                 </Box>
 
@@ -464,11 +488,15 @@ export function CreateScorecardPageContent({
 
                     <Box className="flex flex-col gap-3 sm:flex-row sm:justify-end">
                         <Button
-                            disabled={!canSubmit || isSaving}
-                            onClick={() => void handleSave(CONTENT_STATUS.draft)}
+                            disabled={!canPrimarySave || isSaving}
+                            onClick={() => void handleSave(primarySaveStatus)}
                             className={cn(uiTokens.action.secondaryButton, "disabled:cursor-not-allowed disabled:opacity-60")}
                         >
-                            {savingStatus === CONTENT_STATUS.draft ? "Enregistrement..." : "Enregistrer en brouillon"}
+                            {savingStatus === primarySaveStatus
+                                ? "Enregistrement..."
+                                : isEditing
+                                  ? "Enregistrer les modifications"
+                                  : "Enregistrer en brouillon"}
                         </Button>
                         <Button
                             disabled={!canPublish || isSaving}
@@ -480,7 +508,11 @@ export function CreateScorecardPageContent({
                                     : uiTokens.action.primaryButtonDisabled,
                             )}
                         >
-                            {savingStatus === CONTENT_STATUS.published ? "Publication..." : "Publier la scorecard"}
+                            {savingStatus === CONTENT_STATUS.published
+                                ? "Publication..."
+                                : isEditing
+                                  ? "Publier les modifications"
+                                  : "Publier la scorecard"}
                         </Button>
                     </Box>
                 </Box>

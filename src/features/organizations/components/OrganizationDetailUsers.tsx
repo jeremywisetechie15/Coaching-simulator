@@ -1,16 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Eye, Pencil, Plus } from "lucide-react";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import {
-    demoOrganizationUsers,
     type OrganizationGroupRow,
+    type OrganizationUserRow,
 } from "@/features/organizations/domain/organization-detail";
 import {
-    getOrganizationMemberRoleLabel,
-    ORGANIZATION_MEMBER_STATUS,
     ORGANIZATION_MEMBER_STATUS_LABELS,
 } from "@/features/organizations/domain/organization-member";
 import {
@@ -36,8 +34,8 @@ interface GroupsPayload {
     groups?: OrganizationGroupRow[];
 }
 
-function getInitials(firstName: string, lastName: string) {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+interface UsersPayload {
+    users?: OrganizationUserRow[];
 }
 
 function getInitialCreateUserValues(organizationId: string): UserInviteFormValues {
@@ -59,14 +57,22 @@ function getInviteErrorMessage(status: number, payload: ApiErrorPayload | null) 
     return `Erreur ${status} : ${message}`;
 }
 
+function getApiErrorMessage(payload: ApiErrorPayload | null, fallback: string) {
+    const validationMessage = payload?.issues?.map((issue) => issue.message).join(" ");
+
+    return validationMessage || payload?.error || fallback;
+}
+
 export function OrganizationDetailUsers({
     organizationId,
     organizationName = "Organisation",
 }: OrganizationDetailUsersProps) {
     const queryClient = useQueryClient();
-    const [users, setUsers] = useState(demoOrganizationUsers);
+    const [users, setUsers] = useState<OrganizationUserRow[]>([]);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isLoadingUsers, setIsLoadingUsers] = useState(true);
     const [isInviting, setIsInviting] = useState(false);
+    const [listError, setListError] = useState<string | null>(null);
     const [inviteError, setInviteError] = useState<string | null>(null);
     const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
     const [inviteStatus, setInviteStatus] = useState<string | null>(null);
@@ -76,6 +82,33 @@ export function OrganizationDetailUsers({
     );
 
     const groupOptions = organizationGroups.map((group) => ({ label: group.name, value: group.id }));
+
+    const loadUsers = useCallback(async () => {
+        setIsLoadingUsers(true);
+        setListError(null);
+
+        try {
+            const response = await fetch(`/api/organizations/${organizationId}/users`, {
+                headers: { Accept: "application/json" },
+            });
+            const payload = (await response.json().catch(() => null)) as UsersPayload | ApiErrorPayload | null;
+
+            if (!response.ok) {
+                setListError(getApiErrorMessage(payload as ApiErrorPayload | null, "Impossible de charger les utilisateurs."));
+                return;
+            }
+
+            setUsers((payload as UsersPayload | null)?.users ?? []);
+        } catch {
+            setListError("Impossible de charger les utilisateurs.");
+        } finally {
+            setIsLoadingUsers(false);
+        }
+    }, [organizationId]);
+
+    useEffect(() => {
+        void loadUsers();
+    }, [loadUsers]);
 
     useEffect(() => {
         let isMounted = true;
@@ -132,6 +165,7 @@ export function OrganizationDetailUsers({
 
         setIsInviting(true);
         setInviteError(null);
+        setListError(null);
         setInviteSuccess(null);
         setInviteStatus("Envoi de la requête d'invitation...");
 
@@ -166,19 +200,7 @@ export function OrganizationDetailUsers({
         setInviteSuccess(`Invitation envoyée à ${email}.`);
         void queryClient.invalidateQueries({ queryKey: ["organizations"] });
         void queryClient.invalidateQueries({ queryKey: ["users"] });
-        setUsers((currentUsers) => [
-            ...currentUsers,
-            {
-                email,
-                id: `${firstName.toLowerCase()}-${lastName.toLowerCase()}-${Date.now()}`,
-                initials: getInitials(firstName, lastName),
-                name: `${firstName} ${lastName}`,
-                quizCount: 0,
-                role: getOrganizationMemberRoleLabel(createUserValues.role),
-                roleplayCount: 0,
-                status: ORGANIZATION_MEMBER_STATUS.invited,
-            },
-        ]);
+        void loadUsers();
         closeCreateModal();
     };
 
@@ -206,6 +228,15 @@ export function OrganizationDetailUsers({
                 </Box>
             )}
 
+            {listError && (
+                <Box
+                    aria-live="polite"
+                    className="mb-5 rounded-lg border border-[#F3C7C7] bg-[#FFF4F4] px-4 py-3 text-[13px] font-semibold text-[#A43A3A]"
+                >
+                    {listError}
+                </Box>
+            )}
+
             <CardSurface className="overflow-hidden rounded-[14px] border border-[#E1E4EB] shadow-none">
                 <Box className="overflow-x-auto">
                     <Box as="table" className="w-full min-w-[1080px] border-collapse">
@@ -223,7 +254,17 @@ export function OrganizationDetailUsers({
                             </Box>
                         </Box>
                         <Box as="tbody">
-                            {users.map((user) => (
+                            {isLoadingUsers && (
+                                <Box as="tr">
+                                    <Box as="td" colSpan={columns.length} className="px-7 py-12 text-center">
+                                        <Text className="text-[14px] font-semibold text-[#737B8E]">
+                                            Chargement des utilisateurs...
+                                        </Text>
+                                    </Box>
+                                </Box>
+                            )}
+
+                            {!isLoadingUsers && users.map((user) => (
                                 <Box as="tr" key={user.id} className="border-b border-[#E7E9EF] last:border-b-0">
                                     <Box as="td" className="px-7 py-5">
                                         <Box className="flex items-center gap-4">
@@ -276,6 +317,19 @@ export function OrganizationDetailUsers({
                                     </Box>
                                 </Box>
                             ))}
+
+                            {!isLoadingUsers && users.length === 0 && (
+                                <Box as="tr">
+                                    <Box as="td" colSpan={columns.length} className="px-7 py-12 text-center">
+                                        <Text className="text-[14px] font-bold text-[#171B2A]">
+                                            Aucun utilisateur
+                                        </Text>
+                                        <Text className="mt-2 text-[14px] font-semibold text-[#A0A6B5]">
+                                            Ajoutez des utilisateurs à cette organisation.
+                                        </Text>
+                                    </Box>
+                                </Box>
+                            )}
                         </Box>
                     </Box>
                 </Box>

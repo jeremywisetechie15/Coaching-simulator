@@ -1,5 +1,6 @@
 import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
+import { getMethodAssociatedQuizOption } from "@/features/evaluations/server";
 import { MethodDetailPage } from "@/features/methods/components";
 import { getMethodById } from "@/features/methods/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
@@ -54,5 +55,7 @@ export default async function Page({ params }: PageProps) {
         throw error;
     }
 
-    return <MethodDetailPage profileValues={toProfileFormValues(profile)} method={method} />;
+    const associatedQuiz = await getMethodAssociatedQuizOption(methodId);
+
+    return <MethodDetailPage associatedQuiz={associatedQuiz} profileValues={toProfileFormValues(profile)} method={method} />;
 }

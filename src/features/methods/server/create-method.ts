@@ -10,6 +10,7 @@ import {
 } from "./method.mapper";
 import { syncMethodNotationFiles } from "./method-notation-files";
 import { withMethodOrganizationNames } from "./method-organization-names";
+import { syncMethodQuizAssociation } from "./method-quiz-association";
 import {
     createMethodInsert,
     createResourceRows,
@@ -93,6 +94,8 @@ export async function createMethod(
             const synced = await syncMethodNotationFiles(adminSupabase, methodRow, resourceRows);
             resourceRows = synced.resources;
         }
+
+        await syncMethodQuizAssociation(adminSupabase, methodRow.id, normalizedInput.quizId);
 
         const [methodWithOrganizationName] = await withMethodOrganizationNames([methodRow]);
 

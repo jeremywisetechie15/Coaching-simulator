@@ -1,12 +1,13 @@
 import { CONTENT_STATUS, normalizeContentStatus } from "@/features/content/domain";
 import {
+    SCORECARD_CRITERION_DIMENSIONS,
     scorecardScopeToVisibility,
+    type ScorecardCriterionDimension,
     type ScorecardCriterion,
     type ScorecardDetail,
     type ScorecardListItem,
     type ScorecardStep,
 } from "@/features/scorecards/domain";
-import { SKILL_DIMENSIONS, type SkillDimension } from "@/features/skills/domain/skills";
 
 export interface ScorecardRow {
     category?: string | null;
@@ -46,8 +47,10 @@ export interface ScorecardCriterionRow {
     verbatim?: string | null;
 }
 
-function normalizeDimension(value: string | null | undefined): SkillDimension {
-    return SKILL_DIMENSIONS.includes(value as SkillDimension) ? (value as SkillDimension) : "savoir";
+function normalizeDimension(value: string | null | undefined): ScorecardCriterionDimension {
+    return SCORECARD_CRITERION_DIMENSIONS.includes(value as ScorecardCriterionDimension)
+        ? (value as ScorecardCriterionDimension)
+        : "savoir_faire";
 }
 
 export function mapScorecardRowToListItem(

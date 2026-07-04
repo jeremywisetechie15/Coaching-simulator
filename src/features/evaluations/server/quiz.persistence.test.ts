@@ -44,6 +44,12 @@ describe("quiz persistence helpers", () => {
                                     type: "video",
                                 },
                                 {
+                                    label: "Audio",
+                                    storageBucket: "quizzes",
+                                    storagePath: "quizzes/quiz-1/questions/question-1/attachments/audio.mp3",
+                                    type: "audio",
+                                },
+                                {
                                     externalUrl: "",
                                     label: "Vide",
                                     type: "link",
@@ -142,6 +148,16 @@ describe("quiz persistence helpers", () => {
                 question_id: "question-1",
                 storage_bucket: "quizzes",
                 storage_path: "quizzes/quiz-1/questions/question-1/attachments/video.mp4",
+            },
+            {
+                attachment_order: 3,
+                attachment_type: "audio",
+                external_url: null,
+                id: undefined,
+                label: "Audio",
+                question_id: "question-1",
+                storage_bucket: "quizzes",
+                storage_path: "quizzes/quiz-1/questions/question-1/attachments/audio.mp3",
             },
         ]);
     });

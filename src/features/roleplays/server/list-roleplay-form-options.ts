@@ -5,7 +5,6 @@ import { listMethods } from "@/features/methods/server";
 import { listOrganizations } from "@/features/organizations/server";
 import { listCoaches } from "@/features/coaches/server";
 import { listPersonas } from "@/features/personas/server";
-import { listSkillOptions } from "@/features/skills/server";
 import type {
     RoleplayCoachOption,
     RoleplayGroupOption,
@@ -14,7 +13,6 @@ import type {
     RoleplayPersonaOption,
     RoleplayQuizOption,
     RoleplayScorecardOption,
-    RoleplaySkillOption,
     RoleplayUserOption,
 } from "@/features/roleplays/domain";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -68,6 +66,7 @@ export async function listRoleplayQuizOptions(): Promise<RoleplayQuizOption[]> {
 
     return quizzes.map((quiz) => ({
         id: quiz.id,
+        kind: quiz.kind,
         methodId: quiz.methodId,
         questionCount: quiz.questionCount,
         title: quiz.title,
@@ -120,14 +119,5 @@ export async function listRoleplayUserOptions(): Promise<RoleplayUserOption[]> {
         id: user.id,
         name: user.name,
         organizationIds: user.organizationIds,
-    }));
-}
-
-export async function listRoleplaySkillOptions(): Promise<RoleplaySkillOption[]> {
-    const skills = await listSkillOptions();
-
-    return skills.map((skill) => ({
-        id: skill.id,
-        name: skill.name,
     }));
 }

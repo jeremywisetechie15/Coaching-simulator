@@ -24,6 +24,7 @@ describe("content upload domain", () => {
             }),
         ).toBeNull();
         expect(inferContentUploadResourceType("application/pdf")).toBe("document");
+        expect(inferContentUploadResourceType("audio/mpeg")).toBe("audio");
         expect(inferContentUploadResourceType("image/png")).toBe("image");
         expect(
             validateContentUploadFile(
@@ -74,7 +75,7 @@ describe("content upload domain", () => {
                 },
                 CONTENT_UPLOAD_PURPOSES.quizAttachment,
             ),
-        ).toBe("Les pièces jointes de quiz acceptent uniquement des documents, images ou vidéos.");
+        ).toBeNull();
 
         expect(
             validateContentUploadFile(

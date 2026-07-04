@@ -3,6 +3,9 @@ import { CONTENT_STATUS } from "@/features/content/domain";
 import { saveScorecardDto } from "@/features/scorecards/dto";
 import { mapScorecardRowsToDetail } from "./scorecard.mapper";
 import {
+    createDuplicateScorecardCriterionRows,
+    createDuplicateScorecardInsert,
+    createDuplicateScorecardStepRows,
     createScorecardCriterionRows,
     createScorecardInsert,
     createScorecardStepRows,
@@ -116,6 +119,7 @@ describe("scorecard persistence helpers", () => {
                             key: "Formuler la demande de mise en relation",
                             maxPoints: 4,
                             order: 1,
+                            verbatim: "Pouvez-vous me le passer ?",
                         },
                     ],
                     methodStepId,
@@ -141,6 +145,84 @@ describe("scorecard persistence helpers", () => {
                 scorecard_step_id: "scorecard-step-1",
                 skill_id: "acces-decideur",
             }),
+        ]);
+    });
+
+    it("builds duplicate rows as an active draft copy", () => {
+        expect(
+            createDuplicateScorecardInsert(
+                {
+                    category: "Prospection",
+                    description: "Scorecard source.",
+                    domain: "Commercial",
+                    level: "Intermédiaire",
+                    method_id: methodId,
+                    name: "Scorecard DAGO",
+                    organization_id: organizationId,
+                    visibility_scope: "organization",
+                },
+                "55555555-5555-4555-8555-555555555555",
+            ),
+        ).toMatchObject({
+            created_by: "55555555-5555-4555-8555-555555555555",
+            is_active: true,
+            method_id: methodId,
+            name: "Copie de Scorecard DAGO",
+            organization_id: organizationId,
+            status: CONTENT_STATUS.draft,
+            visibility_scope: "organization",
+        });
+
+        expect(
+            createDuplicateScorecardStepRows("scorecard-copy", [
+                {
+                    id: "source-step-1",
+                    method_step_id: methodStepId,
+                    name: "Accrocher",
+                    scorecard_id: "scorecard-source",
+                    step_order: 1,
+                },
+            ]),
+        ).toEqual([
+            {
+                method_step_id: methodStepId,
+                name: "Accrocher",
+                scorecard_id: "scorecard-copy",
+                step_order: 1,
+            },
+        ]);
+
+        expect(
+            createDuplicateScorecardCriterionRows(
+                [
+                    {
+                        criterion_key: "Formuler la demande",
+                        criterion_order: 1,
+                        dimension: "savoir_faire",
+                        dimension_item_id: dimensionItemId,
+                        expected_evidence: "Demande claire.",
+                        id: "criterion-source",
+                        max_points: 4,
+                        scorecard_step_id: "source-step-1",
+                        skill_id: "acces-decideur",
+                        verbatim: "Pouvez-vous me le passer ?",
+                    },
+                ],
+                new Map([["source-step-1", "copy-step-1"]]),
+            ),
+        ).toEqual([
+            {
+                ai_instruction: null,
+                criterion_key: "Formuler la demande",
+                criterion_order: 1,
+                dimension: "savoir_faire",
+                dimension_item_id: dimensionItemId,
+                expected_evidence: "Demande claire.",
+                max_points: 4,
+                scorecard_step_id: "copy-step-1",
+                skill_id: "acces-decideur",
+                verbatim: "Pouvez-vous me le passer ?",
+            },
         ]);
     });
 });

@@ -8,6 +8,7 @@ import {
     PROFILE_AVATAR_MAX_SIZE_BYTES,
     PROFILE_AVATAR_BUCKET,
 } from "@/features/profile/domain/profile-avatar";
+import { fileToStorageUploadBody } from "@/lib/uploads/storage-upload-body";
 
 export async function POST(request: NextRequest) {
     try {
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
         }
 
         const avatarPath = `${user.id}/avatar-${Date.now()}.${extension}`;
-        const fileBody = await avatar.arrayBuffer();
+        const fileBody = await fileToStorageUploadBody(avatar);
 
         const { error } = await supabase.storage
             .from(PROFILE_AVATAR_BUCKET)

@@ -1,12 +1,12 @@
 "use client";
 
-import { ExternalLink, FileText, Image as ImageIcon, Link as LinkIcon, PlayCircle } from "lucide-react";
+import { ExternalLink, FileText, Headphones, Image as ImageIcon, Link as LinkIcon, PlayCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Box, Button, InlineIcon, Text } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
-export type FilePreviewKind = "document" | "image" | "link" | "video";
+export type FilePreviewKind = "audio" | "document" | "image" | "link" | "video";
 
 type ToneKey = keyof typeof uiTokens.tone;
 
@@ -14,6 +14,7 @@ const filePreviewConfig: Record<
     FilePreviewKind,
     { actionIcon: LucideIcon; actionLabel: string; icon: LucideIcon; label: string; tone: ToneKey }
 > = {
+    audio: { actionIcon: PlayCircle, actionLabel: "Écouter", icon: Headphones, label: "Audio", tone: "info" },
     document: { actionIcon: ExternalLink, actionLabel: "Ouvrir", icon: FileText, label: "Document", tone: "info" },
     image: { actionIcon: ExternalLink, actionLabel: "Ouvrir", icon: ImageIcon, label: "Image", tone: "success" },
     link: { actionIcon: ExternalLink, actionLabel: "Ouvrir", icon: LinkIcon, label: "Lien", tone: "neutral" },
@@ -36,7 +37,7 @@ function isPdfResource(...values: Array<string | undefined>) {
 export function FilePreviewCard({ className, href, kind, meta, previewName, title }: FilePreviewCardProps) {
     const config = filePreviewConfig[kind];
     const isPdf = isPdfResource(title, meta, previewName);
-    const canPreview = Boolean(href) && (kind === "image" || kind === "video" || isPdf);
+    const canPreview = Boolean(href) && (kind === "audio" || kind === "image" || kind === "video" || isPdf);
 
     return (
         <Box className={cn(uiTokens.surface.rowCard, "space-y-3", className)}>
@@ -89,6 +90,11 @@ export function FilePreviewCard({ className, href, kind, meta, previewName, titl
                         <video className="aspect-video w-full bg-black" controls preload="metadata" src={href}>
                             <track kind="captions" />
                         </video>
+                    )}
+                    {kind === "audio" && (
+                        <audio className="w-full" controls preload="metadata" src={href}>
+                            Votre navigateur ne supporte pas la lecture audio.
+                        </audio>
                     )}
                     {kind === "document" && isPdf && (
                         <iframe className="h-[360px] w-full" src={href} title={title} />

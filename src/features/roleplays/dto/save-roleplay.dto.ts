@@ -67,7 +67,11 @@ export const saveRoleplayDto = z
         obstacles: z.string().trim().max(2500, "Les objections sont trop longues.").optional().default(""),
         organizationId: optionalUuid,
         personaId: z.string().uuid("Le persona sélectionné est invalide."),
-        quizIds: z.array(z.string().uuid("Le quiz sélectionné est invalide.")).optional().default([]),
+        quizIds: z
+            .array(z.string().uuid("Le quiz sélectionné est invalide."))
+            .optional()
+            .default([])
+            .transform((quizIds) => [...new Set(quizIds)]),
         quizParticipation: z.enum(QUIZ_PARTICIPATIONS).optional().default("optional"),
         resources: z.array(roleplayResourceDto).optional().default([]),
         scope: z.enum(CONTENT_VISIBILITY_SCOPES).optional().default(CONTENT_VISIBILITY_SCOPE.public),
@@ -112,6 +116,14 @@ export const saveRoleplayDto = z
                 code: "custom",
                 message: "Un roleplay privé utilisateur doit être lié à un utilisateur.",
                 path: ["assignedUserId"],
+            });
+        }
+
+        if (roleplay.scorecardId && !roleplay.methodId) {
+            ctx.addIssue({
+                code: "custom",
+                message: "Une scorecard de roleplay doit être liée à une méthode.",
+                path: ["methodId"],
             });
         }
     });

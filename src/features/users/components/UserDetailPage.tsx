@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import {
     ArrowLeft,
     BarChart3,
@@ -31,23 +32,36 @@ import {
     Text,
     TextInput,
 } from "@/lib/ui/atoms";
+import { GroupedTableSectionHeader } from "@/lib/ui/molecules";
+import { uiTokens } from "@/lib/ui/tokens";
 import {
     getUserRoleLabel,
     getUserStatusLabel,
+    type PlatformRole,
+    type UserAssignedQuiz,
+    type UserAssignedRoleplay,
+    type UserAssignmentStatus,
     type UserListItem,
     type UserRole,
+    type UserSkillProgress,
+    type UserStatistics,
     USER_ROLE_OPTIONS,
     type UserStatus,
 } from "@/features/users/domain/users";
+import type { UserAssignedGroup, UserAvailableGroup, UserGroupsResult } from "@/features/users/domain/user-groups";
+import { AddUserGroupDialog, RemoveUserGroupDialog } from "./UserGroupDialogs";
 
 type UserDetailTab = "profile" | "groups" | "roleplays" | "evaluations" | "statistics" | "skills";
 
-type ActivityStatus = "not_started" | "in_progress" | "completed";
-
 interface UserDetailPageProps {
+    assignedQuizzes?: UserAssignedQuiz[];
+    assignedRoleplays?: UserAssignedRoleplay[];
     avatarUrl: string | null;
     initialMode?: "edit" | "view";
     initials: string;
+    platformRole: PlatformRole;
+    skills?: UserSkillProgress[];
+    statistics?: UserStatistics;
     user: UserListItem;
 }
 
@@ -64,41 +78,6 @@ interface DetailFormValues {
     username: string;
 }
 
-interface AssignedGroup {
-    assignedAt: string;
-    description: string;
-    id: string;
-    name: string;
-}
-
-interface AssignedRoleplay {
-    assignedAt: string;
-    id: string;
-    persona: string;
-    score: number | null;
-    sessions: number;
-    status: ActivityStatus;
-    title: string;
-}
-
-interface AssignedQuiz {
-    assignedAt: string;
-    attempts: number;
-    id: string;
-    score: number | null;
-    status: ActivityStatus;
-    title: string;
-    type: string;
-}
-
-interface SkillProgress {
-    delta: number;
-    id: string;
-    initial: number;
-    label: string;
-    score: number;
-}
-
 const tabs: Array<{ id: UserDetailTab; label: string }> = [
     { id: "profile", label: "Informations de base" },
     { id: "groups", label: "Groupes" },
@@ -108,150 +87,24 @@ const tabs: Array<{ id: UserDetailTab; label: string }> = [
     { id: "skills", label: "Compétences" },
 ];
 
-const initialAssignedGroups: AssignedGroup[] = [
-    {
-        assignedAt: "15 janvier 2024",
-        description: "Équipe en charge du marketing digital et de la communication",
-        id: "marketing",
-        name: "Marketing",
-    },
-    {
-        assignedAt: "1 février 2024",
-        description: "Force de vente et développement commercial",
-        id: "sales",
-        name: "Sales",
-    },
-    {
-        assignedAt: "15 février 2024",
-        description: "Comité de direction et management stratégique",
-        id: "direction",
-        name: "Direction",
-    },
-];
-
-const extraAssignedGroup: AssignedGroup = {
-    assignedAt: "Aujourd'hui",
-    description: "Équipe support et suivi opérationnel",
-    id: "support",
-    name: "Support",
+const emptyUserStatistics: UserStatistics = {
+    averageQuizScore: "N/A",
+    averageRoleplayScore: "N/A",
+    bestRoleplayScore: "N/A",
+    completedQuizzes: "0/0",
+    completedRoleplays: "0/0",
+    completionRate: "N/A",
+    lastActivity: "Aucune",
+    latestRoleplayScore: "N/A",
+    quizVsRoleplayGap: "N/A",
+    roleplayProgressLast30Days: "N/A",
+    roleplayProgressSinceFirst: "N/A",
+    targetScore: "80%",
+    targetScoreGap: "N/A",
+    topMasteredSkills: [],
+    topSkillsToImprove: [],
+    trainingTime: "0min",
 };
-
-const initialAssignedRoleplays: AssignedRoleplay[] = [
-    {
-        assignedAt: "10 mars 2024",
-        id: "demonstration-produit",
-        persona: "Marc Dubois",
-        score: null,
-        sessions: 0,
-        status: "not_started",
-        title: "Convaincre avec une démonstration produit",
-    },
-    {
-        assignedAt: "15 mars 2024",
-        id: "qualifier-besoin",
-        persona: "Thomas Lion",
-        score: null,
-        sessions: 0,
-        status: "not_started",
-        title: "Qualifier un besoin de formation",
-    },
-    {
-        assignedAt: "1 février 2024",
-        id: "premier-rdv",
-        persona: "Rachid HAMRANI",
-        score: 68,
-        sessions: 3,
-        status: "in_progress",
-        title: "Décrocher un premier rendez-vous",
-    },
-    {
-        assignedAt: "20 février 2024",
-        id: "recadrer-collaborateur",
-        persona: "Claude SAVARY",
-        score: 54,
-        sessions: 1,
-        status: "in_progress",
-        title: "Recadrer et remobiliser un collaborateur",
-    },
-    {
-        assignedAt: "10 janvier 2024",
-        id: "conclure-negociation",
-        persona: "Sophie Martin",
-        score: 82,
-        sessions: 5,
-        status: "completed",
-        title: "Conclure une négociation commerciale",
-    },
-];
-
-const extraAssignedRoleplay: AssignedRoleplay = {
-    assignedAt: "Aujourd'hui",
-    id: "objection-prix",
-    persona: "Jean Petit",
-    score: null,
-    sessions: 0,
-    status: "not_started",
-    title: "Traiter une objection prix",
-};
-
-const initialAssignedQuizzes: AssignedQuiz[] = [
-    {
-        assignedAt: "10 mars 2024",
-        attempts: 0,
-        id: "quiz-deepmark",
-        score: null,
-        status: "not_started",
-        title: "Quiz - DEEPMARK",
-        type: "Quiz de Connaissance",
-    },
-    {
-        assignedAt: "15 février 2024",
-        attempts: 2,
-        id: "entretien-commercial",
-        score: 61,
-        status: "in_progress",
-        title: "Entretien Commercial",
-        type: "Quiz de Connaissance",
-    },
-    {
-        assignedAt: "20 février 2024",
-        attempts: 1,
-        id: "decouverte-besoins",
-        score: 48,
-        status: "in_progress",
-        title: "Découverte des besoins",
-        type: "Quiz d'Auto-Positionnement",
-    },
-    {
-        assignedAt: "15 janvier 2024",
-        attempts: 3,
-        id: "prise-rendez-vous",
-        score: 84,
-        status: "completed",
-        title: "Prise de rendez-vous",
-        type: "Quiz de Connaissance",
-    },
-];
-
-const extraAssignedQuiz: AssignedQuiz = {
-    assignedAt: "Aujourd'hui",
-    attempts: 0,
-    id: "objections-quiz",
-    score: null,
-    status: "not_started",
-    title: "Traitement des objections",
-    type: "Quiz de Connaissance",
-};
-
-const skillProgressRows: SkillProgress[] = [
-    { delta: 33, id: "decouverte", initial: 45, label: "Découverte des besoins", score: 78 },
-    { delta: 33, id: "argumentation", initial: 52, label: "Argumentation commerciale", score: 85 },
-    { delta: 30, id: "objections", initial: 38, label: "Traitement des objections", score: 68 },
-    { delta: 24, id: "closing", initial: 48, label: "Closing", score: 72 },
-    { delta: 27, id: "prospection", initial: 55, label: "Prospection téléphonique", score: 82 },
-    { delta: 25, id: "presentation", initial: 50, label: "Présentation commerciale", score: 75 },
-    { delta: 28, id: "negociation", initial: 42, label: "Négociation", score: 70 },
-];
 
 function splitName(name: string) {
     const [firstName = "", ...rest] = name.split(" ");
@@ -284,6 +137,29 @@ function getFormValuesFromUser(user: UserListItem): DetailFormValues {
         role: user.role,
         status: user.status,
         username: getUsernameFromEmail(user.email),
+    };
+}
+
+interface ApiValidationIssue {
+    message: string;
+    path: Array<string | number>;
+}
+
+interface ApiErrorPayload {
+    error?: string;
+    issues?: ApiValidationIssue[];
+}
+
+function getApiErrorMessage(payload: ApiErrorPayload | null, fallback: string) {
+    const validationMessage = payload?.issues?.map((issue) => issue.message).join(" ");
+
+    return validationMessage || payload?.error || fallback;
+}
+
+function normalizeUserGroupsPayload(payload: UserGroupsResult | null): UserGroupsResult {
+    return {
+        availableGroups: payload?.availableGroups ?? [],
+        groups: payload?.groups ?? [],
     };
 }
 
@@ -459,7 +335,7 @@ function ProfileTab({
 }: {
     currentUser: UserListItem;
     draft: DetailFormValues;
-    groups: AssignedGroup[];
+    groups: UserAssignedGroup[];
     isEditing: boolean;
     onDraftChange: (field: keyof DetailFormValues, value: string) => void;
     quizCount: number;
@@ -542,9 +418,13 @@ function ProfileTab({
                     <Box className="lg:col-span-2">
                         <Text className="text-[15px] font-extrabold leading-6 text-[#171B2A]">Groupe(s)</Text>
                         <Box className="mt-3 flex flex-wrap gap-2.5">
-                            {groups.map((group) => (
-                                <GroupChip key={group.id} label={group.name} />
-                            ))}
+                            {groups.length > 0 ? (
+                                groups.map((group) => (
+                                    <GroupChip key={group.id} label={group.name} />
+                                ))
+                            ) : (
+                                <Text className="text-[14px] font-semibold text-[#8C94A4]">Aucun groupe assigné</Text>
+                            )}
                         </Box>
                     </Box>
                 </Box>
@@ -601,15 +481,18 @@ function SectionHeading({
 
 function LightActionButton({
     children,
+    disabled = false,
     onClick,
 }: {
     children: ReactNode;
+    disabled?: boolean;
     onClick: () => void;
 }) {
     return (
         <Button
+            disabled={disabled}
             onClick={onClick}
-            className="inline-flex h-10 items-center justify-center gap-3 rounded-[10px] bg-[#EEF2FF] px-5 text-[15px] font-extrabold text-[#5140F0] transition hover:bg-[#E5EAFF]"
+            className="inline-flex h-10 items-center justify-center gap-3 rounded-[10px] bg-[#EEF2FF] px-5 text-[15px] font-extrabold text-[#5140F0] transition hover:bg-[#E5EAFF] disabled:cursor-not-allowed disabled:opacity-60"
         >
             <InlineIcon icon={Plus} className="h-5 w-5" />
             {children}
@@ -625,43 +508,45 @@ function IconGroupBadge() {
     );
 }
 
-function TableGroupHeader({ count, label }: { count: number; label: string }) {
-    return (
-        <Box as="tr" className="h-[50px] border-b border-[#E6E9F0] bg-[#F7F8FA]">
-            <Box as="td" colSpan={5} className="px-7">
-                <Box className="flex items-center gap-3">
-                    <InlineIcon icon={ChevronDown} className="h-4 w-4 text-[#4F5868]" />
-                    <Text className="text-[15px] font-extrabold text-[#171B2A]">
-                        {label} ({count})
-                    </Text>
-                </Box>
-            </Box>
-        </Box>
-    );
-}
-
 function GroupsTab({
+    error,
     groups,
+    isActionPending,
+    isLoading,
     onAddGroup,
     onRemoveGroup,
 }: {
-    groups: AssignedGroup[];
+    error: string | null;
+    groups: UserAssignedGroup[];
+    isActionPending: boolean;
+    isLoading: boolean;
     onAddGroup: () => void;
-    onRemoveGroup: (groupId: string) => void;
+    onRemoveGroup: (group: UserAssignedGroup) => void;
 }) {
+    const columns = ["Groupe", "Description", "Date d'assignation", "Actions"];
+
     return (
         <Box className="px-6 pb-7 pt-7 md:px-7">
             <SectionHeading
                 title="Groupes assignés"
-                action={<LightActionButton onClick={onAddGroup}>Ajouter au groupe</LightActionButton>}
+                action={<LightActionButton disabled={isLoading || isActionPending} onClick={onAddGroup}>Ajouter au groupe</LightActionButton>}
             />
+
+            {error && (
+                <Box
+                    aria-live="polite"
+                    className="mb-5 rounded-lg border border-[#F3C7C7] bg-[#FFF4F4] px-4 py-3 text-[13px] font-semibold text-[#A43A3A]"
+                >
+                    {error}
+                </Box>
+            )}
 
             <Box className="overflow-hidden rounded-[12px] border border-[#E1E4EB]">
                 <Box className="overflow-x-auto">
                     <Box as="table" className="w-full min-w-[920px] border-collapse">
                         <Box as="thead">
                             <Box as="tr" className="h-[48px] border-b border-[#E6E9F0] bg-[#F7F8FA]">
-                                {["Groupe", "Description", "Date d'assignation", "Actions"].map((column) => (
+                                {columns.map((column) => (
                                     <Box
                                         as="th"
                                         key={column}
@@ -673,7 +558,17 @@ function GroupsTab({
                             </Box>
                         </Box>
                         <Box as="tbody">
-                            {groups.map((group) => (
+                            {isLoading && (
+                                <Box as="tr">
+                                    <Box as="td" colSpan={columns.length} className="px-7 py-12 text-center">
+                                        <Text className="text-[14px] font-semibold text-[#737B8E]">
+                                            Chargement des groupes...
+                                        </Text>
+                                    </Box>
+                                </Box>
+                            )}
+
+                            {!isLoading && groups.map((group) => (
                                 <Box as="tr" key={group.id} className="border-b border-[#EEF0F4] last:border-b-0">
                                     <Box as="td" className="px-7 py-[17px]">
                                         <Box className="flex items-center gap-4">
@@ -689,8 +584,9 @@ function GroupsTab({
                                     </Box>
                                     <Box as="td" className="px-7 py-[17px]">
                                         <Button
-                                            onClick={() => onRemoveGroup(group.id)}
-                                            className="inline-flex items-center gap-2 text-[15px] font-extrabold text-[#F00613] transition hover:text-[#C8000B]"
+                                            disabled={isActionPending}
+                                            onClick={() => onRemoveGroup(group)}
+                                            className="inline-flex items-center gap-2 text-[15px] font-extrabold text-[#F00613] transition hover:text-[#C8000B] disabled:cursor-not-allowed disabled:opacity-60"
                                         >
                                             <InlineIcon icon={Trash2} className="h-4 w-4" />
                                             Retirer
@@ -698,6 +594,19 @@ function GroupsTab({
                                     </Box>
                                 </Box>
                             ))}
+
+                            {!isLoading && groups.length === 0 && (
+                                <Box as="tr">
+                                    <Box as="td" colSpan={columns.length} className="px-7 py-12 text-center">
+                                        <Text className="text-[14px] font-bold text-[#171B2A]">
+                                            Aucun groupe assigné
+                                        </Text>
+                                        <Text className="mt-2 text-[14px] font-semibold text-[#A0A6B5]">
+                                            Ajoutez cet utilisateur à un groupe de son organisation.
+                                        </Text>
+                                    </Box>
+                                </Box>
+                            )}
                         </Box>
                     </Box>
                 </Box>
@@ -711,13 +620,30 @@ function RoleplaysTab({
     roleplays,
 }: {
     onAssign: () => void;
-    roleplays: AssignedRoleplay[];
+    roleplays: UserAssignedRoleplay[];
 }) {
+    const [collapsedSections, setCollapsedSections] = useState<Record<UserAssignmentStatus, boolean>>({
+        completed: false,
+        in_progress: false,
+        not_started: false,
+    });
     const notStarted = roleplays.filter((roleplay) => roleplay.status === "not_started");
     const inProgress = roleplays.filter((roleplay) => roleplay.status === "in_progress");
     const completed = roleplays.filter((roleplay) => roleplay.status === "completed");
+    const sections: Array<{ items: UserAssignedRoleplay[]; label: string; status: UserAssignmentStatus }> = [
+        { items: notStarted, label: "Roleplays non commencés", status: "not_started" },
+        { items: inProgress, label: "Roleplays en cours", status: "in_progress" },
+        { items: completed, label: "Roleplays terminés", status: "completed" },
+    ];
 
-    const renderRows = (items: AssignedRoleplay[]) =>
+    const toggleSection = (status: UserAssignmentStatus) => {
+        setCollapsedSections((current) => ({
+            ...current,
+            [status]: !current[status],
+        }));
+    };
+
+    const renderRows = (items: UserAssignedRoleplay[]) =>
         items.map((roleplay) => (
             <Box as="tr" key={roleplay.id} className="border-b border-[#EEF0F4] last:border-b-0">
                 <Box as="td" className="px-7 py-[17px]">
@@ -764,12 +690,18 @@ function RoleplaysTab({
                             </Box>
                         </Box>
                         <Box as="tbody">
-                            <TableGroupHeader count={notStarted.length} label="Roleplays non commencés" />
-                            {renderRows(notStarted)}
-                            <TableGroupHeader count={inProgress.length} label="Roleplays en cours" />
-                            {renderRows(inProgress)}
-                            <TableGroupHeader count={completed.length} label="Roleplays terminés" />
-                            {renderRows(completed)}
+                            {sections.map((section) => (
+                                <Fragment key={section.status}>
+                                    <GroupedTableSectionHeader
+                                        colSpan={5}
+                                        count={section.items.length}
+                                        isCollapsed={collapsedSections[section.status]}
+                                        label={section.label}
+                                        onToggle={() => toggleSection(section.status)}
+                                    />
+                                    {!collapsedSections[section.status] && renderRows(section.items)}
+                                </Fragment>
+                            ))}
                         </Box>
                     </Box>
                 </Box>
@@ -783,13 +715,30 @@ function EvaluationsTab({
     quizzes,
 }: {
     onAssign: () => void;
-    quizzes: AssignedQuiz[];
+    quizzes: UserAssignedQuiz[];
 }) {
+    const [collapsedSections, setCollapsedSections] = useState<Record<UserAssignmentStatus, boolean>>({
+        completed: false,
+        in_progress: false,
+        not_started: false,
+    });
     const notStarted = quizzes.filter((quiz) => quiz.status === "not_started");
     const inProgress = quizzes.filter((quiz) => quiz.status === "in_progress");
     const completed = quizzes.filter((quiz) => quiz.status === "completed");
+    const sections: Array<{ items: UserAssignedQuiz[]; label: string; status: UserAssignmentStatus }> = [
+        { items: notStarted, label: "Quizzes non commencés", status: "not_started" },
+        { items: inProgress, label: "Quizzes en cours", status: "in_progress" },
+        { items: completed, label: "Quizzes terminés", status: "completed" },
+    ];
 
-    const renderRows = (items: AssignedQuiz[]) =>
+    const toggleSection = (status: UserAssignmentStatus) => {
+        setCollapsedSections((current) => ({
+            ...current,
+            [status]: !current[status],
+        }));
+    };
+
+    const renderRows = (items: UserAssignedQuiz[]) =>
         items.map((quiz) => (
             <Box as="tr" key={quiz.id} className="border-b border-[#EEF0F4] last:border-b-0">
                 <Box as="td" className="px-7 py-[17px]">
@@ -836,12 +785,18 @@ function EvaluationsTab({
                             </Box>
                         </Box>
                         <Box as="tbody">
-                            <TableGroupHeader count={notStarted.length} label="Quizzes non commencés" />
-                            {renderRows(notStarted)}
-                            <TableGroupHeader count={inProgress.length} label="Quizzes en cours" />
-                            {renderRows(inProgress)}
-                            <TableGroupHeader count={completed.length} label="Quizzes terminés" />
-                            {renderRows(completed)}
+                            {sections.map((section) => (
+                                <Fragment key={section.status}>
+                                    <GroupedTableSectionHeader
+                                        colSpan={5}
+                                        count={section.items.length}
+                                        isCollapsed={collapsedSections[section.status]}
+                                        label={section.label}
+                                        onToggle={() => toggleSection(section.status)}
+                                    />
+                                    {!collapsedSections[section.status] && renderRows(section.items)}
+                                </Fragment>
+                            ))}
                         </Box>
                     </Box>
                 </Box>
@@ -946,41 +901,45 @@ function TopSkillCard({
                 <Text className="text-[15px] font-extrabold text-[#171B2A]">{title}</Text>
             </Box>
             <Box className="space-y-3">
-                {items.map((item) => (
-                    <Box key={item.label} className="flex items-center justify-between">
-                        <Text className="text-[14px] font-semibold text-[#4F5868]">{item.label}</Text>
-                        <Box className={`inline-flex h-7 items-center justify-center rounded-[8px] px-2.5 text-[13px] font-extrabold ${badgeClass}`}>
-                            {item.score}%
+                {items.length > 0 ? (
+                    items.map((item) => (
+                        <Box key={item.label} className="flex items-center justify-between">
+                            <Text className="text-[14px] font-semibold text-[#4F5868]">{item.label}</Text>
+                            <Box className={`inline-flex h-7 items-center justify-center rounded-[8px] px-2.5 text-[13px] font-extrabold ${badgeClass}`}>
+                                {item.score}%
+                            </Box>
                         </Box>
-                    </Box>
-                ))}
+                    ))
+                ) : (
+                    <Text className="text-[14px] font-semibold text-[#8C94A4]">Aucune donnée disponible</Text>
+                )}
             </Box>
         </Box>
     );
 }
 
-function StatisticsTab() {
+function StatisticsTab({ statistics }: { statistics: UserStatistics }) {
     return (
         <Box className="space-y-8 px-6 pb-7 pt-7 md:px-7">
             <Box>
                 <StatGroupTitle>Engagement</StatGroupTitle>
                 <Box className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                    <StatTile icon={Clock3} label="Temps d'entraînement" tone="blue" value="4h 20min" />
-                    <StatTile icon={CheckCircle2} label="Roleplays terminés" tone="green" value="1/5" />
-                    <StatTile icon={CheckCircle2} label="Quizzes terminés" tone="cyan" value="1/4" />
-                    <StatTile icon={BarChart3} label="Taux de complétion" tone="amber" value="42%" />
-                    <StatTile icon={Clock3} label="Dernière activité" tone="purple" value="Il y a 2j" />
+                    <StatTile icon={Clock3} label="Temps d'entraînement" tone="blue" value={statistics.trainingTime} />
+                    <StatTile icon={CheckCircle2} label="Roleplays terminés" tone="green" value={statistics.completedRoleplays} />
+                    <StatTile icon={CheckCircle2} label="Quizzes terminés" tone="cyan" value={statistics.completedQuizzes} />
+                    <StatTile icon={BarChart3} label="Taux de complétion" tone="amber" value={statistics.completionRate} />
+                    <StatTile icon={Clock3} label="Dernière activité" tone="purple" value={statistics.lastActivity} />
                 </Box>
             </Box>
 
             <Box>
                 <StatGroupTitle>Performance</StatGroupTitle>
                 <Box className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                    <StatTile icon={TrendingUp} label="Score moyen roleplays" tone="orange" value="68%" />
-                    <StatTile icon={TrendingUp} label="Score moyen quizzes" tone="blue" value="64%" />
-                    <StatTile icon={TrendingUp} label="Meilleur score roleplay" tone="green" value="82%" />
-                    <StatTile icon={TrendingUp} label="Dernier score roleplay" tone="orange" value="68%" />
-                    <StatTile badge="Écart : -12 pts" icon={Target} label="Score cible" tone="green" value="80%" />
+                    <StatTile icon={TrendingUp} label="Score moyen roleplays" tone="orange" value={statistics.averageRoleplayScore} />
+                    <StatTile icon={TrendingUp} label="Score moyen quizzes" tone="blue" value={statistics.averageQuizScore} />
+                    <StatTile icon={TrendingUp} label="Meilleur score roleplay" tone="green" value={statistics.bestRoleplayScore} />
+                    <StatTile icon={TrendingUp} label="Dernier score roleplay" tone="orange" value={statistics.latestRoleplayScore} />
+                    <StatTile badge={statistics.targetScoreGap} icon={Target} label="Score cible" tone="green" value={statistics.targetScore} />
                 </Box>
             </Box>
 
@@ -990,18 +949,18 @@ function StatisticsTab() {
                     <ProgressionTile
                         label="Progression roleplay depuis la première tentative"
                         tone="green"
-                        value="+23 pts"
+                        value={statistics.roleplayProgressSinceFirst}
                     />
                     <ProgressionTile
                         label="Progression roleplay sur les 30 derniers jours"
                         tone="blue"
-                        value="+8 pts"
+                        value={statistics.roleplayProgressLast30Days}
                     />
                     <ProgressionTile
                         label="Écart Quiz vs Roleplay"
                         subtitle="(Écart théorie / pratique)"
                         tone="grey"
-                        value="−4 pts"
+                        value={statistics.quizVsRoleplayGap}
                     />
                 </Box>
             </Box>
@@ -1012,20 +971,12 @@ function StatisticsTab() {
                     <TopSkillCard
                         title="Top 3 compétences maîtrisées"
                         tone="green"
-                        items={[
-                            { label: "Argumentation commerciale", score: 85 },
-                            { label: "Prospection téléphonique", score: 82 },
-                            { label: "Présentation commerciale", score: 75 },
-                        ]}
+                        items={statistics.topMasteredSkills}
                     />
                     <TopSkillCard
                         title="Top 3 compétences à renforcer"
                         tone="orange"
-                        items={[
-                            { label: "Traitement des objections", score: 68 },
-                            { label: "Négociation", score: 70 },
-                            { label: "Closing", score: 72 },
-                        ]}
+                        items={statistics.topSkillsToImprove}
                     />
                 </Box>
             </Box>
@@ -1033,38 +984,142 @@ function StatisticsTab() {
     );
 }
 
-function getSkillTone(score: number) {
-    return score >= 80 ? "green" : "yellow";
+type SkillDimensionView = UserSkillProgress["dimensions"][number];
+type SkillDimensionItemView = UserSkillProgress["items"][number];
+
+const skillDimensionToneClasses: Record<SkillDimensionView["key"], string> = {
+    savoir: uiTokens.tone.info.soft,
+    savoir_etre: uiTokens.tone.success.soft,
+    savoir_faire: uiTokens.tone.primary.soft,
+};
+
+const skillDimensionLabels: Record<SkillDimensionItemView["dimension"], string> = {
+    savoir: "Savoir",
+    savoir_etre: "Savoir-être",
+    savoir_faire: "Savoir-faire",
+};
+
+function formatSkillProgress(score: number | null) {
+    return score === null ? "N/A" : `${score}%`;
 }
 
-function SkillScoreBadge({ score }: { score: number }) {
-    const tone = getSkillTone(score);
+function formatSkillDelta(delta: number | null) {
+    if (delta === null) return "N/A";
+    if (delta > 0) return `+${delta}%`;
+    if (delta < 0) return `${delta}%`;
+    return "0%";
+}
 
+function getProgressWidth(score: number | null) {
+    if (score === null) return 0;
+    return Math.max(0, Math.min(100, score));
+}
+
+function SkillDimensionSummary({ dimension }: { dimension: SkillDimensionView }) {
     return (
-        <Box className={[
-            "inline-flex h-9 w-[62px] items-center justify-center rounded-[10px] text-[15px] font-extrabold",
-            tone === "green" ? "bg-[#D9FBE8] text-[#048A45]" : "bg-[#FFF1C8] text-[#C76000]",
-        ].join(" ")}
-        >
-            {score}%
+        <Box className={`inline-flex h-8 min-w-[124px] items-center justify-center gap-2 rounded-[9px] border px-3 text-[13px] font-extrabold ${skillDimensionToneClasses[dimension.key]}`}>
+            <Text as="span" className="truncate">
+                {dimension.label}
+            </Text>
+            <Text as="span" className="shrink-0">
+                {formatSkillProgress(dimension.score)}
+            </Text>
         </Box>
     );
 }
 
-function SkillProgressBar({ score }: { score: number }) {
-    const tone = getSkillTone(score);
+function SkillItemProgressBar({ score }: { score: number | null }) {
+    return (
+        <Box className={uiTokens.progress.track}>
+            <Box className={uiTokens.progress.fill} style={{ width: `${getProgressWidth(score)}%` }} />
+        </Box>
+    );
+}
+
+function SkillItemRow({ item }: { item: SkillDimensionItemView }) {
+    return (
+        <Box className={`grid gap-3 ${uiTokens.surface.mutedPanel} md:grid-cols-[140px_minmax(0,1fr)_64px_minmax(160px,220px)] md:items-center`}>
+            <Box className={`inline-flex h-7 w-fit items-center rounded-[8px] border px-2.5 text-[12px] font-extrabold ${skillDimensionToneClasses[item.dimension]}`}>
+                {skillDimensionLabels[item.dimension]}
+            </Box>
+            <Text className={`min-w-0 text-[14px] font-semibold leading-6 ${uiTokens.text.subtle}`}>
+                {item.label}
+            </Text>
+            <Text className={`text-[14px] font-extrabold ${item.score === null ? uiTokens.text.muted : uiTokens.text.primary}`}>
+                {formatSkillProgress(item.score)}
+            </Text>
+            <SkillItemProgressBar score={item.score} />
+        </Box>
+    );
+}
+
+function getSkillProgressTone(score: number | null) {
+    if (score === null) return "neutral";
+    return score >= 80 ? "success" : "warning";
+}
+
+function SkillScoreBadge({ score }: { score: number | null }) {
+    const tone = getSkillProgressTone(score);
+    const toneClass = tone === "success"
+        ? uiTokens.tone.success.soft
+        : tone === "warning"
+            ? uiTokens.tone.warning.soft
+            : uiTokens.tone.neutral.soft;
 
     return (
-        <Box className="h-2 w-full overflow-hidden rounded-full bg-[#E2E4EA]">
+        <Box className={`inline-flex h-9 w-[62px] items-center justify-center rounded-[10px] border text-[15px] font-extrabold ${toneClass}`}>
+            {formatSkillProgress(score)}
+        </Box>
+    );
+}
+
+function SkillProgressBar({ score }: { score: number | null }) {
+    const tone = getSkillProgressTone(score);
+    const fillColor = tone === "success"
+        ? uiTokens.progression.level.green.fill
+        : tone === "warning"
+            ? uiTokens.progression.level.yellow.fill
+            : "#D1D5DB";
+
+    return (
+        <Box className={uiTokens.progress.track}>
             <Box
-                className={`h-full rounded-full ${tone === "green" ? "bg-[#10C55B]" : "bg-[#FFC300]"}`}
-                style={{ width: `${score}%` }}
+                className={uiTokens.progress.fillBase}
+                style={{
+                    backgroundColor: fillColor,
+                    width: `${getProgressWidth(score)}%`,
+                }}
             />
         </Box>
     );
 }
 
-function SkillsTab() {
+function SkillsTab({ skills }: { skills: UserSkillProgress[] }) {
+    const [expandedSkillIds, setExpandedSkillIds] = useState<string[]>(() => skills[0] ? [skills[0].id] : []);
+
+    const toggleSkill = (skillId: string) => {
+        setExpandedSkillIds((current) =>
+            current.includes(skillId)
+                ? current.filter((id) => id !== skillId)
+                : [...current, skillId],
+        );
+    };
+
+    if (skills.length === 0) {
+        return (
+            <Box className="px-6 pb-7 pt-7 md:px-7">
+                <Box className={uiTokens.surface.emptyState}>
+                    <Text className={`text-[15px] font-extrabold ${uiTokens.text.heading}`}>
+                        Aucune compétence évaluée
+                    </Text>
+                    <Text className={`mt-2 text-[14px] font-semibold ${uiTokens.text.muted}`}>
+                        Les progressions apparaîtront après une session notée avec une scorecard reliée aux compétences.
+                    </Text>
+                </Box>
+            </Box>
+        );
+    }
+
     return (
         <Box className="px-6 pb-7 pt-7 md:px-7">
             <Box className="overflow-hidden rounded-[12px] border border-[#E1E4EB]">
@@ -1081,36 +1136,82 @@ function SkillsTab() {
                             </Box>
                         </Box>
                         <Box as="tbody">
-                            {skillProgressRows.map((skill) => {
-                                const tone = getSkillTone(skill.score);
+                            {skills.map((skill) => {
+                                const isExpanded = expandedSkillIds.includes(skill.id);
+                                const tone = getSkillProgressTone(skill.score);
+                                const dotClass = tone === "success"
+                                    ? uiTokens.progression.level.green.dot
+                                    : tone === "warning"
+                                        ? uiTokens.progression.level.yellow.dot
+                                        : "bg-[#D1D5DB]";
 
                                 return (
-                                    <Box as="tr" key={skill.id} className="border-b border-[#EEF0F4] last:border-b-0">
-                                        <Box as="td" className="px-7 py-[18px]">
-                                            <Box className="flex items-center gap-4">
-                                                <Box className={`h-2.5 w-2.5 rounded-full ${tone === "green" ? "bg-[#10C55B]" : "bg-[#FFC300]"}`} />
-                                                <Text className="max-w-[210px] text-[15px] font-extrabold leading-6 text-[#171B2A]">
-                                                    {skill.label}
-                                                </Text>
-                                            </Box>
-                                        </Box>
-                                        <Box as="td" className="px-7 py-[18px]">
-                                            <Box className="grid grid-cols-[78px_minmax(180px,1fr)_92px_112px_58px_24px] items-center gap-4">
-                                                <SkillScoreBadge score={skill.score} />
-                                                <SkillProgressBar score={skill.score} />
-                                                <Text className="text-[13px] font-extrabold text-[#737B8E]">
-                                                    Initial : {skill.initial}%
-                                                </Text>
-                                                <Box className="inline-flex h-7 items-center justify-center rounded-[7px] bg-[#D9FBE8] px-3 text-[13px] font-extrabold text-[#057A3A]">
-                                                    Acquis : {skill.score}%
+                                    <Fragment key={skill.id}>
+                                        <Box
+                                            as="tr"
+                                            aria-expanded={isExpanded}
+                                            className="cursor-pointer border-b border-[#EEF0F4] transition hover:bg-[#FBFCFE] last:border-b-0"
+                                            onClick={() => toggleSkill(skill.id)}
+                                            onKeyDown={(event) => {
+                                                if (event.key === "Enter" || event.key === " ") {
+                                                    event.preventDefault();
+                                                    toggleSkill(skill.id);
+                                                }
+                                            }}
+                                            role="button"
+                                            tabIndex={0}
+                                        >
+                                            <Box as="td" className="px-7 py-[18px]">
+                                                <Box className="flex items-center gap-4">
+                                                    <Box className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
+                                                    <Text className="max-w-[250px] text-[15px] font-extrabold leading-6 text-[#171B2A]">
+                                                        {skill.label}
+                                                    </Text>
                                                 </Box>
-                                                <Text className="text-right text-[15px] font-extrabold text-[#009A94]">
-                                                    +{skill.delta}%
-                                                </Text>
-                                                <InlineIcon icon={ChevronRight} className="h-5 w-5 justify-self-end text-[#B7BDCB]" />
+                                            </Box>
+                                            <Box as="td" className="px-7 py-[18px]">
+                                                <Box className="grid grid-cols-[78px_minmax(180px,1fr)_92px_112px_58px_32px] items-center gap-4">
+                                                    <SkillScoreBadge score={skill.score} />
+                                                    <SkillProgressBar score={skill.score} />
+                                                    <Text className="text-[13px] font-extrabold text-[#737B8E]">
+                                                        Initial : {formatSkillProgress(skill.initialScore)}
+                                                    </Text>
+                                                    <Box className="inline-flex h-7 items-center justify-center rounded-[7px] bg-[#D9FBE8] px-3 text-[13px] font-extrabold text-[#057A3A]">
+                                                        Acquis : {formatSkillProgress(skill.score)}
+                                                    </Box>
+                                                    <Text className="text-right text-[15px] font-extrabold text-[#009A94]">
+                                                        {formatSkillDelta(skill.delta)}
+                                                    </Text>
+                                                    <Box className="flex h-8 w-8 items-center justify-center rounded-lg text-[#B7BDCB]">
+                                                        <InlineIcon icon={isExpanded ? ChevronDown : ChevronRight} className="h-5 w-5" />
+                                                    </Box>
+                                                </Box>
                                             </Box>
                                         </Box>
-                                    </Box>
+
+                                        {isExpanded && (
+                                            <Box as="tr" className="border-b border-[#EEF0F4] bg-[#FBFCFE]">
+                                                <Box as="td" colSpan={2} className="px-7 py-5">
+                                                    <Box className="space-y-3">
+                                                        <Box className="flex min-w-0 flex-wrap gap-2 rounded-[12px] border border-[#E6E9F0] bg-white p-4">
+                                                            {skill.dimensions.map((dimension) => (
+                                                                <SkillDimensionSummary key={dimension.key} dimension={dimension} />
+                                                            ))}
+                                                        </Box>
+                                                        {skill.items.length > 0 ? (
+                                                            skill.items.map((item) => <SkillItemRow key={item.id} item={item} />)
+                                                        ) : (
+                                                            <Box className={uiTokens.surface.mutedPanel}>
+                                                                <Text className={`text-[14px] font-semibold ${uiTokens.text.muted}`}>
+                                                                    Aucun item actif rattaché à cette compétence.
+                                                                </Text>
+                                                            </Box>
+                                                        )}
+                                                    </Box>
+                                                </Box>
+                                            </Box>
+                                        )}
+                                    </Fragment>
                                 );
                             })}
                         </Box>
@@ -1122,20 +1223,83 @@ function SkillsTab() {
 }
 
 export function UserDetailPage({
+    assignedQuizzes: initialQuizzes = [],
+    assignedRoleplays: initialRoleplays = [],
     avatarUrl,
     initialMode = "view",
     initials,
+    platformRole,
+    skills = [],
+    statistics = emptyUserStatistics,
     user,
 }: UserDetailPageProps) {
+    const router = useRouter();
     const [currentUser, setCurrentUser] = useState<UserListItem>(user);
     const [activeTab, setActiveTab] = useState<UserDetailTab>("profile");
-    const [assignedGroups, setAssignedGroups] = useState<AssignedGroup[]>(initialAssignedGroups);
-    const [assignedRoleplays, setAssignedRoleplays] = useState<AssignedRoleplay[]>(initialAssignedRoleplays);
-    const [assignedQuizzes, setAssignedQuizzes] = useState<AssignedQuiz[]>(initialAssignedQuizzes);
+    const [assignedGroups, setAssignedGroups] = useState<UserAssignedGroup[]>([]);
+    const [availableGroups, setAvailableGroups] = useState<UserAvailableGroup[]>([]);
+    const [isGroupsLoading, setIsGroupsLoading] = useState(true);
+    const [groupsError, setGroupsError] = useState<string | null>(null);
+    const [isAddGroupOpen, setIsAddGroupOpen] = useState(false);
+    const [selectedGroupId, setSelectedGroupId] = useState("");
+    const [groupPendingRemoval, setGroupPendingRemoval] = useState<UserAssignedGroup | null>(null);
+    const [groupDialogError, setGroupDialogError] = useState<string | null>(null);
+    const [isGroupActionPending, setIsGroupActionPending] = useState(false);
+    const [assignedRoleplays] = useState<UserAssignedRoleplay[]>(initialRoleplays);
+    const [assignedQuizzes] = useState<UserAssignedQuiz[]>(initialQuizzes);
     const [isEditing, setIsEditing] = useState(initialMode === "edit");
     const [draft, setDraft] = useState<DetailFormValues>(() => getFormValuesFromUser(user));
 
     const pageTitle = useMemo(() => "Détail de l'utilisateur", []);
+
+    useEffect(() => {
+        if (initialMode === "edit") {
+            router.replace(`/users/${user.id}`, { scroll: false });
+        }
+    }, [initialMode, router, user.id]);
+
+    const applyUserGroupsResult = useCallback((payload: UserGroupsResult | null) => {
+        const nextGroupsPayload = normalizeUserGroupsPayload(payload);
+        const groupLabel = nextGroupsPayload.groups.map((group) => group.name).join(", ");
+
+        setAssignedGroups(nextGroupsPayload.groups);
+        setAvailableGroups(nextGroupsPayload.availableGroups);
+        setCurrentUser((current) => ({
+            ...current,
+            group: groupLabel,
+        }));
+        setDraft((current) => ({
+            ...current,
+            group: groupLabel,
+        }));
+    }, []);
+
+    const loadUserGroups = useCallback(async () => {
+        setIsGroupsLoading(true);
+        setGroupsError(null);
+
+        try {
+            const response = await fetch(`/api/users/${user.id}/groups`, {
+                headers: { Accept: "application/json" },
+            });
+            const payload = (await response.json().catch(() => null)) as UserGroupsResult | ApiErrorPayload | null;
+
+            if (!response.ok) {
+                setGroupsError(getApiErrorMessage(payload as ApiErrorPayload | null, "Impossible de charger les groupes."));
+                return;
+            }
+
+            applyUserGroupsResult(payload as UserGroupsResult | null);
+        } catch {
+            setGroupsError("Impossible de charger les groupes.");
+        } finally {
+            setIsGroupsLoading(false);
+        }
+    }, [applyUserGroupsResult, user.id]);
+
+    useEffect(() => {
+        void loadUserGroups();
+    }, [loadUserGroups]);
 
     const updateDraft = (field: keyof DetailFormValues, value: string) => {
         setDraft((current) => ({
@@ -1183,45 +1347,107 @@ export function UserDetailPage({
         setIsEditing(false);
     };
 
-    const addGroup = () => {
-        setAssignedGroups((current) => {
-            if (current.some((group) => group.id === extraAssignedGroup.id)) {
-                return current;
+    const openAddGroupDialog = () => {
+        setSelectedGroupId(availableGroups[0]?.id ?? "");
+        setGroupDialogError(null);
+        setIsAddGroupOpen(true);
+    };
+
+    const closeAddGroupDialog = () => {
+        if (isGroupActionPending) {
+            return;
+        }
+
+        setIsAddGroupOpen(false);
+        setGroupDialogError(null);
+        setSelectedGroupId("");
+    };
+
+    const assignSelectedGroup = async () => {
+        if (!selectedGroupId || isGroupActionPending) {
+            return;
+        }
+
+        setIsGroupActionPending(true);
+        setGroupDialogError(null);
+
+        try {
+            const response = await fetch(`/api/users/${user.id}/groups`, {
+                body: JSON.stringify({ groupId: selectedGroupId }),
+                headers: { "Content-Type": "application/json" },
+                method: "POST",
+            });
+            const payload = (await response.json().catch(() => null)) as UserGroupsResult | ApiErrorPayload | null;
+
+            if (!response.ok) {
+                setGroupDialogError(getApiErrorMessage(payload as ApiErrorPayload | null, "Impossible d'ajouter l'utilisateur au groupe."));
+                return;
             }
 
-            return [...current, extraAssignedGroup];
-        });
+            applyUserGroupsResult(payload as UserGroupsResult | null);
+            setIsAddGroupOpen(false);
+            setSelectedGroupId("");
+        } catch {
+            setGroupDialogError("Impossible d'ajouter l'utilisateur au groupe.");
+        } finally {
+            setIsGroupActionPending(false);
+        }
     };
 
-    const removeGroup = (groupId: string) => {
-        setAssignedGroups((current) => current.filter((group) => group.id !== groupId));
+    const requestRemoveGroup = (group: UserAssignedGroup) => {
+        setGroupPendingRemoval(group);
+        setGroupDialogError(null);
     };
 
-    const assignRoleplay = () => {
-        setAssignedRoleplays((current) => {
-            if (current.some((roleplay) => roleplay.id === extraAssignedRoleplay.id)) {
-                return current;
+    const closeRemoveGroupDialog = () => {
+        if (isGroupActionPending) {
+            return;
+        }
+
+        setGroupPendingRemoval(null);
+        setGroupDialogError(null);
+    };
+
+    const confirmRemoveGroup = async () => {
+        if (!groupPendingRemoval || isGroupActionPending) {
+            return;
+        }
+
+        setIsGroupActionPending(true);
+        setGroupDialogError(null);
+
+        try {
+            const response = await fetch(`/api/users/${user.id}/groups`, {
+                body: JSON.stringify({ groupId: groupPendingRemoval.id }),
+                headers: { "Content-Type": "application/json" },
+                method: "DELETE",
+            });
+            const payload = (await response.json().catch(() => null)) as UserGroupsResult | ApiErrorPayload | null;
+
+            if (!response.ok) {
+                setGroupDialogError(getApiErrorMessage(payload as ApiErrorPayload | null, "Impossible de retirer l'utilisateur du groupe."));
+                return;
             }
 
-            return [...current, extraAssignedRoleplay];
-        });
+            applyUserGroupsResult(payload as UserGroupsResult | null);
+            setGroupPendingRemoval(null);
+        } catch {
+            setGroupDialogError("Impossible de retirer l'utilisateur du groupe.");
+        } finally {
+            setIsGroupActionPending(false);
+        }
     };
 
-    const assignQuiz = () => {
-        setAssignedQuizzes((current) => {
-            if (current.some((quiz) => quiz.id === extraAssignedQuiz.id)) {
-                return current;
-            }
+    const assignRoleplay = () => undefined;
 
-            return [...current, extraAssignedQuiz];
-        });
-    };
+    const assignQuiz = () => undefined;
 
     return (
         <AppShell
             activePrimaryItem="Utilisateurs"
             avatarUrl={avatarUrl}
             initials={initials}
+            platformRole={platformRole}
             searchPlaceholder="Rechercher..."
         >
             <Box as="main" className="px-5 pb-12 md:px-9 lg:px-14">
@@ -1313,7 +1539,14 @@ export function UserDetailPage({
                             />
                         )}
                         {activeTab === "groups" && (
-                            <GroupsTab groups={assignedGroups} onAddGroup={addGroup} onRemoveGroup={removeGroup} />
+                            <GroupsTab
+                                error={groupsError}
+                                groups={assignedGroups}
+                                isActionPending={isGroupActionPending}
+                                isLoading={isGroupsLoading}
+                                onAddGroup={openAddGroupDialog}
+                                onRemoveGroup={requestRemoveGroup}
+                            />
                         )}
                         {activeTab === "roleplays" && (
                             <RoleplaysTab onAssign={assignRoleplay} roleplays={assignedRoleplays} />
@@ -1321,11 +1554,33 @@ export function UserDetailPage({
                         {activeTab === "evaluations" && (
                             <EvaluationsTab onAssign={assignQuiz} quizzes={assignedQuizzes} />
                         )}
-                        {activeTab === "statistics" && <StatisticsTab />}
-                        {activeTab === "skills" && <SkillsTab />}
+                        {activeTab === "statistics" && <StatisticsTab statistics={statistics} />}
+                        {activeTab === "skills" && <SkillsTab skills={skills} />}
                     </CardSurface>
                 </Box>
             </Box>
+
+            {isAddGroupOpen && (
+                <AddUserGroupDialog
+                    availableGroups={availableGroups}
+                    error={groupDialogError}
+                    isSubmitting={isGroupActionPending}
+                    onClose={closeAddGroupDialog}
+                    onGroupChange={setSelectedGroupId}
+                    onSubmit={assignSelectedGroup}
+                    selectedGroupId={selectedGroupId}
+                />
+            )}
+
+            {groupPendingRemoval && (
+                <RemoveUserGroupDialog
+                    error={groupDialogError}
+                    group={groupPendingRemoval}
+                    isSubmitting={isGroupActionPending}
+                    onClose={closeRemoveGroupDialog}
+                    onConfirm={confirmRemoveGroup}
+                />
+            )}
         </AppShell>
     );
 }

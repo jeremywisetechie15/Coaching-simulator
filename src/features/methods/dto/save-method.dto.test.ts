@@ -12,7 +12,6 @@ describe("saveMethodDto", () => {
     it("normalizes a valid method payload", () => {
         const result = saveMethodDto.parse({
             ...minimalMethodInput,
-            businessObjective: "  Obtenir un rendez-vous qualifié  ",
             challenges: ["  Eviter le barrage  ", ""],
             objectives: ["Obtenir un rendez-vous", "   "],
             readingTimeMinutes: 12,
@@ -42,7 +41,6 @@ describe("saveMethodDto", () => {
             ],
         });
 
-        expect(result.businessObjective).toBe("Obtenir un rendez-vous qualifié");
         expect(result.challenges).toEqual(["Eviter le barrage"]);
         expect(result.objectives).toEqual(["Obtenir un rendez-vous"]);
         expect(result.resources[0]).toMatchObject({
@@ -89,10 +87,19 @@ describe("saveMethodDto", () => {
         }
     });
 
-    it("rejects quiz association fields on method writes", () => {
+    it("accepts an optional quiz association on method writes", () => {
+        const result = saveMethodDto.parse({
+            ...minimalMethodInput,
+            quizId: "00000000-0000-4000-8000-000000000001",
+        });
+
+        expect(result.quizId).toBe("00000000-0000-4000-8000-000000000001");
+    });
+
+    it("rejects invalid quiz association identifiers", () => {
         const result = saveMethodDto.safeParse({
             ...minimalMethodInput,
-            quizId: "00000000-0000-0000-0000-000000000001",
+            quizId: "quiz-1",
         });
 
         expect(result.success).toBe(false);
@@ -100,7 +107,8 @@ describe("saveMethodDto", () => {
             expect(result.error.issues).toEqual(
                 expect.arrayContaining([
                     expect.objectContaining({
-                        code: "unrecognized_keys",
+                        message: "Le quiz associé est invalide.",
+                        path: ["quizId"],
                     }),
                 ]),
             );

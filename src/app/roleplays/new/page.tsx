@@ -1,4 +1,9 @@
 import { redirect } from "next/navigation";
+import { AccessDeniedPage } from "@/features/app-shell/components";
+import {
+    APP_NAVIGATION_RESOURCE,
+    canManageAppResource,
+} from "@/features/auth/domain/access-control";
 import { CreateRoleplayPage } from "@/features/roleplays/components";
 import {
     listRoleplayCoachOptions,
@@ -8,7 +13,6 @@ import {
     listRoleplayPersonaOptions,
     listRoleplayQuizOptions,
     listRoleplayScorecardOptions,
-    listRoleplaySkillOptions,
     listRoleplayUserOptions,
 } from "@/features/roleplays/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
@@ -32,13 +36,24 @@ export default async function Page() {
         redirect("/auth?redirect=/roleplays/new");
     }
 
+    const profileValues = toProfileFormValues(profile);
+
+    if (!canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.roleplays)) {
+        return (
+            <AccessDeniedPage
+                activePrimaryItem="Roleplays"
+                profileValues={profileValues}
+                searchPlaceholder="Rechercher..."
+            />
+        );
+    }
+
     const [
         personaOptions,
         coachOptions,
         methodOptions,
         quizOptions,
         scorecardOptions,
-        skillOptions,
         organizationOptions,
         groupOptions,
         userOptions,
@@ -48,7 +63,6 @@ export default async function Page() {
         listRoleplayMethodOptions(),
         listRoleplayQuizOptions(),
         listRoleplayScorecardOptions(),
-        listRoleplaySkillOptions(),
         listRoleplayOrganizationOptions(),
         listRoleplayGroupOptions(),
         listRoleplayUserOptions(),
@@ -61,10 +75,9 @@ export default async function Page() {
             methodOptions={methodOptions}
             organizationOptions={organizationOptions}
             personaOptions={personaOptions}
-            profileValues={toProfileFormValues(profile)}
+            profileValues={profileValues}
             quizOptions={quizOptions}
             scorecardOptions={scorecardOptions}
-            skillOptions={skillOptions}
             userOptions={userOptions}
         />
     );

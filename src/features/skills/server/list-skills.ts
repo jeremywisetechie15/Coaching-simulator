@@ -55,8 +55,8 @@ export async function listSkillOptions(): Promise<SkillOption[]> {
 
     return skills.map((skill) => ({
         dimensionItems: itemsBySkillId.get(skill.id) ?? [],
+        domain: skill.domain,
         id: skill.id,
         name: skill.name,
-        objective: skill.objective,
     }));
 }

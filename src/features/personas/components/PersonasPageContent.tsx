@@ -9,6 +9,7 @@ import type { PersonaListItem } from "@/features/personas/domain/persona-list";
 import { getPersonaInitials } from "@/features/personas/domain/persona-list";
 
 interface PersonasPageContentProps {
+    canManage: boolean;
     initialPersonas: PersonaListItem[];
 }
 
@@ -32,7 +33,7 @@ async function fetchPersonas() {
     return payload?.personas ?? [];
 }
 
-export function PersonasPageContent({ initialPersonas }: PersonasPageContentProps) {
+export function PersonasPageContent({ canManage, initialPersonas }: PersonasPageContentProps) {
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const personasQuery = useQuery({
         initialData: initialPersonas,
@@ -63,13 +64,15 @@ export function PersonasPageContent({ initialPersonas }: PersonasPageContentProp
                         </Box>
                     </Box>
 
-                    <Link
-                        href="/personas/new"
-                        className="mt-1 flex h-9 items-center justify-center gap-2.5 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7] md:mt-2"
-                    >
-                        <InlineIcon icon={Plus} className="h-4 w-4" />
-                        Créer un persona IA
-                    </Link>
+                    {canManage && (
+                        <Link
+                            href="/personas/new"
+                            className="mt-1 flex h-9 items-center justify-center gap-2.5 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7] md:mt-2"
+                        >
+                            <InlineIcon icon={Plus} className="h-4 w-4" />
+                            Créer un persona IA
+                        </Link>
+                    )}
                 </Box>
 
                 {personasQuery.isError && (
@@ -88,15 +91,17 @@ export function PersonasPageContent({ initialPersonas }: PersonasPageContentProp
                                     key={persona.id}
                                     className="relative min-h-[218px] rounded-[14px] border border-[#E1E4EB] px-5 py-6 text-center shadow-none transition duration-200 hover:-translate-y-0.5 hover:border-[#D8DCE6] hover:shadow-[0_14px_34px_rgba(17,24,39,0.10)]"
                                 >
-                                    <Button
-                                        aria-label={`Actions pour ${persona.name}`}
-                                        onClick={() => setOpenMenuId(isMenuOpen ? null : persona.id)}
-                                        className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-lg text-[#596273] transition hover:bg-[#F3F4F8] hover:text-[#111827]"
-                                    >
-                                        <InlineIcon icon={MoreVertical} className="h-4 w-4" />
-                                    </Button>
+                                    {canManage && (
+                                        <Button
+                                            aria-label={`Actions pour ${persona.name}`}
+                                            onClick={() => setOpenMenuId(isMenuOpen ? null : persona.id)}
+                                            className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-lg text-[#596273] transition hover:bg-[#F3F4F8] hover:text-[#111827]"
+                                        >
+                                            <InlineIcon icon={MoreVertical} className="h-4 w-4" />
+                                        </Button>
+                                    )}
 
-                                    {isMenuOpen && (
+                                    {canManage && isMenuOpen && (
                                         <CardSurface className="absolute right-5 top-12 z-10 w-max rounded-lg border border-[#E1E4EB] px-1 py-1.5 text-left shadow-[0_12px_28px_rgba(17,24,39,0.14)]">
                                             <Link
                                                 href={`/personas/${persona.id}`}

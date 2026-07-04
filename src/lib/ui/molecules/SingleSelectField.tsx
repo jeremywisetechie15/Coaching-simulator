@@ -1,12 +1,13 @@
 "use client";
 
 import { Check, ChevronDown } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
-import { Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import { Button, CardSurface, InlineIcon, Text, Tooltip } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
-export type SingleSelectOption = string | { label: string; value: string };
+export type SingleSelectOption = string | { icon?: LucideIcon; label: string; value: string };
 
 function getSelectOptionValue(option: SingleSelectOption) {
     return typeof option === "string" ? option : option.value;
@@ -14,6 +15,10 @@ function getSelectOptionValue(option: SingleSelectOption) {
 
 function getSelectOptionLabel(option: SingleSelectOption) {
     return typeof option === "string" ? option : option.label;
+}
+
+function getSelectOptionIcon(option: SingleSelectOption) {
+    return typeof option === "string" ? undefined : option.icon;
 }
 
 function useOutsideClose(onClose: () => void) {
@@ -48,9 +53,12 @@ export function SingleSelectField({
     const [open, setOpen] = useState(false);
     const ref = useOutsideClose(() => setOpen(false));
     const selectedOption = options.find((option) => getSelectOptionValue(option) === value);
+    const selectedLabel = selectedOption ? getSelectOptionLabel(selectedOption) : value ?? placeholder;
+    const SelectedIcon = selectedOption ? getSelectOptionIcon(selectedOption) : undefined;
+    const hasSelectedValue = Boolean(selectedOption || value);
 
     return (
-        <div ref={ref} className="relative">
+        <div ref={ref} className="relative w-full min-w-0 max-w-full">
             <Button
                 disabled={disabled}
                 onClick={() => setOpen((current) => !current)}
@@ -58,19 +66,26 @@ export function SingleSelectField({
                 className={cn(
                     uiTokens.select.trigger,
                     disabled ? uiTokens.select.triggerDisabled : uiTokens.select.triggerEnabled,
-                    value ? uiTokens.select.triggerValue : uiTokens.select.triggerPlaceholder,
+                    hasSelectedValue ? uiTokens.select.triggerValue : uiTokens.select.triggerPlaceholder,
                 )}
             >
-                <Text as="span">{selectedOption ? getSelectOptionLabel(selectedOption) : value ?? placeholder}</Text>
+                {SelectedIcon && <InlineIcon icon={SelectedIcon} className={uiTokens.select.triggerIcon} />}
+                <Tooltip content={selectedLabel} disabled={!hasSelectedValue} className={uiTokens.select.triggerLabelWrapper}>
+                    <Text as="span" className={uiTokens.select.triggerLabel}>
+                        {selectedLabel}
+                    </Text>
+                </Tooltip>
                 <InlineIcon
                     icon={ChevronDown}
-                    className={cn("h-4 w-4 transition-transform", uiTokens.text.muted, open && "rotate-180")}
+                    className={cn(uiTokens.select.chevron, uiTokens.text.muted, open && "rotate-180")}
                 />
             </Button>
             {open && !disabled && (
                 <CardSurface className={uiTokens.select.menu}>
                     {options.map((option) => {
                         const optionValue = getSelectOptionValue(option);
+                        const optionLabel = getSelectOptionLabel(option);
+                        const OptionIcon = getSelectOptionIcon(option);
                         const isSelected = optionValue === value;
 
                         return (
@@ -85,8 +100,11 @@ export function SingleSelectField({
                                     isSelected ? uiTokens.select.optionActive : uiTokens.select.optionIdle,
                                 )}
                             >
-                                {getSelectOptionLabel(option)}
-                                {isSelected && <InlineIcon icon={Check} className={cn("h-4 w-4", uiTokens.text.primary)} />}
+                                {OptionIcon && <InlineIcon icon={OptionIcon} className={uiTokens.select.optionIcon} />}
+                                <Text as="span" className={cn(uiTokens.select.optionLabelWrapper, uiTokens.select.optionLabel)}>
+                                    {optionLabel}
+                                </Text>
+                                {isSelected && <InlineIcon icon={Check} className={cn("mt-0.5 h-4 w-4 shrink-0", uiTokens.text.primary)} />}
                             </Button>
                         );
                     })}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, X } from "lucide-react";
+import { ArrowLeft, CheckCircle2, MessageSquare, Phone, Plus, Shield, X } from "lucide-react";
 import { useState } from "react";
 import {
     CONTENT_DOMAINS,
@@ -14,7 +14,7 @@ import {
     type ContentStatus,
     type ContentVisibilityChoice,
 } from "@/features/content/domain";
-import type { QuizOption } from "@/features/evaluations/domain";
+import { QUIZ_KIND, type QuizOption } from "@/features/evaluations/domain";
 import {
     type MethodDetail,
     METHOD_SCOPE,
@@ -32,12 +32,25 @@ import {
     getStoragePathFileName,
 } from "@/lib/uploads/content-upload";
 import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
-import { AlertMessage, EditableTextListField, FileUploadField, SingleSelectField } from "@/lib/ui/molecules";
+import {
+    AlertMessage,
+    EditableTextListField,
+    FileUploadField,
+    SingleSelectField,
+    type SingleSelectOption,
+} from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
 const mediaTypeOptions = ["URL (YouTube, Vimeo…)", "Téléchargement"];
-const stepIconOptions = ["Téléphone", "Message", "Bouclier", "Coche"];
+const noQuizOptionValue = "__no_quiz__";
+const stepIconLabels = ["Téléphone", "Message", "Bouclier", "Coche"] as const;
+const stepIconOptions: SingleSelectOption[] = [
+    { icon: Phone, label: "Téléphone", value: "Téléphone" },
+    { icon: MessageSquare, label: "Message", value: "Message" },
+    { icon: Shield, label: "Bouclier", value: "Bouclier" },
+    { icon: CheckCircle2, label: "Coche", value: "Coche" },
+];
 const stepIconByLabel: Record<string, MethodStepIcon> = {
     Bouclier: "shield",
     Coche: "check",
@@ -175,7 +188,7 @@ function emptyStep(): MethodStepFormState {
         videoStoragePath: "",
         videoUploadedFileName: "",
         videoUploadedFileSizeBytes: null,
-        icon: stepIconOptions[0],
+        icon: stepIconLabels[0],
         objectifs: [""],
         bonnesPratiques: [""],
         erreurs: [""],
@@ -392,15 +405,27 @@ export function CreateMethodPageContent({
         label: organization.name,
         value: organization.id,
     }));
-    const quizSelectOptions = quizOptions.map((quiz) => ({
-        label: `${quiz.title}${quiz.questionCount > 0 ? ` (${quiz.questionCount} questions)` : ""}`,
-        value: quiz.id,
-    }));
+    const availableQuizOptions = quizOptions.filter((quiz) =>
+        initialMethod
+            ? !quiz.methodId || (quiz.methodId === initialMethod.id && quiz.kind === QUIZ_KIND.methodKnowledge)
+            : !quiz.methodId,
+    );
+    const initialQuizId = initialMethod
+        ? availableQuizOptions.find(
+              (quiz) => quiz.methodId === initialMethod.id && quiz.kind === QUIZ_KIND.methodKnowledge,
+          )?.id ?? null
+        : null;
+    const quizSelectOptions = [
+        { label: "Aucun quiz associé", value: noQuizOptionValue },
+        ...availableQuizOptions.map((quiz) => ({
+            label: `${quiz.title}${quiz.questionCount > 0 ? ` (${quiz.questionCount} questions)` : ""}`,
+            value: quiz.id,
+        })),
+    ];
     const [name, setName] = useState(initialMethod?.name ?? "");
     const [domain, setDomain] = useState<string | null>(initialMethod?.domain || null);
     const [category, setCategory] = useState<string | null>(initialMethod?.category || null);
-    const [quiz, setQuiz] = useState<string | null>(null);
-    const [businessObjective, setBusinessObjective] = useState(initialMethod?.businessObjective ?? "");
+    const [quiz, setQuiz] = useState<string | null>(initialQuizId);
     const [description, setDescription] = useState(initialMethod?.description ?? "");
     const [readingTime, setReadingTime] = useState(
         initialMethod?.readingTimeMinutes ? String(initialMethod.readingTimeMinutes) : "",
@@ -428,7 +453,7 @@ export function CreateMethodPageContent({
         name.trim().length > 0 &&
         steps.every((step) => step.title.trim().length > 0) &&
         (visibility === CONTENT_VISIBILITY_CHOICE.public || Boolean(selectedOrganizationId));
-    const canPublish = canSubmit && (isEditing || Boolean(quiz));
+    const canPublish = canSubmit;
     const isSaving = savingStatus !== null;
     const returnHref = initialMethod ? `/methods/${initialMethod.id}` : "/methods";
 
@@ -575,7 +600,6 @@ export function CreateMethodPageContent({
             .map(methodResourceFormToInput);
 
         return {
-            businessObjective,
             category: category ?? "",
             challenges: enjeux,
             description,
@@ -583,6 +607,7 @@ export function CreateMethodPageContent({
             name,
             organizationId: scope === METHOD_SCOPE.organization ? selectedOrganizationId : null,
             objectives: objectifs,
+            quizId: quiz,
             readingTimeMinutes: Number.isFinite(parsedReadingTime) ? parsedReadingTime : null,
             resources: methodResourceInputs,
             scope,
@@ -711,23 +736,8 @@ export function CreateMethodPageContent({
                             <SingleSelectField
                                 options={quizSelectOptions}
                                 value={quiz}
-                                placeholder="Sélectionner un quiz"
-                                onChange={setQuiz}
-                            />
-                            {!isEditing && !quiz && (
-                                <Text className={cn("mt-1.5 text-[12px] font-semibold", uiTokens.text.danger)}>
-                                    Un quiz associé est requis pour publier une nouvelle méthode.
-                                </Text>
-                            )}
-                        </Box>
-                        <Box>
-                            <FieldLabel className={labelClasses}>Objectif métier</FieldLabel>
-                            <TextInput
-                                value={businessObjective}
-                                onChange={(event) => setBusinessObjective(event.target.value)}
-                                placeholder="Ex: Obtenir un rendez-vous qualifié avec le décideur"
-                                hasLeadingIcon={false}
-                                className={inputClasses}
+                                placeholder="Aucun quiz associé"
+                                onChange={(value) => setQuiz(value === noQuizOptionValue ? null : value)}
                             />
                         </Box>
                         <Box>

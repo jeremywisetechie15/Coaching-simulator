@@ -6,6 +6,25 @@ import {
     type OrganizationContentVisibilityScope,
 } from "@/features/content/domain";
 
+function encodeRouteSegment(value: string) {
+    return encodeURIComponent(value);
+}
+
+export const METHOD_ROUTES = {
+    api: {
+        collection: "/api/methods",
+        detail: (methodId: string) => `/api/methods/${encodeRouteSegment(methodId)}`,
+        duplicate: (methodId: string) => `/api/methods/${encodeRouteSegment(methodId)}/duplicate`,
+        resource: (methodId: string, resourceId: string) =>
+            `/api/methods/${encodeRouteSegment(methodId)}/resources/${encodeRouteSegment(resourceId)}`,
+    },
+    app: {
+        collection: "/methods",
+        detail: (methodId: string) => `/methods/${encodeRouteSegment(methodId)}`,
+        edit: (methodId: string) => `/methods/${encodeRouteSegment(methodId)}/edit`,
+    },
+} as const;
+
 export const METHOD_SCOPE = {
     organization: CONTENT_VISIBILITY_SCOPE.organization,
     public: CONTENT_VISIBILITY_SCOPE.public,
@@ -113,7 +132,6 @@ export interface MethodListItem {
 }
 
 export interface MethodDetail extends MethodListItem {
-    businessObjective: string;
     challenges: string[];
     notationMethodId: string | null;
     objectives: string[];

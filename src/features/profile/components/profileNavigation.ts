@@ -13,6 +13,7 @@ import {
     UsersRound,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { SHOW_ROLES_PERMISSIONS_NAVIGATION } from "@/features/permissions/domain";
 
 export interface ProfileNavigationItem {
     icon: LucideIcon;
@@ -36,7 +37,10 @@ export const accountNavigation = {
     icon: UserCircle,
     label: "Compte",
     trailingIcon: ChevronDown,
-    items: ["Mon profil", "Rôles & Permissions"],
+    items: [
+        "Mon profil",
+        ...(SHOW_ROLES_PERMISSIONS_NAVIGATION ? ["Rôles & Permissions"] : []),
+    ],
 };
 
 export const logoutNavigation = {

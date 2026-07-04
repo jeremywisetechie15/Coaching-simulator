@@ -117,6 +117,41 @@ type OpenAIJsonSchemaFormat = {
     schema: Record<string, unknown>;
 };
 
+const SCORECARD_METHODO_SCHEMA_TAB = "methodo";
+
+const SCORECARD_METHODO_OUTPUT_SCHEMA: OpenAIJsonSchemaFormat = {
+    type: "json_schema",
+    name: "notation_scorecard_methodo",
+    strict: true,
+    schema: {
+        type: "object",
+        additionalProperties: false,
+        required: ["onglet", "criteres"],
+        properties: {
+            onglet: {
+                type: "string",
+                enum: ["AnalyseMethodologique"],
+            },
+            criteres: {
+                type: "array",
+                items: {
+                    type: "object",
+                    additionalProperties: false,
+                    required: ["ref", "points_obtenus", "points_max", "preuve", "commentaire", "conseil"],
+                    properties: {
+                        ref: { type: "string" },
+                        points_obtenus: { type: "number" },
+                        points_max: { type: "number" },
+                        preuve: { type: "string" },
+                        commentaire: { type: "string" },
+                        conseil: { type: "string" },
+                    },
+                },
+            },
+        },
+    },
+};
+
 const DEFAULT_STEP_TITLES: Record<string, string> = {
     accueillir: "Accueillir",
     cadrer: "Cadrer",
@@ -547,6 +582,7 @@ async function loadNotationOutputSchemas(
         .select("tab, name, schema_json, is_active")
         .eq("is_active", true)
         .eq("status", PUBLISHED_CONTENT_STATUS)
+        .eq("notation_source", ROLEPLAY_NOTATION_SOURCE.legacyPdf)
         .in("tab", NOTATION_TABS);
 
     if (error) {
@@ -579,6 +615,39 @@ async function loadNotationOutputSchemas(
     }
 
     return schemasMap;
+}
+
+async function loadScorecardMethodoOutputSchema(supabase: SupabaseClient): Promise<OpenAIJsonSchemaFormat> {
+    const { data, error } = await supabase
+        .from("notation_output_schemas")
+        .select("name, schema_json")
+        .eq("tab", SCORECARD_METHODO_SCHEMA_TAB)
+        .eq("name", SCORECARD_METHODO_OUTPUT_SCHEMA.name)
+        .eq("notation_source", ROLEPLAY_NOTATION_SOURCE.scorecard)
+        .eq("is_active", true)
+        .eq("status", PUBLISHED_CONTENT_STATUS)
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+    if (error) {
+        console.warn("⚠️ Schéma JSON scorecard indisponible, fallback code:", error.message);
+        return SCORECARD_METHODO_OUTPUT_SCHEMA;
+    }
+
+    const schema = data?.schema_json;
+    if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
+        return SCORECARD_METHODO_OUTPUT_SCHEMA;
+    }
+
+    const name = typeof data.name === "string" ? data.name : SCORECARD_METHODO_OUTPUT_SCHEMA.name;
+
+    return {
+        type: "json_schema",
+        name: sanitizeSchemaName(name, SCORECARD_METHODO_OUTPUT_SCHEMA.name),
+        strict: true,
+        schema: schema as Record<string, unknown>,
+    };
 }
 
 function filenameFromPath(path: string) {
@@ -749,8 +818,15 @@ REGLES:
 - Retourne uniquement un JSON valide.
 - N'invente aucun critere.
 - Ne renomme aucune ref.
-- Pour chaque ref fournie, retourne un resultat avec ref, points_obtenus, preuve, commentaire et conseil.
+- Retourne un objet avec onglet = "AnalyseMethodologique" et une liste plate criteres.
+- Pour chaque ref fournie, retourne exactement un resultat avec ref, points_obtenus, points_max, preuve, commentaire et conseil.
 - Les points_obtenus doivent etre entre 0 et points_max.
+- La preuve, le commentaire et le conseil doivent etre renseignes en texte. Si le score est 0, explique brievement l'absence de preuve utilisateur observee.
+- Pour le champ preuve, utilise uniquement la TRANSCRIPTION ci-dessous.
+- Pour le champ preuve, cite uniquement des paroles de l'Utilisateur / Apprenant. N'utilise pas les paroles du Persona comme preuve de reussite de l'apprenant.
+- Pour le champ preuve, cite si possible un extrait exact, sans reformulation. Si aucun extrait utilisateur ne prouve le critere, retourne "Aucune preuve utilisateur observee".
+- Si un timecode ou un horodatage est present dans la transcription, prefixe la preuve avec ce timecode et le locuteur, par exemple "12:54:48 Utilisateur: ...".
+- La transcription peut contenir des erreurs de reconnaissance vocale, notamment sur les noms et prenoms du persona lorsque l'utilisateur les prononce. Ne penalise pas l'utilisateur uniquement pour une orthographe, traduction ou transcription approximative du nom/prenom du persona si l'intention est claire.
 
 TRANSCRIPTION:
 ---
@@ -839,6 +915,7 @@ async function runScorecardNotation(
     }
 
     const outputSchemasMap = await loadNotationOutputSchemas(supabase, SCORECARD_NOTATION_CONFIG);
+    const scorecardMethodoOutputSchema = await loadScorecardMethodoOutputSchema(supabase);
     const notation: NotationPayload = {};
     const errors: string[] = [];
 
@@ -851,7 +928,7 @@ async function runScorecardNotation(
         "methodo",
         methodoPrompt,
         buildScorecardMethodoInput(context),
-        outputSchemasMap.get("methodo"),
+        scorecardMethodoOutputSchema,
     );
 
     if (!methodoResult.result) {

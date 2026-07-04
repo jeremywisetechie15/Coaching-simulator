@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import type { Scenario, VoiceId } from "@/types";
 import { DEFAULT_OPENAI_REALTIME_VOICE_ID, OPENAI_REALTIME_VOICES } from "@/lib/openai/realtime-voices";
+import { extractRealtimeAssistantTranscript } from "@/lib/openai/realtime-transcript";
 
 interface VoiceSessionProps {
     scenario: Scenario;
@@ -233,17 +234,14 @@ export default function VoiceSession({ scenario, model = "gpt-4o-mini-realtime-p
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
 
-            const sdpResponse = await fetch(
-                `https://api.openai.com/v1/realtime?model=${activeModel}`,
-                {
-                    method: "POST",
-                    headers: {
-                        "Authorization": `Bearer ${ephemeralKey}`,
-                        "Content-Type": "application/sdp",
-                    },
-                    body: offer.sdp,
-                }
-            );
+            const sdpResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${ephemeralKey}`,
+                    "Content-Type": "application/sdp",
+                },
+                body: offer.sdp,
+            });
 
             if (!sdpResponse.ok) throw new Error(`Failed to connect: ${sdpResponse.status}`);
 
@@ -286,11 +284,21 @@ export default function VoiceSession({ scenario, model = "gpt-4o-mini-realtime-p
             }
 
             // ✅ AI RESPONSE - Final transcript only
-            case "response.audio_transcript.done": {
-                const transcript = (event as { transcript?: string }).transcript;
+            case "response.audio_transcript.done":
+            case "response.output_audio.done": {
+                const transcript = extractRealtimeAssistantTranscript(event);
                 if (transcript) {
                     addMessageToRef("assistant", transcript, eventId);
                 }
+                break;
+            }
+
+            case "response.done": {
+                const transcript = extractRealtimeAssistantTranscript(event);
+                if (transcript) {
+                    addMessageToRef("assistant", transcript, eventId);
+                }
+                setIsAiSpeaking(false);
                 break;
             }
 
@@ -300,7 +308,6 @@ export default function VoiceSession({ scenario, model = "gpt-4o-mini-realtime-p
                 break;
 
             case "response.audio.done":
-            case "response.done":
                 setIsAiSpeaking(false);
                 break;
 

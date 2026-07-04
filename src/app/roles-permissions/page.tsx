@@ -28,6 +28,7 @@ export default async function Page() {
         <RolesPermissionsPage
             avatarUrl={profileValues.avatarUrl}
             initials={getProfileInitials(profileValues)}
+            platformRole={profileValues.platformRole}
         />
     );
 }

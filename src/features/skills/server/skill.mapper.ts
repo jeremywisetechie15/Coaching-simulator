@@ -1,5 +1,6 @@
 import { CONTENT_STATUS, normalizeContentStatus } from "@/features/content/domain";
 import {
+    SKILL_VISIBILITY_SCOPES,
     SKILL_CATEGORIES,
     SKILL_DIMENSIONS,
     type SkillCategory,
@@ -11,14 +12,17 @@ import {
 
 export interface SkillRow {
     category?: string | null;
+    assigned_user_id?: string | null;
     description?: string | null;
     domain?: string | null;
     functions?: string[] | null;
+    group_id?: string | null;
     id: string;
     is_active?: boolean | null;
     name: string;
-    objective?: string | null;
+    organization_id?: string | null;
     status?: string | null;
+    visibility_scope?: string | null;
 }
 
 export interface SkillDimensionItemRow {
@@ -38,20 +42,29 @@ function normalizeDimension(value: string | null | undefined): SkillDimension {
     return SKILL_DIMENSIONS.includes(value as SkillDimension) ? (value as SkillDimension) : "savoir";
 }
 
+function normalizeScope(value: string | null | undefined) {
+    return SKILL_VISIBILITY_SCOPES.includes(value as (typeof SKILL_VISIBILITY_SCOPES)[number])
+        ? (value as (typeof SKILL_VISIBILITY_SCOPES)[number])
+        : "public";
+}
+
 function cleanArray(value: string[] | null | undefined) {
     return Array.isArray(value) ? value.filter((item) => item.trim().length > 0) : [];
 }
 
 export function mapSkillRowToListItem(row: SkillRow): SkillListItem {
     return {
+        assignedUserId: row.assigned_user_id ?? null,
         category: normalizeCategory(row.category),
         description: row.description ?? "",
         domain: row.domain ?? "",
         functions: cleanArray(row.functions),
+        groupId: row.group_id ?? null,
         id: row.id,
         isActive: row.is_active ?? true,
         name: row.name,
-        objective: row.objective ?? "",
+        organizationId: row.organization_id ?? null,
+        scope: normalizeScope(row.visibility_scope),
         status: normalizeContentStatus(row.status, CONTENT_STATUS.draft),
     };
 }

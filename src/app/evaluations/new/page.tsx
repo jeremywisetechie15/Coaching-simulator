@@ -1,4 +1,9 @@
 import { redirect } from "next/navigation";
+import { AccessDeniedPage } from "@/features/app-shell/components";
+import {
+    APP_NAVIGATION_RESOURCE,
+    canManageAppResource,
+} from "@/features/auth/domain/access-control";
 import { CreateQuizPage } from "@/features/evaluations/components";
 import {
     listQuizGroupOptions,
@@ -28,6 +33,18 @@ export default async function Page() {
         redirect("/auth?redirect=/evaluations/new");
     }
 
+    const profileValues = toProfileFormValues(profile);
+
+    if (!canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.evaluations)) {
+        return (
+            <AccessDeniedPage
+                activePrimaryItem="Évaluations"
+                profileValues={profileValues}
+                searchPlaceholder="Rechercher..."
+            />
+        );
+    }
+
     const [methodOptions, organizationOptions, groupOptions, userOptions, skillOptions] = await Promise.all([
         listQuizMethodOptions(),
         listQuizOrganizationOptions(),
@@ -41,7 +58,7 @@ export default async function Page() {
             groupOptions={groupOptions}
             methodOptions={methodOptions}
             organizationOptions={organizationOptions}
-            profileValues={toProfileFormValues(profile)}
+            profileValues={profileValues}
             skillOptions={skillOptions}
             userOptions={userOptions}
         />

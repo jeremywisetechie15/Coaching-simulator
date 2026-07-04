@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { AlertMessage } from "@/lib/ui/molecules";
+import { AlertMessage, SingleSelectField } from "@/lib/ui/molecules";
 import { Box, CardSurface, FieldLabel, InlineIcon, SelectInput, Text, TextArea, TextInput } from "@/lib/ui/atoms";
+import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 import { OPENAI_REALTIME_VOICES } from "@/lib/openai/realtime-voices";
 import {
@@ -15,7 +16,9 @@ import {
     type CoachEditorValues,
     type CoachListItem,
 } from "@/features/coaches/domain/coach-list";
+import { COACH_DISC_PROFILE_OPTIONS, COACHING_STYLE_OPTIONS } from "@/features/coaches/domain/coach-profile";
 import { coachAvatarOptions } from "@/features/coaches/data/coachOptions";
+import { CONTENT_DOMAINS } from "@/features/content/domain";
 
 interface CreateCoachPageContentProps {
     coachId?: string;
@@ -50,14 +53,14 @@ async function saveCoach(coachId: string | undefined, values: CoachEditorValues)
     return payload.coach;
 }
 
-function SectionCard({ children, title }: { children: React.ReactNode; title: string }) {
+function FormSection({ children, title }: { children: React.ReactNode; title: string }) {
     return (
-        <CardSurface className="rounded-[16px] border border-[#E9E7FB] p-5 shadow-[0_1px_2px_rgba(17,24,39,0.04)]">
+        <Box className="border-t border-[#E5E7EB] pt-7 first:border-t-0 first:pt-0">
             <Text as="h2" className="text-[15px] font-extrabold text-[#111827]">
                 {title}
             </Text>
             <Box className="mt-4">{children}</Box>
-        </CardSurface>
+        </Box>
     );
 }
 
@@ -142,104 +145,205 @@ export function CreateCoachPageContent({
                     </Text>
                 </Box>}
 
-                <SectionCard title="Identité du coach">
-                    <Box className="flex flex-col gap-5 md:flex-row md:items-start">
-                        <Box className="flex h-[100px] w-[100px] shrink-0 items-center justify-center overflow-hidden rounded-full border-[3px] border-[#E7EAFF] bg-[#F1F2F6]">
-                            {form.avatarSrc ? (
-                                <Box
-                                    aria-label={form.name || "Avatar du coach"}
-                                    role="img"
-                                    className="h-full w-full bg-cover bg-center"
-                                    style={{ backgroundImage: `url(${form.avatarSrc})` }}
-                                />
-                            ) : (
-                                <Text className="text-[22px] font-extrabold text-[#5140F0]">
-                                    {getCoachInitials(form.name)}
-                                </Text>
-                            )}
-                        </Box>
-                        <Box className="grid w-full gap-4 sm:grid-cols-2">
-                            <Field label="Nom du coach" htmlFor="coach-name">
-                                <TextInput
-                                    density="sm"
-                                    id="coach-name"
-                                    placeholder="Ex : Pierre Laurent"
-                                    hasLeadingIcon={false}
-                                    required
-                                    value={form.name}
-                                    onChange={(event) => patch("name", event.target.value)}
-                                />
-                            </Field>
-                            <Field label="URL de l'avatar" htmlFor="coach-avatar">
-                                <TextInput
-                                    density="sm"
-                                    id="coach-avatar"
-                                    placeholder="https://... ou /coaches/avatar.png"
-                                    hasLeadingIcon={false}
-                                    value={form.avatarSrc}
-                                    onChange={(event) => patch("avatarSrc", event.target.value)}
-                                />
-                            </Field>
-                        </Box>
-                    </Box>
-                </SectionCard>
-
-                <SectionCard title="Avatars proposés">
-                    <Box className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                        {coachAvatarOptions.map((avatar) => (
-                            <button
-                                key={avatar.id}
-                                aria-label={avatar.name}
-                                aria-pressed={form.avatarSrc === avatar.src}
-                                onClick={() => patch("avatarSrc", avatar.src)}
-                                type="button"
-                                className={cn(
-                                    "relative mx-auto aspect-square w-full max-w-[150px] overflow-hidden rounded-[16px] border-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0]/40",
-                                    form.avatarSrc === avatar.src
-                                        ? "border-[#5140F0] shadow-[0_8px_18px_rgba(81,64,240,0.20)]"
-                                        : "border-transparent hover:border-[#E5E7EB]",
+                <CardSurface className={cn(uiTokens.surface.formCard, "space-y-7")}>
+                    <FormSection title="Identité du coach">
+                        <Box className="flex flex-col gap-5 md:flex-row md:items-start">
+                            <Box className="flex h-[100px] w-[100px] shrink-0 items-center justify-center overflow-hidden rounded-full border-[3px] border-[#E7EAFF] bg-[#F1F2F6]">
+                                {form.avatarSrc ? (
+                                    <Box
+                                        aria-label={form.name || "Avatar du coach"}
+                                        role="img"
+                                        className="h-full w-full bg-cover bg-center"
+                                        style={{ backgroundImage: `url(${form.avatarSrc})` }}
+                                    />
+                                ) : (
+                                    <Text className="text-[22px] font-extrabold text-[#5140F0]">
+                                        {getCoachInitials(form.name)}
+                                    </Text>
                                 )}
-                            >
-                                <Box
+                            </Box>
+                            <Box className="grid w-full gap-4 sm:grid-cols-2">
+                                <Field label="Nom du coach" htmlFor="coach-name">
+                                    <TextInput
+                                        density="sm"
+                                        id="coach-name"
+                                        placeholder="Ex : Pierre Laurent"
+                                        hasLeadingIcon={false}
+                                        required
+                                        value={form.name}
+                                        onChange={(event) => patch("name", event.target.value)}
+                                    />
+                                </Field>
+                                <Field label="URL image de l'avatar" htmlFor="coach-avatar">
+                                    <TextInput
+                                        density="sm"
+                                        id="coach-avatar"
+                                        placeholder="https://... ou /coaches/avatar.png"
+                                        hasLeadingIcon={false}
+                                        value={form.avatarSrc}
+                                        onChange={(event) => patch("avatarSrc", event.target.value)}
+                                    />
+                                </Field>
+                            </Box>
+                        </Box>
+                    </FormSection>
+
+                    <FormSection title="Avatars proposés">
+                        <Box className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+                            {coachAvatarOptions.map((avatar) => (
+                                <button
+                                    key={avatar.id}
                                     aria-label={avatar.name}
-                                    role="img"
-                                    className="absolute inset-0 bg-cover bg-center"
-                                    style={{ backgroundImage: `url(${avatar.src})` }}
-                                />
-                            </button>
-                        ))}
-                    </Box>
-                </SectionCard>
-
-                <SectionCard title="Voix">
-                    <Field label="Voix du coach" htmlFor="coach-voice">
-                        <SelectInput
-                            density="sm"
-                            id="coach-voice"
-                            value={form.voiceId}
-                            onChange={(event) => patch("voiceId", event.target.value as CoachEditorValues["voiceId"])}
-                        >
-                            {OPENAI_REALTIME_VOICES.map((voice) => (
-                                <option key={voice.id} value={voice.id}>
-                                    {voice.name} ({voice.id}) - {voice.characteristic}
-                                </option>
+                                    aria-pressed={form.avatarSrc === avatar.src}
+                                    onClick={() => patch("avatarSrc", avatar.src)}
+                                    type="button"
+                                    className={cn(
+                                        "relative mx-auto aspect-square w-full max-w-[150px] overflow-hidden rounded-[16px] border-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0]/40",
+                                        form.avatarSrc === avatar.src
+                                            ? "border-[#5140F0] shadow-[0_8px_18px_rgba(81,64,240,0.20)]"
+                                            : "border-transparent hover:border-[#E5E7EB]",
+                                    )}
+                                >
+                                    <Box
+                                        aria-label={avatar.name}
+                                        role="img"
+                                        className="absolute inset-0 bg-cover bg-center"
+                                        style={{ backgroundImage: `url(${avatar.src})` }}
+                                    />
+                                </button>
                             ))}
-                        </SelectInput>
-                    </Field>
-                </SectionCard>
+                        </Box>
+                    </FormSection>
 
-                <SectionCard title="Instructions du coach">
-                    <Field label="Comportement et méthode de coaching" htmlFor="coach-instructions">
-                        <TextArea
-                            id="coach-instructions"
-                            rows={9}
-                            required
-                            placeholder="Décrivez le rôle du coach, sa méthode, son ton et les règles qu'il doit suivre."
-                            value={form.systemInstructions}
-                            onChange={(event) => patch("systemInstructions", event.target.value)}
-                        />
-                    </Field>
-                </SectionCard>
+                    <FormSection title="Domaine d'expertise">
+                        <Box>
+                            <FieldLabel className="mb-1.5 text-[12px] font-semibold text-[#374151]">
+                                Domaine
+                            </FieldLabel>
+                            <SingleSelectField
+                                options={[...CONTENT_DOMAINS]}
+                                value={form.expertiseDomain || null}
+                                placeholder="Sélectionner un domaine d'expertise"
+                                onChange={(value) => patch("expertiseDomain", value as CoachEditorValues["expertiseDomain"])}
+                            />
+                        </Box>
+                    </FormSection>
+
+                    <FormSection title="Style de coaching">
+                        <Box className="grid gap-3 md:grid-cols-3">
+                            {COACHING_STYLE_OPTIONS.map((option) => {
+                                const isSelected = form.coachingStyle === option.value;
+
+                                return (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        aria-pressed={isSelected}
+                                        onClick={() => patch("coachingStyle", option.value)}
+                                        className={cn(
+                                            "min-h-[84px] rounded-[12px] border px-4 py-4 text-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0]/40",
+                                            isSelected
+                                                ? uiTokens.tone.primary.soft
+                                                : "border-[#E5E7EB] bg-white text-[#111827] hover:border-[#D5D7DE]",
+                                        )}
+                                    >
+                                        <Text as="span" className="block text-[14px] font-extrabold">
+                                            {option.label}
+                                        </Text>
+                                        <Text as="span" className="mt-2 block text-[12px] font-bold opacity-70">
+                                            {option.description}
+                                        </Text>
+                                    </button>
+                                );
+                            })}
+                        </Box>
+                    </FormSection>
+
+                    <FormSection title="Profil DISC">
+                        <Box className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                            {COACH_DISC_PROFILE_OPTIONS.map((option) => {
+                                const isSelected = form.discProfile === option.value;
+
+                                return (
+                                    <button
+                                        key={option.value}
+                                        type="button"
+                                        aria-pressed={isSelected}
+                                        onClick={() => patch("discProfile", option.value)}
+                                        className={cn(
+                                            "min-h-[84px] rounded-[12px] border px-4 py-4 text-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0]/40",
+                                            isSelected
+                                                ? uiTokens.tone.success.soft
+                                                : "border-[#E5E7EB] bg-white text-[#111827] hover:border-[#D5D7DE]",
+                                        )}
+                                    >
+                                        <Text as="span" className="block text-[14px] font-extrabold">
+                                            {option.label}
+                                        </Text>
+                                        <Text as="span" className="mt-2 block text-[12px] font-bold opacity-70">
+                                            {option.description}
+                                        </Text>
+                                    </button>
+                                );
+                            })}
+                        </Box>
+                    </FormSection>
+
+                    <FormSection title="Diplôme et certifications obtenues">
+                        <Box className="grid gap-4 sm:grid-cols-2">
+                            <Field label="Diplôme" htmlFor="coach-diploma">
+                                <TextInput
+                                    density="sm"
+                                    id="coach-diploma"
+                                    placeholder="Ex : Master coaching professionnel"
+                                    hasLeadingIcon={false}
+                                    value={form.diploma}
+                                    onChange={(event) => patch("diploma", event.target.value)}
+                                />
+                            </Field>
+                            <Field label="Certifications obtenues" htmlFor="coach-certifications">
+                                <TextArea
+                                    id="coach-certifications"
+                                    rows={4}
+                                    placeholder="Ex : RNCP, ICF, DISC, Process Com..."
+                                    value={form.certifications}
+                                    onChange={(event) => patch("certifications", event.target.value)}
+                                    className="min-h-[96px]"
+                                />
+                            </Field>
+                        </Box>
+                    </FormSection>
+
+                    <FormSection title="Voix">
+                        <Field label="Voix du coach" htmlFor="coach-voice">
+                            <SelectInput
+                                density="sm"
+                                id="coach-voice"
+                                value={form.voiceId}
+                                onChange={(event) => patch("voiceId", event.target.value as CoachEditorValues["voiceId"])}
+                            >
+                                {OPENAI_REALTIME_VOICES.map((voice) => (
+                                    <option key={voice.id} value={voice.id}>
+                                        {voice.name} ({voice.id}) - {voice.characteristic}
+                                    </option>
+                                ))}
+                            </SelectInput>
+                        </Field>
+                    </FormSection>
+
+                    <FormSection title="Instructions du coach">
+                        <Field label="Comportement et méthode de coaching" htmlFor="coach-instructions">
+                            <TextArea
+                                id="coach-instructions"
+                                rows={9}
+                                required
+                                placeholder="Décrivez le rôle du coach, sa méthode, son ton et les règles qu'il doit suivre."
+                                value={form.systemInstructions}
+                                onChange={(event) => patch("systemInstructions", event.target.value)}
+                            />
+                        </Field>
+                    </FormSection>
+                </CardSurface>
 
                 <Box className="mx-auto w-full max-w-[420px] space-y-4 pt-2">
                     {formError && <AlertMessage message={formError} />}

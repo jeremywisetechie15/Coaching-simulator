@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SaveMethodDto } from "@/features/methods/dto/save-method.dto";
 
 export const METHOD_SELECT =
-    "id, code, name, version, description, is_active, is_default, created_at, updated_at, subtitle, category, domain, tag, reading_time_minutes, business_objective, objectives, challenges, organization_id, scope, created_by, notation_method_id, status";
+    "id, code, name, version, description, is_active, is_default, created_at, updated_at, subtitle, category, domain, tag, reading_time_minutes, objectives, challenges, organization_id, scope, created_by, notation_method_id, status";
 
 export const METHOD_STEP_SELECT =
     "id, method_id, step_order, step_key, code, title, weight, aliases, summary, icon, takeaway, objectives, best_practices, pitfalls, posture, verbatims, notation_step_id, short_title";
@@ -28,7 +28,6 @@ export function nullableText(value: string | null | undefined) {
 
 function createMethodBasePayload(input: SaveMethodDto) {
     return {
-        business_objective: nullableText(input.businessObjective),
         category: nullableText(input.category),
         challenges: input.challenges,
         description: nullableText(input.description),

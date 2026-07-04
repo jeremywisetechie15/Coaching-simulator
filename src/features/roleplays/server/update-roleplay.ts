@@ -4,6 +4,7 @@ import type { SaveRoleplayDto } from "@/features/roleplays/dto";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { assertScorecardMatchesMethod, resolveNotationMethodId } from "./create-roleplay";
 import { fetchRoleplayDetail } from "./roleplay-query";
+import { assertRoleplayQuizzesMatchMethod } from "./roleplay-quiz-assignment.validation";
 import { createRoleplayUpdate } from "./roleplay.persistence";
 import { saveRoleplayChildren } from "./save-roleplay-children";
 import {
@@ -19,6 +20,7 @@ export async function updateRoleplay(
 ): Promise<RoleplayDetail> {
     await requireAdmin();
     await assertScorecardMatchesMethod(input);
+    await assertRoleplayQuizzesMatchMethod(input);
 
     const adminSupabase = createAdminClient();
     const notationMethodId = await resolveNotationMethodId(input.methodId);

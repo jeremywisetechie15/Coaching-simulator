@@ -4,6 +4,7 @@ import type { SaveRoleplayDto } from "@/features/roleplays/dto";
 import { AppError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchRoleplayDetail } from "./roleplay-query";
+import { assertRoleplayQuizzesMatchMethod } from "./roleplay-quiz-assignment.validation";
 import { createRoleplayInsert } from "./roleplay.persistence";
 import { saveRoleplayChildren } from "./save-roleplay-children";
 import {
@@ -12,7 +13,7 @@ import {
     type UploadedRoleplayStorageObject,
 } from "./roleplay-upload-files";
 
-async function resolveNotationMethodId(methodId: string | null) {
+export async function resolveNotationMethodId(methodId: string | null) {
     if (!methodId) return null;
 
     const adminSupabase = createAdminClient();
@@ -27,7 +28,7 @@ async function resolveNotationMethodId(methodId: string | null) {
     return data?.notation_method_id ?? null;
 }
 
-async function assertScorecardMatchesMethod(input: SaveRoleplayDto) {
+export async function assertScorecardMatchesMethod(input: SaveRoleplayDto) {
     if (!input.scorecardId || !input.methodId) return;
 
     const adminSupabase = createAdminClient();
@@ -39,7 +40,11 @@ async function assertScorecardMatchesMethod(input: SaveRoleplayDto) {
 
     if (error) throw error;
 
-    if (data?.method_id && data.method_id !== input.methodId) {
+    if (!data) {
+        throw new AppError("La scorecard sélectionnée est introuvable.", 400, "VALIDATION_ERROR");
+    }
+
+    if (data.method_id !== input.methodId) {
         throw new AppError("La scorecard sélectionnée ne correspond pas à la méthode du roleplay.", 400, "VALIDATION_ERROR");
     }
 }
@@ -55,6 +60,7 @@ export async function createRoleplay(
     let createdRoleplayId: string | null = null;
 
     await assertScorecardMatchesMethod(input);
+    await assertRoleplayQuizzesMatchMethod(input);
 
     try {
         const { data, error } = await adminSupabase
@@ -84,5 +90,3 @@ export async function createRoleplay(
         throw error;
     }
 }
-
-export { resolveNotationMethodId, assertScorecardMatchesMethod };

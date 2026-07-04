@@ -14,10 +14,12 @@ import {
 } from "@/features/evaluations/domain";
 import { ALL_CONTENT_CATEGORIES, CONTENT_DOMAINS, getCategoriesForDomain } from "@/features/content/domain";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import { CardActionMenu, CardActionMenuButton, CardActionMenuLink } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
 interface EvaluationsPageContentProps {
+    canManage: boolean;
     quizzes: QuizListItem[];
 }
 
@@ -43,7 +45,7 @@ async function archiveQuiz(quizId: string) {
     }
 }
 
-export function EvaluationsPageContent({ quizzes }: EvaluationsPageContentProps) {
+export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageContentProps) {
     const router = useRouter();
     const [query, setQuery] = useState("");
     const [domain, setDomain] = useState("all");
@@ -141,13 +143,15 @@ export function EvaluationsPageContent({ quizzes }: EvaluationsPageContentProps)
                         </Box>
                     </Box>
 
-                    <Link
-                        href="/evaluations/new"
-                        className={cn("mt-1 flex h-9 items-center justify-center gap-2.5 rounded-lg px-4 text-[13px] font-bold text-white transition md:mt-2", uiTokens.action.primaryButton)}
-                    >
-                        <InlineIcon icon={Plus} className="h-4 w-4" />
-                        Créer une évaluation
-                    </Link>
+                    {canManage && (
+                        <Link
+                            href="/evaluations/new"
+                            className={cn("mt-1 flex h-9 items-center justify-center gap-2.5 rounded-lg px-4 text-[13px] font-bold text-white transition md:mt-2", uiTokens.action.primaryButton)}
+                        >
+                            <InlineIcon icon={Plus} className="h-4 w-4" />
+                            Créer une évaluation
+                        </Link>
+                    )}
                 </Box>
 
                 {error && (
@@ -180,33 +184,35 @@ export function EvaluationsPageContent({ quizzes }: EvaluationsPageContentProps)
                             key={quiz.id}
                             className="group relative flex flex-col rounded-[16px] border border-[#E5E7EB] p-6 shadow-none transition hover:shadow-[0_16px_36px_rgba(17,24,39,0.08)]"
                         >
-                            <Box className="absolute right-4 top-4">
-                                <Button
-                                    aria-label={`Actions pour ${quiz.title}`}
-                                    onClick={() => setOpenMenuId(openMenuId === quiz.id ? null : quiz.id)}
-                                    className={cn(uiTokens.action.iconButtonGhost, "opacity-100")}
-                                >
-                                    <InlineIcon icon={MoreHorizontal} className="h-4 w-4" />
-                                </Button>
-                                {openMenuId === quiz.id && (
-                                    <CardSurface className="absolute right-0 top-9 z-10 w-44 rounded-lg border border-[#E5E7EB] bg-white p-1.5 shadow-[0_18px_40px_rgba(17,24,39,0.16)]">
-                                        <MenuLink href={`/evaluations/${quiz.id}/edit`} icon={Edit3} label="Modifier" />
-                                        <MenuButton
-                                            disabled={busyQuizId === quiz.id}
-                                            icon={Copy}
-                                            label="Dupliquer"
-                                            onClick={() => void handleDuplicate(quiz.id)}
-                                        />
-                                        <MenuButton
-                                            danger
-                                            disabled={busyQuizId === quiz.id}
-                                            icon={Trash2}
-                                            label="Supprimer"
-                                            onClick={() => void handleArchive(quiz.id)}
-                                        />
-                                    </CardSurface>
-                                )}
-                            </Box>
+                            {canManage && (
+                                <Box className="absolute right-4 top-4">
+                                    <Button
+                                        aria-label={`Actions pour ${quiz.title}`}
+                                        onClick={() => setOpenMenuId(openMenuId === quiz.id ? null : quiz.id)}
+                                        className={cn(uiTokens.action.iconButtonGhost, "opacity-100")}
+                                    >
+                                        <InlineIcon icon={MoreHorizontal} className="h-4 w-4" />
+                                    </Button>
+                                    {openMenuId === quiz.id && (
+                                        <CardActionMenu>
+                                            <CardActionMenuLink href={`/evaluations/${quiz.id}/edit`} icon={Edit3} label="Modifier" />
+                                            <CardActionMenuButton
+                                                disabled={busyQuizId === quiz.id}
+                                                icon={Copy}
+                                                label="Dupliquer"
+                                                onClick={() => void handleDuplicate(quiz.id)}
+                                            />
+                                            <CardActionMenuButton
+                                                danger
+                                                disabled={busyQuizId === quiz.id}
+                                                icon={Trash2}
+                                                label="Supprimer"
+                                                onClick={() => void handleArchive(quiz.id)}
+                                            />
+                                        </CardActionMenu>
+                                    )}
+                                </Box>
+                            )}
 
                             <Box className="flex flex-wrap items-center gap-2 pr-8">
                                 <Badge>{quiz.category || getQuizKindLabel(quiz.kind)}</Badge>
@@ -311,45 +317,5 @@ function MetaLine({ icon, label }: { icon: LucideIcon; label: string }) {
             <InlineIcon icon={icon} className="h-4 w-4 text-[#9CA3AF]" />
             {label}
         </Box>
-    );
-}
-
-function MenuLink({ href, icon, label }: { href: string; icon: LucideIcon; label: string }) {
-    return (
-        <Link
-            href={href}
-            className="flex h-9 items-center gap-2 rounded-md px-3 text-[13px] font-semibold text-[#374151] transition hover:bg-[#F6F7FB]"
-        >
-            <InlineIcon icon={icon} className="h-4 w-4" />
-            {label}
-        </Link>
-    );
-}
-
-function MenuButton({
-    danger,
-    disabled,
-    icon,
-    label,
-    onClick,
-}: {
-    danger?: boolean;
-    disabled?: boolean;
-    icon: LucideIcon;
-    label: string;
-    onClick: () => void;
-}) {
-    return (
-        <Button
-            disabled={disabled}
-            onClick={onClick}
-            className={cn(
-                "flex h-9 w-full items-center gap-2 rounded-md px-3 text-left text-[13px] font-semibold transition hover:bg-[#F6F7FB] disabled:cursor-not-allowed disabled:opacity-60",
-                danger ? uiTokens.text.danger : "text-[#374151]",
-            )}
-        >
-            <InlineIcon icon={icon} className="h-4 w-4" />
-            {label}
-        </Button>
     );
 }

@@ -47,7 +47,7 @@ const attachmentDto = z
         if ((attachment.clientFileId || attachment.storagePath) && attachment.type === "link") {
             ctx.addIssue({
                 code: "custom",
-                message: "Un fichier uploadé doit être de type document, image ou vidéo.",
+                message: "Un fichier uploadé doit être de type document, image, vidéo ou audio.",
                 path: ["type"],
             });
         }

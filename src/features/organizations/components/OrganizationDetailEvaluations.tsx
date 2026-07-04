@@ -1,10 +1,8 @@
 import { Fragment } from "react";
-import { ChevronDown, UsersRound } from "lucide-react";
+import { UsersRound } from "lucide-react";
 import { Box, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
-import {
-    demoOrganizationEvaluations,
-    type OrganizationEvaluationRow,
-} from "@/features/organizations/domain/organization-detail";
+import { GroupedTableSectionHeader } from "@/lib/ui/molecules";
+import type { OrganizationEvaluationRow } from "@/features/organizations/domain/organization-detail";
 
 const columns = ["Titre", "Type", "Groupe", "Apprenants", "Date d'assignation"];
 
@@ -14,29 +12,41 @@ const sectionLabels = {
     not_started: "Évaluations non commencées",
 };
 
-const groupedEvaluations: Array<{
+function groupEvaluations(evaluations: OrganizationEvaluationRow[]): Array<{
     evaluations: OrganizationEvaluationRow[];
     status: OrganizationEvaluationRow["status"];
-}> = [
-    {
-        evaluations: demoOrganizationEvaluations.filter((evaluation) => evaluation.status === "not_started"),
-        status: "not_started",
-    },
-    {
-        evaluations: demoOrganizationEvaluations.filter((evaluation) => evaluation.status === "in_progress"),
-        status: "in_progress",
-    },
-    {
-        evaluations: demoOrganizationEvaluations.filter((evaluation) => evaluation.status === "completed"),
-        status: "completed",
-    },
-];
+}> {
+    return [
+        {
+            evaluations: evaluations.filter((evaluation) => evaluation.status === "not_started"),
+            status: "not_started",
+        },
+        {
+            evaluations: evaluations.filter((evaluation) => evaluation.status === "in_progress"),
+            status: "in_progress",
+        },
+        {
+            evaluations: evaluations.filter((evaluation) => evaluation.status === "completed"),
+            status: "completed",
+        },
+    ];
+}
 
-export function OrganizationDetailEvaluations() {
+interface OrganizationDetailEvaluationsProps {
+    evaluations?: OrganizationEvaluationRow[];
+    title?: string;
+}
+
+export function OrganizationDetailEvaluations({
+    evaluations = [],
+    title = "Évaluations assignées (vue consolidée)",
+}: OrganizationDetailEvaluationsProps) {
+    const groupedEvaluations = groupEvaluations(evaluations);
+
     return (
         <Box className="px-7 py-7">
             <Text as="h2" className="mb-6 text-[18px] font-extrabold text-[#171B2A]">
-                Évaluations assignées (vue consolidée)
+                {title}
             </Text>
 
             <CardSurface className="overflow-hidden rounded-[14px] border border-[#E1E4EB] shadow-none">
@@ -58,16 +68,11 @@ export function OrganizationDetailEvaluations() {
                         <Box as="tbody">
                             {groupedEvaluations.map((group) => (
                                 <Fragment key={group.status}>
-                                    <Box as="tr" className="border-b border-[#E7E9EF] bg-[#FBFCFE]">
-                                        <Box as="td" colSpan={columns.length} className="px-7 py-4">
-                                            <Box className="flex items-center gap-3">
-                                                <InlineIcon icon={ChevronDown} className="h-5 w-5 text-[#4F5868]" />
-                                                <Text className="text-[15px] font-extrabold text-[#171B2A]">
-                                                    {sectionLabels[group.status]} ({group.evaluations.length})
-                                                </Text>
-                                            </Box>
-                                        </Box>
-                                    </Box>
+                                    <GroupedTableSectionHeader
+                                        colSpan={columns.length}
+                                        count={group.evaluations.length}
+                                        label={sectionLabels[group.status]}
+                                    />
                                     {group.evaluations.map((evaluation) => (
                                         <Box
                                             as="tr"
@@ -108,6 +113,18 @@ export function OrganizationDetailEvaluations() {
                                     ))}
                                 </Fragment>
                             ))}
+                            {evaluations.length === 0 && (
+                                <Box as="tr">
+                                    <Box as="td" colSpan={columns.length} className="px-7 py-12 text-center">
+                                        <Text className="text-[14px] font-bold text-[#171B2A]">
+                                            Aucune évaluation assignée
+                                        </Text>
+                                        <Text className="mt-2 text-[14px] font-semibold text-[#A0A6B5]">
+                                            Aucune évaluation n&apos;est ciblée sur ce groupe.
+                                        </Text>
+                                    </Box>
+                                </Box>
+                            )}
                         </Box>
                     </Box>
                 </Box>

@@ -24,6 +24,46 @@ function asNumber(value: unknown) {
     return null;
 }
 
+function stringifyRecordEvidence(value: JsonRecord) {
+    const text =
+        asString(value.texte) ||
+        asString(value.text) ||
+        asString(value.content) ||
+        asString(value.justification) ||
+        asString(value.commentaire) ||
+        asString(value.conseil);
+
+    if (!text) return "";
+
+    const speaker = asString(value.speaker);
+    const timecode = asString(value.timecode);
+    const prefix = [timecode, speaker].filter(Boolean).join(" ");
+
+    return prefix ? `${prefix}: ${text}` : text;
+}
+
+function stringifyTextValue(value: unknown): string {
+    const direct = asString(value);
+    if (direct) return direct;
+
+    if (Array.isArray(value)) {
+        return value
+            .map((item) => {
+                if (typeof item === "string") return item.trim();
+                if (isRecord(item)) return stringifyRecordEvidence(item);
+                return "";
+            })
+            .filter(Boolean)
+            .join(" | ");
+    }
+
+    if (isRecord(value)) {
+        return stringifyRecordEvidence(value);
+    }
+
+    return "";
+}
+
 function round2(value: number) {
     return Math.round(value * 100) / 100;
 }
@@ -59,25 +99,45 @@ function getAllCriterionRecords(methodoResult: JsonRecord | null) {
 function extractRef(criterion: JsonRecord) {
     return (
         asString(criterion.ref) ||
+        asString(criterion.code) ||
         asString(criterion.criterion_ref) ||
         asString(criterion.critere_ref) ||
         asString(criterion.reference)
     );
 }
 
-function extractPoints(criterion: JsonRecord) {
-    return (
+function scoreToCriterionPoints(score: number, scoreMax: number | null, criterionMaxPoints: number) {
+    if (scoreMax && scoreMax > criterionMaxPoints && scoreMax > 0) {
+        return (score / scoreMax) * criterionMaxPoints;
+    }
+
+    return score;
+}
+
+function extractPoints(criterion: JsonRecord, criterionMaxPoints: number) {
+    const explicitPoints =
         asNumber(criterion.points_obtenus) ??
         asNumber(criterion.points_awarded) ??
-        asNumber(criterion.score_obtenu) ??
-        asNumber(criterion.note) ??
-        asNumber(criterion.score)
-    );
+        asNumber(criterion.note);
+
+    if (explicitPoints !== null) return explicitPoints;
+
+    const scoreObtenu = asNumber(criterion.score_obtenu);
+    if (scoreObtenu !== null) {
+        return scoreToCriterionPoints(scoreObtenu, asNumber(criterion.score_max), criterionMaxPoints);
+    }
+
+    const score = asNumber(criterion.score);
+    if (score !== null) {
+        return scoreToCriterionPoints(score, asNumber(criterion.score_max), criterionMaxPoints);
+    }
+
+    return null;
 }
 
 function extractText(criterion: JsonRecord, keys: string[]) {
     for (const key of keys) {
-        const value = asString(criterion[key]);
+        const value = stringifyTextValue(criterion[key]);
         if (value) return value;
     }
     return "";
@@ -87,16 +147,16 @@ function normalizeCriterionResult(
     criterionRef: RoleplayNotationCriterionRef,
     rawCriterion: JsonRecord | null,
 ): RoleplayNotationCriterionResult {
-    const rawPoints = rawCriterion ? extractPoints(rawCriterion) : 0;
+    const rawPoints = rawCriterion ? extractPoints(rawCriterion, criterionRef.maxPoints) : 0;
     const pointsAwarded = round2(clamp(rawPoints ?? 0, 0, criterionRef.maxPoints));
     const scorePercent = criterionRef.maxPoints > 0 ? round2((pointsAwarded / criterionRef.maxPoints) * 100) : 0;
 
     return {
         advice: rawCriterion
-            ? extractText(rawCriterion, ["conseil", "advice", "conseils", "recommendation", "recommandation"])
+            ? extractText(rawCriterion, ["conseil", "advice", "conseils", "conseils_amelioration", "recommendation", "recommandation"])
             : "",
         coachComment: rawCriterion
-            ? extractText(rawCriterion, ["commentaire", "commentaire_coach", "coach_comment", "analyse"])
+            ? extractText(rawCriterion, ["commentaire", "commentaire_coach", "coach_comment", "justification_score", "analyse"])
             : "",
         evidence: rawCriterion
             ? extractText(rawCriterion, ["preuve", "preuves_observees", "observed_evidence", "evidence"])

@@ -1,4 +1,9 @@
 import { notFound, redirect } from "next/navigation";
+import { AccessDeniedPage } from "@/features/app-shell/components";
+import {
+    APP_NAVIGATION_RESOURCE,
+    canManageAppResource,
+} from "@/features/auth/domain/access-control";
 import { CreateCoachPage } from "@/features/coaches/components";
 import { getCoachById } from "@/features/coaches/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
@@ -22,14 +27,37 @@ export default async function Page({ params }: PageProps) {
 
     try {
         profile = await getCurrentProfile();
-        coach = await getCoachById(coachId);
     } catch (error) {
         if (error instanceof UnauthorizedError) {
             redirect(`/auth?redirect=/coaches/${coachId}`);
         }
 
+        throw error;
+    }
+
+    const profileValues = toProfileFormValues(profile);
+
+    if (!canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.coaches)) {
+        return (
+            <AccessDeniedPage
+                activePrimaryItem="Mes Coachs IA"
+                profileValues={profileValues}
+                searchPlaceholder="Rechercher..."
+            />
+        );
+    }
+
+    try {
+        coach = await getCoachById(coachId);
+    } catch (error) {
         if (error instanceof ForbiddenError) {
-            notFound();
+            return (
+                <AccessDeniedPage
+                    activePrimaryItem="Mes Coachs IA"
+                    profileValues={profileValues}
+                    searchPlaceholder="Rechercher..."
+                />
+            );
         }
 
         throw error;
@@ -43,7 +71,7 @@ export default async function Page({ params }: PageProps) {
         <CreateCoachPage
             coachId={coachId}
             initialValues={coach}
-            profileValues={toProfileFormValues(profile)}
+            profileValues={profileValues}
         />
     );
 }

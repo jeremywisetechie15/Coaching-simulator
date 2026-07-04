@@ -3,13 +3,16 @@
 import Link from "next/link";
 import { ArrowLeft, Lightbulb } from "lucide-react";
 import { Box, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import { uiTokens } from "@/lib/ui/tokens";
 import { difficultyBadgeStyles, discBadgeStyles } from "@/features/roleplays/data/roleplays";
 import type { Method } from "@/features/methods/data/methods";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
+import type { StepCoachVariant } from "./RoleplayStepCoachPageContent";
 
 interface RoleplayStepsPageContentProps {
     roleplay: RoleplayItem;
     method: Method;
+    variant?: StepCoachVariant;
 }
 
 /** Palette appliquée aux cartes d'étape par position (générique : 1 à 4+). */
@@ -20,18 +23,18 @@ const stepPalette = [
     { bg: "#FEF1F2", border: "#F8CDD1", title: "#E0345B" },
 ];
 
-export function RoleplayStepsPageContent({ roleplay, method }: RoleplayStepsPageContentProps) {
+export function RoleplayStepsPageContent({ roleplay, method, variant = "prepare" }: RoleplayStepsPageContentProps) {
     const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
     const discStyle = discBadgeStyles[roleplay.disc];
+    const isImprove = variant === "improve";
+    const verb = isImprove ? "S'améliorer" : "Se préparer";
+    const stepSuffix = isImprove ? "?coach=after" : "";
 
     return (
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1180px]">
                 <Box className="mb-5">
-                    <Link
-                        href={`/roleplays/${roleplay.id}`}
-                        className="flex h-10 w-fit items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-4 text-[14px] font-semibold text-[#374151] transition hover:border-[#D5D7DE]"
-                    >
+                    <Link href={`/roleplays/${roleplay.id}`} className={uiTokens.action.backButton}>
                         <InlineIcon icon={ArrowLeft} className="h-4 w-4" />
                         Retour
                     </Link>
@@ -77,7 +80,7 @@ export function RoleplayStepsPageContent({ roleplay, method }: RoleplayStepsPage
                     </Box>
 
                     <Text as="h2" className="mt-6 text-center text-[16px] font-extrabold text-[#1F2937]">
-                        Se préparer avec le coach IA sur des objectifs pédagogiques spécifiques
+                        {verb} avec le coach IA sur des objectifs pédagogiques spécifiques
                     </Text>
                     <Text className="mt-0.5 text-center text-[12px] font-medium text-[#6B7280]">
                         {method.name} · {method.steps.length} étapes pédagogiques
@@ -111,11 +114,11 @@ export function RoleplayStepsPageContent({ roleplay, method }: RoleplayStepsPage
                                         {step.summary}
                                     </Text>
                                     <Link
-                                        href={`/roleplays/${roleplay.id}/steps/${stepNumber}`}
+                                        href={`/roleplays/${roleplay.id}/steps/${stepNumber}${stepSuffix}`}
                                         className="mt-3 flex h-9 items-center justify-center gap-2 rounded-lg border border-[#C9C2FB] bg-white text-[12px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
                                     >
                                         <InlineIcon icon={Lightbulb} className="h-3.5 w-3.5" />
-                                        Se préparer avec l&apos;IA
+                                        {verb} avec l&apos;IA
                                     </Link>
                                 </Box>
                             );

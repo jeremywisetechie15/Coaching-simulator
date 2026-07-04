@@ -19,6 +19,7 @@ import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
 interface SkillDetailPageContentProps {
+    canManage?: boolean;
     skill: SkillDetail;
 }
 
@@ -58,7 +59,7 @@ function placeholderScores(skill: SkillDetail): Record<SkillDimension, number> {
     };
 }
 
-export function SkillDetailPageContent({ skill }: SkillDetailPageContentProps) {
+export function SkillDetailPageContent({ canManage = false, skill }: SkillDetailPageContentProps) {
     const [stateOpen, setStateOpen] = useState(false);
     const categoryStyle = skillCategoryStyles[skill.category];
 
@@ -88,10 +89,12 @@ export function SkillDetailPageContent({ skill }: SkillDetailPageContentProps) {
                         <InlineIcon icon={ArrowLeft} className="h-4 w-4" />
                         Retour aux compétences
                     </Link>
-                    <Link href={`/skills/${skill.id}/edit`} className={cn(uiTokens.action.addButton, "shrink-0")}>
-                        <InlineIcon icon={Edit3} className="h-4 w-4" />
-                        Modifier
-                    </Link>
+                    {canManage && (
+                        <Link href={`/skills/${skill.id}/edit`} className={cn(uiTokens.action.addButton, "shrink-0")}>
+                            <InlineIcon icon={Edit3} className="h-4 w-4" />
+                            Modifier
+                        </Link>
+                    )}
                 </Box>
 
                 <CardSurface className={uiTokens.surface.formCard}>

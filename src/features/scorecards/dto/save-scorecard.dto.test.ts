@@ -27,6 +27,7 @@ function publishedScorecard(overrides: Partial<SaveScorecardInput> = {}): SaveSc
                         key: "Formuler la demande de mise en relation",
                         maxPoints: 4,
                         order: 1,
+                        verbatim: "Pouvez-vous me le passer ?",
                     },
                 ],
                 methodStepId,
@@ -96,6 +97,52 @@ describe("saveScorecardDto", () => {
         expect(result.success).toBe(false);
         expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain(
             "steps.0.criteria.0.dimensionItemId",
+        );
+    });
+
+    it("rejects knowledge-only dimensions for scorecard criteria", () => {
+        const result = saveScorecardDto.safeParse(
+            publishedScorecard({
+                steps: [
+                    {
+                        ...publishedScorecard().steps![0],
+                        criteria: [
+                            {
+                                ...publishedScorecard().steps![0].criteria![0],
+                                dimension: "savoir" as never,
+                            },
+                        ],
+                    },
+                ],
+            }),
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain(
+            "steps.0.criteria.0.dimension",
+        );
+    });
+
+    it("requires a conforming verbatim example for criteria", () => {
+        const result = saveScorecardDto.safeParse(
+            publishedScorecard({
+                steps: [
+                    {
+                        ...publishedScorecard().steps![0],
+                        criteria: [
+                            {
+                                ...publishedScorecard().steps![0].criteria![0],
+                                verbatim: " ",
+                            },
+                        ],
+                    },
+                ],
+            }),
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain(
+            "steps.0.criteria.0.verbatim",
         );
     });
 });

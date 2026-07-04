@@ -7,9 +7,9 @@ import {
     categoryBadgeStyles,
     difficultyBadgeStyles,
     discBadgeStyles,
-    roleplays,
 } from "@/features/roleplays/data/roleplays";
-import { roleplaySessions } from "@/features/roleplays/data/sessions";
+import { ROLEPLAY_ROUTES } from "@/features/roleplays/domain";
+import type { RoleplaySessionHistoryItem } from "@/features/roleplays/server";
 
 function scoreColor(score: number) {
     if (score >= 80) {
@@ -50,13 +50,21 @@ function ScoreRing({ score }: { score: number }) {
     );
 }
 
-export function SessionsHistoryPageContent() {
+interface SessionsHistoryPageContentProps {
+    backHref?: string;
+    sessions: RoleplaySessionHistoryItem[];
+}
+
+export function SessionsHistoryPageContent({
+    backHref = ROLEPLAY_ROUTES.app.collection,
+    sessions,
+}: SessionsHistoryPageContentProps) {
     return (
         <Box as="main" className="px-5 pb-12 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1260px]">
                 <Box className="mb-7 flex items-start gap-6">
                     <Link
-                        href="/roleplays"
+                        href={backHref}
                         aria-label="Retour"
                         className="mt-2 flex h-8 w-8 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
                     >
@@ -72,14 +80,9 @@ export function SessionsHistoryPageContent() {
                     </Box>
                 </Box>
 
-                {roleplaySessions.length > 0 ? (
+                {sessions.length > 0 ? (
                     <Box className="space-y-4">
-                        {roleplaySessions.map((session) => {
-                            const roleplay = roleplays.find((item) => item.id === session.roleplayId);
-                            if (!roleplay) {
-                                return null;
-                            }
-
+                        {sessions.map(({ roleplay, session }) => {
                             const categoryStyle =
                                 categoryBadgeStyles[roleplay.category] ?? { bg: "#F3E8FD", text: "#8B2FD6" };
                             const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
@@ -146,7 +149,7 @@ export function SessionsHistoryPageContent() {
                                     <Box className="flex items-center gap-5 md:shrink-0">
                                         <ScoreRing score={session.score} />
                                         <Link
-                                            href={`/roleplays/history/${session.id}`}
+                                            href={ROLEPLAY_ROUTES.app.sessionHistoryDetail(session.id)}
                                             className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#5140F0] px-5 text-[14px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7]"
                                         >
                                             Voir évaluation &gt;

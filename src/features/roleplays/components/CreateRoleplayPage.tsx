@@ -1,4 +1,8 @@
-import { AppShell } from "@/features/app-shell/components";
+import { AccessDeniedState, AppShell } from "@/features/app-shell/components";
+import {
+    APP_NAVIGATION_RESOURCE,
+    canManageAppResource,
+} from "@/features/auth/domain/access-control";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import type {
@@ -10,7 +14,6 @@ import type {
     RoleplayPersonaOption,
     RoleplayQuizOption,
     RoleplayScorecardOption,
-    RoleplaySkillOption,
     RoleplayUserOption,
 } from "@/features/roleplays/domain";
 import { CreateRoleplayPageContent } from "./CreateRoleplayPageContent";
@@ -26,7 +29,6 @@ interface CreateRoleplayPageProps {
     quizOptions: RoleplayQuizOption[];
     roleplayId?: string;
     scorecardOptions: RoleplayScorecardOption[];
-    skillOptions: RoleplaySkillOption[];
     userOptions: RoleplayUserOption[];
 }
 
@@ -41,31 +43,36 @@ export function CreateRoleplayPage({
     quizOptions,
     roleplayId,
     scorecardOptions,
-    skillOptions,
     userOptions,
 }: CreateRoleplayPageProps) {
+    const canManageRoleplays = canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.roleplays);
+
     return (
         <AppShell
             activePrimaryItem="Roleplays"
             avatarUrl={profileValues.avatarUrl}
+            platformRole={profileValues.platformRole}
             initials={getProfileInitials(profileValues)}
             fullName={`${profileValues.firstName} ${profileValues.lastName}`.trim()}
             email={profileValues.email}
             searchPlaceholder="Rechercher..."
         >
-            <CreateRoleplayPageContent
-                coachOptions={coachOptions}
-                groupOptions={groupOptions}
-                initialRoleplay={initialRoleplay}
-                methodOptions={methodOptions}
-                organizationOptions={organizationOptions}
-                personaOptions={personaOptions}
-                quizOptions={quizOptions}
-                roleplayId={roleplayId}
-                scorecardOptions={scorecardOptions}
-                skillOptions={skillOptions}
-                userOptions={userOptions}
-            />
+            {canManageRoleplays ? (
+                <CreateRoleplayPageContent
+                    coachOptions={coachOptions}
+                    groupOptions={groupOptions}
+                    initialRoleplay={initialRoleplay}
+                    methodOptions={methodOptions}
+                    organizationOptions={organizationOptions}
+                    personaOptions={personaOptions}
+                    quizOptions={quizOptions}
+                    roleplayId={roleplayId}
+                    scorecardOptions={scorecardOptions}
+                    userOptions={userOptions}
+                />
+            ) : (
+                <AccessDeniedState />
+            )}
         </AppShell>
     );
 }

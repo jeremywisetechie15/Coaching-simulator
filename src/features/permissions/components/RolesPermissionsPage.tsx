@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { ArrowLeft, Check, ChevronDown, Minus } from "lucide-react";
 import { AppShell } from "@/features/app-shell/components";
+import type { PlatformRole } from "@/features/users/domain/users";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 
 type PermissionRole = "admin" | "learner";
@@ -11,6 +12,7 @@ type ToggleState = "checked" | "mixed" | "unchecked";
 interface RolesPermissionsPageProps {
     avatarUrl: string | null;
     initials: string;
+    platformRole: PlatformRole;
 }
 
 interface PermissionGroup {
@@ -103,7 +105,7 @@ function PermissionToggle({
     );
 }
 
-export function RolesPermissionsPage({ avatarUrl, initials }: RolesPermissionsPageProps) {
+export function RolesPermissionsPage({ avatarUrl, initials, platformRole }: RolesPermissionsPageProps) {
     const [permissions, setPermissions] = useState<PermissionState>(() => createInitialPermissions());
 
     const totalPermissionCount = useMemo(
@@ -147,6 +149,7 @@ export function RolesPermissionsPage({ avatarUrl, initials }: RolesPermissionsPa
             activeAccountItem="Rôles & Permissions"
             avatarUrl={avatarUrl}
             initials={initials}
+            platformRole={platformRole}
             searchPlaceholder="Rechercher..."
         >
             <Box as="main" className="px-5 pb-12 md:px-9 lg:px-14">

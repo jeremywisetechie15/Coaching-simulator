@@ -13,7 +13,6 @@ import {
 } from "@/features/methods/domain/method";
 
 export interface MethodRow {
-    business_objective?: string | null;
     category?: string | null;
     challenges?: string[] | null;
     code?: string | null;
@@ -191,7 +190,6 @@ export function mapMethodRowsToDetail(
 
     return {
         ...mapMethodRowToListItem(row, orderedSteps.length),
-        businessObjective: row.business_objective ?? "",
         challenges: cleanArray(row.challenges),
         notationMethodId: row.notation_method_id ?? null,
         objectives: cleanArray(row.objectives),

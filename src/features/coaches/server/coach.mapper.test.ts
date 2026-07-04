@@ -1,0 +1,51 @@
+import { describe, expect, it } from "vitest";
+import { mapCoachRowToEditorValues, type CoachRow } from "./coach.mapper";
+
+const baseCoachRow: CoachRow = {
+    avatar_url: null,
+    certifications: null,
+    coaching_style: null,
+    created_at: "2026-06-27T10:00:00.000Z",
+    diploma: null,
+    disc_profile: null,
+    expertise_domain: null,
+    id: "11111111-1111-4111-8111-111111111111",
+    name: "Pierre Laurent",
+    status: "published",
+    system_instructions: "Instructions coach",
+    voice_id: "cedar",
+};
+
+describe("coach.mapper", () => {
+    it("maps legacy nullable coach profile fields to editable defaults", () => {
+        const values = mapCoachRowToEditorValues(baseCoachRow);
+
+        expect(values).toMatchObject({
+            certifications: "",
+            coachingStyle: "Optimiste",
+            diploma: "",
+            discProfile: "Stable",
+            expertiseDomain: "",
+            name: "Pierre Laurent",
+        });
+    });
+
+    it("maps persisted coach profile fields to editor values", () => {
+        const values = mapCoachRowToEditorValues({
+            ...baseCoachRow,
+            certifications: "ICF",
+            coaching_style: "Exigeant",
+            diploma: "Master coaching",
+            disc_profile: "Consciencieux",
+            expertise_domain: "Management",
+        });
+
+        expect(values).toMatchObject({
+            certifications: "ICF",
+            coachingStyle: "Exigeant",
+            diploma: "Master coaching",
+            discProfile: "Consciencieux",
+            expertiseDomain: "Management",
+        });
+    });
+});

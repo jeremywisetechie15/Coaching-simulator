@@ -1,5 +1,11 @@
 import { redirect } from "next/navigation";
+import { AccessDeniedPage } from "@/features/app-shell/components";
+import {
+    APP_NAVIGATION_RESOURCE,
+    canManageAppResource,
+} from "@/features/auth/domain/access-control";
 import { CreateScorecardPage } from "@/features/scorecards/components";
+import { SCORECARD_ROUTES } from "@/features/scorecards/domain";
 import { listScorecardMethodOptions, listScorecardOrganizationOptions } from "@/features/scorecards/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
@@ -20,7 +26,19 @@ export default async function Page() {
             throw error;
         }
 
-        redirect("/auth?redirect=/scorecards/new");
+        redirect(`/auth?redirect=${SCORECARD_ROUTES.app.create}`);
+    }
+
+    const profileValues = toProfileFormValues(profile);
+
+    if (!canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.scorecards)) {
+        return (
+            <AccessDeniedPage
+                activePrimaryItem="Scorecards"
+                profileValues={profileValues}
+                searchPlaceholder="Rechercher..."
+            />
+        );
     }
 
     const [methodOptions, organizationOptions, skillOptions] = await Promise.all([
@@ -33,7 +51,7 @@ export default async function Page() {
         <CreateScorecardPage
             methodOptions={methodOptions}
             organizationOptions={organizationOptions}
-            profileValues={toProfileFormValues(profile)}
+            profileValues={profileValues}
             skillOptions={skillOptions}
         />
     );

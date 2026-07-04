@@ -9,27 +9,40 @@ import {
     BookOpen,
     CheckCircle2,
     ChevronDown,
+    CircleAlert,
     Clock,
     FileText,
     MessageSquare,
     Pencil,
     Phone,
     Play,
+    Quote,
     ShieldCheck,
     Target,
     Video,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { useState } from "react";
-import { CONTENT_STATUS_LABELS } from "@/features/content/domain";
+import {
+    ContentResourcesModal,
+    type ContentResourceDocument,
+    type ContentResourceDocumentKind,
+} from "@/features/content/components";
+import { EVALUATION_ROUTES, type QuizOption } from "@/features/evaluations/domain";
 import {
     getMethodScopeLabel,
+    METHOD_ROUTES,
     type MethodDetail,
+    type MethodResource,
     type MethodStepIcon,
     type MethodStepItem,
 } from "@/features/methods/domain/method";
+import { getStoragePathFileName } from "@/lib/uploads/content-upload";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { AlertMessage } from "@/lib/ui/molecules";
+import { uiTokens } from "@/lib/ui/tokens";
+import { cn } from "@/lib/ui/utils/cn";
 
 const stepIcons: Record<MethodStepIcon, { icon: LucideIcon; bg: string; color: string }> = {
     phone: { icon: Phone, bg: "#E7EDFD", color: "#3B6FD0" },
@@ -38,17 +51,38 @@ const stepIcons: Record<MethodStepIcon, { icon: LucideIcon; bg: string; color: s
     check: { icon: CheckCircle2, bg: "#FEECF0", color: "#E11D6B" },
 };
 
-function BulletGroup({ title, items }: { title: string; items: string[] }) {
+function StepBlock({
+    icon,
+    italic,
+    items,
+    title,
+    tone,
+}: {
+    icon: LucideIcon;
+    italic?: boolean;
+    items: string[];
+    title: string;
+    tone: keyof typeof uiTokens.stepBlock.tone;
+}) {
+    if (items.length === 0) {
+        return null;
+    }
+
+    const palette = uiTokens.stepBlock.tone[tone];
+
     return (
-        <Box>
-            <Text as="p" className="text-[14px] font-extrabold text-[#111827]">
-                {title}
-            </Text>
-            <Box className="mt-2 space-y-2">
+        <Box className={cn(uiTokens.stepBlock.card, palette.surface)}>
+            <Box className={uiTokens.stepBlock.header}>
+                <InlineIcon icon={icon} className={cn(uiTokens.stepBlock.icon, palette.accent)} />
+                <Text as="p" className={uiTokens.stepBlock.title}>
+                    {title}
+                </Text>
+            </Box>
+            <Box className={uiTokens.stepBlock.list}>
                 {items.map((item) => (
-                    <Box key={item} className="flex gap-2.5">
-                        <Box className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#5140F0]" />
-                        <Text className="text-[14px] font-medium leading-6 text-[#4B5563]">{item}</Text>
+                    <Box key={item} className={uiTokens.stepBlock.item}>
+                        <Box className={cn(uiTokens.stepBlock.dot, palette.dot)} />
+                        <Text className={cn(uiTokens.stepBlock.text, italic && "italic")}>{item}</Text>
                     </Box>
                 ))}
             </Box>
@@ -56,7 +90,69 @@ function BulletGroup({ title, items }: { title: string; items: string[] }) {
     );
 }
 
-function StepAccordion({ step }: { step: MethodStepItem }) {
+interface MethodQuizActionProps {
+    associatedQuiz: QuizOption | null;
+    children: ReactNode;
+    className: string;
+    onMissingQuiz: () => void;
+}
+
+function MethodQuizAction({ associatedQuiz, children, className, onMissingQuiz }: MethodQuizActionProps) {
+    if (associatedQuiz) {
+        return (
+            <Link href={EVALUATION_ROUTES.app.quiz(associatedQuiz.id)} className={className}>
+                {children}
+            </Link>
+        );
+    }
+
+    return (
+        <Button onClick={onMissingQuiz} className={className}>
+            {children}
+        </Button>
+    );
+}
+
+function getMethodResourceKind(resource: MethodResource): ContentResourceDocumentKind {
+    if (resource.resourceType === "audio" || resource.resourceType === "image" || resource.resourceType === "video") {
+        return resource.resourceType;
+    }
+
+    const fileName = `${resource.storagePath ?? ""} ${resource.externalUrl ?? ""} ${resource.label}`.toLowerCase();
+    return fileName.includes(".pdf") ? "pdf" : "document";
+}
+
+function getMethodResourceMeta(resource: MethodResource) {
+    if (resource.externalUrl) return "URL";
+    if (resource.storagePath) return getStoragePathFileName(resource.storagePath);
+    return undefined;
+}
+
+export function mapMethodResourcesToModalDocuments(method: MethodDetail): ContentResourceDocument[] {
+    return method.resources
+        .filter((resource) => !resource.stepId)
+        .map((resource) => ({
+            id: resource.id,
+            kind: getMethodResourceKind(resource),
+            meta: getMethodResourceMeta(resource),
+            title: resource.label || resource.storagePath || resource.externalUrl || "Ressource complémentaire",
+            url:
+                resource.externalUrl ||
+                (resource.storageBucket && resource.storagePath
+                    ? METHOD_ROUTES.api.resource(method.id, resource.id)
+                    : undefined),
+        }));
+}
+
+function StepAccordion({
+    associatedQuiz,
+    onMissingQuiz,
+    step,
+}: {
+    associatedQuiz: QuizOption | null;
+    onMissingQuiz: () => void;
+    step: MethodStepItem;
+}) {
     const [open, setOpen] = useState(false);
     const config = stepIcons[step.icon];
     const videoResource = step.resources.find((resource) => resource.resourceType === "video");
@@ -115,34 +211,53 @@ function StepAccordion({ step }: { step: MethodStepItem }) {
                         </Box>
                     )}
 
-                    <Box className="mt-4 rounded-[12px] bg-[#F8F5FE] p-5">
-                        <Box className="flex items-center gap-2">
-                            <InlineIcon icon={Target} className="h-4 w-4 text-[#8B2FD6]" />
-                            <Text as="p" className="text-[14px] font-extrabold text-[#111827]">
-                                Objectifs et enjeux
-                            </Text>
-                        </Box>
-                        <Box className="mt-2 space-y-2">
-                            {step.objectives.map((item) => (
-                                <Box key={item} className="flex gap-2.5">
-                                    <Box className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[#8B2FD6]" />
-                                    <Text className="text-[14px] font-medium leading-6 text-[#4B5563]">{item}</Text>
-                                </Box>
-                            ))}
-                        </Box>
+                    <Box className="mt-4 space-y-4">
+                        <StepBlock tone="violet" icon={Target} title="Objectifs et enjeux" items={step.objectives} />
+
+                        {(step.bestPractices.length > 0 || step.pitfalls.length > 0) && (
+                            <Box className="grid gap-4 lg:grid-cols-2">
+                                <StepBlock
+                                    tone="green"
+                                    icon={CheckCircle2}
+                                    title="Bonnes pratiques"
+                                    items={step.bestPractices}
+                                />
+                                <StepBlock
+                                    tone="orange"
+                                    icon={CircleAlert}
+                                    title="Erreurs à éviter"
+                                    items={step.pitfalls}
+                                />
+                            </Box>
+                        )}
+
+                        {(step.posture.length > 0 || step.verbatims.length > 0) && (
+                            <Box className="grid gap-4 lg:grid-cols-2">
+                                <StepBlock
+                                    tone="blue"
+                                    icon={MessageSquare}
+                                    title="Posture & Communication"
+                                    items={step.posture}
+                                />
+                                <StepBlock
+                                    tone="indigo"
+                                    icon={Quote}
+                                    title="Verbatims préconisés"
+                                    items={step.verbatims}
+                                    italic
+                                />
+                            </Box>
+                        )}
                     </Box>
 
-                    <Box className="mt-5 space-y-5">
-                        <BulletGroup title="Bonnes pratiques" items={step.bestPractices} />
-                        <BulletGroup title="Erreurs à éviter" items={step.pitfalls} />
-                        <BulletGroup title="Posture & Communication" items={step.posture} />
-                        <BulletGroup title="Verbatims préconisés" items={step.verbatims} />
-                    </Box>
-
-                    <Button className="mt-5 flex h-10 items-center justify-center gap-2 rounded-lg border border-[#C9C2FB] bg-white px-4 text-[13px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]">
+                    <MethodQuizAction
+                        associatedQuiz={associatedQuiz}
+                        onMissingQuiz={onMissingQuiz}
+                        className="mt-5 flex h-10 items-center justify-center gap-2 rounded-lg border border-[#C9C2FB] bg-white px-4 text-[13px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
+                    >
                         <InlineIcon icon={FileText} className="h-4 w-4" />
                         Vérifier mes connaissances sur cette étape
-                    </Button>
+                    </MethodQuizAction>
                 </Box>
             )}
         </CardSurface>
@@ -164,12 +279,23 @@ async function archiveMethodRequest(methodId: string) {
     }
 }
 
-export function MethodDetailPageContent({ method }: { method: MethodDetail }) {
+export function MethodDetailPageContent({
+    associatedQuiz,
+    canManage = false,
+    method,
+}: {
+    associatedQuiz: QuizOption | null;
+    canManage?: boolean;
+    method: MethodDetail;
+}) {
     const router = useRouter();
     const [archiveError, setArchiveError] = useState<string | null>(null);
+    const [quizNotice, setQuizNotice] = useState<string | null>(null);
     const [confirmArchive, setConfirmArchive] = useState(false);
+    const [showResourcesModal, setShowResourcesModal] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
     const isArchived = method.status === "archived";
+    const resourceDocuments = mapMethodResourcesToModalDocuments(method);
 
     async function handleArchive() {
         if (isArchived || isArchiving) return;
@@ -195,6 +321,10 @@ export function MethodDetailPageContent({ method }: { method: MethodDetail }) {
         }
     }
 
+    function showMissingQuizMessage() {
+        setQuizNotice("Aucun quiz associé à cette méthode.");
+    }
+
     return (
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1180px]">
@@ -207,38 +337,46 @@ export function MethodDetailPageContent({ method }: { method: MethodDetail }) {
                         Retour aux méthodes
                     </Link>
 
-                    <Box className="flex flex-wrap gap-3">
-                        <Link
-                            href={`/methods/${method.id}/edit`}
-                            className="flex h-10 items-center justify-center gap-3 rounded-lg bg-[#5140F0] px-5 text-[14px] font-bold text-white shadow-[0_12px_24px_rgba(81,64,240,0.20)] transition hover:bg-[#4635E7]"
-                        >
-                            <InlineIcon icon={Pencil} className="h-5 w-5" />
-                            Modifier
-                        </Link>
-                        <Button
-                            disabled={isArchived || isArchiving}
-                            onClick={handleArchive}
-                            className={`flex h-10 items-center justify-center gap-3 rounded-lg px-5 text-[14px] font-bold text-white shadow-[0_12px_24px_rgba(220,32,39,0.18)] transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                                confirmArchive
-                                    ? "bg-[#B91C1C] hover:bg-[#991B1B]"
-                                    : "bg-[#DC2027] hover:bg-[#C91C22]"
-                            }`}
-                        >
-                            <InlineIcon icon={Archive} className="h-5 w-5" />
-                            {isArchived
-                                ? "Archivée"
-                                : isArchiving
-                                  ? "Archivage..."
-                                  : confirmArchive
-                                    ? "Confirmer l'archivage"
-                                    : "Archiver"}
-                        </Button>
-                    </Box>
+                    {canManage && (
+                        <Box className="flex flex-wrap gap-3">
+                            <Link
+                                href={`/methods/${method.id}/edit`}
+                                className="flex h-10 items-center justify-center gap-3 rounded-lg bg-[#5140F0] px-5 text-[14px] font-bold text-white shadow-[0_12px_24px_rgba(81,64,240,0.20)] transition hover:bg-[#4635E7]"
+                            >
+                                <InlineIcon icon={Pencil} className="h-5 w-5" />
+                                Modifier
+                            </Link>
+                            <Button
+                                disabled={isArchived || isArchiving}
+                                onClick={handleArchive}
+                                className={`flex h-10 items-center justify-center gap-3 rounded-lg px-5 text-[14px] font-bold text-white shadow-[0_12px_24px_rgba(220,32,39,0.18)] transition disabled:cursor-not-allowed disabled:opacity-50 ${
+                                    confirmArchive
+                                        ? "bg-[#B91C1C] hover:bg-[#991B1B]"
+                                        : "bg-[#DC2027] hover:bg-[#C91C22]"
+                                }`}
+                            >
+                                <InlineIcon icon={Archive} className="h-5 w-5" />
+                                {isArchived
+                                    ? "Archivée"
+                                    : isArchiving
+                                      ? "Archivage..."
+                                      : confirmArchive
+                                        ? "Confirmer l'archivage"
+                                        : "Archiver"}
+                            </Button>
+                        </Box>
+                    )}
                 </Box>
 
                 {archiveError && (
                     <Box className="mb-5">
                         <AlertMessage message={archiveError} />
+                    </Box>
+                )}
+
+                {quizNotice && (
+                    <Box className="mb-5">
+                        <AlertMessage message={quizNotice} />
                     </Box>
                 )}
 
@@ -267,19 +405,26 @@ export function MethodDetailPageContent({ method }: { method: MethodDetail }) {
                         </Box>
 
                         <Box className="flex w-full shrink-0 flex-col gap-3 lg:w-[300px]">
-                            <Button className="flex h-11 items-center justify-center gap-2 rounded-xl border border-[#C9C2FB] bg-white text-[14px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]">
+                            <Button
+                                onClick={() => setShowResourcesModal(true)}
+                                className="flex h-11 items-center justify-center gap-2 rounded-xl border border-[#C9C2FB] bg-white text-[14px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
+                            >
                                 <InlineIcon icon={BookOpen} className="h-4 w-4" />
                                 Ressources complémentaires
                             </Button>
-                        <CardSurface className="rounded-[16px] border border-[#E5E7EB] bg-[#F7F8FB] p-5 shadow-none">
-                            <Text className="text-[13px] font-semibold text-[#6B7280]">Maîtrise de la méthode</Text>
-                            <Text as="h3" className="mt-1 text-[20px] font-extrabold text-[#111827]">
-                                Non testée
-                            </Text>
-                                <Button className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#5140F0] text-[13px] font-bold text-white transition hover:bg-[#4635E7]">
+                            <CardSurface className="rounded-[16px] border border-[#E5E7EB] bg-[#F7F8FB] p-5 shadow-none">
+                                <Text className="text-[13px] font-semibold text-[#6B7280]">Maîtrise de la méthode</Text>
+                                <Text as="h3" className="mt-1 text-[20px] font-extrabold text-[#111827]">
+                                    Non testée
+                                </Text>
+                                <MethodQuizAction
+                                    associatedQuiz={associatedQuiz}
+                                    onMissingQuiz={showMissingQuizMessage}
+                                    className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#5140F0] text-[13px] font-bold text-white transition hover:bg-[#4635E7]"
+                                >
                                     <InlineIcon icon={FileText} className="h-4 w-4" />
                                     Vérifier mes connaissances
-                                </Button>
+                                </MethodQuizAction>
                             </CardSurface>
                         </Box>
                     </Box>
@@ -353,28 +498,16 @@ export function MethodDetailPageContent({ method }: { method: MethodDetail }) {
                     </Box>
 
                     <Text as="h2" className="mt-7 text-[18px] font-extrabold text-[#111827]">
-                        Objectif métier utilisant cette méthode
-                    </Text>
-                    <CardSurface className="mt-3 flex items-center justify-between gap-4 rounded-[14px] border border-[#E5E7EB] bg-[#F7F8FB] px-5 py-4 shadow-none">
-                        <Box className="flex items-center gap-3">
-                            <Box className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#EEF0FF]">
-                                <InlineIcon icon={Target} className="h-5 w-5 text-[#5140F0]" />
-                            </Box>
-                            <Text className="text-[15px] font-bold text-[#111827]">
-                                {method.businessObjective || "Objectif métier non renseigné"}
-                            </Text>
-                        </Box>
-                        <Box className="inline-flex h-7 items-center rounded-md bg-[#DCFCE7] px-2.5 text-[12px] font-bold text-[#16A34A]">
-                            {CONTENT_STATUS_LABELS[method.status]}
-                        </Box>
-                    </CardSurface>
-
-                    <Text as="h2" className="mt-7 text-[18px] font-extrabold text-[#111827]">
                         Les {method.steps.length} étapes de la méthode
                     </Text>
                     <Box className="mt-3 space-y-3">
                         {method.steps.map((step) => (
-                            <StepAccordion key={step.title} step={step} />
+                            <StepAccordion
+                                key={step.title}
+                                associatedQuiz={associatedQuiz}
+                                onMissingQuiz={showMissingQuizMessage}
+                                step={step}
+                            />
                         ))}
                     </Box>
 
@@ -388,10 +521,14 @@ export function MethodDetailPageContent({ method }: { method: MethodDetail }) {
                             </Text>
                         </Box>
                         <Box className="flex flex-wrap gap-3">
-                            <Button className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#5140F0] px-5 text-[14px] font-bold text-white transition hover:bg-[#4635E7]">
+                            <MethodQuizAction
+                                associatedQuiz={associatedQuiz}
+                                onMissingQuiz={showMissingQuizMessage}
+                                className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#5140F0] px-5 text-[14px] font-bold text-white transition hover:bg-[#4635E7]"
+                            >
                                 <InlineIcon icon={FileText} className="h-4 w-4" />
                                 Vérifier mes connaissances
-                            </Button>
+                            </MethodQuizAction>
                             <Link
                                 href="/roleplays"
                                 className="flex h-11 items-center justify-center gap-2 rounded-xl border border-[#C9C2FB] bg-white px-5 text-[14px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
@@ -403,6 +540,15 @@ export function MethodDetailPageContent({ method }: { method: MethodDetail }) {
                     </CardSurface>
                 </CardSurface>
             </Box>
+            {showResourcesModal && (
+                <ContentResourcesModal
+                    title="Ressources complémentaires"
+                    description="Consultez les documents associés à cette méthode."
+                    emptyMessage="Aucune ressource complémentaire n'est associée à cette méthode."
+                    documents={resourceDocuments}
+                    onClose={() => setShowResourcesModal(false)}
+                />
+            )}
         </Box>
     );
 }

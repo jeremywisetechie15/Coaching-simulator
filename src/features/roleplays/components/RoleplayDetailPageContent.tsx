@@ -2,33 +2,19 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-    ArrowLeft,
-    Banknote,
-    Building2,
-    CalendarDays,
-    Clock,
-    History,
-    Users,
-} from "lucide-react";
-import type { LucideIcon } from "lucide-react";
+import { ArrowLeft, CalendarDays, Clock, History } from "lucide-react";
 import {
     categoryBadgeStyles,
     difficultyBadgeStyles,
     discBadgeStyles,
 } from "@/features/roleplays/data/roleplays";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
-import { demoPrepDocuments, demoPrepQuizzes } from "@/features/roleplays/data/preparation";
+import { ROLEPLAY_ROUTES } from "@/features/roleplays/domain";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import { uiTokens } from "@/lib/ui/tokens";
 import { RoleplayDocumentsModal } from "./RoleplayDocumentsModal";
+import { roleplayChipIcons } from "./roleplayChipIcons";
 import { RoleplayQuizModal } from "./RoleplayQuizModal";
-
-const chipIcons: Record<string, LucideIcon> = {
-    users: Users,
-    money: Banknote,
-    building: Building2,
-    calendar: CalendarDays,
-};
 
 interface RoleplayDetailPageContentProps {
     roleplay: RoleplayItem;
@@ -88,22 +74,19 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
     const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
     const discStyle = discBadgeStyles[roleplay.disc];
     const [activeModal, setActiveModal] = useState<"quiz" | "documents" | null>(null);
-    const prepDocuments = roleplay.prepDocuments ?? demoPrepDocuments;
-    const prepQuizzes = roleplay.prepQuizzes ?? demoPrepQuizzes;
+    const prepDocuments = roleplay.prepDocuments ?? [];
+    const prepQuizzes = roleplay.prepQuizzes ?? [];
 
     return (
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1180px]">
                 <Box className="mb-5 flex items-center justify-between">
-                    <Link
-                        href="/roleplays"
-                        className="flex h-10 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-4 text-[14px] font-semibold text-[#374151] transition hover:border-[#D5D7DE]"
-                    >
+                    <Link href="/roleplays" className={uiTokens.action.backButton}>
                         <InlineIcon icon={ArrowLeft} className="h-4 w-4" />
                         Retour
                     </Link>
                     <Link
-                        href="/roleplays/history"
+                        href={ROLEPLAY_ROUTES.app.historyForRoleplay(roleplay.scenarioId ?? roleplay.id)}
                         className="flex h-10 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-4 text-[14px] font-semibold text-[#374151] transition hover:border-[#D5D7DE]"
                     >
                         <InlineIcon icon={History} className="h-4 w-4" />
@@ -173,7 +156,7 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
                                     key={chip.label}
                                     className="inline-flex h-9 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-3.5 text-[13px] font-semibold text-[#4B5563]"
                                 >
-                                    <InlineIcon icon={chipIcons[chip.icon]} className="h-4 w-4 text-[#9CA3AF]" />
+                                    <InlineIcon icon={roleplayChipIcons[chip.icon]} className="h-4 w-4 text-[#9CA3AF]" />
                                     {chip.label}
                                 </Box>
                             ))}
@@ -209,9 +192,12 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
                         </CardSurface>
                         <CardSurface className="flex flex-col rounded-[14px] border border-[#C9C2FB] p-5 text-center shadow-none">
                             <Text className="text-[13px] font-bold text-[#4B5563]">Suivi pédagogique</Text>
-                            <Button className="mt-3 flex h-10 w-full items-center justify-center rounded-lg border border-[#C9C2FB] bg-white text-[13px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]">
+                            <Link
+                                href={ROLEPLAY_ROUTES.app.progress(roleplay.id)}
+                                className="mt-3 flex h-10 w-full items-center justify-center rounded-lg border border-[#C9C2FB] bg-white text-[13px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
+                            >
                                 État des compétences &gt;
-                            </Button>
+                            </Link>
                         </CardSurface>
                     </Box>
 
@@ -248,9 +234,12 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
                     </Box>
 
                     <Box className="mt-8 flex flex-wrap items-center justify-center gap-3">
-                        <Button className="flex h-12 items-center justify-center rounded-xl bg-[#5140F0] px-6 text-[15px] font-bold text-white shadow-[0_12px_24px_rgba(81,64,240,0.24)] transition hover:bg-[#4635E7]">
+                        <Link
+                            href={`/roleplays/${roleplay.id}/session`}
+                            className="flex h-12 items-center justify-center rounded-xl bg-[#5140F0] px-6 text-[15px] font-bold text-white shadow-[0_12px_24px_rgba(81,64,240,0.24)] transition hover:bg-[#4635E7]"
+                        >
                             Commencer l&apos;entraînement complet
-                        </Button>
+                        </Link>
                         <Link
                             href={`/roleplays/${roleplay.id}/steps`}
                             className="flex h-12 items-center justify-center rounded-xl border border-[#C9C2FB] bg-white px-6 text-[15px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"

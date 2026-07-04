@@ -1,12 +1,17 @@
 import type { ContentStatus } from "@/features/content/domain";
-import { SCORECARD_VISIBILITY, type ScorecardMethodStep, type ScorecardVisibility } from "@/features/scorecards/domain";
+import {
+    SCORECARD_VISIBILITY,
+    type ScorecardDetail,
+    type ScorecardCriterionDimension,
+    type ScorecardMethodStep,
+    type ScorecardVisibility,
+} from "@/features/scorecards/domain";
 import type { SaveScorecardInput } from "@/features/scorecards/dto";
-import type { SkillDimension } from "@/features/skills/domain/skills";
 
 export interface ScorecardCriterionFormState {
     aiInstruction: string;
     competenceId: string | null;
-    dimension: SkillDimension | null;
+    dimension: ScorecardCriterionDimension | null;
     dimensionItemId: string | null;
     expectedEvidence: string;
     id: string;
@@ -67,6 +72,38 @@ export function emptyScorecardFormState(): ScorecardFormState {
         organizationId: null,
         steps: [],
         visibility: SCORECARD_VISIBILITY.public,
+    };
+}
+
+export function scorecardDetailToFormState(scorecard: ScorecardDetail): ScorecardFormState {
+    return {
+        category: textOrNull(scorecard.category),
+        description: scorecard.description,
+        domain: textOrNull(scorecard.domain),
+        level: textOrNull(scorecard.level),
+        methodId: scorecard.methodId,
+        name: scorecard.name,
+        organizationId: scorecard.organizationId,
+        steps: scorecard.steps.map((step) => ({
+            collapsed: false,
+            criteria: step.criteria.map((criterion) => ({
+                aiInstruction: criterion.aiInstruction,
+                competenceId: criterion.competenceId || null,
+                dimension: criterion.dimension,
+                dimensionItemId: criterion.dimensionItemId,
+                expectedEvidence: criterion.expectedEvidence,
+                id: criterion.id,
+                key: criterion.key,
+                maxPoints: String(criterion.maxPoints),
+                order: String(criterion.order),
+                verbatim: criterion.verbatim,
+            })),
+            id: step.id,
+            methodStepId: step.methodStepId,
+            name: step.name,
+            order: step.order,
+        })),
+        visibility: scorecard.visibility,
     };
 }
 

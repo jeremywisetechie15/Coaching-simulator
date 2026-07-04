@@ -35,5 +35,5 @@ export async function updateCurrentProfile(input: UpdateProfileDto): Promise<Pro
         throw error;
     }
 
-    return mapProfileRowToView(profile, context.email);
+    return mapProfileRowToView(profile, context.email, context.platformRole);
 }

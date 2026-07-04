@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { scoreQuizAnswers } from "./quiz";
+import { getQuizDimensionDiagnostic, getQuizResumeQuestionIndex, scoreQuizAnswers } from "./quiz";
 
 describe("scoreQuizAnswers", () => {
     it("scores QCU and QCM questions with exact-match answers", () => {
@@ -149,5 +149,106 @@ describe("scoreQuizAnswers", () => {
 
         expect(result.score).toBe(75);
         expect(result.passed).toBe(true);
+    });
+});
+
+describe("getQuizResumeQuestionIndex", () => {
+    const quiz = {
+        steps: [
+            {
+                competenceIds: [],
+                id: "step-1",
+                methodStepId: null,
+                name: "Étape 1",
+                order: 1,
+                weight: 50,
+                questions: [
+                    {
+                        attachments: [],
+                        choices: [],
+                        competenceId: "",
+                        dimension: "savoir" as const,
+                        dimensionItem: "",
+                        dimensionItemId: null,
+                        explanation: "",
+                        id: "question-1",
+                        order: 1,
+                        points: 1,
+                        prompt: "Question 1",
+                        type: "QCU" as const,
+                    },
+                    {
+                        attachments: [],
+                        choices: [],
+                        competenceId: "",
+                        dimension: "savoir" as const,
+                        dimensionItem: "",
+                        dimensionItemId: null,
+                        explanation: "",
+                        id: "question-2",
+                        order: 2,
+                        points: 1,
+                        prompt: "Question 2",
+                        type: "QCU" as const,
+                    },
+                ],
+            },
+            {
+                competenceIds: [],
+                id: "step-2",
+                methodStepId: null,
+                name: "Étape 2",
+                order: 2,
+                weight: 50,
+                questions: [
+                    {
+                        attachments: [],
+                        choices: [],
+                        competenceId: "",
+                        dimension: "savoir" as const,
+                        dimensionItem: "",
+                        dimensionItemId: null,
+                        explanation: "",
+                        id: "question-3",
+                        order: 1,
+                        points: 1,
+                        prompt: "Question 3",
+                        type: "QCM" as const,
+                    },
+                ],
+            },
+        ],
+    };
+
+    it("returns the first unanswered question index", () => {
+        expect(
+            getQuizResumeQuestionIndex(quiz, {
+                "question-1": ["choice-1"],
+            }),
+        ).toBe(1);
+    });
+
+    it("returns the last question index when all questions are answered but not submitted", () => {
+        expect(
+            getQuizResumeQuestionIndex(quiz, {
+                "question-1": ["choice-1"],
+                "question-2": ["choice-2"],
+                "question-3": ["choice-3"],
+            }),
+        ).toBe(2);
+    });
+});
+
+describe("getQuizDimensionDiagnostic", () => {
+    it("returns the deterministic MVP message from score thresholds", () => {
+        expect(getQuizDimensionDiagnostic(80, 70)).toBe(
+            "Cette compétence est maîtrisée. Continuez à l'entretenir lors de vos prochains entraînements.",
+        );
+        expect(getQuizDimensionDiagnostic(60, 70)).toBe(
+            "Les bases sont là, mais des points restent à consolider. Quelques révisions ciblées suffiront.",
+        );
+        expect(getQuizDimensionDiagnostic(40, 70)).toBe(
+            "Des lacunes importantes ont été identifiées. Une révision approfondie de cette compétence est nécessaire.",
+        );
     });
 });

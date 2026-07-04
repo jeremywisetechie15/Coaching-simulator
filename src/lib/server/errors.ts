@@ -22,6 +22,12 @@ export class ForbiddenError extends AppError {
     }
 }
 
+export class ConflictError extends AppError {
+    constructor(message = "Action impossible sur cette ressource.") {
+        super(message, 409, "CONFLICT");
+    }
+}
+
 export class NotFoundError extends AppError {
     constructor(message = "Ressource introuvable.") {
         super(message, 404, "NOT_FOUND");

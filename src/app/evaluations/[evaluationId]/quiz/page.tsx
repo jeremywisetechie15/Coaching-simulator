@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { EvaluationQuizPage } from "@/features/evaluations/components";
-import { getQuizById } from "@/features/evaluations/server";
+import { getLatestQuizAttempt, getQuizById } from "@/features/evaluations/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { listSkillOptions } from "@/features/skills/server";
@@ -8,6 +8,7 @@ import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
 
 interface PageProps {
     params: Promise<{ evaluationId: string }>;
+    searchParams?: Promise<{ result?: string; retry?: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps) {
@@ -26,8 +27,11 @@ export async function generateMetadata({ params }: PageProps) {
     }
 }
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
     const { evaluationId } = await params;
+    const resolvedSearchParams = searchParams ? await searchParams : undefined;
+    const initialView = resolvedSearchParams?.result === "1" ? "results" : "quiz";
+    const initialRetryRequested = resolvedSearchParams?.retry === "1";
     let profile;
 
     try {
@@ -53,6 +57,18 @@ export default async function Page({ params }: PageProps) {
     }
 
     const skillOptions = await listSkillOptions();
+    const initialAttemptSession = await getLatestQuizAttempt(evaluationId, {
+        preferCompleted: initialView === "results",
+    });
 
-    return <EvaluationQuizPage profileValues={toProfileFormValues(profile)} quiz={quiz} skillOptions={skillOptions} />;
+    return (
+        <EvaluationQuizPage
+            initialAttemptSession={initialAttemptSession}
+            initialRetryRequested={initialRetryRequested}
+            initialView={initialView}
+            profileValues={toProfileFormValues(profile)}
+            quiz={quiz}
+            skillOptions={skillOptions}
+        />
+    );
 }

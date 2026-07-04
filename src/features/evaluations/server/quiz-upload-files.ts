@@ -8,6 +8,7 @@ import {
     sanitizeUploadFileName,
     validateContentUploadFile,
 } from "@/lib/uploads/content-upload";
+import { fileToStorageUploadBody } from "@/lib/uploads/storage-upload-body";
 import { AppError } from "@/lib/server/errors";
 
 export type QuizUploadFilesByClientId = Map<string, File>;
@@ -22,7 +23,9 @@ type QuizAttachmentInput = SaveQuizDto["steps"][number]["questions"][number]["at
 function inferQuizAttachmentType(mimeType: string): Exclude<QuizAttachmentInput["type"], "link"> {
     const resourceType = inferContentUploadResourceType(mimeType);
 
-    return resourceType === "image" || resourceType === "video" ? resourceType : "document";
+    return resourceType === "image" || resourceType === "video" || resourceType === "audio"
+        ? resourceType
+        : "document";
 }
 
 function buildQuizAttachmentUploadPath(
@@ -43,7 +46,7 @@ async function uploadQuizAttachmentFile(
 ) {
     const { error } = await supabase.storage
         .from(QUIZ_UPLOAD_BUCKET)
-        .upload(path, await file.arrayBuffer(), {
+        .upload(path, await fileToStorageUploadBody(file), {
             cacheControl: "3600",
             contentType: file.type,
             upsert: false,

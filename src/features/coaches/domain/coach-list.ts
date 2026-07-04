@@ -1,5 +1,11 @@
-import type { ContentStatus } from "@/features/content/domain";
+import type { ContentDomain, ContentStatus } from "@/features/content/domain";
 import { DEFAULT_COACH_VOICE_ID, type VoiceId } from "@/lib/openai/realtime-voices";
+import {
+    COACH_DISC_PROFILE,
+    COACHING_STYLE,
+    type CoachDiscProfile,
+    type CoachingStyle,
+} from "./coach-profile";
 
 export interface CoachListItem {
     avatarSrc: string | null;
@@ -15,6 +21,11 @@ export interface CoachListItem {
 
 export interface CoachEditorValues {
     avatarSrc: string;
+    certifications: string;
+    coachingStyle: CoachingStyle;
+    diploma: string;
+    discProfile: CoachDiscProfile;
+    expertiseDomain: ContentDomain | "";
     name: string;
     systemInstructions: string;
     voiceId: VoiceId;
@@ -22,6 +33,11 @@ export interface CoachEditorValues {
 
 export const EMPTY_COACH_EDITOR_VALUES: CoachEditorValues = {
     avatarSrc: "",
+    certifications: "",
+    coachingStyle: COACHING_STYLE.optimistic,
+    diploma: "",
+    discProfile: COACH_DISC_PROFILE.stable,
+    expertiseDomain: "",
     name: "",
     systemInstructions: "",
     voiceId: DEFAULT_COACH_VOICE_ID,

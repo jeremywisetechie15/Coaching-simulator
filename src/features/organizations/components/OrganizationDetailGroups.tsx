@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Eye, Pencil, Plus, Trash2, UsersRound } from "lucide-react";
@@ -212,9 +213,17 @@ export function OrganizationDetailGroups({ organizationId }: OrganizationDetailG
                                     </Box>
                                     <Box as="td" className="px-7 py-5">
                                         <Box className="flex items-center gap-5 text-[#9AA2B2]">
-                                            {[Eye, Pencil, Trash2].map((icon) => (
+                                            <Link
+                                                href={`/organizations/${organizationId}/groups/${group.id}`}
+                                                aria-label={`Voir ${group.name}`}
+                                                className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
+                                            >
+                                                <InlineIcon icon={Eye} className="h-5 w-5" />
+                                            </Link>
+                                            {[Pencil, Trash2].map((icon) => (
                                                 <Button
                                                     key={icon.displayName ?? icon.name}
+                                                    aria-label={`${icon === Pencil ? "Modifier" : "Supprimer"} ${group.name}`}
                                                     className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
                                                 >
                                                     <InlineIcon icon={icon} className="h-5 w-5" />

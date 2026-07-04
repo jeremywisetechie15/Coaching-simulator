@@ -13,9 +13,11 @@ import {
     roleplayLevelFilterOptions,
 } from "@/features/roleplays/data/roleplays";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
+import { ROLEPLAY_ROUTES } from "@/features/roleplays/domain";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 
 interface RoleplaysPageContentProps {
+    canManage: boolean;
     roleplays: RoleplayItem[];
 }
 
@@ -94,7 +96,7 @@ function FilterSelect({
     );
 }
 
-export function RoleplaysPageContent({ roleplays }: RoleplaysPageContentProps) {
+export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageContentProps) {
     const [domain, setDomain] = useState(roleplayDomainFilterOptions[0]);
     const [category, setCategory] = useState(roleplayCategoryFilterOptions[0]);
     const [level, setLevel] = useState(roleplayLevelFilterOptions[0]);
@@ -151,13 +153,15 @@ export function RoleplaysPageContent({ roleplays }: RoleplaysPageContentProps) {
                         <Box className="min-w-[160px] flex-1 sm:max-w-[208px]">
                             <FilterSelect options={roleplayDiscFilterOptions} value={disc} onChange={setDisc} />
                         </Box>
-                        <Link
-                            href="/roleplays/new"
-                            className="ml-auto flex h-11 items-center justify-center gap-2 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7]"
-                        >
-                            <InlineIcon icon={Plus} className="h-4 w-4" />
-                            Créer un scénario
-                        </Link>
+                        {canManage && (
+                            <Link
+                                href="/roleplays/new"
+                                className="ml-auto flex h-11 items-center justify-center gap-2 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7]"
+                            >
+                                <InlineIcon icon={Plus} className="h-4 w-4" />
+                                Créer un scénario
+                            </Link>
+                        )}
                     </Box>
                 </CardSurface>
 
@@ -182,12 +186,14 @@ export function RoleplaysPageContent({ roleplays }: RoleplaysPageContentProps) {
                                         >
                                             {roleplay.category}
                                         </Box>
-                                        <Button
-                                            aria-label={`Actions pour ${roleplay.name}`}
-                                            className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-lg text-white/80 transition hover:bg-white/15"
-                                        >
-                                            <InlineIcon icon={MoreVertical} className="h-4 w-4" />
-                                        </Button>
+                                        {canManage && (
+                                            <Button
+                                                aria-label={`Actions pour ${roleplay.name}`}
+                                                className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-lg text-white/80 transition hover:bg-white/15"
+                                            >
+                                                <InlineIcon icon={MoreVertical} className="h-4 w-4" />
+                                            </Button>
+                                        )}
                                     </Box>
 
                                     <Box className="-mt-[46px] flex flex-1 flex-col items-center px-6 pb-6">
@@ -261,7 +267,7 @@ export function RoleplaysPageContent({ roleplays }: RoleplaysPageContentProps) {
 
                 <Box className="mt-10 flex justify-center">
                     <Link
-                        href="/roleplays/history"
+                        href={ROLEPLAY_ROUTES.app.history}
                         className="flex h-11 items-center justify-center rounded-xl border border-[#C9C2FB] bg-white px-6 text-[14px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
                     >
                         Historique des sessions

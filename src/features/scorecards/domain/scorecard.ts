@@ -10,6 +10,24 @@ import {
 } from "@/features/content/domain";
 import type { SkillDimension } from "@/features/skills/domain/skills";
 
+function encodeRouteSegment(value: string) {
+    return encodeURIComponent(value);
+}
+
+export const SCORECARD_ROUTES = {
+    api: {
+        collection: "/api/scorecards",
+        detail: (scorecardId: string) => `/api/scorecards/${encodeRouteSegment(scorecardId)}`,
+        duplicate: (scorecardId: string) => `/api/scorecards/${encodeRouteSegment(scorecardId)}/duplicate`,
+    },
+    app: {
+        collection: "/scorecards",
+        create: "/scorecards/new",
+        detail: (scorecardId: string) => `/scorecards/${encodeRouteSegment(scorecardId)}`,
+        edit: (scorecardId: string) => `/scorecards/${encodeRouteSegment(scorecardId)}/edit`,
+    },
+} as const;
+
 export const SCORECARD_VISIBILITY = CONTENT_VISIBILITY_CHOICE;
 
 export const SCORECARD_VISIBILITIES = CONTENT_VISIBILITY_CHOICES;
@@ -26,6 +44,15 @@ export const SCORECARD_SCOPE = {
 } as const;
 
 export type ScorecardScope = OrganizationContentVisibilityScope;
+
+export const SCORECARD_CRITERION_DIMENSIONS = ["savoir_faire", "savoir_etre"] as const satisfies readonly SkillDimension[];
+
+export type ScorecardCriterionDimension = (typeof SCORECARD_CRITERION_DIMENSIONS)[number];
+
+export const SCORECARD_CRITERION_DIMENSION_LABELS: Record<ScorecardCriterionDimension, string> = {
+    savoir_etre: "Savoir-être",
+    savoir_faire: "Savoir-faire",
+};
 
 export interface ScorecardMethodOption {
     id: string;
@@ -61,7 +88,7 @@ export interface ScorecardListItem {
 export interface ScorecardCriterion {
     aiInstruction: string;
     competenceId: string;
-    dimension: SkillDimension;
+    dimension: ScorecardCriterionDimension;
     dimensionItemId: string | null;
     expectedEvidence: string;
     id: string;

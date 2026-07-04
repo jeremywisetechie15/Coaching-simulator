@@ -8,6 +8,7 @@ import {
     sanitizeUploadFileName,
     validateContentUploadFile,
 } from "@/lib/uploads/content-upload";
+import { fileToStorageUploadBody } from "@/lib/uploads/storage-upload-body";
 import { AppError } from "@/lib/server/errors";
 
 export type RoleplayUploadFilesByClientId = Map<string, File>;
@@ -36,7 +37,7 @@ async function uploadScenarioResourceFile(
 ) {
     const { error } = await supabase.storage
         .from(SCENARIO_RESOURCE_UPLOAD_BUCKET)
-        .upload(path, await file.arrayBuffer(), {
+        .upload(path, await fileToStorageUploadBody(file), {
             cacheControl: "3600",
             contentType: file.type,
             upsert: false,

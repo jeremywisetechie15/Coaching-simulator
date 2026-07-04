@@ -4,6 +4,7 @@ import type { QuizMethodOption } from "@/features/evaluations/domain";
 import {
     createQuizStepsFromMethod,
     getDefaultQuestionDimensionForSkill,
+    inferQuizAttachmentType,
     normalizeChoicesForQuestionType,
     toSaveQuizInput,
     type QuizChoiceFormState,
@@ -45,6 +46,12 @@ describe("normalizeChoicesForQuestionType", () => {
         const result = normalizeChoicesForQuestionType(input, "QCM");
 
         expect(result).toEqual(input);
+    });
+});
+
+describe("inferQuizAttachmentType", () => {
+    it("keeps audio files typed as audio attachments", () => {
+        expect(inferQuizAttachmentType("audio/mpeg")).toBe("audio");
     });
 });
 

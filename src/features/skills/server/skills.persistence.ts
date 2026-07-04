@@ -3,7 +3,7 @@ import type { SaveSkillDto } from "@/features/skills/dto";
 import { SKILL_DIMENSIONS, type SkillDimension } from "@/features/skills/domain/skills";
 
 export const SKILL_SELECT =
-    "id, name, description, category, domain, objective, functions, status, is_active";
+    "id, name, description, category, domain, functions, visibility_scope, organization_id, group_id, assigned_user_id, status, is_active";
 
 export const SKILL_DIMENSION_ITEM_SELECT =
     "id, skill_id, dimension, label, item_order, is_active";
@@ -30,9 +30,13 @@ function createSkillBasePayload(input: SaveSkillDto) {
         description: nullableText(input.description),
         domain: nullableText(input.domain),
         functions: input.functions,
+        assigned_user_id: input.scope === "user" ? input.assignedUserId : null,
+        group_id: input.scope === "group" ? input.groupId : null,
         is_active: input.status !== "archived",
         name: input.name,
-        objective: nullableText(input.objective),
+        organization_id:
+            input.scope === "organization" || input.scope === "group" ? input.organizationId : null,
+        visibility_scope: input.scope,
         status: input.status,
     };
 }

@@ -4,8 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchRoleplayDetail } from "./roleplay-query";
 
 export async function getRoleplayById(roleplayId: string): Promise<RoleplayDetail> {
-    await requireAuth();
+    const context = await requireAuth();
     const supabase = await createClient();
 
-    return fetchRoleplayDetail(supabase, roleplayId);
+    return fetchRoleplayDetail(supabase, roleplayId, context.userId);
 }

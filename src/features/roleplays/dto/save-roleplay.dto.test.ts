@@ -8,6 +8,7 @@ const methodId = "33333333-3333-4333-8333-333333333333";
 const organizationId = "44444444-4444-4444-8444-444444444444";
 const groupId = "55555555-5555-4555-8555-555555555555";
 const userId = "66666666-6666-4666-8666-666666666666";
+const scorecardId = "77777777-7777-4777-8777-777777777777";
 
 function roleplay(overrides: Partial<SaveRoleplayInput> = {}): SaveRoleplayInput {
     return {
@@ -39,11 +40,13 @@ describe("saveRoleplayDto", () => {
                         resourceType: "document",
                     },
                 ],
+                scorecardId,
             }),
         );
 
         expect(result.scope).toBe(CONTENT_VISIBILITY_SCOPE.public);
         expect(result.quizIds).toEqual(["77777777-7777-4777-8777-777777777777"]);
+        expect(result.scorecardId).toBe(scorecardId);
         expect(result.resources).toEqual([
             expect.objectContaining({
                 clientFileId: "scenario-file-1",
@@ -52,6 +55,19 @@ describe("saveRoleplayDto", () => {
             }),
         ]);
         expect(result.status).toBe(CONTENT_STATUS.published);
+    });
+
+    it("deduplicates selected quizzes", () => {
+        const result = saveRoleplayDto.parse(
+            roleplay({
+                quizIds: [
+                    "77777777-7777-4777-8777-777777777777",
+                    "77777777-7777-4777-8777-777777777777",
+                ],
+            }),
+        );
+
+        expect(result.quizIds).toEqual(["77777777-7777-4777-8777-777777777777"]);
     });
 
     it("rejects inconsistent uploaded resource locations", () => {
@@ -125,5 +141,19 @@ describe("saveRoleplayDto", () => {
 
         expect(result.assignedUserId).toBe(userId);
         expect(result.organizationId).toBeNull();
+    });
+
+    it("rejects a scorecard without a linked method", () => {
+        const result = saveRoleplayDto.safeParse(
+            roleplay({
+                methodId: null,
+                scorecardId,
+            }),
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.message)).toContain(
+            "Une scorecard de roleplay doit être liée à une méthode.",
+        );
     });
 });

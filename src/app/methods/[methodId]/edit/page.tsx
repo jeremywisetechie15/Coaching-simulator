@@ -1,4 +1,9 @@
 import { notFound, redirect } from "next/navigation";
+import { AccessDeniedPage } from "@/features/app-shell/components";
+import {
+    APP_NAVIGATION_RESOURCE,
+    canManageAppResource,
+} from "@/features/auth/domain/access-control";
 import { listQuizOptions } from "@/features/evaluations/server";
 import { CreateMethodPage } from "@/features/methods/components";
 import { getMethodById } from "@/features/methods/server";
@@ -41,6 +46,18 @@ export default async function Page({ params }: PageProps) {
         redirect(`/auth?redirect=/methods/${methodId}/edit`);
     }
 
+    const profileValues = toProfileFormValues(profile);
+
+    if (!canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.methods)) {
+        return (
+            <AccessDeniedPage
+                activePrimaryItem="Méthodes et Playbook"
+                profileValues={profileValues}
+                searchPlaceholder="Rechercher..."
+            />
+        );
+    }
+
     let method;
 
     try {
@@ -55,7 +72,7 @@ export default async function Page({ params }: PageProps) {
 
     const [organizations, quizOptions] = await Promise.all([
         listOrganizations(),
-        listQuizOptions(),
+        listQuizOptions({ availableForMethodId: methodId }),
     ]);
     const organizationOptions = organizations.map((organization) => ({
         id: organization.id,
@@ -66,7 +83,7 @@ export default async function Page({ params }: PageProps) {
         <CreateMethodPage
             method={method}
             organizationOptions={organizationOptions}
-            profileValues={toProfileFormValues(profile)}
+            profileValues={profileValues}
             quizOptions={quizOptions}
         />
     );

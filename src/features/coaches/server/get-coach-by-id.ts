@@ -1,7 +1,7 @@
 import { requireAdmin } from "@/features/auth/server";
 import type { CoachEditorValues } from "@/features/coaches/domain/coach-list";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { mapCoachRowToEditorValues, type CoachRow } from "./coach.mapper";
+import { COACH_SELECT, mapCoachRowToEditorValues, type CoachRow } from "./coach.mapper";
 
 export async function getCoachById(coachId: string): Promise<CoachEditorValues | null> {
     await requireAdmin();
@@ -9,7 +9,7 @@ export async function getCoachById(coachId: string): Promise<CoachEditorValues |
     const adminSupabase = createAdminClient();
     const { data, error } = await adminSupabase
         .from("coaches")
-        .select("id, name, voice_id, system_instructions, avatar_url, created_at, status")
+        .select(COACH_SELECT)
         .eq("id", coachId)
         .maybeSingle<CoachRow>();
 
