@@ -183,28 +183,57 @@ function joinList(value: unknown) {
     return listFromValue(value).join("\n");
 }
 
-function criteriaFromStep(step: JsonRecord): EvaluationCriterion[] {
+function criterionDisplayName(criterion: JsonRecord, index: number) {
+    return (
+        firstString(criterion, [
+            ["critere"],
+            ["criterion"],
+            ["libelle"],
+            ["titre"],
+            ["title"],
+            ["nom"],
+            ["name"],
+        ]) ?? `Critère ${index + 1}`
+    );
+}
+
+function criterionRef(criterion: JsonRecord) {
+    return firstString(criterion, [["code"], ["ref"], ["reference"], ["criterion_ref"], ["critere_ref"]]);
+}
+
+function normalizeCriterionRef(value: string) {
+    return value.trim().toLowerCase();
+}
+
+function detailedCriteriaFromStep(step: JsonRecord): JsonRecord[] {
     const directCriteria =
         getValuePath(step, ["grille_calcul", "criteres"]) ??
         getValuePath(step, ["criteres"]) ??
         getValuePath(step, ["criteria"]);
 
-    if (Array.isArray(directCriteria)) {
+    return Array.isArray(directCriteria) ? directCriteria.filter(isRecord) : [];
+}
+
+function resolveCriterionNames(step: JsonRecord, values: string[]) {
+    if (values.length === 0) return values;
+
+    const namesByRef = new Map<string, string>();
+    detailedCriteriaFromStep(step).forEach((criterion, index) => {
+        const ref = criterionRef(criterion);
+        if (!ref) return;
+        namesByRef.set(normalizeCriterionRef(ref), criterionDisplayName(criterion, index));
+    });
+
+    return values.map((value) => namesByRef.get(normalizeCriterionRef(value)) ?? value);
+}
+
+function criteriaFromStep(step: JsonRecord): EvaluationCriterion[] {
+    const directCriteria = detailedCriteriaFromStep(step);
+
+    if (directCriteria.length > 0) {
         const criteria = directCriteria
             .map((criterion, index): EvaluationCriterion | null => {
-                if (!isRecord(criterion)) return null;
-
-                const name =
-                    firstString(criterion, [
-                        ["critere"],
-                        ["criterion"],
-                        ["libelle"],
-                        ["titre"],
-                        ["title"],
-                        ["nom"],
-                        ["name"],
-                    ]) ??
-                    `Critère ${index + 1}`;
+                const name = criterionDisplayName(criterion, index);
                 const score = asNumber(criterion.score_obtenu) ?? asNumber(criterion.score) ?? asNumber(criterion.note);
                 const maxScore = asNumber(criterion.score_max) ?? asNumber(criterion.max_points);
                 const scoreLabel =
@@ -394,8 +423,8 @@ function mapMethodologySteps(notation: JsonRecord | null): EvaluationStep[] {
                 fallbackEvaluation.steps[index]?.title ??
                 `Étape ${index + 1}`;
             const number = Math.max(1, Math.round(asNumber(rawStep.numero) ?? index + 1));
-            const criteresReussis = listFromValue(rawStep.criteres_reussis);
-            const criteresAAmeliorer = listFromValue(rawStep.criteres_a_ameliorer);
+            const criteresReussis = resolveCriterionNames(rawStep, listFromValue(rawStep.criteres_reussis));
+            const criteresAAmeliorer = resolveCriterionNames(rawStep, listFromValue(rawStep.criteres_a_ameliorer));
             const criteria = criteriaFromStep(rawStep);
             const derivedCriteria = derivedCriterionSummaries(criteria);
 

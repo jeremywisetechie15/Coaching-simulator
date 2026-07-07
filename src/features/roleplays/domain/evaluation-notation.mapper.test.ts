@@ -185,6 +185,51 @@ describe("evaluation notation mapper", () => {
         expect(evaluation.steps[0].criteresAAmeliorer).toEqual(["Accroche personnalisée"]);
     });
 
+    it("resolves criterion codes in step summaries to their detailed labels", () => {
+        const evaluation = mapNotationToEvaluation({
+            methodo: {
+                etapes: [
+                    {
+                        criteres_a_ameliorer: ["A1", "A2", "Point libre"],
+                        criteres_reussis: ["A3"],
+                        grille_calcul: {
+                            criteres: [
+                                {
+                                    code: "A1",
+                                    libelle: "Présentation claire",
+                                    score_max: 5,
+                                    score_obtenu: 0,
+                                },
+                                {
+                                    code: "A2",
+                                    libelle: "Validation de la disponibilité",
+                                    score_max: 2,
+                                    score_obtenu: 0,
+                                },
+                                {
+                                    code: "A3",
+                                    libelle: "Accroche contextualisée",
+                                    score_max: 8,
+                                    score_obtenu: 8,
+                                },
+                            ],
+                        },
+                        numero: 2,
+                        score: 17,
+                        titre: "Accrocher",
+                    },
+                ],
+            },
+        });
+
+        expect(evaluation.steps[0].criteresAAmeliorer).toEqual([
+            "Présentation claire",
+            "Validation de la disponibilité",
+            "Point libre",
+        ]);
+        expect(evaluation.steps[0].criteresReussis).toEqual(["Accroche contextualisée"]);
+    });
+
     it("maps the progress plan array entry for the weakest step", () => {
         const evaluation = mapNotationToEvaluation({
             synthese: {

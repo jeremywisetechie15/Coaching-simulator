@@ -10,6 +10,7 @@ import {
 import {
     buildRoleplayScorecardNotationContext,
     buildScoreGlobalFromScorecard,
+    calculateLegacyMethodoStepScore,
     calculateScorecardNotationResult,
     loadScorecardNotationPrompts,
     persistRoleplayScorecardNotationResults,
@@ -260,7 +261,7 @@ function inferStepFromEtape(etape: MethodoEtape, steps: NotationMethodStep[], in
 
 function getScoreFromEtapes(etapes: MethodoEtape[], targetStep: NotationMethodStep, steps: NotationMethodStep[]): number {
     const byStep = etapes.find((etape, index) => inferStepFromEtape(etape, steps, index)?.key === targetStep.key);
-    return clamp0_100(byStep?.score ?? 0);
+    return calculateLegacyMethodoStepScore(byStep);
 }
 
 function buildInterpretation(
@@ -314,7 +315,7 @@ function injectScoreGlobal(notation: NotationPayload, steps: NotationMethodStep[
 
         if (!inferred) continue;
         e.code = inferred.code;
-        e.score = clamp0_100(e.score);
+        e.score = calculateLegacyMethodoStepScore(e);
         e.score_max = 100;
         e.poids = inferred.poids;
         e.contribution_score_global = round2(e.score * inferred.poids);

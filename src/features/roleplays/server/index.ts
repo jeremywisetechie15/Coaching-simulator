@@ -9,6 +9,7 @@ export * from "./get-roleplay-session-report";
 export * from "./list-roleplay-session-history";
 export * from "./list-roleplay-form-options";
 export * from "./list-roleplays";
+export * from "./legacy-notation-score";
 export * from "./persist-roleplay-notation-results";
 export * from "./roleplay-query";
 export * from "./save-roleplay-request";
