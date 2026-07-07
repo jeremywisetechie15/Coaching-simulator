@@ -1,4 +1,4 @@
-import { Bell, Menu } from "lucide-react";
+import { Menu } from "lucide-react";
 import { Box, Button, InlineIcon, Text } from "@/lib/ui/atoms";
 
 interface ProfileTopBarProps {
@@ -17,15 +17,6 @@ export function ProfileTopBar({ avatarUrl, initials }: ProfileTopBarProps) {
             </Button>
 
             <Box className="ml-auto flex items-center gap-4">
-                <Button className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#273044] transition hover:bg-white">
-                    <InlineIcon icon={Bell} className="h-5 w-5" />
-                    <Text
-                        as="span"
-                        className="absolute right-0 top-0 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#FF4E68] px-1 text-[10px] font-bold leading-none text-white"
-                    >
-                        2
-                    </Text>
-                </Button>
                 <Box className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#5B50F5] text-white shadow-[0_10px_24px_rgba(81,64,240,0.22)]">
                     {avatarUrl ? (
                         <Box

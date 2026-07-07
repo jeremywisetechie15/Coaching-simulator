@@ -1,5 +1,5 @@
-import { Bell, Menu, Search } from "lucide-react";
-import { Box, Button, InlineIcon, Text, TextInput } from "@/lib/ui/atoms";
+import { Menu, Search } from "lucide-react";
+import { Box, Button, InlineIcon, TextInput } from "@/lib/ui/atoms";
 import { UserAvatarMenu } from "./UserAvatarMenu";
 
 interface AppTopBarProps {
@@ -49,15 +49,6 @@ export function AppTopBar({
             )}
 
             <Box className="ml-auto flex items-center gap-4">
-                <Button className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#273044] transition hover:bg-white">
-                    <InlineIcon icon={Bell} className="h-5 w-5" />
-                    <Text
-                        as="span"
-                        className="absolute right-0 top-0 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-[#FF4E68] px-1 text-[10px] font-bold leading-none text-white"
-                    >
-                        2
-                    </Text>
-                </Button>
                 <UserAvatarMenu
                     avatarUrl={avatarUrl}
                     initials={initials}
