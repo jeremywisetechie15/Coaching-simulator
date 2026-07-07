@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Box } from "@/lib/ui/atoms";
 import {
     type CreateOrganizationFieldErrors,
@@ -25,6 +26,70 @@ interface ApiErrorPayload {
     code?: string;
     error?: string;
     issues?: ApiValidationIssue[];
+}
+
+interface OrganizationsPayload {
+    organizations?: OrganizationListItem[];
+}
+
+interface CreateOrganizationPayload {
+    organization?: OrganizationListItem;
+}
+
+interface ApiRequestError extends Error {
+    payload: ApiErrorPayload | null;
+    status: number;
+}
+
+const organizationsQueryKey = ["organizations"] as const;
+
+function isApiRequestError(error: unknown): error is ApiRequestError {
+    return error instanceof Error && "payload" in error && "status" in error;
+}
+
+async function readJsonPayload(response: Response) {
+    return response.json().catch(() => null) as Promise<unknown>;
+}
+
+async function fetchOrganizations() {
+    const response = await fetch("/api/organizations", {
+        headers: { Accept: "application/json" },
+    });
+    const payload = (await readJsonPayload(response)) as OrganizationsPayload | ApiErrorPayload | null;
+
+    if (!response.ok) {
+        throw new Error((payload as ApiErrorPayload | null)?.error ?? "Impossible de charger les organisations.");
+    }
+
+    return (payload as OrganizationsPayload | null)?.organizations ?? [];
+}
+
+async function createOrganizationRequest(values: CreateOrganizationFormValues) {
+    const response = await fetch("/api/organizations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(values),
+    });
+
+    const payload = (await readJsonPayload(response)) as CreateOrganizationPayload | ApiErrorPayload | null;
+
+    if (!response.ok) {
+        const errorPayload = payload as ApiErrorPayload | null;
+        const error = new Error(errorPayload?.error ?? "Impossible de créer l'organisation.") as ApiRequestError;
+
+        error.payload = errorPayload;
+        error.status = response.status;
+
+        throw error;
+    }
+
+    const organization = (payload as CreateOrganizationPayload | null)?.organization;
+
+    if (!organization) {
+        throw new Error("Réponse invalide du serveur.");
+    }
+
+    return organization;
 }
 
 function mapValidationIssuesToFieldErrors(issues: ApiValidationIssue[] | undefined) {
@@ -53,13 +118,18 @@ interface OrganizationsPageContentProps {
 }
 
 export function OrganizationsPageContent({ initialOrganizations }: OrganizationsPageContentProps) {
-    const [organizations, setOrganizations] = useState<OrganizationListItem[]>(initialOrganizations);
+    const queryClient = useQueryClient();
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-    const [isCreating, setIsCreating] = useState(false);
     const [createFieldErrors, setCreateFieldErrors] = useState<CreateOrganizationFieldErrors>({});
     const [createFormError, setCreateFormError] = useState<string | null>(null);
     const [createFormValues, setCreateFormValues] = useState(initialCreateOrganizationFormValues);
     const [searchQuery, setSearchQuery] = useState("");
+    const organizationsQuery = useQuery({
+        queryKey: organizationsQueryKey,
+        queryFn: fetchOrganizations,
+        initialData: initialOrganizations,
+    });
+    const organizations = organizationsQuery.data;
     const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase("fr-FR");
     const filteredOrganizations = useMemo(() => {
         if (!normalizedSearchQuery) {
@@ -78,6 +148,27 @@ export function OrganizationsPageContent({ initialOrganizations }: Organizations
         setCreateFormError(null);
     };
 
+    const createOrganizationMutation = useMutation({
+        mutationFn: createOrganizationRequest,
+        onError: (error) => {
+            if (isApiRequestError(error) && error.payload?.code === "VALIDATION_ERROR") {
+                setCreateFieldErrors(mapValidationIssuesToFieldErrors(error.payload.issues));
+                setCreateFormError(null);
+                return;
+            }
+
+            setCreateFormError(error instanceof Error ? error.message : "Impossible de créer l'organisation.");
+        },
+        onSuccess: (organization) => {
+            queryClient.setQueryData<OrganizationListItem[]>(organizationsQueryKey, (currentOrganizations = []) => [
+                organization,
+                ...currentOrganizations.filter((currentOrganization) => currentOrganization.id !== organization.id),
+            ]);
+            void queryClient.invalidateQueries({ queryKey: organizationsQueryKey });
+            closeCreateModal();
+        },
+    });
+
     const updateCreateFormValue = (field: keyof CreateOrganizationFormValues, value: string) => {
         setCreateFormValues((currentValues) => ({
             ...currentValues,
@@ -90,47 +181,10 @@ export function OrganizationsPageContent({ initialOrganizations }: Organizations
         setCreateFormError(null);
     };
 
-    const createOrganization = async () => {
-        setIsCreating(true);
+    const createOrganization = () => {
         setCreateFieldErrors({});
         setCreateFormError(null);
-
-        try {
-            const response = await fetch("/api/organizations", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(createFormValues),
-            });
-
-            const payload = await response.json().catch(() => null);
-
-            if (!response.ok) {
-                const errorPayload = payload as ApiErrorPayload | null;
-
-                if (errorPayload?.code === "VALIDATION_ERROR") {
-                    setCreateFieldErrors(mapValidationIssuesToFieldErrors(errorPayload.issues));
-                    setCreateFormError(null);
-                    return;
-                }
-
-                setCreateFormError(errorPayload?.error ?? "Impossible de créer l'organisation.");
-                return;
-            }
-
-            const organization = payload?.organization as OrganizationListItem | undefined;
-
-            if (!organization) {
-                setCreateFormError("Réponse invalide du serveur.");
-                return;
-            }
-
-            setOrganizations((currentOrganizations) => [organization, ...currentOrganizations]);
-            closeCreateModal();
-        } catch {
-            setCreateFormError("Impossible de créer l'organisation.");
-        } finally {
-            setIsCreating(false);
-        }
+        createOrganizationMutation.mutate(createFormValues);
     };
 
     return (
@@ -138,6 +192,11 @@ export function OrganizationsPageContent({ initialOrganizations }: Organizations
             <Box className="mx-auto max-w-[1260px]">
                 <OrganizationsPageHeader onCreateClick={() => setIsCreateModalOpen(true)} />
                 <OrganizationsFilterBar searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} />
+                {organizationsQuery.isError && (
+                    <Box className="mb-5 rounded-lg border border-[#F3C7C7] bg-[#FFF4F4] px-4 py-3 text-[13px] font-semibold text-[#A43A3A]">
+                        {organizationsQuery.error.message}
+                    </Box>
+                )}
                 <OrganizationsTable
                     organizations={filteredOrganizations}
                     totalOrganizationCount={organizations.length}
@@ -148,7 +207,7 @@ export function OrganizationsPageContent({ initialOrganizations }: Organizations
                 <CreateOrganizationModal
                     fieldErrors={createFieldErrors}
                     formError={createFormError}
-                    isSubmitting={isCreating}
+                    isSubmitting={createOrganizationMutation.isPending}
                     values={createFormValues}
                     onClose={closeCreateModal}
                     onSubmit={createOrganization}

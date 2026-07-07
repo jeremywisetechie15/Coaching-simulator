@@ -1,18 +1,20 @@
 "use client";
 
 import Link from "next/link";
-import { type ReactNode, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import {
     ArrowLeft,
     BarChart3,
     Check,
     CheckCircle2,
     ChevronDown,
+    ChevronRight,
     Clock3,
     Eye,
-    MessageSquare,
     Pencil,
     Plus,
+    Target,
     TrendingUp,
     Trash2,
     UsersRound,
@@ -30,18 +32,36 @@ import {
     Text,
     TextInput,
 } from "@/lib/ui/atoms";
+import { GroupedTableSectionHeader } from "@/lib/ui/molecules";
+import { uiTokens } from "@/lib/ui/tokens";
 import {
+    getUserRoleLabel,
+    getUserStatusLabel,
+    type PlatformRole,
+    type UserAssignedQuiz,
+    type UserAssignedRoleplay,
+    type UserAssignmentStatus,
     type UserListItem,
     type UserRole,
+    type UserSkillProgress,
+    type UserStatistics,
+    USER_ROLE_OPTIONS,
     type UserStatus,
 } from "@/features/users/domain/users";
+import type { UserAssignedGroup, UserAvailableGroup, UserGroupsResult } from "@/features/users/domain/user-groups";
+import { AddUserGroupDialog, RemoveUserGroupDialog } from "./UserGroupDialogs";
 
-type UserDetailTab = "profile" | "groups" | "trainings" | "statistics" | "skills";
+type UserDetailTab = "profile" | "groups" | "roleplays" | "evaluations" | "statistics" | "skills";
 
 interface UserDetailPageProps {
+    assignedQuizzes?: UserAssignedQuiz[];
+    assignedRoleplays?: UserAssignedRoleplay[];
     avatarUrl: string | null;
     initialMode?: "edit" | "view";
     initials: string;
+    platformRole: PlatformRole;
+    skills?: UserSkillProgress[];
+    statistics?: UserStatistics;
     user: UserListItem;
 }
 
@@ -55,139 +75,36 @@ interface DetailFormValues {
     phone: string;
     role: UserRole;
     status: UserStatus;
-}
-
-interface AssignedGroup {
-    assignedAt: string;
-    description: string;
-    id: string;
-    name: string;
-}
-
-type ProgramStatus = "not_started" | "in_progress" | "completed";
-
-interface AssignedProgram {
-    assignedAt: string;
-    group: string;
-    id: string;
-    progress: number;
-    status: ProgramStatus;
-    title: string;
-}
-
-interface SkillProgress {
-    delta: number;
-    id: string;
-    initial: number;
-    label: string;
-    score: number;
+    username: string;
 }
 
 const tabs: Array<{ id: UserDetailTab; label: string }> = [
     { id: "profile", label: "Informations de base" },
     { id: "groups", label: "Groupes" },
-    { id: "trainings", label: "Formations" },
+    { id: "roleplays", label: "Roleplays" },
+    { id: "evaluations", label: "Évaluations" },
     { id: "statistics", label: "Statistiques" },
     { id: "skills", label: "Compétences" },
 ];
 
-const initialAssignedGroups: AssignedGroup[] = [
-    {
-        assignedAt: "15 janvier 2024",
-        description: "Équipe en charge du marketing digital et de la communication",
-        id: "marketing",
-        name: "Marketing",
-    },
-    {
-        assignedAt: "1 février 2024",
-        description: "Force de vente et développement commercial",
-        id: "sales",
-        name: "Sales",
-    },
-    {
-        assignedAt: "15 février 2024",
-        description: "Comité de direction et management stratégique",
-        id: "direction",
-        name: "Direction",
-    },
-];
-
-const extraAssignedGroup: AssignedGroup = {
-    assignedAt: "Aujourd'hui",
-    description: "Équipe support et suivi opérationnel",
-    id: "support",
-    name: "Support",
+const emptyUserStatistics: UserStatistics = {
+    averageQuizScore: "N/A",
+    averageRoleplayScore: "N/A",
+    bestRoleplayScore: "N/A",
+    completedQuizzes: "0/0",
+    completedRoleplays: "0/0",
+    completionRate: "N/A",
+    lastActivity: "Aucune",
+    latestRoleplayScore: "N/A",
+    quizVsRoleplayGap: "N/A",
+    roleplayProgressLast30Days: "N/A",
+    roleplayProgressSinceFirst: "N/A",
+    targetScore: "80%",
+    targetScoreGap: "N/A",
+    topMasteredSkills: [],
+    topSkillsToImprove: [],
+    trainingTime: "0min",
 };
-
-const initialAssignedPrograms: AssignedProgram[] = [
-    {
-        assignedAt: "10 mars 2024",
-        group: "Sales",
-        id: "objections",
-        progress: 0,
-        status: "not_started",
-        title: "Gestion des objections",
-    },
-    {
-        assignedAt: "12 mars 2024",
-        group: "Sales",
-        id: "closing",
-        progress: 0,
-        status: "not_started",
-        title: "Techniques de closing",
-    },
-    {
-        assignedAt: "1 février 2024",
-        group: "Sales",
-        id: "rdv-prospect",
-        progress: 65,
-        status: "in_progress",
-        title: "Prise de rendez-vous prospect",
-    },
-    {
-        assignedAt: "15 février 2024",
-        group: "Marketing",
-        id: "communication",
-        progress: 40,
-        status: "in_progress",
-        title: "Communication persuasive",
-    },
-    {
-        assignedAt: "15 janvier 2024",
-        group: "Sales",
-        id: "intro-vente",
-        progress: 100,
-        status: "completed",
-        title: "Introduction à la vente",
-    },
-    {
-        assignedAt: "20 janvier 2024",
-        group: "Marketing",
-        id: "prospection-digitale",
-        progress: 100,
-        status: "completed",
-        title: "Prospection digitale",
-    },
-];
-
-const extraAssignedProgram: AssignedProgram = {
-    assignedAt: "Aujourd'hui",
-    group: "Direction",
-    id: "negociation-avancee",
-    progress: 0,
-    status: "not_started",
-    title: "Négociation avancée",
-};
-
-const skillProgressRows: SkillProgress[] = [
-    { delta: 33, id: "decouverte", initial: 45, label: "Découverte des besoins", score: 78 },
-    { delta: 33, id: "argumentation", initial: 52, label: "Argumentation commerciale", score: 85 },
-    { delta: 30, id: "objections", initial: 38, label: "Traitement des objections", score: 68 },
-    { delta: 24, id: "closing", initial: 48, label: "Closing", score: 72 },
-    { delta: 27, id: "prospection", initial: 55, label: "Prospection téléphonique", score: 82 },
-    { delta: 25, id: "presentation", initial: 50, label: "Présentation commerciale", score: 75 },
-    { delta: 28, id: "negociation", initial: 42, label: "Négociation", score: 70 },
-];
 
 function splitName(name: string) {
     const [firstName = "", ...rest] = name.split(" ");
@@ -200,6 +117,10 @@ function splitName(name: string) {
 
 function getInitials(firstName: string, lastName: string) {
     return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
+}
+
+function getUsernameFromEmail(email: string) {
+    return email.split("@")[0] ?? email;
 }
 
 function getFormValuesFromUser(user: UserListItem): DetailFormValues {
@@ -215,13 +136,31 @@ function getFormValuesFromUser(user: UserListItem): DetailFormValues {
         phone: user.phone,
         role: user.role,
         status: user.status,
+        username: getUsernameFromEmail(user.email),
     };
 }
 
-function getStatusLabel(status: UserStatus) {
-    if (status === "active") return "Activé";
-    if (status === "pending") return "En attente";
-    return "Désactivé";
+interface ApiValidationIssue {
+    message: string;
+    path: Array<string | number>;
+}
+
+interface ApiErrorPayload {
+    error?: string;
+    issues?: ApiValidationIssue[];
+}
+
+function getApiErrorMessage(payload: ApiErrorPayload | null, fallback: string) {
+    const validationMessage = payload?.issues?.map((issue) => issue.message).join(" ");
+
+    return validationMessage || payload?.error || fallback;
+}
+
+function normalizeUserGroupsPayload(payload: UserGroupsResult | null): UserGroupsResult {
+    return {
+        availableGroups: payload?.availableGroups ?? [],
+        groups: payload?.groups ?? [],
+    };
 }
 
 function getStatusClasses(status: UserStatus) {
@@ -230,30 +169,10 @@ function getStatusClasses(status: UserStatus) {
     return "bg-[#F1F2F5] text-[#697184]";
 }
 
-function roleLabel(role: UserRole) {
-    return role === "SuperAdmin" ? "SuperAdmin" : "Learner";
-}
-
-function getUsernameFromEmail(email: string) {
-    return email.split("@")[0] ?? email;
-}
-
-function trainingStatusLabel(status: ProgramStatus) {
-    if (status === "completed") return "Terminée";
-    if (status === "in_progress") return "En cours";
-    return "Non commencée";
-}
-
-function trainingStatusClasses(status: ProgramStatus) {
-    if (status === "completed") return "bg-[#DDF8E6] text-[#17A34A]";
-    if (status === "in_progress") return "bg-[#DCE9FF] text-[#245DFF]";
-    return "bg-[#F1F2F5] text-[#697184]";
-}
-
 function StatusBadge({ status }: { status: UserStatus }) {
     return (
         <Box className={`inline-flex h-[28px] items-center rounded-[9px] px-3 text-[13px] font-bold ${getStatusClasses(status)}`}>
-            {getStatusLabel(status)}
+            {getUserStatusLabel(status)}
         </Box>
     );
 }
@@ -261,7 +180,7 @@ function StatusBadge({ status }: { status: UserStatus }) {
 function RolePill({ role }: { role: UserRole }) {
     return (
         <Box className="inline-flex h-[28px] items-center rounded-[8px] border border-[#CBD2DC] bg-white px-3 text-[13px] font-semibold text-[#344054]">
-            {roleLabel(role)}
+            {getUserRoleLabel(role)}
         </Box>
     );
 }
@@ -270,6 +189,41 @@ function GroupChip({ label }: { label: string }) {
     return (
         <Box className="inline-flex h-[28px] items-center rounded-full border border-[#C8D2FF] bg-[#E8ECFF] px-4 text-[13px] font-extrabold text-[#5140F0]">
             {label}
+        </Box>
+    );
+}
+
+function PersonaPill({ label }: { label: string }) {
+    return (
+        <Box className="inline-flex items-center rounded-full border border-[#D9DEF0] bg-[#F1F3FB] px-3 py-1 text-[13px] font-semibold text-[#3B4358]">
+            {label}
+        </Box>
+    );
+}
+
+function QuizTypePill({ label }: { label: string }) {
+    return (
+        <Box className="inline-flex items-center rounded-lg bg-[#E8ECFF] px-3 py-1 text-[13px] font-semibold text-[#5140F0]">
+            {label}
+        </Box>
+    );
+}
+
+function ScoreBadge({ score }: { score: number | null }) {
+    if (score === null) {
+        return <Text className="text-[15px] font-semibold text-[#9AA2B2]">—</Text>;
+    }
+
+    const isStrong = score >= 80;
+
+    return (
+        <Box
+            className={[
+                "inline-flex h-7 items-center justify-center rounded-[8px] px-2.5 text-[13px] font-extrabold",
+                isStrong ? "bg-[#D9FBE8] text-[#048A45]" : "bg-[#FFF1C8] text-[#C76000]",
+            ].join(" ")}
+        >
+            {score}%
         </Box>
     );
 }
@@ -288,8 +242,13 @@ function PasswordBlock() {
         <Box>
             <Text className="text-[15px] font-extrabold leading-6 text-[#171B2A]">Mot de passe</Text>
             <Box className="mt-1.5 flex items-center gap-3 text-[#4F5868]">
-                <Text className="text-[15px] font-semibold leading-6 tracking-[0.16em]">••••••••••</Text>
-                <InlineIcon icon={Eye} className="h-4 w-4 text-[#8C94A4]" />
+                <Text className="text-[15px] font-semibold leading-6 tracking-[0.16em]">••••••••••••</Text>
+                <Button
+                    aria-label="Afficher"
+                    className="flex h-8 w-8 items-center justify-center rounded-lg text-[#8C94A4] transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
+                >
+                    <InlineIcon icon={Eye} className="h-4 w-4" />
+                </Button>
             </Box>
         </Box>
     );
@@ -371,15 +330,17 @@ function ProfileTab({
     groups,
     isEditing,
     onDraftChange,
+    quizCount,
+    roleplayCount,
 }: {
     currentUser: UserListItem;
     draft: DetailFormValues;
-    groups: AssignedGroup[];
+    groups: UserAssignedGroup[];
     isEditing: boolean;
     onDraftChange: (field: keyof DetailFormValues, value: string) => void;
+    quizCount: number;
+    roleplayCount: number;
 }) {
-    const trainingCount = currentUser.trainings.length;
-
     return (
         <Box className="px-6 pb-7 pt-7 md:px-7">
             <Text as="h2" className="text-[20px] font-extrabold tracking-[-0.02em] text-[#171B2A]">
@@ -393,96 +354,80 @@ function ProfileTab({
                     </Text>
                 </Box>
 
-                {isEditing ? (
-                    <Box className="grid gap-x-20 gap-y-6 lg:grid-cols-2">
-                        <DetailInput
-                            id="detail-first-name"
-                            label="Prénom"
-                            onChange={(value) => onDraftChange("firstName", value)}
-                            value={draft.firstName}
-                        />
-                        <DetailInput
-                            id="detail-last-name"
-                            label="Nom"
-                            onChange={(value) => onDraftChange("lastName", value)}
-                            value={draft.lastName}
-                        />
-                        <DetailInput
-                            id="detail-email"
-                            label="Email"
-                            onChange={(value) => onDraftChange("email", value)}
-                            type="email"
-                            value={draft.email}
-                        />
-                        <DetailInput
-                            id="detail-organization"
-                            label="Entreprise"
-                            onChange={(value) => onDraftChange("organization", value)}
-                            value={draft.organization}
-                        />
-                        <DetailSelect
-                            id="detail-role"
-                            label="Rôle"
-                            onChange={(value) => onDraftChange("role", value)}
-                            options={[
-                                { label: "SuperAdmin", value: "SuperAdmin" },
-                                { label: "Learner", value: "Learner" },
-                            ]}
-                            value={draft.role}
-                        />
-                        <DetailSelect
-                            id="detail-status"
-                            label="Statut"
-                            onChange={(value) => onDraftChange("status", value)}
-                            options={[
-                                { label: "Activé", value: "active" },
-                                { label: "En attente", value: "pending" },
-                                { label: "Désactivé", value: "inactive" },
-                            ]}
-                            value={draft.status}
-                        />
-                        <DetailInput
-                            id="detail-training-count"
-                            label="Formations"
-                            onChange={() => undefined}
-                            value={`${trainingCount} formations`}
-                        />
-                        <DetailInput
-                            id="detail-group"
-                            label="Groupe(s)"
-                            onChange={(value) => onDraftChange("group", value)}
-                            value={draft.group}
-                        />
-                    </Box>
-                ) : (
-                    <Box className="grid gap-x-20 gap-y-6 lg:grid-cols-2">
-                        <InfoBlock label="Prénom" value={splitName(currentUser.name).firstName} />
-                        <InfoBlock label="Nom" value={splitName(currentUser.name).lastName} />
-                        <InfoBlock label="Email" value={currentUser.email} />
-                        <InfoBlock label="Entreprise" value={currentUser.organization} />
-                        <Box>
-                            <Text className="text-[15px] font-extrabold leading-6 text-[#171B2A]">Rôle</Text>
-                            <Box className="mt-2">
-                                <RolePill role={currentUser.role} />
+                <Box className="grid gap-x-20 gap-y-6 lg:grid-cols-2">
+                    {isEditing ? (
+                        <>
+                            <DetailInput
+                                id="detail-first-name"
+                                label="Prénom"
+                                onChange={(value) => onDraftChange("firstName", value)}
+                                value={draft.firstName}
+                            />
+                            <DetailInput
+                                id="detail-last-name"
+                                label="Nom"
+                                onChange={(value) => onDraftChange("lastName", value)}
+                                value={draft.lastName}
+                            />
+                            <DetailInput
+                                id="detail-email"
+                                label="Email"
+                                onChange={(value) => onDraftChange("email", value)}
+                                type="email"
+                                value={draft.email}
+                            />
+                            <InfoBlock label="Entreprise" value={draft.organization} />
+                            <DetailSelect
+                                id="detail-role"
+                                label="Rôle"
+                                onChange={(value) => onDraftChange("role", value)}
+                                options={USER_ROLE_OPTIONS}
+                                value={draft.role}
+                            />
+                            <Box>
+                                <Text className="text-[15px] font-extrabold leading-6 text-[#171B2A]">Statut</Text>
+                                <Box className="mt-2">
+                                    <StatusBadge status={draft.status} />
+                                </Box>
                             </Box>
-                        </Box>
-                        <Box>
-                            <Text className="text-[15px] font-extrabold leading-6 text-[#171B2A]">Statut</Text>
-                            <Box className="mt-2">
-                                <StatusBadge status={currentUser.status} />
+                        </>
+                    ) : (
+                        <>
+                            <InfoBlock label="Prénom" value={splitName(currentUser.name).firstName} />
+                            <InfoBlock label="Nom" value={splitName(currentUser.name).lastName} />
+                            <InfoBlock label="Email" value={currentUser.email} />
+                            <InfoBlock label="Entreprise" value={currentUser.organization} />
+                            <Box>
+                                <Text className="text-[15px] font-extrabold leading-6 text-[#171B2A]">Rôle</Text>
+                                <Box className="mt-2">
+                                    <RolePill role={currentUser.role} />
+                                </Box>
                             </Box>
-                        </Box>
-                        <InfoBlock label="Formations" value={`${trainingCount} formations`} />
-                        <Box className="lg:col-span-2">
-                            <Text className="text-[15px] font-extrabold leading-6 text-[#171B2A]">Groupe(s)</Text>
-                            <Box className="mt-3 flex flex-wrap gap-2.5">
-                                {groups.map((group) => (
+                            <Box>
+                                <Text className="text-[15px] font-extrabold leading-6 text-[#171B2A]">Statut</Text>
+                                <Box className="mt-2">
+                                    <StatusBadge status={currentUser.status} />
+                                </Box>
+                            </Box>
+                        </>
+                    )}
+
+                    <InfoBlock label="Roleplays" value={`${roleplayCount} roleplays`} />
+                    <InfoBlock label="Évaluations" value={`${quizCount} quizzes`} />
+
+                    <Box className="lg:col-span-2">
+                        <Text className="text-[15px] font-extrabold leading-6 text-[#171B2A]">Groupe(s)</Text>
+                        <Box className="mt-3 flex flex-wrap gap-2.5">
+                            {groups.length > 0 ? (
+                                groups.map((group) => (
                                     <GroupChip key={group.id} label={group.name} />
-                                ))}
-                            </Box>
+                                ))
+                            ) : (
+                                <Text className="text-[14px] font-semibold text-[#8C94A4]">Aucun groupe assigné</Text>
+                            )}
                         </Box>
                     </Box>
-                )}
+                </Box>
             </Box>
 
             <Box className="mt-8 border-t border-[#DDE1E8] pt-7">
@@ -500,7 +445,16 @@ function ProfileTab({
                     Identifiants de connexion
                 </Text>
                 <Box className="mt-5 grid gap-7 lg:grid-cols-2">
-                    <InfoBlock label="Nom d'utilisateur" value={getUsernameFromEmail(currentUser.email)} />
+                    {isEditing ? (
+                        <DetailInput
+                            id="detail-username"
+                            label="Nom d'utilisateur"
+                            onChange={(value) => onDraftChange("username", value)}
+                            value={draft.username}
+                        />
+                    ) : (
+                        <InfoBlock label="Nom d'utilisateur" value={getUsernameFromEmail(currentUser.email)} />
+                    )}
                     <PasswordBlock />
                 </Box>
             </Box>
@@ -527,15 +481,18 @@ function SectionHeading({
 
 function LightActionButton({
     children,
+    disabled = false,
     onClick,
 }: {
     children: ReactNode;
+    disabled?: boolean;
     onClick: () => void;
 }) {
     return (
         <Button
+            disabled={disabled}
             onClick={onClick}
-            className="inline-flex h-10 items-center justify-center gap-3 rounded-[10px] bg-[#EEF2FF] px-5 text-[15px] font-extrabold text-[#5140F0] transition hover:bg-[#E5EAFF]"
+            className="inline-flex h-10 items-center justify-center gap-3 rounded-[10px] bg-[#EEF2FF] px-5 text-[15px] font-extrabold text-[#5140F0] transition hover:bg-[#E5EAFF] disabled:cursor-not-allowed disabled:opacity-60"
         >
             <InlineIcon icon={Plus} className="h-5 w-5" />
             {children}
@@ -552,27 +509,44 @@ function IconGroupBadge() {
 }
 
 function GroupsTab({
+    error,
     groups,
+    isActionPending,
+    isLoading,
     onAddGroup,
     onRemoveGroup,
 }: {
-    groups: AssignedGroup[];
+    error: string | null;
+    groups: UserAssignedGroup[];
+    isActionPending: boolean;
+    isLoading: boolean;
     onAddGroup: () => void;
-    onRemoveGroup: (groupId: string) => void;
+    onRemoveGroup: (group: UserAssignedGroup) => void;
 }) {
+    const columns = ["Groupe", "Description", "Date d'assignation", "Actions"];
+
     return (
         <Box className="px-6 pb-7 pt-7 md:px-7">
             <SectionHeading
                 title="Groupes assignés"
-                action={<LightActionButton onClick={onAddGroup}>Ajouter au groupe</LightActionButton>}
+                action={<LightActionButton disabled={isLoading || isActionPending} onClick={onAddGroup}>Ajouter au groupe</LightActionButton>}
             />
+
+            {error && (
+                <Box
+                    aria-live="polite"
+                    className="mb-5 rounded-lg border border-[#F3C7C7] bg-[#FFF4F4] px-4 py-3 text-[13px] font-semibold text-[#A43A3A]"
+                >
+                    {error}
+                </Box>
+            )}
 
             <Box className="overflow-hidden rounded-[12px] border border-[#E1E4EB]">
                 <Box className="overflow-x-auto">
                     <Box as="table" className="w-full min-w-[920px] border-collapse">
                         <Box as="thead">
                             <Box as="tr" className="h-[48px] border-b border-[#E6E9F0] bg-[#F7F8FA]">
-                                {["Groupe", "Description", "Date d'assignation", "Actions"].map((column) => (
+                                {columns.map((column) => (
                                     <Box
                                         as="th"
                                         key={column}
@@ -584,7 +558,17 @@ function GroupsTab({
                             </Box>
                         </Box>
                         <Box as="tbody">
-                            {groups.map((group) => (
+                            {isLoading && (
+                                <Box as="tr">
+                                    <Box as="td" colSpan={columns.length} className="px-7 py-12 text-center">
+                                        <Text className="text-[14px] font-semibold text-[#737B8E]">
+                                            Chargement des groupes...
+                                        </Text>
+                                    </Box>
+                                </Box>
+                            )}
+
+                            {!isLoading && groups.map((group) => (
                                 <Box as="tr" key={group.id} className="border-b border-[#EEF0F4] last:border-b-0">
                                     <Box as="td" className="px-7 py-[17px]">
                                         <Box className="flex items-center gap-4">
@@ -600,8 +584,9 @@ function GroupsTab({
                                     </Box>
                                     <Box as="td" className="px-7 py-[17px]">
                                         <Button
-                                            onClick={() => onRemoveGroup(group.id)}
-                                            className="inline-flex items-center gap-2 text-[15px] font-extrabold text-[#F00613] transition hover:text-[#C8000B]"
+                                            disabled={isActionPending}
+                                            onClick={() => onRemoveGroup(group)}
+                                            className="inline-flex items-center gap-2 text-[15px] font-extrabold text-[#F00613] transition hover:text-[#C8000B] disabled:cursor-not-allowed disabled:opacity-60"
                                         >
                                             <InlineIcon icon={Trash2} className="h-4 w-4" />
                                             Retirer
@@ -609,6 +594,19 @@ function GroupsTab({
                                     </Box>
                                 </Box>
                             ))}
+
+                            {!isLoading && groups.length === 0 && (
+                                <Box as="tr">
+                                    <Box as="td" colSpan={columns.length} className="px-7 py-12 text-center">
+                                        <Text className="text-[14px] font-bold text-[#171B2A]">
+                                            Aucun groupe assigné
+                                        </Text>
+                                        <Text className="mt-2 text-[14px] font-semibold text-[#A0A6B5]">
+                                            Ajoutez cet utilisateur à un groupe de son organisation.
+                                        </Text>
+                                    </Box>
+                                </Box>
+                            )}
                         </Box>
                     </Box>
                 </Box>
@@ -617,81 +615,62 @@ function GroupsTab({
     );
 }
 
-function ProgramStatusBadge({ status }: { status: ProgramStatus }) {
-    return (
-        <Box className={`inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-bold ${trainingStatusClasses(status)}`}>
-            {trainingStatusLabel(status)}
-        </Box>
-    );
-}
+function RoleplaysTab({
+    onAssign,
+    roleplays,
+}: {
+    onAssign: () => void;
+    roleplays: UserAssignedRoleplay[];
+}) {
+    const [collapsedSections, setCollapsedSections] = useState<Record<UserAssignmentStatus, boolean>>({
+        completed: false,
+        in_progress: false,
+        not_started: false,
+    });
+    const notStarted = roleplays.filter((roleplay) => roleplay.status === "not_started");
+    const inProgress = roleplays.filter((roleplay) => roleplay.status === "in_progress");
+    const completed = roleplays.filter((roleplay) => roleplay.status === "completed");
+    const sections: Array<{ items: UserAssignedRoleplay[]; label: string; status: UserAssignmentStatus }> = [
+        { items: notStarted, label: "Roleplays non commencés", status: "not_started" },
+        { items: inProgress, label: "Roleplays en cours", status: "in_progress" },
+        { items: completed, label: "Roleplays terminés", status: "completed" },
+    ];
 
-function ProgramProgress({ progress }: { progress: number }) {
-    return (
-        <Box className="flex items-center gap-4">
-            <Box className="h-2 w-[66px] overflow-hidden rounded-full bg-[#E2E4EA]">
-                <Box className="h-full rounded-full bg-[#5140F0]" style={{ width: `${progress}%` }} />
-            </Box>
-            <Text className="w-10 text-[15px] font-extrabold text-[#4F5868]">{progress}%</Text>
-        </Box>
-    );
-}
+    const toggleSection = (status: UserAssignmentStatus) => {
+        setCollapsedSections((current) => ({
+            ...current,
+            [status]: !current[status],
+        }));
+    };
 
-function ProgramGroupHeader({ count, label }: { count: number; label: string }) {
-    return (
-        <Box as="tr" className="h-[50px] border-b border-[#E6E9F0] bg-[#F7F8FA]">
-            <Box as="td" colSpan={5} className="px-7">
-                <Box className="flex items-center gap-3">
-                    <InlineIcon icon={ChevronDown} className="h-4 w-4 text-[#4F5868]" />
-                    <Text className="text-[15px] font-extrabold text-[#171B2A]">
-                        {label} ({count})
+    const renderRows = (items: UserAssignedRoleplay[]) =>
+        items.map((roleplay) => (
+            <Box as="tr" key={roleplay.id} className="border-b border-[#EEF0F4] last:border-b-0">
+                <Box as="td" className="px-7 py-[17px]">
+                    <Text className="text-[15px] font-extrabold text-[#171B2A]">{roleplay.title}</Text>
+                </Box>
+                <Box as="td" className="px-7 py-[17px]">
+                    <PersonaPill label={roleplay.persona} />
+                </Box>
+                <Box as="td" className="px-7 py-[17px]">
+                    <ScoreBadge score={roleplay.score} />
+                </Box>
+                <Box as="td" className="px-7 py-[17px]">
+                    <Text className="text-[15px] font-semibold text-[#4F5868]">
+                        {roleplay.sessions} session{roleplay.sessions > 1 ? "s" : ""}
                     </Text>
                 </Box>
-            </Box>
-        </Box>
-    );
-}
-
-function ProgramRows({ programs }: { programs: AssignedProgram[] }) {
-    return programs.map((program) => (
-        <Box as="tr" key={program.id} className="border-b border-[#EEF0F4] last:border-b-0">
-            <Box as="td" className="px-7 py-[17px]">
-                <Text className="text-[15px] font-extrabold text-[#171B2A]">{program.title}</Text>
-            </Box>
-            <Box as="td" className="px-7 py-[17px]">
-                <Box className="flex items-center gap-3">
-                    <IconGroupBadge />
-                    <Text className="text-[15px] font-extrabold text-[#171B2A]">{program.group}</Text>
+                <Box as="td" className="px-7 py-[17px]">
+                    <Text className="text-[15px] font-semibold text-[#4F5868]">{roleplay.assignedAt}</Text>
                 </Box>
             </Box>
-            <Box as="td" className="px-7 py-[17px]">
-                <ProgramStatusBadge status={program.status} />
-            </Box>
-            <Box as="td" className="px-7 py-[17px]">
-                <ProgramProgress progress={program.progress} />
-            </Box>
-            <Box as="td" className="px-7 py-[17px]">
-                <Text className="text-[15px] font-semibold text-[#4F5868]">{program.assignedAt}</Text>
-            </Box>
-        </Box>
-    ));
-}
-
-function TrainingsTab({
-    onAssignProgram,
-    programs,
-}: {
-    onAssignProgram: () => void;
-    programs: AssignedProgram[];
-}) {
-    const notStarted = programs.filter((program) => program.status === "not_started");
-    const inProgress = programs.filter((program) => program.status === "in_progress");
-    const completed = programs.filter((program) => program.status === "completed");
+        ));
 
     return (
         <Box className="px-6 pb-7 pt-7 md:px-7">
             <SectionHeading
-                title="Programmes assignés"
-                action={<LightActionButton onClick={onAssignProgram}>Assigner un programme</LightActionButton>}
+                title="Roleplays assignés"
+                action={<LightActionButton onClick={onAssign}>Assigner un roleplay</LightActionButton>}
             />
 
             <Box className="overflow-hidden rounded-[12px] border border-[#DDE1E8]">
@@ -699,7 +678,7 @@ function TrainingsTab({
                     <Box as="table" className="w-full min-w-[1000px] border-collapse">
                         <Box as="thead">
                             <Box as="tr" className="h-[48px] border-b border-[#E3E6EE] bg-[#F7F8FA]">
-                                {["Formation", "Groupe", "Statut", "Progression", "Date d'assignation"].map((column) => (
+                                {["Roleplay", "Persona", "Score", "Sessions", "Date d'assignation"].map((column) => (
                                     <Box
                                         as="th"
                                         key={column}
@@ -711,12 +690,18 @@ function TrainingsTab({
                             </Box>
                         </Box>
                         <Box as="tbody">
-                            <ProgramGroupHeader count={notStarted.length} label="Formations non commencées" />
-                            <ProgramRows programs={notStarted} />
-                            <ProgramGroupHeader count={inProgress.length} label="Formations en cours" />
-                            <ProgramRows programs={inProgress} />
-                            <ProgramGroupHeader count={completed.length} label="Formations terminées" />
-                            <ProgramRows programs={completed} />
+                            {sections.map((section) => (
+                                <Fragment key={section.status}>
+                                    <GroupedTableSectionHeader
+                                        colSpan={5}
+                                        count={section.items.length}
+                                        isCollapsed={collapsedSections[section.status]}
+                                        label={section.label}
+                                        onToggle={() => toggleSection(section.status)}
+                                    />
+                                    {!collapsedSections[section.status] && renderRows(section.items)}
+                                </Fragment>
+                            ))}
                         </Box>
                     </Box>
                 </Box>
@@ -725,84 +710,416 @@ function TrainingsTab({
     );
 }
 
+function EvaluationsTab({
+    onAssign,
+    quizzes,
+}: {
+    onAssign: () => void;
+    quizzes: UserAssignedQuiz[];
+}) {
+    const [collapsedSections, setCollapsedSections] = useState<Record<UserAssignmentStatus, boolean>>({
+        completed: false,
+        in_progress: false,
+        not_started: false,
+    });
+    const notStarted = quizzes.filter((quiz) => quiz.status === "not_started");
+    const inProgress = quizzes.filter((quiz) => quiz.status === "in_progress");
+    const completed = quizzes.filter((quiz) => quiz.status === "completed");
+    const sections: Array<{ items: UserAssignedQuiz[]; label: string; status: UserAssignmentStatus }> = [
+        { items: notStarted, label: "Quizzes non commencés", status: "not_started" },
+        { items: inProgress, label: "Quizzes en cours", status: "in_progress" },
+        { items: completed, label: "Quizzes terminés", status: "completed" },
+    ];
+
+    const toggleSection = (status: UserAssignmentStatus) => {
+        setCollapsedSections((current) => ({
+            ...current,
+            [status]: !current[status],
+        }));
+    };
+
+    const renderRows = (items: UserAssignedQuiz[]) =>
+        items.map((quiz) => (
+            <Box as="tr" key={quiz.id} className="border-b border-[#EEF0F4] last:border-b-0">
+                <Box as="td" className="px-7 py-[17px]">
+                    <Text className="text-[15px] font-extrabold text-[#171B2A]">{quiz.title}</Text>
+                </Box>
+                <Box as="td" className="px-7 py-[17px]">
+                    <QuizTypePill label={quiz.type} />
+                </Box>
+                <Box as="td" className="px-7 py-[17px]">
+                    <Text className="text-[15px] font-semibold text-[#4F5868]">
+                        {quiz.attempts} tentative{quiz.attempts > 1 ? "s" : ""}
+                    </Text>
+                </Box>
+                <Box as="td" className="px-7 py-[17px]">
+                    <ScoreBadge score={quiz.score} />
+                </Box>
+                <Box as="td" className="px-7 py-[17px]">
+                    <Text className="text-[15px] font-semibold text-[#4F5868]">{quiz.assignedAt}</Text>
+                </Box>
+            </Box>
+        ));
+
+    return (
+        <Box className="px-6 pb-7 pt-7 md:px-7">
+            <SectionHeading
+                title="Quizzes assignés"
+                action={<LightActionButton onClick={onAssign}>Assigner un quiz</LightActionButton>}
+            />
+
+            <Box className="overflow-hidden rounded-[12px] border border-[#DDE1E8]">
+                <Box className="overflow-x-auto">
+                    <Box as="table" className="w-full min-w-[1000px] border-collapse">
+                        <Box as="thead">
+                            <Box as="tr" className="h-[48px] border-b border-[#E3E6EE] bg-[#F7F8FA]">
+                                {["Titre du quiz", "Type", "Tentatives", "Score", "Date d'assignation"].map((column) => (
+                                    <Box
+                                        as="th"
+                                        key={column}
+                                        className="px-7 text-left text-[12px] font-extrabold uppercase tracking-[0.12em] text-[#737B8E]"
+                                    >
+                                        {column}
+                                    </Box>
+                                ))}
+                            </Box>
+                        </Box>
+                        <Box as="tbody">
+                            {sections.map((section) => (
+                                <Fragment key={section.status}>
+                                    <GroupedTableSectionHeader
+                                        colSpan={5}
+                                        count={section.items.length}
+                                        isCollapsed={collapsedSections[section.status]}
+                                        label={section.label}
+                                        onToggle={() => toggleSection(section.status)}
+                                    />
+                                    {!collapsedSections[section.status] && renderRows(section.items)}
+                                </Fragment>
+                            ))}
+                        </Box>
+                    </Box>
+                </Box>
+            </Box>
+        </Box>
+    );
+}
+
+const statToneClasses: Record<string, string> = {
+    amber: "bg-[#FEF0CD] text-[#C98A00]",
+    blue: "bg-[#DCE9FF] text-[#245DFF]",
+    cyan: "bg-[#D4F5F2] text-[#0E9E94]",
+    green: "bg-[#DCFCE7] text-[#17A34A]",
+    orange: "bg-[#FFE7D6] text-[#E2640E]",
+    purple: "bg-[#F2E2FF] text-[#B139FF]",
+};
+
 function StatTile({
+    badge,
     icon,
     label,
     tone,
     value,
 }: {
+    badge?: string;
     icon: typeof BarChart3;
-    tone?: "blue" | "green" | "grey" | "purple";
     label: string;
+    tone: keyof typeof statToneClasses;
     value: string;
 }) {
-    const toneClass = {
-        blue: "bg-[#DCE9FF] text-[#245DFF]",
-        green: "bg-[#DCFCE7] text-[#17A34A]",
-        grey: "bg-[#F1F2F5] text-[#697184]",
-        purple: "bg-[#F2E2FF] text-[#B139FF]",
-    }[tone ?? "blue"];
+    return (
+        <Box className="rounded-[12px] border border-[#E1E4EB] bg-white p-5">
+            <Box className={`mb-5 flex h-10 w-10 items-center justify-center rounded-lg ${statToneClasses[tone]}`}>
+                <InlineIcon icon={icon} className="h-5 w-5" />
+            </Box>
+            <Box className="flex items-baseline gap-2">
+                <Text className="text-[24px] font-extrabold tracking-[-0.03em] text-[#171B2A]">{value}</Text>
+                {badge && <Text className="text-[12px] font-bold text-[#E2640E]">{badge}</Text>}
+            </Box>
+            <Text className="mt-2 text-[14px] font-semibold text-[#697184]">{label}</Text>
+        </Box>
+    );
+}
+
+const progressionTones = {
+    blue: { bg: "bg-[#EAF1FF]", icon: "bg-[#D4E2FF] text-[#245DFF]", value: "text-[#245DFF]" },
+    green: { bg: "bg-[#EAFBF1]", icon: "bg-[#CFF5DE] text-[#0E9E5B]", value: "text-[#0E9E5B]" },
+    grey: { bg: "bg-[#F4F5F8]", icon: "bg-[#E4E7EE] text-[#697184]", value: "text-[#697184]" },
+} as const;
+
+function ProgressionTile({
+    label,
+    subtitle,
+    tone,
+    value,
+}: {
+    label: string;
+    subtitle?: string;
+    tone: keyof typeof progressionTones;
+    value: string;
+}) {
+    const styles = progressionTones[tone];
+
+    return (
+        <Box className={`rounded-[12px] p-5 ${styles.bg}`}>
+            <Box className={`mb-4 flex h-10 w-10 items-center justify-center rounded-lg ${styles.icon}`}>
+                <InlineIcon icon={TrendingUp} className="h-5 w-5" />
+            </Box>
+            <Text className={`text-[24px] font-extrabold tracking-[-0.03em] ${styles.value}`}>{value}</Text>
+            <Text className="mt-2 text-[14px] font-semibold text-[#697184]">
+                {label}
+                {subtitle && <Text as="span" className="text-[#9AA2B2]"> {subtitle}</Text>}
+            </Text>
+        </Box>
+    );
+}
+
+function StatGroupTitle({ children }: { children: ReactNode }) {
+    return (
+        <Text as="h3" className="mb-4 text-[13px] font-extrabold uppercase tracking-[0.12em] text-[#737B8E]">
+            {children}
+        </Text>
+    );
+}
+
+function TopSkillCard({
+    items,
+    title,
+    tone,
+}: {
+    items: Array<{ label: string; score: number }>;
+    title: string;
+    tone: "green" | "orange";
+}) {
+    const dotClass = tone === "green" ? "bg-[#10C55B]" : "bg-[#F46E12]";
+    const badgeClass = tone === "green" ? "bg-[#D9FBE8] text-[#048A45]" : "bg-[#FFF1C8] text-[#C76000]";
 
     return (
         <Box className="rounded-[12px] border border-[#E1E4EB] bg-white p-5">
-            <Box className={`mb-5 flex h-10 w-10 items-center justify-center rounded-lg ${toneClass}`}>
-                <InlineIcon icon={icon} className="h-5 w-5" />
+            <Box className="mb-4 flex items-center gap-2.5">
+                <Box className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
+                <Text className="text-[15px] font-extrabold text-[#171B2A]">{title}</Text>
             </Box>
-            <Text className="text-[26px] font-extrabold tracking-[-0.03em] text-[#171B2A]">{value}</Text>
-            <Text className="mt-2 text-[15px] font-semibold text-[#697184]">{label}</Text>
+            <Box className="space-y-3">
+                {items.length > 0 ? (
+                    items.map((item) => (
+                        <Box key={item.label} className="flex items-center justify-between">
+                            <Text className="text-[14px] font-semibold text-[#4F5868]">{item.label}</Text>
+                            <Box className={`inline-flex h-7 items-center justify-center rounded-[8px] px-2.5 text-[13px] font-extrabold ${badgeClass}`}>
+                                {item.score}%
+                            </Box>
+                        </Box>
+                    ))
+                ) : (
+                    <Text className="text-[14px] font-semibold text-[#8C94A4]">Aucune donnée disponible</Text>
+                )}
+            </Box>
         </Box>
     );
 }
 
-function StatisticsTab() {
+function StatisticsTab({ statistics }: { statistics: UserStatistics }) {
     return (
-        <Box className="px-6 pb-7 pt-7 md:px-7">
-            <Text as="h2" className="mb-7 text-[19px] font-extrabold tracking-[-0.02em] text-[#171B2A]">
-                Progression globale
+        <Box className="space-y-8 px-6 pb-7 pt-7 md:px-7">
+            <Box>
+                <StatGroupTitle>Engagement</StatGroupTitle>
+                <Box className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <StatTile icon={Clock3} label="Temps d'entraînement" tone="blue" value={statistics.trainingTime} />
+                    <StatTile icon={CheckCircle2} label="Roleplays terminés" tone="green" value={statistics.completedRoleplays} />
+                    <StatTile icon={CheckCircle2} label="Quizzes terminés" tone="cyan" value={statistics.completedQuizzes} />
+                    <StatTile icon={BarChart3} label="Taux de complétion" tone="amber" value={statistics.completionRate} />
+                    <StatTile icon={Clock3} label="Dernière activité" tone="purple" value={statistics.lastActivity} />
+                </Box>
+            </Box>
+
+            <Box>
+                <StatGroupTitle>Performance</StatGroupTitle>
+                <Box className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                    <StatTile icon={TrendingUp} label="Score moyen roleplays" tone="orange" value={statistics.averageRoleplayScore} />
+                    <StatTile icon={TrendingUp} label="Score moyen quizzes" tone="blue" value={statistics.averageQuizScore} />
+                    <StatTile icon={TrendingUp} label="Meilleur score roleplay" tone="green" value={statistics.bestRoleplayScore} />
+                    <StatTile icon={TrendingUp} label="Dernier score roleplay" tone="orange" value={statistics.latestRoleplayScore} />
+                    <StatTile badge={statistics.targetScoreGap} icon={Target} label="Score cible" tone="green" value={statistics.targetScore} />
+                </Box>
+            </Box>
+
+            <Box>
+                <StatGroupTitle>Progression</StatGroupTitle>
+                <Box className="grid gap-4 md:grid-cols-3">
+                    <ProgressionTile
+                        label="Progression roleplay depuis la première tentative"
+                        tone="green"
+                        value={statistics.roleplayProgressSinceFirst}
+                    />
+                    <ProgressionTile
+                        label="Progression roleplay sur les 30 derniers jours"
+                        tone="blue"
+                        value={statistics.roleplayProgressLast30Days}
+                    />
+                    <ProgressionTile
+                        label="Écart Quiz vs Roleplay"
+                        subtitle="(Écart théorie / pratique)"
+                        tone="grey"
+                        value={statistics.quizVsRoleplayGap}
+                    />
+                </Box>
+            </Box>
+
+            <Box>
+                <StatGroupTitle>Compétences</StatGroupTitle>
+                <Box className="grid gap-4 md:grid-cols-2">
+                    <TopSkillCard
+                        title="Top 3 compétences maîtrisées"
+                        tone="green"
+                        items={statistics.topMasteredSkills}
+                    />
+                    <TopSkillCard
+                        title="Top 3 compétences à renforcer"
+                        tone="orange"
+                        items={statistics.topSkillsToImprove}
+                    />
+                </Box>
+            </Box>
+        </Box>
+    );
+}
+
+type SkillDimensionView = UserSkillProgress["dimensions"][number];
+type SkillDimensionItemView = UserSkillProgress["items"][number];
+
+const skillDimensionToneClasses: Record<SkillDimensionView["key"], string> = {
+    savoir: uiTokens.tone.info.soft,
+    savoir_etre: uiTokens.tone.success.soft,
+    savoir_faire: uiTokens.tone.primary.soft,
+};
+
+const skillDimensionLabels: Record<SkillDimensionItemView["dimension"], string> = {
+    savoir: "Savoir",
+    savoir_etre: "Savoir-être",
+    savoir_faire: "Savoir-faire",
+};
+
+function formatSkillProgress(score: number | null) {
+    return score === null ? "N/A" : `${score}%`;
+}
+
+function formatSkillDelta(delta: number | null) {
+    if (delta === null) return "N/A";
+    if (delta > 0) return `+${delta}%`;
+    if (delta < 0) return `${delta}%`;
+    return "0%";
+}
+
+function getProgressWidth(score: number | null) {
+    if (score === null) return 0;
+    return Math.max(0, Math.min(100, score));
+}
+
+function SkillDimensionSummary({ dimension }: { dimension: SkillDimensionView }) {
+    return (
+        <Box className={`inline-flex h-8 min-w-[124px] items-center justify-center gap-2 rounded-[9px] border px-3 text-[13px] font-extrabold ${skillDimensionToneClasses[dimension.key]}`}>
+            <Text as="span" className="truncate">
+                {dimension.label}
             </Text>
-            <Box className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                <StatTile icon={Clock3} label="Temps de formation" value="12h 30min" />
-                <StatTile icon={CheckCircle2} label="Formations terminées" tone="green" value="2/6" />
-                <StatTile icon={TrendingUp} label="Score global moyen" tone="purple" value="72%" />
-                <StatTile icon={BarChart3} label="Progression globale" value="67%" />
-                <StatTile icon={MessageSquare} label="Simulations IA" tone="grey" value="18" />
+            <Text as="span" className="shrink-0">
+                {formatSkillProgress(dimension.score)}
+            </Text>
+        </Box>
+    );
+}
+
+function SkillItemProgressBar({ score }: { score: number | null }) {
+    return (
+        <Box className={uiTokens.progress.track}>
+            <Box className={uiTokens.progress.fill} style={{ width: `${getProgressWidth(score)}%` }} />
+        </Box>
+    );
+}
+
+function SkillItemRow({ item }: { item: SkillDimensionItemView }) {
+    return (
+        <Box className={`grid gap-3 ${uiTokens.surface.mutedPanel} md:grid-cols-[140px_minmax(0,1fr)_64px_minmax(160px,220px)] md:items-center`}>
+            <Box className={`inline-flex h-7 w-fit items-center rounded-[8px] border px-2.5 text-[12px] font-extrabold ${skillDimensionToneClasses[item.dimension]}`}>
+                {skillDimensionLabels[item.dimension]}
             </Box>
+            <Text className={`min-w-0 text-[14px] font-semibold leading-6 ${uiTokens.text.subtle}`}>
+                {item.label}
+            </Text>
+            <Text className={`text-[14px] font-extrabold ${item.score === null ? uiTokens.text.muted : uiTokens.text.primary}`}>
+                {formatSkillProgress(item.score)}
+            </Text>
+            <SkillItemProgressBar score={item.score} />
         </Box>
     );
 }
 
-function getSkillTone(score: number) {
-    return score >= 80 ? "green" : "yellow";
+function getSkillProgressTone(score: number | null) {
+    if (score === null) return "neutral";
+    return score >= 80 ? "success" : "warning";
 }
 
-function SkillScoreBadge({ score }: { score: number }) {
-    const tone = getSkillTone(score);
+function SkillScoreBadge({ score }: { score: number | null }) {
+    const tone = getSkillProgressTone(score);
+    const toneClass = tone === "success"
+        ? uiTokens.tone.success.soft
+        : tone === "warning"
+            ? uiTokens.tone.warning.soft
+            : uiTokens.tone.neutral.soft;
 
     return (
-        <Box className={[
-            "inline-flex h-9 w-[62px] items-center justify-center rounded-[10px] text-[15px] font-extrabold",
-            tone === "green" ? "bg-[#D9FBE8] text-[#048A45]" : "bg-[#FFF1C8] text-[#C76000]",
-        ].join(" ")}
-        >
-            {score}%
+        <Box className={`inline-flex h-9 w-[62px] items-center justify-center rounded-[10px] border text-[15px] font-extrabold ${toneClass}`}>
+            {formatSkillProgress(score)}
         </Box>
     );
 }
 
-function SkillProgressBar({ score }: { score: number }) {
-    const tone = getSkillTone(score);
+function SkillProgressBar({ score }: { score: number | null }) {
+    const tone = getSkillProgressTone(score);
+    const fillColor = tone === "success"
+        ? uiTokens.progression.level.green.fill
+        : tone === "warning"
+            ? uiTokens.progression.level.yellow.fill
+            : "#D1D5DB";
 
     return (
-        <Box className="h-2 w-full overflow-hidden rounded-full bg-[#E2E4EA]">
+        <Box className={uiTokens.progress.track}>
             <Box
-                className={`h-full rounded-full ${tone === "green" ? "bg-[#10C55B]" : "bg-[#FFC300]"}`}
-                style={{ width: `${score}%` }}
+                className={uiTokens.progress.fillBase}
+                style={{
+                    backgroundColor: fillColor,
+                    width: `${getProgressWidth(score)}%`,
+                }}
             />
         </Box>
     );
 }
 
-function SkillsTab() {
+function SkillsTab({ skills }: { skills: UserSkillProgress[] }) {
+    const [expandedSkillIds, setExpandedSkillIds] = useState<string[]>(() => skills[0] ? [skills[0].id] : []);
+
+    const toggleSkill = (skillId: string) => {
+        setExpandedSkillIds((current) =>
+            current.includes(skillId)
+                ? current.filter((id) => id !== skillId)
+                : [...current, skillId],
+        );
+    };
+
+    if (skills.length === 0) {
+        return (
+            <Box className="px-6 pb-7 pt-7 md:px-7">
+                <Box className={uiTokens.surface.emptyState}>
+                    <Text className={`text-[15px] font-extrabold ${uiTokens.text.heading}`}>
+                        Aucune compétence évaluée
+                    </Text>
+                    <Text className={`mt-2 text-[14px] font-semibold ${uiTokens.text.muted}`}>
+                        Les progressions apparaîtront après une session notée avec une scorecard reliée aux compétences.
+                    </Text>
+                </Box>
+            </Box>
+        );
+    }
+
     return (
         <Box className="px-6 pb-7 pt-7 md:px-7">
             <Box className="overflow-hidden rounded-[12px] border border-[#E1E4EB]">
@@ -819,35 +1136,82 @@ function SkillsTab() {
                             </Box>
                         </Box>
                         <Box as="tbody">
-                            {skillProgressRows.map((skill) => {
-                                const tone = getSkillTone(skill.score);
+                            {skills.map((skill) => {
+                                const isExpanded = expandedSkillIds.includes(skill.id);
+                                const tone = getSkillProgressTone(skill.score);
+                                const dotClass = tone === "success"
+                                    ? uiTokens.progression.level.green.dot
+                                    : tone === "warning"
+                                        ? uiTokens.progression.level.yellow.dot
+                                        : "bg-[#D1D5DB]";
 
                                 return (
-                                    <Box as="tr" key={skill.id} className="border-b border-[#EEF0F4] last:border-b-0">
-                                        <Box as="td" className="px-7 py-[18px]">
-                                            <Box className="flex items-center gap-4">
-                                                <Box className={`h-2.5 w-2.5 rounded-full ${tone === "green" ? "bg-[#10C55B]" : "bg-[#FFC300]"}`} />
-                                                <Text className="max-w-[210px] text-[15px] font-extrabold leading-6 text-[#171B2A]">
-                                                    {skill.label}
-                                                </Text>
-                                            </Box>
-                                        </Box>
-                                        <Box as="td" className="px-7 py-[18px]">
-                                            <Box className="grid grid-cols-[78px_minmax(180px,1fr)_92px_112px_58px] items-center gap-4">
-                                                <SkillScoreBadge score={skill.score} />
-                                                <SkillProgressBar score={skill.score} />
-                                                <Text className="text-[13px] font-extrabold text-[#737B8E]">
-                                                    Initial : {skill.initial}%
-                                                </Text>
-                                                <Box className="inline-flex h-7 items-center justify-center rounded-[7px] bg-[#D9FBE8] px-3 text-[13px] font-extrabold text-[#057A3A]">
-                                                    Acquis : {skill.score}%
+                                    <Fragment key={skill.id}>
+                                        <Box
+                                            as="tr"
+                                            aria-expanded={isExpanded}
+                                            className="cursor-pointer border-b border-[#EEF0F4] transition hover:bg-[#FBFCFE] last:border-b-0"
+                                            onClick={() => toggleSkill(skill.id)}
+                                            onKeyDown={(event) => {
+                                                if (event.key === "Enter" || event.key === " ") {
+                                                    event.preventDefault();
+                                                    toggleSkill(skill.id);
+                                                }
+                                            }}
+                                            role="button"
+                                            tabIndex={0}
+                                        >
+                                            <Box as="td" className="px-7 py-[18px]">
+                                                <Box className="flex items-center gap-4">
+                                                    <Box className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
+                                                    <Text className="max-w-[250px] text-[15px] font-extrabold leading-6 text-[#171B2A]">
+                                                        {skill.label}
+                                                    </Text>
                                                 </Box>
-                                                <Text className="text-right text-[15px] font-extrabold text-[#009A94]">
-                                                    +{skill.delta}%
-                                                </Text>
+                                            </Box>
+                                            <Box as="td" className="px-7 py-[18px]">
+                                                <Box className="grid grid-cols-[78px_minmax(180px,1fr)_92px_112px_58px_32px] items-center gap-4">
+                                                    <SkillScoreBadge score={skill.score} />
+                                                    <SkillProgressBar score={skill.score} />
+                                                    <Text className="text-[13px] font-extrabold text-[#737B8E]">
+                                                        Initial : {formatSkillProgress(skill.initialScore)}
+                                                    </Text>
+                                                    <Box className="inline-flex h-7 items-center justify-center rounded-[7px] bg-[#D9FBE8] px-3 text-[13px] font-extrabold text-[#057A3A]">
+                                                        Acquis : {formatSkillProgress(skill.score)}
+                                                    </Box>
+                                                    <Text className="text-right text-[15px] font-extrabold text-[#009A94]">
+                                                        {formatSkillDelta(skill.delta)}
+                                                    </Text>
+                                                    <Box className="flex h-8 w-8 items-center justify-center rounded-lg text-[#B7BDCB]">
+                                                        <InlineIcon icon={isExpanded ? ChevronDown : ChevronRight} className="h-5 w-5" />
+                                                    </Box>
+                                                </Box>
                                             </Box>
                                         </Box>
-                                    </Box>
+
+                                        {isExpanded && (
+                                            <Box as="tr" className="border-b border-[#EEF0F4] bg-[#FBFCFE]">
+                                                <Box as="td" colSpan={2} className="px-7 py-5">
+                                                    <Box className="space-y-3">
+                                                        <Box className="flex min-w-0 flex-wrap gap-2 rounded-[12px] border border-[#E6E9F0] bg-white p-4">
+                                                            {skill.dimensions.map((dimension) => (
+                                                                <SkillDimensionSummary key={dimension.key} dimension={dimension} />
+                                                            ))}
+                                                        </Box>
+                                                        {skill.items.length > 0 ? (
+                                                            skill.items.map((item) => <SkillItemRow key={item.id} item={item} />)
+                                                        ) : (
+                                                            <Box className={uiTokens.surface.mutedPanel}>
+                                                                <Text className={`text-[14px] font-semibold ${uiTokens.text.muted}`}>
+                                                                    Aucun item actif rattaché à cette compétence.
+                                                                </Text>
+                                                            </Box>
+                                                        )}
+                                                    </Box>
+                                                </Box>
+                                            </Box>
+                                        )}
+                                    </Fragment>
                                 );
                             })}
                         </Box>
@@ -859,19 +1223,83 @@ function SkillsTab() {
 }
 
 export function UserDetailPage({
+    assignedQuizzes: initialQuizzes = [],
+    assignedRoleplays: initialRoleplays = [],
     avatarUrl,
     initialMode = "view",
     initials,
+    platformRole,
+    skills = [],
+    statistics = emptyUserStatistics,
     user,
 }: UserDetailPageProps) {
+    const router = useRouter();
     const [currentUser, setCurrentUser] = useState<UserListItem>(user);
     const [activeTab, setActiveTab] = useState<UserDetailTab>("profile");
-    const [assignedGroups, setAssignedGroups] = useState<AssignedGroup[]>(initialAssignedGroups);
-    const [assignedPrograms, setAssignedPrograms] = useState<AssignedProgram[]>(initialAssignedPrograms);
+    const [assignedGroups, setAssignedGroups] = useState<UserAssignedGroup[]>([]);
+    const [availableGroups, setAvailableGroups] = useState<UserAvailableGroup[]>([]);
+    const [isGroupsLoading, setIsGroupsLoading] = useState(true);
+    const [groupsError, setGroupsError] = useState<string | null>(null);
+    const [isAddGroupOpen, setIsAddGroupOpen] = useState(false);
+    const [selectedGroupId, setSelectedGroupId] = useState("");
+    const [groupPendingRemoval, setGroupPendingRemoval] = useState<UserAssignedGroup | null>(null);
+    const [groupDialogError, setGroupDialogError] = useState<string | null>(null);
+    const [isGroupActionPending, setIsGroupActionPending] = useState(false);
+    const [assignedRoleplays] = useState<UserAssignedRoleplay[]>(initialRoleplays);
+    const [assignedQuizzes] = useState<UserAssignedQuiz[]>(initialQuizzes);
     const [isEditing, setIsEditing] = useState(initialMode === "edit");
     const [draft, setDraft] = useState<DetailFormValues>(() => getFormValuesFromUser(user));
 
     const pageTitle = useMemo(() => "Détail de l'utilisateur", []);
+
+    useEffect(() => {
+        if (initialMode === "edit") {
+            router.replace(`/users/${user.id}`, { scroll: false });
+        }
+    }, [initialMode, router, user.id]);
+
+    const applyUserGroupsResult = useCallback((payload: UserGroupsResult | null) => {
+        const nextGroupsPayload = normalizeUserGroupsPayload(payload);
+        const groupLabel = nextGroupsPayload.groups.map((group) => group.name).join(", ");
+
+        setAssignedGroups(nextGroupsPayload.groups);
+        setAvailableGroups(nextGroupsPayload.availableGroups);
+        setCurrentUser((current) => ({
+            ...current,
+            group: groupLabel,
+        }));
+        setDraft((current) => ({
+            ...current,
+            group: groupLabel,
+        }));
+    }, []);
+
+    const loadUserGroups = useCallback(async () => {
+        setIsGroupsLoading(true);
+        setGroupsError(null);
+
+        try {
+            const response = await fetch(`/api/users/${user.id}/groups`, {
+                headers: { Accept: "application/json" },
+            });
+            const payload = (await response.json().catch(() => null)) as UserGroupsResult | ApiErrorPayload | null;
+
+            if (!response.ok) {
+                setGroupsError(getApiErrorMessage(payload as ApiErrorPayload | null, "Impossible de charger les groupes."));
+                return;
+            }
+
+            applyUserGroupsResult(payload as UserGroupsResult | null);
+        } catch {
+            setGroupsError("Impossible de charger les groupes.");
+        } finally {
+            setIsGroupsLoading(false);
+        }
+    }, [applyUserGroupsResult, user.id]);
+
+    useEffect(() => {
+        void loadUserGroups();
+    }, [loadUserGroups]);
 
     const updateDraft = (field: keyof DetailFormValues, value: string) => {
         setDraft((current) => ({
@@ -919,35 +1347,107 @@ export function UserDetailPage({
         setIsEditing(false);
     };
 
-    const addGroup = () => {
-        setAssignedGroups((current) => {
-            if (current.some((group) => group.id === extraAssignedGroup.id)) {
-                return current;
+    const openAddGroupDialog = () => {
+        setSelectedGroupId(availableGroups[0]?.id ?? "");
+        setGroupDialogError(null);
+        setIsAddGroupOpen(true);
+    };
+
+    const closeAddGroupDialog = () => {
+        if (isGroupActionPending) {
+            return;
+        }
+
+        setIsAddGroupOpen(false);
+        setGroupDialogError(null);
+        setSelectedGroupId("");
+    };
+
+    const assignSelectedGroup = async () => {
+        if (!selectedGroupId || isGroupActionPending) {
+            return;
+        }
+
+        setIsGroupActionPending(true);
+        setGroupDialogError(null);
+
+        try {
+            const response = await fetch(`/api/users/${user.id}/groups`, {
+                body: JSON.stringify({ groupId: selectedGroupId }),
+                headers: { "Content-Type": "application/json" },
+                method: "POST",
+            });
+            const payload = (await response.json().catch(() => null)) as UserGroupsResult | ApiErrorPayload | null;
+
+            if (!response.ok) {
+                setGroupDialogError(getApiErrorMessage(payload as ApiErrorPayload | null, "Impossible d'ajouter l'utilisateur au groupe."));
+                return;
             }
 
-            return [...current, extraAssignedGroup];
-        });
+            applyUserGroupsResult(payload as UserGroupsResult | null);
+            setIsAddGroupOpen(false);
+            setSelectedGroupId("");
+        } catch {
+            setGroupDialogError("Impossible d'ajouter l'utilisateur au groupe.");
+        } finally {
+            setIsGroupActionPending(false);
+        }
     };
 
-    const removeGroup = (groupId: string) => {
-        setAssignedGroups((current) => current.filter((group) => group.id !== groupId));
+    const requestRemoveGroup = (group: UserAssignedGroup) => {
+        setGroupPendingRemoval(group);
+        setGroupDialogError(null);
     };
 
-    const assignProgram = () => {
-        setAssignedPrograms((current) => {
-            if (current.some((program) => program.id === extraAssignedProgram.id)) {
-                return current;
+    const closeRemoveGroupDialog = () => {
+        if (isGroupActionPending) {
+            return;
+        }
+
+        setGroupPendingRemoval(null);
+        setGroupDialogError(null);
+    };
+
+    const confirmRemoveGroup = async () => {
+        if (!groupPendingRemoval || isGroupActionPending) {
+            return;
+        }
+
+        setIsGroupActionPending(true);
+        setGroupDialogError(null);
+
+        try {
+            const response = await fetch(`/api/users/${user.id}/groups`, {
+                body: JSON.stringify({ groupId: groupPendingRemoval.id }),
+                headers: { "Content-Type": "application/json" },
+                method: "DELETE",
+            });
+            const payload = (await response.json().catch(() => null)) as UserGroupsResult | ApiErrorPayload | null;
+
+            if (!response.ok) {
+                setGroupDialogError(getApiErrorMessage(payload as ApiErrorPayload | null, "Impossible de retirer l'utilisateur du groupe."));
+                return;
             }
 
-            return [...current, extraAssignedProgram];
-        });
+            applyUserGroupsResult(payload as UserGroupsResult | null);
+            setGroupPendingRemoval(null);
+        } catch {
+            setGroupDialogError("Impossible de retirer l'utilisateur du groupe.");
+        } finally {
+            setIsGroupActionPending(false);
+        }
     };
+
+    const assignRoleplay = () => undefined;
+
+    const assignQuiz = () => undefined;
 
     return (
         <AppShell
             activePrimaryItem="Utilisateurs"
             avatarUrl={avatarUrl}
             initials={initials}
+            platformRole={platformRole}
             searchPlaceholder="Rechercher..."
         >
             <Box as="main" className="px-5 pb-12 md:px-9 lg:px-14">
@@ -980,7 +1480,7 @@ export function UserDetailPage({
                                     className="flex h-[42px] items-center justify-center gap-2.5 rounded-[10px] bg-[#5140F0] px-5 text-[15px] font-extrabold text-white shadow-[0_12px_24px_rgba(81,64,240,0.22)] transition hover:bg-[#4635E7]"
                                 >
                                     <InlineIcon icon={Check} className="h-5 w-5" />
-                                    Enregistrer
+                                    Sauvegarder
                                 </Button>
                             </Box>
                         ) : (
@@ -1034,19 +1534,53 @@ export function UserDetailPage({
                                 groups={assignedGroups}
                                 isEditing={isEditing}
                                 onDraftChange={updateDraft}
+                                quizCount={assignedQuizzes.length}
+                                roleplayCount={assignedRoleplays.length}
                             />
                         )}
                         {activeTab === "groups" && (
-                            <GroupsTab groups={assignedGroups} onAddGroup={addGroup} onRemoveGroup={removeGroup} />
+                            <GroupsTab
+                                error={groupsError}
+                                groups={assignedGroups}
+                                isActionPending={isGroupActionPending}
+                                isLoading={isGroupsLoading}
+                                onAddGroup={openAddGroupDialog}
+                                onRemoveGroup={requestRemoveGroup}
+                            />
                         )}
-                        {activeTab === "trainings" && (
-                            <TrainingsTab onAssignProgram={assignProgram} programs={assignedPrograms} />
+                        {activeTab === "roleplays" && (
+                            <RoleplaysTab onAssign={assignRoleplay} roleplays={assignedRoleplays} />
                         )}
-                        {activeTab === "statistics" && <StatisticsTab />}
-                        {activeTab === "skills" && <SkillsTab />}
+                        {activeTab === "evaluations" && (
+                            <EvaluationsTab onAssign={assignQuiz} quizzes={assignedQuizzes} />
+                        )}
+                        {activeTab === "statistics" && <StatisticsTab statistics={statistics} />}
+                        {activeTab === "skills" && <SkillsTab skills={skills} />}
                     </CardSurface>
                 </Box>
             </Box>
+
+            {isAddGroupOpen && (
+                <AddUserGroupDialog
+                    availableGroups={availableGroups}
+                    error={groupDialogError}
+                    isSubmitting={isGroupActionPending}
+                    onClose={closeAddGroupDialog}
+                    onGroupChange={setSelectedGroupId}
+                    onSubmit={assignSelectedGroup}
+                    selectedGroupId={selectedGroupId}
+                />
+            )}
+
+            {groupPendingRemoval && (
+                <RemoveUserGroupDialog
+                    error={groupDialogError}
+                    group={groupPendingRemoval}
+                    isSubmitting={isGroupActionPending}
+                    onClose={closeRemoveGroupDialog}
+                    onConfirm={confirmRemoveGroup}
+                />
+            )}
         </AppShell>
     );
 }

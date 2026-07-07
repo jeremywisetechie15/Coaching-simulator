@@ -14,7 +14,15 @@ import type {
     CreateOrganizationFieldErrors,
     CreateOrganizationFormValues,
 } from "@/features/organizations/domain/create-organization-form";
+import {
+    getOrganizationRegionLabel,
+    organizationRegionOptions,
+} from "@/features/organizations/domain/create-organization-form";
 import type { OrganizationDetail } from "@/features/organizations/domain/organization-detail";
+import {
+    getOrganizationStatusLabel,
+    organizationStatusOptions,
+} from "@/features/organizations/domain/organization-list";
 
 interface OrganizationDetailOverviewProps {
     fieldErrors?: CreateOrganizationFieldErrors;
@@ -46,7 +54,7 @@ function DetailStatus({ status }: { status: OrganizationDetail["status"] }) {
                     isActive ? "bg-[#DDF8E6] text-[#2A8A41]" : "bg-[#F2F3F6] text-[#4F5868]"
                 }`}
             >
-                {isActive ? "Activée" : "Suspendue"}
+                {getOrganizationStatusLabel(status)}
             </Box>
         </Box>
     );
@@ -102,25 +110,39 @@ function EditField({
     );
 }
 
-function EditStatusField({
+function withCurrentOption(options: Array<{ label: string; value: string }>, value: string) {
+    if (!value || options.some((option) => option.value === value)) {
+        return options;
+    }
+
+    return [{ label: value, value }, ...options];
+}
+
+function EditSelectField({
     error,
+    id,
+    label,
     onChange,
+    options,
     value,
 }: {
     error?: string;
+    id: string;
+    label: string;
     onChange: (value: string) => void;
-    value: CreateOrganizationFormValues["status"];
+    options: Array<{ label: string; value: string }>;
+    value: string;
 }) {
-    const errorId = "organization-status-error";
+    const errorId = `${id}-error`;
 
     return (
         <Box className="space-y-2">
-            <FieldLabel htmlFor="organization-status" className="text-[15px] font-extrabold leading-5 text-[#171B2A]">
-                Statut
+            <FieldLabel htmlFor={id} className="text-[15px] font-extrabold leading-5 text-[#171B2A]">
+                {label}
             </FieldLabel>
             <Box className="relative">
                 <SelectInput
-                    id="organization-status"
+                    id={id}
                     aria-describedby={error ? errorId : undefined}
                     aria-invalid={error ? true : undefined}
                     onChange={(event) => onChange(event.target.value)}
@@ -129,8 +151,11 @@ function EditStatusField({
                         error ? "border-[#FF4E68] ring-4 ring-[#FF4E68]/10" : ""
                     }`}
                 >
-                    <option value="active">Activée</option>
-                    <option value="suspended">Suspendue</option>
+                    {options.map((option) => (
+                        <option key={option.value} value={option.value}>
+                            {option.label}
+                        </option>
+                    ))}
                 </SelectInput>
                 <InlineIcon
                     icon={ChevronDown}
@@ -209,9 +234,12 @@ export function OrganizationDetailOverview({
                     )}
                     <DetailValue label="Date de création" value={organization.createdAt} />
                     {isEditing ? (
-                        <EditStatusField
+                        <EditSelectField
                             error={fieldErrors.status}
+                            id="organization-status"
+                            label="Statut"
                             onChange={(value) => onValueChange?.("status", value)}
+                            options={organizationStatusOptions}
                             value={values.status}
                         />
                     ) : (
@@ -261,15 +289,19 @@ export function OrganizationDetailOverview({
                 </Text>
                 <Box className="mt-7 grid gap-8 md:grid-cols-2">
                     {isEditing ? (
-                        <EditField
+                        <EditSelectField
                             error={fieldErrors.region}
                             id="organization-region"
                             label="Région géographique"
                             onChange={(value) => onValueChange?.("region", value)}
+                            options={withCurrentOption([...organizationRegionOptions], values.region)}
                             value={values.region}
                         />
                     ) : (
-                        <DetailValue label="Région géographique" value={organization.region} />
+                        <DetailValue
+                            label="Région géographique"
+                            value={getOrganizationRegionLabel(organization.region)}
+                        />
                     )}
                 </Box>
             </Box>

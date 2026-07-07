@@ -1,6 +1,6 @@
 import { Box, Button, Text } from "@/lib/ui/atoms";
 
-export type OrganizationDetailTab = "overview" | "groups" | "users" | "trainings";
+export type OrganizationDetailTab = "overview" | "groups" | "users" | "roleplays" | "evaluations";
 
 interface OrganizationDetailTabsProps {
     activeTab: OrganizationDetailTab;
@@ -11,7 +11,8 @@ const tabs: Array<{ label: string; value: OrganizationDetailTab }> = [
     { label: "Informations de base", value: "overview" },
     { label: "Groupes", value: "groups" },
     { label: "Utilisateurs", value: "users" },
-    { label: "Formations", value: "trainings" },
+    { label: "Roleplays", value: "roleplays" },
+    { label: "Évaluations", value: "evaluations" },
 ];
 
 export function OrganizationDetailTabs({ activeTab, onTabChange }: OrganizationDetailTabsProps) {

@@ -1,8 +1,9 @@
-import { AppError, ForbiddenError, NotFoundError } from "@/lib/server/errors";
+import { AppError, NotFoundError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { requireAuth } from "@/features/auth/server";
+import { requireAdmin } from "@/features/auth/server";
 import type { InviteOrganizationUserDto } from "@/features/organizations/dto/invite-organization-user.dto";
-import { canManageOrganization } from "@/features/organizations/domain/organization-access";
+import { ORGANIZATION_MEMBER_STATUS } from "@/features/organizations/domain/organization-member";
+import { PLATFORM_ROLE } from "@/features/users/domain/users";
 
 interface OrganizationRow {
     id: string;
@@ -17,16 +18,17 @@ interface MembershipRow {
     user_id: string;
 }
 
+interface OrganizationGroupRow {
+    id: string;
+    organization_id: string;
+}
+
 export async function inviteOrganizationUser(
     organizationId: string,
     input: InviteOrganizationUserDto,
     redirectTo: string
 ) {
-    const context = await requireAuth();
-
-    if (!canManageOrganization(context, organizationId)) {
-        throw new ForbiddenError("Organisation non autorisée.");
-    }
+    await requireAdmin();
 
     const adminSupabase = createAdminClient();
 
@@ -42,6 +44,23 @@ export async function inviteOrganizationUser(
 
     if (!organization) {
         throw new NotFoundError("Organisation introuvable.");
+    }
+
+    if (input.groupId) {
+        const { data: group, error: groupError } = await adminSupabase
+            .from("groups")
+            .select("id, organization_id")
+            .eq("id", input.groupId)
+            .eq("organization_id", organizationId)
+            .maybeSingle<OrganizationGroupRow>();
+
+        if (groupError) {
+            throw groupError;
+        }
+
+        if (!group) {
+            throw new NotFoundError("Groupe introuvable pour cette organisation.");
+        }
     }
 
     const fullName = `${input.firstName} ${input.lastName}`.trim();
@@ -78,7 +97,7 @@ export async function inviteOrganizationUser(
                 id: invitedUser.id,
                 last_name: input.lastName,
                 name: fullName,
-                platform_role: "user",
+                platform_role: PLATFORM_ROLE.user,
                 updated_at: new Date().toISOString(),
             },
             { onConflict: "id" }
@@ -104,7 +123,7 @@ export async function inviteOrganizationUser(
             .from("organization_members")
             .update({
                 role: input.role,
-                status: "invited",
+                status: ORGANIZATION_MEMBER_STATUS.invited,
                 updated_at: new Date().toISOString(),
             })
             .eq("user_id", invitedUser.id)
@@ -119,7 +138,7 @@ export async function inviteOrganizationUser(
             .insert({
                 organization_id: organizationId,
                 role: input.role,
-                status: "invited",
+                status: ORGANIZATION_MEMBER_STATUS.invited,
                 user_id: invitedUser.id,
             });
 
@@ -128,9 +147,26 @@ export async function inviteOrganizationUser(
         }
     }
 
+    if (input.groupId) {
+        const { error: groupMemberError } = await adminSupabase
+            .from("group_members")
+            .upsert(
+                {
+                    group_id: input.groupId,
+                    user_id: invitedUser.id,
+                },
+                { onConflict: "group_id,user_id" }
+            );
+
+        if (groupMemberError) {
+            throw groupMemberError;
+        }
+    }
+
     return {
         email: input.email,
         firstName: input.firstName,
+        groupId: input.groupId,
         id: invitedUser.id,
         lastName: input.lastName,
         role: input.role,

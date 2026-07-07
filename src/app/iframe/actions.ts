@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { Persona, Coach } from "@/types";
 
 export interface IframeSessionConfig {
@@ -87,6 +88,7 @@ export async function prepareIframeSession(params: PrepareParams): Promise<{
 
     try {
         const supabase = await createClient();
+        const adminSupabase = createAdminClient();
 
         // =============================================
         // MODE COACH (mode=coach)
@@ -125,7 +127,7 @@ export async function prepareIframeSession(params: PrepareParams): Promise<{
                 }
 
                 // Fetch prompt from DB
-                const { data: promptData } = await supabase
+                const { data: promptData } = await adminSupabase
                     .from("prompts")
                     .select("prompt")
                     .eq("title", "coach.before_training")
@@ -184,7 +186,7 @@ ${COACH_CONTEXT_GUARDRAILS}
                 }
 
                 // Fetch prompt from DB
-                const { data: promptData } = await supabase
+                const { data: promptData } = await adminSupabase
                     .from("prompts")
                     .select("prompt")
                     .eq("title", "coach.after_training")
@@ -282,7 +284,7 @@ ${COACH_CONTEXT_GUARDRAILS}
                 }
 
                 // Fetch prompt from DB
-                const { data: promptData } = await supabase
+                const { data: promptData } = await adminSupabase
                     .from("prompts")
                     .select("prompt")
                     .eq("title", "coach.notation.synthese")
@@ -513,7 +515,7 @@ ${COACH_CONTEXT_GUARDRAILS}
             }
 
             // Fetch prompt from DB
-            const { data: variantPromptData } = await supabase
+            const { data: variantPromptData } = await adminSupabase
                 .from("prompts")
                 .select("prompt")
                 .eq("title", "persona.variant.feedback")
@@ -612,6 +614,9 @@ export async function createIframeSession(scenarioId: string): Promise<{
 }> {
     try {
         const supabase = await createClient();
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
 
         const { data: session, error: sessionError } = await supabase
             .from("sessions")
@@ -619,6 +624,7 @@ export async function createIframeSession(scenarioId: string): Promise<{
                 scenario_id: scenarioId,
                 status: "active",
                 duration_seconds: 0,
+                user_id: user?.id ?? null,
             })
             .select()
             .single();
@@ -642,13 +648,18 @@ export async function createIframeSession(scenarioId: string): Promise<{
 export async function completeIframeSession(sessionId: string, durationSeconds: number): Promise<boolean> {
     try {
         const supabase = await createClient();
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        const updatePayload = {
+            status: "completed",
+            duration_seconds: durationSeconds,
+            ...(user?.id ? { user_id: user.id } : {}),
+        };
 
         const { error } = await supabase
             .from("sessions")
-            .update({
-                status: "completed",
-                duration_seconds: durationSeconds
-            })
+            .update(updatePayload)
             .eq("id", sessionId);
 
         return !error;

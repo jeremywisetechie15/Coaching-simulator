@@ -1,18 +1,24 @@
-import { createClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/features/auth/server";
+import { CONTENT_STATUS } from "@/features/content/domain";
 import type { PersonaListItem } from "@/features/personas/domain/persona-list";
-import { mapPersonaRowToListItem, type PersonaRow } from "./persona.mapper";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { mapPersonaRowToListItem, PERSONA_SELECT, type PersonaRow } from "./persona.mapper";
 
 export async function listPersonas(): Promise<PersonaListItem[]> {
-    await requireAuth();
+    const context = await requireAuth();
 
-    const supabase = await createClient();
+    const adminSupabase = createAdminClient();
 
-    const { data, error } = await supabase
+    let query = adminSupabase
         .from("personas")
-        .select("id, name, role, company, avatar_url, created_at")
-        .order("created_at", { ascending: false })
-        .returns<PersonaRow[]>();
+        .select(PERSONA_SELECT)
+        .order("created_at", { ascending: false });
+
+    if (context.platformRole !== "admin") {
+        query = query.eq("status", CONTENT_STATUS.published);
+    }
+
+    const { data, error } = await query.returns<PersonaRow[]>();
 
     if (error) {
         throw error;

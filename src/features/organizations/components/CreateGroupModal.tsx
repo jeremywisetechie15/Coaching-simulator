@@ -16,7 +16,9 @@ import {
 
 interface CreateGroupModalProps {
     description: string;
+    formError?: string | null;
     groupName: string;
+    isSubmitting?: boolean;
     onClose: () => void;
     onDescriptionChange: (value: string) => void;
     onGroupNameChange: (value: string) => void;
@@ -25,13 +27,15 @@ interface CreateGroupModalProps {
 
 export function CreateGroupModal({
     description,
+    formError = null,
     groupName,
+    isSubmitting = false,
     onClose,
     onDescriptionChange,
     onGroupNameChange,
     onSubmit,
 }: CreateGroupModalProps) {
-    const canSubmit = groupName.trim().length > 0;
+    const canSubmit = groupName.trim().length > 0 && !isSubmitting;
 
     const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -99,6 +103,7 @@ export function CreateGroupModal({
                     <Box className="grid gap-3 pt-1 sm:grid-cols-2">
                         <Button
                             onClick={onClose}
+                            disabled={isSubmitting}
                             className="flex h-9 items-center justify-center rounded-lg border border-[#DADDE4] bg-white text-[13px] font-bold text-[#111827] transition hover:bg-[#F7F8FB]"
                         >
                             Annuler
@@ -108,9 +113,18 @@ export function CreateGroupModal({
                             disabled={!canSubmit}
                             className="flex h-9 items-center justify-center rounded-lg bg-[#5140F0] text-[13px] font-bold text-white shadow-[0_8px_18px_rgba(81,64,240,0.16)] transition hover:bg-[#4635E7] disabled:cursor-not-allowed disabled:bg-[#E3E5EA] disabled:text-white disabled:shadow-none"
                         >
-                            Ajouter
+                            {isSubmitting ? "Ajout..." : "Ajouter"}
                         </Button>
                     </Box>
+
+                    {formError && (
+                        <Box
+                            aria-live="polite"
+                            className="rounded-lg border border-[#F3C7C7] bg-[#FFF4F4] px-4 py-3 text-[13px] font-semibold text-[#A43A3A]"
+                        >
+                            {formError}
+                        </Box>
+                    )}
                 </FormRoot>
             </CardSurface>
         </Box>

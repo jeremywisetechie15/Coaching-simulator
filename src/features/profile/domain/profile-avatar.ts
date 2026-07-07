@@ -1,9 +1,25 @@
 export const PROFILE_AVATAR_BUCKET = "avatars";
 
+export const PROFILE_AVATAR_MAX_SIZE_BYTES = 2 * 1024 * 1024;
+
+export const PROFILE_AVATAR_MIME_TYPES = {
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+} as const;
+
+export type ProfileAvatarMimeType = keyof typeof PROFILE_AVATAR_MIME_TYPES;
+
+export const PROFILE_AVATAR_ACCEPT = Object.keys(PROFILE_AVATAR_MIME_TYPES).join(",");
+
 interface ProfileIdentity {
     email?: string;
     firstName?: string;
     lastName?: string;
+}
+
+export function getProfileAvatarExtension(mimeType: string) {
+    return PROFILE_AVATAR_MIME_TYPES[mimeType as ProfileAvatarMimeType] ?? null;
 }
 
 export function getProfileAvatarPublicUrl(avatarPath: string | null | undefined) {

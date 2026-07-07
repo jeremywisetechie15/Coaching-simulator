@@ -1,4 +1,5 @@
 import type { ProfileView } from "@/features/profile/domain/profile";
+import type { PlatformRole } from "@/features/users/domain/users";
 import { getProfileAvatarPublicUrl } from "@/features/profile/domain/profile-avatar";
 
 export interface ProfileRow {
@@ -20,7 +21,11 @@ function splitName(name: string | null) {
     };
 }
 
-export function mapProfileRowToView(row: ProfileRow | null, fallbackEmail: string): ProfileView {
+export function mapProfileRowToView(
+    row: ProfileRow | null,
+    fallbackEmail: string,
+    platformRole: PlatformRole,
+): ProfileView {
     const nameParts = splitName(row?.name ?? null);
 
     return {
@@ -30,5 +35,6 @@ export function mapProfileRowToView(row: ProfileRow | null, fallbackEmail: strin
         email: fallbackEmail,
         firstName: row?.first_name ?? nameParts.firstName,
         lastName: row?.last_name ?? nameParts.lastName,
+        platformRole,
     };
 }

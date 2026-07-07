@@ -4,6 +4,7 @@ import { useState, useRef, useCallback, useEffect } from "react";
 import { Phone, PhoneOff, Loader2, AlertCircle, Waves, Volume2, Camera, VideoOff, MicOff } from "lucide-react";
 import { prepareIframeSession, type IframeSessionConfig } from "./actions";
 import type { VoiceId } from "@/types";
+import { extractRealtimeAssistantTranscript } from "@/lib/openai/realtime-transcript";
 
 type SessionStatus = "loading" | "ready" | "connecting" | "connected" | "error" | "ended";
 
@@ -252,9 +253,17 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                 break;
             }
             case "response.output_audio_transcript.done":
-            case "response.audio_transcript.done": {
-                const transcript = (event as { transcript?: string }).transcript;
+            case "response.audio_transcript.done":
+            case "response.output_audio.done": {
+                const transcript = extractRealtimeAssistantTranscript(event);
                 if (transcript) addMessageToRef("assistant", transcript, eventId);
+                break;
+            }
+
+            case "response.done": {
+                const transcript = extractRealtimeAssistantTranscript(event);
+                if (transcript) addMessageToRef("assistant", transcript, eventId);
+                setIsAiSpeaking(false);
                 break;
             }
 
@@ -521,8 +530,8 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                 throw new Error("No ephemeral key received");
             }
 
-            // Connect to OpenAI Realtime API directly with the ephemeral key.
-            // The model/session config is bound to the client secret by our API route.
+            // Connect to OpenAI Realtime GA API directly with the ephemeral key.
+            // The model is already bound to the client secret created by /api/realtime-session.
             const sdpResponse = await fetch("https://api.openai.com/v1/realtime/calls", {
                 method: "POST",
                 headers: {
@@ -534,7 +543,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
 
             if (!sdpResponse.ok) {
                 const errText = await sdpResponse.text();
-                throw new Error(`OpenAI SDP error: ${sdpResponse.status} - ${errText}`);
+                throw new Error(`Voice service connection error: ${sdpResponse.status} - ${errText}`);
             }
 
             const answerSdp = await sdpResponse.text();

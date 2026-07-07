@@ -12,7 +12,10 @@ export function ProfileLayout({ children, profileValues }: ProfileLayoutProps) {
         <AppShell
             activeAccountItem="Mon profil"
             avatarUrl={profileValues.avatarUrl}
+            platformRole={profileValues.platformRole}
             initials={getProfileInitials(profileValues)}
+            fullName={`${profileValues.firstName} ${profileValues.lastName}`.trim()}
+            email={profileValues.email}
         >
             {children}
         </AppShell>

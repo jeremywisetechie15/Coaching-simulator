@@ -3,9 +3,14 @@ import type { OrganizationDetail } from "@/features/organizations/domain/organiz
 
 export interface OrganizationRow {
     created_at: string | null;
+    group_count?: number;
     id: string;
     name: string;
+    program_count?: number;
+    quiz_count?: number;
+    roleplay_count?: number;
     status: string | null;
+    user_count?: number;
 }
 
 export interface OrganizationDetailRow extends OrganizationRow {
@@ -46,12 +51,13 @@ function mapStatus(status: string | null): OrganizationStatus {
 export function mapOrganizationRowToListItem(row: OrganizationRow): OrganizationListItem {
     return {
         createdAt: formatDate(row.created_at),
-        groupCount: 0,
+        groupCount: row.group_count ?? 0,
         id: row.id,
         name: row.name,
-        programCount: 0,
+        quizCount: row.quiz_count ?? 0,
+        roleplayCount: row.roleplay_count ?? row.program_count ?? 0,
         status: mapStatus(row.status),
-        userCount: 0,
+        userCount: row.user_count ?? 0,
     };
 }
 
@@ -59,14 +65,14 @@ export function mapOrganizationRowToDetail(row: OrganizationDetailRow): Organiza
     return {
         contactEmail: row.contact_email ?? "",
         createdAt: formatLongDate(row.created_at),
-        groupCount: 0,
+        groupCount: row.group_count ?? 0,
         id: row.id,
         industry: row.industry ?? "",
         name: row.name,
         phone: row.phone ?? "",
-        programCount: 0,
+        programCount: row.program_count ?? 0,
         region: row.region ?? "",
         status: mapStatus(row.status),
-        userCount: 0,
+        userCount: row.user_count ?? 0,
     };
 }

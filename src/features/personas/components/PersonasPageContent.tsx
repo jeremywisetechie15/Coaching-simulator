@@ -1,25 +1,46 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Copy, MoreVertical, Pencil, Plus, Trash2, UserRoundCog } from "lucide-react";
-import { useMemo, useState } from "react";
+import { ArrowLeft, MoreVertical, Pencil, Plus, UserRoundCog } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import type { PersonaListItem } from "@/features/personas/domain/persona-list";
 import { getPersonaInitials } from "@/features/personas/domain/persona-list";
 
 interface PersonasPageContentProps {
-    personas: PersonaListItem[];
+    canManage: boolean;
+    initialPersonas: PersonaListItem[];
 }
 
-function badgeClasses(label: PersonaListItem["influenceLabel"]) {
-    return label === "Influent"
-        ? "bg-[#FFF4C9] text-[#B77900]"
-        : "bg-[#DCF8E6] text-[#2F9447]";
+interface PersonasPayload {
+    error?: string;
+    personas?: PersonaListItem[];
 }
 
-export function PersonasPageContent({ personas }: PersonasPageContentProps) {
+const personasQueryKey = ["personas"] as const;
+
+async function fetchPersonas() {
+    const response = await fetch("/api/personas", {
+        headers: { Accept: "application/json" },
+    });
+    const payload = (await response.json().catch(() => null)) as PersonasPayload | null;
+
+    if (!response.ok) {
+        throw new Error(payload?.error ?? "Impossible de charger les personas.");
+    }
+
+    return payload?.personas ?? [];
+}
+
+export function PersonasPageContent({ canManage, initialPersonas }: PersonasPageContentProps) {
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-    const sortedPersonas = useMemo(() => personas, [personas]);
+    const personasQuery = useQuery({
+        initialData: initialPersonas,
+        queryFn: fetchPersonas,
+        queryKey: personasQueryKey,
+    });
+    const personas = personasQuery.data;
 
     return (
         <Box as="main" className="px-5 pb-12 md:px-9 lg:px-12">
@@ -43,15 +64,26 @@ export function PersonasPageContent({ personas }: PersonasPageContentProps) {
                         </Box>
                     </Box>
 
-                    <Button className="mt-1 flex h-9 items-center justify-center gap-2.5 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7] md:mt-2">
-                        <InlineIcon icon={Plus} className="h-4 w-4" />
-                        Créer un persona IA
-                    </Button>
+                    {canManage && (
+                        <Link
+                            href="/personas/new"
+                            className="mt-1 flex h-9 items-center justify-center gap-2.5 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7] md:mt-2"
+                        >
+                            <InlineIcon icon={Plus} className="h-4 w-4" />
+                            Créer un persona IA
+                        </Link>
+                    )}
                 </Box>
 
-                {sortedPersonas.length > 0 ? (
+                {personasQuery.isError && (
+                    <Box className="mb-5 rounded-lg border border-[#F3C7C7] bg-[#FFF4F4] px-4 py-3 text-[13px] font-semibold text-[#A43A3A]">
+                        {personasQuery.error.message}
+                    </Box>
+                )}
+
+                {personas.length > 0 ? (
                     <Box className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                        {sortedPersonas.map((persona) => {
+                        {personas.map((persona) => {
                             const isMenuOpen = openMenuId === persona.id;
 
                             return (
@@ -59,29 +91,25 @@ export function PersonasPageContent({ personas }: PersonasPageContentProps) {
                                     key={persona.id}
                                     className="relative min-h-[218px] rounded-[14px] border border-[#E1E4EB] px-5 py-6 text-center shadow-none transition duration-200 hover:-translate-y-0.5 hover:border-[#D8DCE6] hover:shadow-[0_14px_34px_rgba(17,24,39,0.10)]"
                                 >
-                                    <Button
-                                        aria-label={`Actions pour ${persona.name}`}
-                                        onClick={() => setOpenMenuId(isMenuOpen ? null : persona.id)}
-                                        className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-lg text-[#596273] transition hover:bg-[#F3F4F8] hover:text-[#111827]"
-                                    >
-                                        <InlineIcon icon={MoreVertical} className="h-4 w-4" />
-                                    </Button>
+                                    {canManage && (
+                                        <Button
+                                            aria-label={`Actions pour ${persona.name}`}
+                                            onClick={() => setOpenMenuId(isMenuOpen ? null : persona.id)}
+                                            className="absolute right-4 top-4 flex h-7 w-7 items-center justify-center rounded-lg text-[#596273] transition hover:bg-[#F3F4F8] hover:text-[#111827]"
+                                        >
+                                            <InlineIcon icon={MoreVertical} className="h-4 w-4" />
+                                        </Button>
+                                    )}
 
-                                    {isMenuOpen && (
+                                    {canManage && isMenuOpen && (
                                         <CardSurface className="absolute right-5 top-12 z-10 w-max rounded-lg border border-[#E1E4EB] px-1 py-1.5 text-left shadow-[0_12px_28px_rgba(17,24,39,0.14)]">
-                                            {[
-                                                { icon: Copy, label: "Dupliquer" },
-                                                { icon: Pencil, label: "Éditer" },
-                                                { icon: Trash2, label: "Supprimer" },
-                                            ].map((item) => (
-                                                <Button
-                                                    key={item.label}
-                                                    className="flex h-7 w-full items-center gap-2 whitespace-nowrap rounded-md px-2.5 text-[12px] font-semibold text-[#111827] transition hover:bg-[#F7F8FB]"
-                                                >
-                                                    <InlineIcon icon={item.icon} className="h-3.5 w-3.5 text-[#737B8E]" />
-                                                    {item.label}
-                                                </Button>
-                                            ))}
+                                            <Link
+                                                href={`/personas/${persona.id}`}
+                                                className="flex h-7 w-full items-center gap-2 whitespace-nowrap rounded-md px-2.5 text-[12px] font-semibold text-[#111827] transition hover:bg-[#F7F8FB]"
+                                            >
+                                                <InlineIcon icon={Pencil} className="h-3.5 w-3.5 text-[#737B8E]" />
+                                                Éditer
+                                            </Link>
                                         </CardSurface>
                                     )}
 
@@ -109,11 +137,19 @@ export function PersonasPageContent({ personas }: PersonasPageContentProps) {
                                     <Text className="mt-1.5 text-[12px] font-bold uppercase leading-5 text-[#747C8C]">
                                         {persona.company || "Entreprise"}
                                     </Text>
-                                    <Box
-                                        className={`mt-4 inline-flex h-7 items-center rounded-lg px-3 text-[12px] font-extrabold ${badgeClasses(persona.influenceLabel)}`}
-                                    >
-                                        {persona.influenceLabel}
+                                    <Box className="mt-4 inline-flex h-7 items-center gap-2 rounded-lg bg-[#EEF0FF] px-3 text-[12px] font-extrabold text-[#5140F0]">
+                                        {persona.voiceName}
+                                        {persona.voiceId && (
+                                            <Text as="span" className="text-[11px] font-semibold text-[#737B8E]">
+                                                {persona.voiceId}
+                                            </Text>
+                                        )}
                                     </Box>
+                                    {persona.voiceCharacteristic && (
+                                        <Text className="mt-2 text-[12px] font-semibold text-[#737B8E]">
+                                            {persona.voiceCharacteristic}
+                                        </Text>
+                                    )}
                                 </CardSurface>
                             );
                         })}

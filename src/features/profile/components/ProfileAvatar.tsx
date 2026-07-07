@@ -2,6 +2,7 @@
 
 import { Camera } from "lucide-react";
 import { Box, InlineIcon, Text } from "@/lib/ui/atoms";
+import { PROFILE_AVATAR_ACCEPT } from "@/features/profile/domain/profile-avatar";
 
 interface ProfileAvatarProps {
     avatarUrl: string | null;
@@ -47,7 +48,7 @@ export function ProfileAvatar({ avatarUrl, initials, isEditing, onAvatarChange }
                         as="input"
                         id="profile-avatar"
                         type="file"
-                        accept="image/png,image/jpeg,image/webp"
+                        accept={PROFILE_AVATAR_ACCEPT}
                         className="sr-only"
                         onChange={handleAvatarChange}
                     />

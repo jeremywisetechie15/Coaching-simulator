@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
+import type { EmailOtpType } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/client";
 import { FormRoot } from "@/lib/ui/atoms";
 import { AlertMessage, FormHeader, PasswordField, SubmitButton } from "@/lib/ui/molecules";
@@ -28,20 +29,51 @@ function getSafeRedirect(value: string | null) {
     return value;
 }
 
+const expiredInvitationMessage = "Lien d'invitation expiré ou déjà utilisé. Demandez une nouvelle invitation.";
+
+function getAuthHashErrorMessage() {
+    if (typeof window === "undefined" || !window.location.hash) {
+        return null;
+    }
+
+    const hashParams = new URLSearchParams(window.location.hash.slice(1));
+    const errorCode = hashParams.get("error_code");
+    const errorDescription = hashParams.get("error_description");
+
+    if (errorCode === "otp_expired") {
+        return expiredInvitationMessage;
+    }
+
+    if (errorCode || errorDescription) {
+        return errorDescription ?? "Lien d'authentification invalide.";
+    }
+
+    return null;
+}
+
 export function SetPasswordCard() {
     const searchParams = useSearchParams();
     const redirectTo = useMemo(() => getSafeRedirect(searchParams.get("redirect")), [searchParams]);
     const organizationId = searchParams.get("organization_id");
+    const tokenHash = searchParams.get("token_hash");
+    const otpType = searchParams.get("type");
 
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [isConfirmVisible, setIsConfirmVisible] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(() => getAuthHashErrorMessage());
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+
+        const authHashError = getAuthHashErrorMessage();
+
+        if (authHashError) {
+            setError(authHashError);
+            return;
+        }
 
         setError(null);
 
@@ -58,6 +90,26 @@ export function SetPasswordCard() {
         setIsSubmitting(true);
 
         const supabase = createClient();
+
+        if (tokenHash) {
+            if (otpType !== "invite") {
+                setIsSubmitting(false);
+                setError("Lien d'invitation invalide. Demandez une nouvelle invitation.");
+                return;
+            }
+
+            const { error: verifyError } = await supabase.auth.verifyOtp({
+                token_hash: tokenHash,
+                type: otpType as EmailOtpType,
+            });
+
+            if (verifyError) {
+                setIsSubmitting(false);
+                setError(expiredInvitationMessage);
+                return;
+            }
+        }
+
         const { error: updateError } = await supabase.auth.updateUser({
             password,
         });
@@ -65,7 +117,7 @@ export function SetPasswordCard() {
         setIsSubmitting(false);
 
         if (updateError) {
-            setError("Lien expiré ou session invalide. Demandez une nouvelle invitation.");
+            setError(expiredInvitationMessage);
             return;
         }
 

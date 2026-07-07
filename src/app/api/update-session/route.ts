@@ -27,14 +27,19 @@ export async function POST(request: NextRequest) {
         }
 
         const supabase = await createClient();
+        const {
+            data: { user },
+        } = await supabase.auth.getUser();
+        const sessionUpdate = {
+            duration_seconds: duration_seconds || 0,
+            status: "completed",
+            ...(user?.id ? { user_id: user.id } : {}),
+        };
 
         // Update session status and duration
         const { error: sessionError } = await supabase
             .from("sessions")
-            .update({
-                duration_seconds: duration_seconds || 0,
-                status: "completed",
-            })
+            .update(sessionUpdate)
             .eq("id", session_id);
 
         if (sessionError) {
