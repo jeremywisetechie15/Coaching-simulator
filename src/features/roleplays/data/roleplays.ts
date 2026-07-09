@@ -19,6 +19,7 @@ export interface RoleplayDetail {
 
 export interface RoleplayItem {
     id: string;
+    title?: string;
     category: string;
     name: string;
     role: string;

@@ -50,6 +50,8 @@ export interface RoleplayRow {
     persona_id: string;
     persona_name?: string | null;
     persona_role?: string | null;
+    preview_description?: string | null;
+    preview_title?: string | null;
     scorecard_id?: string | null;
     scorecard_name?: string | null;
     status?: string | null;
@@ -131,6 +133,8 @@ export function mapRoleplayRowToListItem(row: RoleplayRow, quizCount = 0): Rolep
         coachName: row.coach_name ?? null,
         company: row.persona_company ?? "",
         description: row.description ?? "",
+        previewDescription: row.preview_description ?? "",
+        previewTitle: row.preview_title ?? "",
         difficulty: normalizeRoleplayDifficulty(row.difficulty_level),
         disc: normalizeRoleplayDiscProfile(row.disc_profile),
         domain: row.domain ?? "",

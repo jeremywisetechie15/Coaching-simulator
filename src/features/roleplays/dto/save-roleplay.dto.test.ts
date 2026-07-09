@@ -21,6 +21,8 @@ function roleplay(overrides: Partial<SaveRoleplayInput> = {}): SaveRoleplayInput
         methodId,
         objective: "Obtenir un créneau.",
         personaId,
+        previewDescription: "Résumé court sur la carte.",
+        previewTitle: "Décrocher un premier rendez-vous",
         scope: CONTENT_VISIBILITY_SCOPE.public,
         status: CONTENT_STATUS.published,
         title: "Rendez-vous prospect",
@@ -46,6 +48,8 @@ describe("saveRoleplayDto", () => {
 
         expect(result.scope).toBe(CONTENT_VISIBILITY_SCOPE.public);
         expect(result.quizIds).toEqual(["77777777-7777-4777-8777-777777777777"]);
+        expect(result.previewDescription).toBe("Résumé court sur la carte.");
+        expect(result.previewTitle).toBe("Décrocher un premier rendez-vous");
         expect(result.scorecardId).toBe(scorecardId);
         expect(result.resources).toEqual([
             expect.objectContaining({

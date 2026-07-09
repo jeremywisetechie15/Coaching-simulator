@@ -568,6 +568,10 @@ export function CreateRoleplayPageContent({
     const [domain, setDomain] = useState<string | null>(initialRoleplay?.domain || null);
     const [category, setCategory] = useState<string | null>(initialRoleplay?.category || null);
     const [difficulty, setDifficulty] = useState<string | null>(initialRoleplay?.difficulty ?? null);
+    const [previewTitle, setPreviewTitle] = useState(initialRoleplay?.previewTitle || initialRoleplay?.title || "");
+    const [previewDescription, setPreviewDescription] = useState(
+        initialRoleplay?.previewDescription || initialRoleplay?.description || "",
+    );
     const [context, setContext] = useState(initialRoleplay?.context ?? "");
     const [objective, setObjective] = useState(initialRoleplay?.objective ?? "");
     const [obstacles, setObstacles] = useState(initialRoleplay?.obstacles ?? "");
@@ -815,6 +819,8 @@ export function CreateRoleplayPageContent({
                       ? targetScope.organizationId
                       : null,
             personaId: persona ?? "",
+            previewDescription,
+            previewTitle,
             quizIds,
             quizParticipation,
             resources: resources.map(roleplayResourceToInput),
@@ -1003,6 +1009,36 @@ export function CreateRoleplayPageContent({
                                 value={difficulty}
                                 placeholder="Sélectionnez la difficulté"
                                 onChange={setDifficulty}
+                            />
+                        </Box>
+
+                        <Box>
+                            <Text as="span" className={fieldLabelClasses}>
+                                Titre du roleplay{" "}
+                                <span className="font-semibold text-[#9CA3AF]">(affiché sur la carte preview)</span>
+                            </Text>
+                            <TextInput
+                                value={previewTitle}
+                                onChange={(event) => setPreviewTitle(event.target.value)}
+                                placeholder="Ex : Décrocher un premier rendez-vous"
+                                hasLeadingIcon={false}
+                                maxLength={180}
+                                className="h-12 bg-[#F3F4F6]"
+                            />
+                        </Box>
+
+                        <Box>
+                            <Text as="span" className={fieldLabelClasses}>
+                                Description courte{" "}
+                                <span className="font-semibold text-[#9CA3AF]">(affichée sur la carte preview)</span>
+                            </Text>
+                            <textarea
+                                value={previewDescription}
+                                onChange={(event) => setPreviewDescription(event.target.value)}
+                                placeholder="Résumez l'objectif du roleplay en une ou deux phrases..."
+                                rows={3}
+                                maxLength={500}
+                                className={`min-h-[96px] ${textareaClasses}`}
                             />
                         </Box>
 

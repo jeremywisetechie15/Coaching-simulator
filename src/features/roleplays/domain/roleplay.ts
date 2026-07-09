@@ -108,6 +108,8 @@ export interface RoleplayListItem {
     coachName: string | null;
     company: string;
     description: string;
+    previewDescription: string;
+    previewTitle: string;
     difficulty: RoleplayDifficulty;
     disc: RoleplayDiscProfile;
     domain: string;

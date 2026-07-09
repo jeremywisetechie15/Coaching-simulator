@@ -127,11 +127,16 @@ function buildDetail(roleplay: RoleplayListItem | DbRoleplayDetail, mock: Rolepl
 export function mapDbRoleplayToUi(roleplay: RoleplayListItem | DbRoleplayDetail, mock = findMockRoleplayForDb(roleplay)): RoleplayItem {
     const prepDocuments = "resources" in roleplay ? mapDbResourcesToPrepDocuments(roleplay) : mock?.prepDocuments;
     const prepQuizzes = "quizzes" in roleplay ? mapDbQuizzesToPrepQuizzes(roleplay) : mock?.prepQuizzes;
+    const cardDescription = textOrMock(
+        roleplay.previewDescription,
+        textOrMock(roleplay.description, mock?.description ?? roleplay.title),
+    );
+    const cardTitle = textOrMock(roleplay.previewTitle, textOrMock(roleplay.title, mock?.title ?? roleplay.category));
 
     return {
         category: textOrMock(roleplay.category, mock?.category ?? ""),
         company: textOrMock(roleplay.company, mock?.company ?? ""),
-        description: textOrMock(roleplay.description, mock?.description ?? roleplay.title),
+        description: cardDescription,
         detail: buildDetail(roleplay, mock),
         difficulty: roleplay.difficulty,
         disc: roleplay.disc,
@@ -142,6 +147,7 @@ export function mapDbRoleplayToUi(roleplay: RoleplayListItem | DbRoleplayDetail,
         prepQuizzes,
         role: textOrMock(roleplay.role, mock?.role ?? ""),
         scenarioId: "scenarioId" in roleplay ? roleplay.scenarioId : roleplay.id,
+        title: cardTitle,
         avatarSrc: roleplay.personaAvatarUrl ?? mock?.avatarSrc ?? "",
     };
 }

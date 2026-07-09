@@ -67,6 +67,18 @@ export const saveRoleplayDto = z
         obstacles: z.string().trim().max(2500, "Les objections sont trop longues.").optional().default(""),
         organizationId: optionalUuid,
         personaId: z.string().uuid("Le persona sélectionné est invalide."),
+        previewDescription: z
+            .string()
+            .trim()
+            .max(500, "La description courte du roleplay est trop longue.")
+            .optional()
+            .default(""),
+        previewTitle: z
+            .string()
+            .trim()
+            .max(180, "Le titre preview du roleplay est trop long.")
+            .optional()
+            .default(""),
         quizIds: z
             .array(z.string().uuid("Le quiz sélectionné est invalide."))
             .optional()

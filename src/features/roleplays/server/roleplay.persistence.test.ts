@@ -33,6 +33,8 @@ describe("roleplay persistence helpers", () => {
             obstacles: "Standard filtrant.",
             organizationId,
             personaId,
+            previewDescription: "Résumé court sur la carte.",
+            previewTitle: "Décrocher un premier rendez-vous",
             quizIds: [quizId],
             resources: [
                 {
@@ -57,6 +59,8 @@ describe("roleplay persistence helpers", () => {
             notation_method_id: "99999999-9999-4999-8999-999999999999",
             organization_id: organizationId,
             persona_id: personaId,
+            preview_description: "Résumé court sur la carte.",
+            preview_title: "Décrocher un premier rendez-vous",
             scorecard_id: scorecardId,
             status: CONTENT_STATUS.published,
             title: "Rendez-vous prospect",
@@ -145,6 +149,8 @@ describe("roleplay mapper", () => {
             {
                 id: "scenario-1",
                 persona_id: personaId,
+                preview_description: "Résumé court sur la carte.",
+                preview_title: "Décrocher un premier rendez-vous",
                 title: "Rendez-vous prospect",
             },
             [
@@ -173,5 +179,7 @@ describe("roleplay mapper", () => {
                 type: "self_assessment",
             },
         ]);
+        expect(detail.previewDescription).toBe("Résumé court sur la carte.");
+        expect(detail.previewTitle).toBe("Décrocher un premier rendez-vous");
     });
 });

@@ -173,6 +173,7 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                             const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
                             const discStyle = discBadgeStyles[roleplay.disc];
                             const cardDescription = getCardDescriptionExcerpt(roleplay.description);
+                            const cardTitle = roleplay.title || roleplay.category;
 
                             return (
                                 <CardSurface
@@ -237,12 +238,20 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
 
                                         <Box className="my-4 h-px w-full bg-[#ECEEF3]" />
 
-                                        <Text
-                                            title={roleplay.description}
-                                            className="flex-1 text-center text-[14px] font-medium leading-6 text-[#4B5563]"
-                                        >
-                                            {cardDescription}
-                                        </Text>
+                                        <Box className="flex-1 text-center">
+                                            <Text
+                                                title={cardTitle}
+                                                className="text-[14px] font-extrabold leading-5 text-[#111827]"
+                                            >
+                                                {cardTitle}
+                                            </Text>
+                                            <Text
+                                                title={roleplay.description}
+                                                className="mt-1 text-[14px] font-medium leading-6 text-[#4B5563]"
+                                            >
+                                                {cardDescription}
+                                            </Text>
+                                        </Box>
 
                                         <Link
                                             href={`/roleplays/${roleplay.id}`}

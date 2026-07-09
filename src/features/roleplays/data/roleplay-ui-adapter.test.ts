@@ -8,6 +8,8 @@ function createRoleplayDetail({
     description = "Objectif",
     id = "scenario-1",
     name = "Rachid HAMRANI",
+    previewDescription = "",
+    previewTitle = "",
     quizzes = [],
     resources = [],
     title = name,
@@ -15,6 +17,8 @@ function createRoleplayDetail({
     description?: string;
     id?: string;
     name?: string;
+    previewDescription?: string;
+    previewTitle?: string;
     quizzes?: RoleplayDetail["quizzes"];
     resources?: RoleplayDetail["resources"];
     title?: string;
@@ -30,6 +34,8 @@ function createRoleplayDetail({
         context: "Contexte",
         createdAt: null,
         description,
+        previewDescription,
+        previewTitle,
         difficulty: "Moyen",
         disc: "Stable",
         domain: "Commercial",
@@ -184,16 +190,19 @@ describe("roleplay UI adapter", () => {
             description: "Objectif personnalisé",
             id: "5beb42b6-3f59-411c-b826-7fb739d5174a",
             name: "Nouveau persona",
+            previewDescription: "Résumé court sur la carte.",
+            previewTitle: "Décrocher un premier rendez-vous",
             title: "Nouveau scénario",
         });
 
         const mergedRoleplays = mergeRoleplayListWithMocks([roleplay]);
 
         expect(mergedRoleplays[0]).toMatchObject({
-            description: "Objectif personnalisé",
+            description: "Résumé court sur la carte.",
             id: "5beb42b6-3f59-411c-b826-7fb739d5174a",
             name: "Nouveau persona",
             scenarioId: "5beb42b6-3f59-411c-b826-7fb739d5174a",
+            title: "Décrocher un premier rendez-vous",
         });
     });
 
