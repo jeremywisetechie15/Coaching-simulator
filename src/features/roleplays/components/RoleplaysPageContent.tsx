@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Check, ChevronDown, MoreVertical, Phone, Plus } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { AlertTriangle, ArrowLeft, Check, ChevronDown, Copy, Edit3, MoreHorizontal, Phone, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
     categoryBadgeStyles,
     difficultyBadgeStyles,
     discBadgeStyles,
+    filterRoleplaysByLibraryFilters,
+    getRoleplayCategoryFilterOptions,
     roleplayCategoryFilterOptions,
     roleplayDiscFilterOptions,
     roleplayDomainFilterOptions,
@@ -15,6 +18,10 @@ import {
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import { ROLEPLAY_ROUTES } from "@/features/roleplays/domain";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import { CardActionMenu, CardActionMenuButton, CardActionMenuLink } from "@/lib/ui/molecules";
+import { Modal } from "@/lib/ui/organisms";
+import { uiTokens } from "@/lib/ui/tokens";
+import { cn } from "@/lib/ui/utils/cn";
 
 interface RoleplaysPageContentProps {
     canManage: boolean;
@@ -35,6 +42,28 @@ function getCardDescriptionExcerpt(description: string) {
     const safeExcerpt = lastSpaceIndex > 80 ? excerpt.slice(0, lastSpaceIndex) : excerpt;
 
     return `${safeExcerpt.trim()}...`;
+}
+
+interface ApiErrorPayload {
+    error?: string;
+}
+
+async function duplicateRoleplayRequest(roleplayId: string) {
+    const response = await fetch(ROLEPLAY_ROUTES.api.duplicate(roleplayId), { method: "POST" });
+    const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+
+    if (!response.ok) {
+        throw new Error(payload?.error || "Impossible de dupliquer le roleplay.");
+    }
+}
+
+async function deleteRoleplayRequest(roleplayId: string) {
+    const response = await fetch(ROLEPLAY_ROUTES.api.detail(roleplayId), { method: "DELETE" });
+    const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+
+    if (!response.ok) {
+        throw new Error(payload?.error || "Impossible de supprimer le roleplay.");
+    }
 }
 
 function FilterSelect({
@@ -97,22 +126,58 @@ function FilterSelect({
 }
 
 export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageContentProps) {
+    const router = useRouter();
     const [domain, setDomain] = useState(roleplayDomainFilterOptions[0]);
     const [category, setCategory] = useState(roleplayCategoryFilterOptions[0]);
     const [level, setLevel] = useState(roleplayLevelFilterOptions[0]);
     const [disc, setDisc] = useState(roleplayDiscFilterOptions[0]);
+    const [busyRoleplayId, setBusyRoleplayId] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [roleplayToDelete, setRoleplayToDelete] = useState<RoleplayItem | null>(null);
 
+    const categoryOptions = useMemo(() => getRoleplayCategoryFilterOptions(domain), [domain]);
     const filteredRoleplays = useMemo(
-        () =>
-            roleplays.filter((roleplay) => {
-                const matchesCategory =
-                    category === roleplayCategoryFilterOptions[0] || roleplay.category === category;
-                const matchesLevel = level === roleplayLevelFilterOptions[0] || roleplay.difficulty === level;
-                const matchesDisc = disc === roleplayDiscFilterOptions[0] || roleplay.disc === disc;
-                return matchesCategory && matchesLevel && matchesDisc;
-            }),
-        [category, level, disc, roleplays],
+        () => filterRoleplaysByLibraryFilters(roleplays, { category, disc, domain, level }),
+        [category, disc, domain, level, roleplays],
     );
+
+    function selectDomain(nextDomain: string) {
+        setDomain(nextDomain);
+        setCategory(roleplayCategoryFilterOptions[0]);
+    }
+
+    async function handleDuplicate(roleplayId: string) {
+        setError(null);
+        setBusyRoleplayId(roleplayId);
+
+        try {
+            await duplicateRoleplayRequest(roleplayId);
+            setOpenMenuId(null);
+            router.refresh();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Impossible de dupliquer le roleplay.");
+        } finally {
+            setBusyRoleplayId(null);
+        }
+    }
+
+    async function handleDelete() {
+        if (!roleplayToDelete) return;
+
+        setError(null);
+        setBusyRoleplayId(roleplayToDelete.id);
+
+        try {
+            await deleteRoleplayRequest(roleplayToDelete.id);
+            setRoleplayToDelete(null);
+            router.refresh();
+        } catch (err) {
+            setError(err instanceof Error ? err.message : "Impossible de supprimer le roleplay.");
+        } finally {
+            setBusyRoleplayId(null);
+        }
+    }
 
     return (
         <Box as="main" className="px-5 pb-12 md:px-9 lg:px-12">
@@ -138,11 +203,11 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                 <CardSurface className="mb-7 rounded-[16px] border border-[#E9E7FB] p-4 shadow-[0_1px_2px_rgba(17,24,39,0.04)]">
                     <Box className="flex flex-wrap items-center gap-3">
                         <Box className="min-w-[160px] flex-1 sm:max-w-[208px]">
-                            <FilterSelect options={roleplayDomainFilterOptions} value={domain} onChange={setDomain} />
+                            <FilterSelect options={roleplayDomainFilterOptions} value={domain} onChange={selectDomain} />
                         </Box>
                         <Box className="min-w-[160px] flex-1 sm:max-w-[208px]">
                             <FilterSelect
-                                options={roleplayCategoryFilterOptions}
+                                options={categoryOptions}
                                 value={category}
                                 onChange={setCategory}
                             />
@@ -165,6 +230,12 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                     </Box>
                 </CardSurface>
 
+                {error && !roleplayToDelete && (
+                    <CardSurface className="mb-5 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 shadow-none">
+                        <Text className={cn("text-[13px] font-semibold", uiTokens.text.danger)}>{error}</Text>
+                    </CardSurface>
+                )}
+
                 {filteredRoleplays.length > 0 ? (
                     <Box className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
                         {filteredRoleplays.map((roleplay) => {
@@ -178,9 +249,9 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                             return (
                                 <CardSurface
                                     key={roleplay.id}
-                                    className="flex flex-col overflow-hidden rounded-[16px] border border-[#E5E7EB] shadow-none transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(17,24,39,0.12)]"
+                                    className="relative flex flex-col rounded-[16px] border border-[#E5E7EB] shadow-none transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(17,24,39,0.12)]"
                                 >
-                                    <Box className="relative h-[92px] bg-gradient-to-b from-[#6A57F5] to-[#5B49F2]">
+                                    <Box className="relative h-[92px] rounded-t-[16px] bg-gradient-to-b from-[#6A57F5] to-[#5B49F2]">
                                         <Box
                                             className="absolute left-4 top-4 inline-flex h-5 items-center rounded-lg px-2.5 text-[12px] font-semibold"
                                             style={{ backgroundColor: categoryStyle.bg, color: categoryStyle.text }}
@@ -188,12 +259,41 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                                             {roleplay.category}
                                         </Box>
                                         {canManage && (
-                                            <Button
-                                                aria-label={`Actions pour ${roleplay.name}`}
-                                                className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-lg text-white/80 transition hover:bg-white/15"
-                                            >
-                                                <InlineIcon icon={MoreVertical} className="h-4 w-4" />
-                                            </Button>
+                                            <Box className="absolute right-3 top-3 z-20">
+                                                <Button
+                                                    aria-label={`Actions pour ${roleplay.name}`}
+                                                    onClick={() => setOpenMenuId(openMenuId === roleplay.id ? null : roleplay.id)}
+                                                    className="flex h-7 w-7 items-center justify-center rounded-lg text-white/80 transition hover:bg-white/15"
+                                                >
+                                                    <InlineIcon icon={MoreHorizontal} className="h-4 w-4" />
+                                                </Button>
+                                                {openMenuId === roleplay.id && (
+                                                    <CardActionMenu>
+                                                        <CardActionMenuLink
+                                                            href={ROLEPLAY_ROUTES.app.edit(roleplay.id)}
+                                                            icon={Edit3}
+                                                            label="Modifier"
+                                                        />
+                                                        <CardActionMenuButton
+                                                            disabled={busyRoleplayId === roleplay.id}
+                                                            icon={Copy}
+                                                            label="Dupliquer"
+                                                            onClick={() => void handleDuplicate(roleplay.id)}
+                                                        />
+                                                        <CardActionMenuButton
+                                                            danger
+                                                            disabled={busyRoleplayId === roleplay.id}
+                                                            icon={Trash2}
+                                                            label="Supprimer"
+                                                            onClick={() => {
+                                                                setError(null);
+                                                                setOpenMenuId(null);
+                                                                setRoleplayToDelete(roleplay);
+                                                            }}
+                                                        />
+                                                    </CardActionMenu>
+                                                )}
+                                            </Box>
                                         )}
                                     </Box>
 
@@ -254,7 +354,7 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                                         </Box>
 
                                         <Link
-                                            href={`/roleplays/${roleplay.id}`}
+                                            href={ROLEPLAY_ROUTES.app.detail(roleplay.id)}
                                             className="mt-5 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#5140F0] text-[14px] font-semibold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7]"
                                         >
                                             <InlineIcon icon={Phone} className="h-4 w-4" />
@@ -272,6 +372,60 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                             Ajustez les filtres pour afficher plus de scénarios.
                         </Text>
                     </CardSurface>
+                )}
+
+                {roleplayToDelete && (
+                    <Modal
+                        title="Supprimer le roleplay"
+                        description={`Confirmez la suppression de ${roleplayToDelete.title || roleplayToDelete.name}.`}
+                        onClose={() => {
+                            if (busyRoleplayId) return;
+                            setRoleplayToDelete(null);
+                            setError(null);
+                        }}
+                        className="max-w-[500px]"
+                    >
+                        <Box className="space-y-5">
+                            <Box className={cn("flex gap-3 rounded-xl border p-4", uiTokens.tone.warning.soft)}>
+                                <InlineIcon icon={AlertTriangle} className="mt-0.5 h-5 w-5 shrink-0" />
+                                <Text className="text-[13px] font-semibold leading-6">
+                                    Cette action retire le roleplay des listes actives. Les sessions déjà réalisées restent conservées.
+                                </Text>
+                            </Box>
+
+                            {error && (
+                                <Box
+                                    aria-live="polite"
+                                    className={cn(
+                                        "rounded-lg border px-4 py-3 text-[13px] font-semibold",
+                                        uiTokens.tone.danger.soft,
+                                    )}
+                                >
+                                    {error}
+                                </Box>
+                            )}
+
+                            <Box className="grid gap-3 sm:grid-cols-2">
+                                <Button
+                                    disabled={Boolean(busyRoleplayId)}
+                                    onClick={() => {
+                                        setRoleplayToDelete(null);
+                                        setError(null);
+                                    }}
+                                    className={uiTokens.action.secondaryButton}
+                                >
+                                    Annuler
+                                </Button>
+                                <Button
+                                    disabled={Boolean(busyRoleplayId)}
+                                    onClick={() => void handleDelete()}
+                                    className={uiTokens.action.dangerButton}
+                                >
+                                    {busyRoleplayId === roleplayToDelete.id ? "Suppression..." : "Supprimer"}
+                                </Button>
+                            </Box>
+                        </Box>
+                    </Modal>
                 )}
 
                 <Box className="mt-10 flex justify-center">

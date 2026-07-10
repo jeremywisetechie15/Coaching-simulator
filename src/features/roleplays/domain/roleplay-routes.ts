@@ -12,6 +12,7 @@ export const ROLEPLAY_ROUTES = {
     api: {
         collection: "/api/roleplays",
         detail: (roleplayId: string) => `/api/roleplays/${encodeRouteSegment(roleplayId)}`,
+        duplicate: (roleplayId: string) => `/api/roleplays/${encodeRouteSegment(roleplayId)}/duplicate`,
         resource: (roleplayId: string, resourceId: string) =>
             `/api/roleplays/${encodeRouteSegment(roleplayId)}/resources/${encodeRouteSegment(resourceId)}`,
         sessionPdfExport: (sessionId: string, template?: RoleplayPdfTemplate) =>
@@ -20,6 +21,7 @@ export const ROLEPLAY_ROUTES = {
     app: {
         collection: "/roleplays",
         detail: (roleplayId: string) => `/roleplays/${encodeRouteSegment(roleplayId)}`,
+        edit: (roleplayId: string) => `/roleplays/${encodeRouteSegment(roleplayId)}/edit`,
         history: "/roleplays/history",
         historyForRoleplay: (roleplayId: string) => `/roleplays/history?scenario_id=${encodeRouteSegment(roleplayId)}`,
         sessionHistoryPrint: (sessionId: string, template?: RoleplayPdfTemplate) =>

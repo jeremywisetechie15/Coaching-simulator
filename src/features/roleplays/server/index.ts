@@ -1,6 +1,7 @@
 export * from "./archive-roleplay";
 export * from "./build-roleplay-notation-context";
 export * from "./create-roleplay";
+export * from "./duplicate-roleplay";
 export * from "./get-roleplay-by-id";
 export * from "./get-roleplay-progress";
 export * from "./get-roleplay-resource-access";

@@ -1,5 +1,5 @@
 import { methods, type Method } from "@/features/methods/data/methods";
-import { ALL_CONTENT_CATEGORIES, CONTENT_DOMAINS } from "@/features/content/domain";
+import { ALL_CONTENT_CATEGORIES, CONTENT_DOMAINS, getCategoriesForDomain } from "@/features/content/domain";
 import type { PrepDocument, PrepQuiz } from "./preparation";
 
 export type RoleplayDifficulty = "Facile" | "Moyen" | "Difficile";
@@ -21,6 +21,7 @@ export interface RoleplayItem {
     id: string;
     title?: string;
     category: string;
+    domain: string;
     name: string;
     role: string;
     company: string;
@@ -43,6 +44,7 @@ export const roleplays: RoleplayItem[] = [
     {
         id: "rachid-hamrani",
         category: "Prise de rendez-vous",
+        domain: "Commercial",
         name: "Rachid HAMRANI",
         role: "Dirigeant",
         company: "CLEANTECH",
@@ -75,6 +77,7 @@ export const roleplays: RoleplayItem[] = [
     {
         id: "claude-savary",
         category: "Entretien de Remobilisation",
+        domain: "Management",
         name: "Claude SAVARY",
         role: "Commercial Senior",
         company: "INNOVATECH",
@@ -106,6 +109,7 @@ export const roleplays: RoleplayItem[] = [
     {
         id: "sophie-martin",
         category: "Négociation",
+        domain: "Commercial",
         name: "Sophie Martin",
         role: "Directrice des Achats",
         company: "TechCorp",
@@ -136,6 +140,7 @@ export const roleplays: RoleplayItem[] = [
     {
         id: "marc-dubois",
         category: "Vente",
+        domain: "Commercial",
         name: "Marc Dubois",
         role: "Directeur Commercial",
         company: "Innovatech",
@@ -167,6 +172,7 @@ export const roleplays: RoleplayItem[] = [
     {
         id: "thomas-lion",
         category: "Vente",
+        domain: "Commercial",
         name: "Thomas Lion",
         role: "CEO",
         company: "INNOVATECH",
@@ -232,6 +238,34 @@ export const roleplayDiscFilterOptions = [
     "Consciencieux",
     "Inconnu",
 ];
+
+export interface RoleplayLibraryFilters {
+    category: string;
+    disc: string;
+    domain: string;
+    level: string;
+}
+
+export function getRoleplayCategoryFilterOptions(domain: string) {
+    if (domain === roleplayDomainFilterOptions[0]) {
+        return roleplayCategoryFilterOptions;
+    }
+
+    return [roleplayCategoryFilterOptions[0], ...getCategoriesForDomain(domain)];
+}
+
+export function filterRoleplaysByLibraryFilters(roleplayItems: RoleplayItem[], filters: RoleplayLibraryFilters) {
+    return roleplayItems.filter((roleplay) => {
+        const matchesDomain =
+            filters.domain === roleplayDomainFilterOptions[0] || roleplay.domain === filters.domain;
+        const matchesCategory =
+            filters.category === roleplayCategoryFilterOptions[0] || roleplay.category === filters.category;
+        const matchesLevel = filters.level === roleplayLevelFilterOptions[0] || roleplay.difficulty === filters.level;
+        const matchesDisc = filters.disc === roleplayDiscFilterOptions[0] || roleplay.disc === filters.disc;
+
+        return matchesDomain && matchesCategory && matchesLevel && matchesDisc;
+    });
+}
 
 // --- Create scenario options ---
 
