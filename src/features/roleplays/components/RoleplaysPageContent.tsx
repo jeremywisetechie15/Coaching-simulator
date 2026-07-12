@@ -9,10 +9,10 @@ import {
     useCurrentAppHref,
 } from "@/features/app-shell/components";
 import { withReturnTo, withSearchParams } from "@/features/app-shell/domain";
+import { DiscProfileBadge } from "@/features/content/components";
 import {
     categoryBadgeStyles,
     difficultyBadgeStyles,
-    discBadgeStyles,
     filterRoleplaysByLibraryFilters,
     getRoleplayCategoryFilterOptions,
     roleplayCategoryFilterOptions,
@@ -24,6 +24,7 @@ import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import { ROLEPLAY_ROUTES } from "@/features/roleplays/domain";
 import { Box, Button, CardSurface, InlineIcon, Text, Tooltip } from "@/lib/ui/atoms";
 import { CardActionMenu, CardActionMenuButton, CardActionMenuLink, FilterSelect } from "@/lib/ui/molecules";
+import { ENTITY_ACTION_LABELS } from "@/lib/ui/domain/entity-action";
 import { Modal } from "@/lib/ui/organisms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -247,7 +248,6 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                             const categoryStyle =
                                 categoryBadgeStyles[roleplay.category] ?? { bg: "#F3E8FD", text: "#8B2FD6" };
                             const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
-                            const discStyle = discBadgeStyles[roleplay.disc];
                             const cardDescription = getCardDescriptionExcerpt(roleplay.description);
                             const cardTitle = roleplay.title || roleplay.category;
                             const attemptCount = roleplay.detail.simulations;
@@ -290,19 +290,19 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                                                             <CardActionMenuLink
                                                                 href={withReturnTo(ROLEPLAY_ROUTES.app.edit(roleplay.id), currentHref)}
                                                                 icon={Edit3}
-                                                                label="Modifier"
+                                                                label={ENTITY_ACTION_LABELS.modify}
                                                             />
                                                             <CardActionMenuButton
                                                                 disabled={busyRoleplayId === roleplay.id}
                                                                 icon={Copy}
-                                                                label="Dupliquer"
+                                                                label={ENTITY_ACTION_LABELS.duplicate}
                                                                 onClick={() => void handleDuplicate(roleplay.id)}
                                                             />
                                                             <CardActionMenuButton
                                                                 danger
                                                                 disabled={busyRoleplayId === roleplay.id}
                                                                 icon={Trash2}
-                                                                label="Supprimer"
+                                                                label={ENTITY_ACTION_LABELS.delete}
                                                                 onClick={() => {
                                                                     setError(null);
                                                                     setOpenMenuId(null);
@@ -347,12 +347,10 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                                             >
                                                 {roleplay.difficulty}
                                             </Box>
-                                            <Box
-                                                className="inline-flex h-[26px] items-center rounded-lg px-2.5 text-[12px] font-bold"
-                                                style={{ backgroundColor: discStyle.bg, color: discStyle.text }}
-                                            >
-                                                {roleplay.disc}
-                                            </Box>
+                                            <DiscProfileBadge
+                                                profile={roleplay.disc}
+                                                className="h-[26px] border-0 text-[12px]"
+                                            />
                                         </Box>
 
                                         <Box className="my-4 h-px w-full bg-[#ECEEF3]" />

@@ -64,13 +64,11 @@ export function CreateGroupModal({
                 <FormRoot onSubmit={handleSubmit} className="space-y-4" noValidate>
                     <Box className="space-y-2">
                         <FieldLabel
+                            required
                             htmlFor="group-name"
                             className="text-[14px] font-bold leading-5 text-[#111827]"
                         >
-                            Nom du groupe{" "}
-                            <Text as="span" className="text-[#FF4E68]">
-                                *
-                            </Text>
+                            Nom du groupe
                         </FieldLabel>
                         <TextInput
                             id="group-name"

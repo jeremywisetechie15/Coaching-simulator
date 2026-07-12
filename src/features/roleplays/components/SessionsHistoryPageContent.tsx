@@ -9,6 +9,7 @@ import {
     useCurrentAppHref,
 } from "@/features/app-shell/components";
 import { withSearchParams } from "@/features/app-shell/domain";
+import { DiscProfileBadge } from "@/features/content/components";
 import {
     ALL_CONTENT_CATEGORIES,
     CONTENT_DOMAINS,
@@ -17,7 +18,6 @@ import {
 import {
     categoryBadgeStyles,
     difficultyBadgeStyles,
-    discBadgeStyles,
     roleplayDifficultyOptions,
 } from "@/features/roleplays/data/roleplays";
 import {
@@ -285,7 +285,6 @@ export function SessionsHistoryPageContent({
                             const categoryStyle =
                                 categoryBadgeStyles[roleplay.category] ?? { bg: "#F3E8FD", text: "#8B2FD6" };
                             const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
-                            const discStyle = discBadgeStyles[roleplay.disc];
 
                             return (
                                 <CardSurface
@@ -335,12 +334,10 @@ export function SessionsHistoryPageContent({
                                                 >
                                                     {roleplay.difficulty}
                                                 </Box>
-                                                <Box
-                                                    className="inline-flex h-[26px] items-center rounded-lg px-2.5 text-[12px] font-semibold"
-                                                    style={{ backgroundColor: discStyle.bg, color: discStyle.text }}
-                                                >
-                                                    {roleplay.disc}
-                                                </Box>
+                                                <DiscProfileBadge
+                                                    profile={roleplay.disc}
+                                                    className="h-[26px] border-0 text-[12px] font-semibold"
+                                                />
                                             </Box>
                                         </Box>
                                     </Box>

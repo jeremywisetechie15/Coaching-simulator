@@ -10,6 +10,7 @@ import {
     uploadSessionBackground,
 } from "@/lib/uploads/session-background";
 import { COACH_SELECT, mapCoachRowToListItem, type CoachRow } from "./coach.mapper";
+import { createCoachInsert } from "./coach.persistence";
 
 export async function createCoach(input: SaveCoachDto, backgroundFile: File | null = null): Promise<CoachListItem> {
     const context = await requireAdmin();
@@ -31,23 +32,13 @@ export async function createCoach(input: SaveCoachDto, backgroundFile: File | nu
 
     const { data, error } = await adminSupabase
         .from("coaches")
-        .insert({
-            avatar_url: input.avatarSrc || null,
-            background_image_path: uploadedBackground?.path ?? null,
-            certifications: input.certifications || null,
-            coaching_style: input.coachingStyle || null,
-            created_at: now,
-            created_by: context.userId,
-            diploma: input.diploma || null,
-            disc_profile: input.discProfile || null,
-            expertise_domain: input.expertiseDomain || null,
+        .insert(createCoachInsert(input, {
+            backgroundImagePath: uploadedBackground?.path ?? null,
+            createdBy: context.userId,
             id: coachId,
-            name: input.name,
+            now,
             status: PUBLISHED_CONTENT_STATUS,
-            system_instructions: input.systemInstructions,
-            updated_at: now,
-            voice_id: input.voiceId,
-        })
+        }))
         .select(COACH_SELECT)
         .single<CoachRow>();
 

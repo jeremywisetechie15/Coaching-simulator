@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { mapCoachRowToEditorValues, type CoachRow } from "./coach.mapper";
+import { mapCoachRowToDetail, mapCoachRowToEditorValues, mapCoachRowToListItem, type CoachRow } from "./coach.mapper";
 
 const baseCoachRow: CoachRow = {
     avatar_url: null,
@@ -13,6 +13,7 @@ const baseCoachRow: CoachRow = {
     name: "Pierre Laurent",
     status: "published",
     system_instructions: "Instructions coach",
+    updated_at: "2026-06-27T11:00:00.000Z",
     voice_id: "cedar",
 };
 
@@ -49,6 +50,38 @@ describe("coach.mapper", () => {
             diploma: "Master coaching",
             discProfile: "Consciencieux",
             expertiseDomain: "Management",
+        });
+    });
+
+    it("maps persisted profile fields to the coach card", () => {
+        const item = mapCoachRowToListItem({
+            ...baseCoachRow,
+            certifications: "ICF",
+            coaching_style: "Exigeant",
+            diploma: "Master coaching",
+            disc_profile: "Consciencieux",
+            expertise_domain: "Management",
+        });
+
+        expect(item).toMatchObject({
+            certifications: "ICF",
+            coachingStyle: "Exigeant",
+            diploma: "Master coaching",
+            discProfile: "Consciencieux",
+            expertiseDomain: "Management",
+        });
+    });
+
+    it("maps detail metadata and voice presentation", () => {
+        const detail = mapCoachRowToDetail(baseCoachRow);
+
+        expect(detail).toMatchObject({
+            createdAt: "2026-06-27T10:00:00.000Z",
+            id: baseCoachRow.id,
+            name: "Pierre Laurent",
+            status: "published",
+            updatedAt: "2026-06-27T11:00:00.000Z",
+            voiceName: "Cedar",
         });
     });
 });

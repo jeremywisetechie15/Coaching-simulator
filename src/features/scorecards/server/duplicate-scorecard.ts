@@ -1,4 +1,5 @@
 import { requireAdmin } from "@/features/auth/server";
+import { resolveDuplicateName } from "@/features/content/server";
 import type { ScorecardDetail } from "@/features/scorecards/domain";
 import { NotFoundError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -33,9 +34,16 @@ export async function duplicateScorecard(scorecardId: string): Promise<Scorecard
             throw new NotFoundError("Scorecard introuvable.");
         }
 
+        const duplicateName = await resolveDuplicateName(adminSupabase, {
+            column: "name",
+            maxLength: 180,
+            sourceName: sourceScorecard.name,
+            table: "scorecards",
+        });
+
         const { data: duplicatedScorecard, error: insertError } = await adminSupabase
             .from("scorecards")
-            .insert(createDuplicateScorecardInsert(sourceScorecard, context.userId))
+            .insert(createDuplicateScorecardInsert(sourceScorecard, context.userId, duplicateName))
             .select(SCORECARD_SELECT)
             .single<ScorecardRow>();
 

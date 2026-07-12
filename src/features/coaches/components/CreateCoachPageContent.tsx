@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { ContextualBackLink } from "@/features/app-shell/components";
+import { DiscProfileSelector, VoiceRecommendationBadge } from "@/features/content/components";
 import { AlertMessage, SessionBackgroundUploadField, SingleSelectField } from "@/lib/ui/molecules";
 import { Box, CardSurface, FieldLabel, InlineIcon, SelectInput, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
@@ -76,14 +77,16 @@ function Field({
     children,
     htmlFor,
     label,
+    required = false,
 }: {
     children: React.ReactNode;
     htmlFor: string;
     label: string;
+    required?: boolean;
 }) {
     return (
         <Box>
-            <FieldLabel htmlFor={htmlFor} className="mb-1.5 text-[12px] font-semibold text-[#374151]">
+            <FieldLabel required={required} htmlFor={htmlFor} className="mb-1.5 text-[12px] font-semibold text-[#374151]">
                 {label}
             </FieldLabel>
             {children}
@@ -172,7 +175,7 @@ export function CreateCoachPageContent({
                                 )}
                             </Box>
                             <Box className="grid w-full gap-4 sm:grid-cols-2">
-                                <Field label="Nom du coach" htmlFor="coach-name">
+                                <Field required label="Nom du coach" htmlFor="coach-name">
                                     <TextInput
                                         density="sm"
                                         id="coach-name"
@@ -287,33 +290,13 @@ export function CreateCoachPageContent({
                     </FormSection>
 
                     <FormSection title="Profil DISC">
-                        <Box className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                            {COACH_DISC_PROFILE_OPTIONS.map((option) => {
-                                const isSelected = form.discProfile === option.value;
-
-                                return (
-                                    <button
-                                        key={option.value}
-                                        type="button"
-                                        aria-pressed={isSelected}
-                                        onClick={() => patch("discProfile", option.value)}
-                                        className={cn(
-                                            "min-h-[84px] rounded-[12px] border px-4 py-4 text-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0]/40",
-                                            isSelected
-                                                ? uiTokens.tone.success.soft
-                                                : "border-[#E5E7EB] bg-white text-[#111827] hover:border-[#D5D7DE]",
-                                        )}
-                                    >
-                                        <Text as="span" className="block text-[14px] font-extrabold">
-                                            {option.label}
-                                        </Text>
-                                        <Text as="span" className="mt-2 block text-[12px] font-bold opacity-70">
-                                            {option.description}
-                                        </Text>
-                                    </button>
-                                );
-                            })}
-                        </Box>
+                        <DiscProfileSelector
+                            className="lg:grid-cols-4"
+                            disabled={mutation.isPending}
+                            options={COACH_DISC_PROFILE_OPTIONS}
+                            value={form.discProfile}
+                            onChange={(value) => patch("discProfile", value)}
+                        />
                     </FormSection>
 
                     <FormSection title="Diplôme et certifications obtenues">
@@ -351,15 +334,17 @@ export function CreateCoachPageContent({
                             >
                                 {OPENAI_REALTIME_VOICES.map((voice) => (
                                     <option key={voice.id} value={voice.id}>
-                                        {voice.name} ({voice.id}) - {voice.characteristic}
+                                        {voice.name} ({voice.id})
+                                        {voice.characteristic ? ` - ${voice.characteristic}` : ""}
                                     </option>
                                 ))}
                             </SelectInput>
+                            <VoiceRecommendationBadge className="mt-2" voiceId={form.voiceId} />
                         </Field>
                     </FormSection>
 
                     <FormSection title="Instructions du coach">
-                        <Field label="Comportement et méthode de coaching" htmlFor="coach-instructions">
+                        <Field required label="Comportement et méthode de coaching" htmlFor="coach-instructions">
                             <TextArea
                                 id="coach-instructions"
                                 rows={9}

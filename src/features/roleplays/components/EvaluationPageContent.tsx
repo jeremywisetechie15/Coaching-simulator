@@ -26,6 +26,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
+import { DiscProfileBadge } from "@/features/content/components";
 import { METHOD_ROUTES } from "@/features/methods/domain/method";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { CardActionMenu, CardActionMenuButton } from "@/lib/ui/molecules";
@@ -34,7 +35,6 @@ import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 import {
     categoryBadgeStyles,
-    discBadgeStyles,
     difficultyBadgeStyles,
 } from "@/features/roleplays/data/roleplays";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
@@ -141,7 +141,6 @@ export function EvaluationPageContent({ evaluation, roleplay, session }: Evaluat
 
     const categoryStyle = categoryBadgeStyles[roleplay.category] ?? { bg: "#F3E8FD", text: "#8B2FD6" };
     const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
-    const discStyle = discBadgeStyles[roleplay.disc];
     const notationRefreshing = notationRefreshStep !== null;
     const pdfExporting = pdfExportStep !== null;
 
@@ -421,12 +420,10 @@ export function EvaluationPageContent({ evaluation, roleplay, session }: Evaluat
                                 <br />@ {roleplay.company}
                             </Text>
                             <Box className="mt-2 flex items-center justify-center gap-2">
-                                <Box
-                                    className="inline-flex h-6 items-center rounded-md px-2 text-[11px] font-bold uppercase"
-                                    style={{ backgroundColor: discStyle.bg, color: discStyle.text }}
-                                >
-                                    {roleplay.disc}
-                                </Box>
+                                <DiscProfileBadge
+                                    profile={roleplay.disc}
+                                    className="h-6 rounded-md border-0 px-2 text-[11px] uppercase"
+                                />
                                 <Box
                                     className="inline-flex h-6 items-center rounded-md px-2 text-[11px] font-bold"
                                     style={{ backgroundColor: difficultyStyle.bg, color: difficultyStyle.text }}

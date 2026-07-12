@@ -12,12 +12,13 @@ interface ModalProps {
     /** Largeur du panneau (ex. "max-w-[520px]"). */
     className?: string;
     description?: string;
+    headerAside?: ReactNode;
     onClose: () => void;
     title: string;
 }
 
 /** Fenêtre modale réutilisable : overlay, panneau, en-tête (titre + fermeture). */
-export function Modal({ children, className, description, onClose, title }: ModalProps) {
+export function Modal({ children, className, description, headerAside, onClose, title }: ModalProps) {
     useEffect(() => {
         function handleKeyDown(event: KeyboardEvent) {
             if (event.key === "Escape") {
@@ -57,9 +58,12 @@ export function Modal({ children, className, description, onClose, title }: Moda
                             </Text>
                         )}
                     </Box>
-                    <Button aria-label="Fermer" onClick={onClose} className={uiTokens.modal.closeButton}>
-                        <InlineIcon icon={X} className="h-5 w-5" />
-                    </Button>
+                    <Box className="flex shrink-0 items-start gap-3">
+                        {headerAside}
+                        <Button aria-label="Fermer" onClick={onClose} className={uiTokens.modal.closeButton}>
+                            <InlineIcon icon={X} className="h-5 w-5" />
+                        </Button>
+                    </Box>
                 </Box>
                 {children}
             </Box>

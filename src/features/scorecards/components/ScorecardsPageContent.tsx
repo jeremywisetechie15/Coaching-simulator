@@ -23,6 +23,7 @@ import { getQuizStatusLabel } from "@/features/evaluations/domain";
 import { SCORECARD_ROUTES, SCORECARD_VISIBILITY_LABELS, type ScorecardListItem } from "@/features/scorecards/domain";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { CardActionMenu, CardActionMenuButton, CardActionMenuLink } from "@/lib/ui/molecules";
+import { ENTITY_ACTION_LABELS } from "@/lib/ui/domain/entity-action";
 import { Modal } from "@/lib/ui/organisms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -307,19 +308,19 @@ function ScorecardCard({
                             <CardActionMenuLink
                                 href={withReturnTo(SCORECARD_ROUTES.app.edit(scorecard.id), currentHref)}
                                 icon={Edit3}
-                                label="Modifier"
+                                label={ENTITY_ACTION_LABELS.modify}
                             />
                             <CardActionMenuButton
                                 disabled={busy}
                                 icon={Copy}
-                                label="Dupliquer"
+                                label={ENTITY_ACTION_LABELS.duplicate}
                                 onClick={onDuplicate}
                             />
                             <CardActionMenuButton
                                 danger
                                 disabled={busy}
                                 icon={Trash2}
-                                label="Supprimer"
+                                label={ENTITY_ACTION_LABELS.delete}
                                 onClick={onDelete}
                             />
                         </CardActionMenu>

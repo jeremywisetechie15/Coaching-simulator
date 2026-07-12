@@ -43,9 +43,7 @@ export function ScorecardCriterionEditor({
 
             <Box className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_110px]">
                 <Box>
-                    <FieldLabel className={uiTokens.form.subLabel}>
-                        Critère clé <RequiredMark />
-                    </FieldLabel>
+                    <FieldLabel required className={uiTokens.form.subLabel}>Critère clé</FieldLabel>
                     <TextInput
                         value={criterion.key}
                         onChange={(event) => onPatch({ key: event.target.value })}
@@ -55,9 +53,7 @@ export function ScorecardCriterionEditor({
                     />
                 </Box>
                 <Box>
-                    <FieldLabel className={uiTokens.form.subLabel}>
-                        Ordre <RequiredMark />
-                    </FieldLabel>
+                    <FieldLabel required className={uiTokens.form.subLabel}>Ordre</FieldLabel>
                     <TextInput
                         type="number"
                         min={1}
@@ -71,9 +67,7 @@ export function ScorecardCriterionEditor({
             </Box>
 
             <Box>
-                <FieldLabel className={uiTokens.form.subLabel}>
-                    Preuves attendues <RequiredMark />
-                </FieldLabel>
+                <FieldLabel required className={uiTokens.form.subLabel}>Preuves attendues</FieldLabel>
                 <TextInput
                     value={criterion.expectedEvidence}
                     onChange={(event) => onPatch({ expectedEvidence: event.target.value })}
@@ -85,9 +79,7 @@ export function ScorecardCriterionEditor({
 
             <Box className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)_110px]">
                 <Box>
-                    <FieldLabel className={uiTokens.form.subLabel}>
-                        Compétence associée <RequiredMark />
-                    </FieldLabel>
+                    <FieldLabel required className={uiTokens.form.subLabel}>Compétence associée</FieldLabel>
                     <SingleSelectField
                         options={competenceOptions}
                         value={criterion.competenceId}
@@ -101,9 +93,7 @@ export function ScorecardCriterionEditor({
                     />
                 </Box>
                 <Box>
-                    <FieldLabel className={uiTokens.form.subLabel}>
-                        Dimension évaluée <RequiredMark />
-                    </FieldLabel>
+                    <FieldLabel required className={uiTokens.form.subLabel}>Dimension évaluée</FieldLabel>
                     <SingleSelectField
                         options={dimensionOptions}
                         value={criterion.dimension}
@@ -117,9 +107,7 @@ export function ScorecardCriterionEditor({
                     />
                 </Box>
                 <Box>
-                    <FieldLabel className={uiTokens.form.subLabel}>
-                        Item évalué <RequiredMark />
-                    </FieldLabel>
+                    <FieldLabel required className={uiTokens.form.subLabel}>Item évalué</FieldLabel>
                     <SingleSelectField
                         disabled={!criterion.competenceId || !criterion.dimension || dimensionItemOptions.length === 0}
                         options={dimensionItemOptions}
@@ -133,9 +121,7 @@ export function ScorecardCriterionEditor({
                     />
                 </Box>
                 <Box>
-                    <FieldLabel className={uiTokens.form.subLabel}>
-                        Points max <RequiredMark />
-                    </FieldLabel>
+                    <FieldLabel required className={uiTokens.form.subLabel}>Points max</FieldLabel>
                     <TextInput
                         type="number"
                         min={1}
@@ -162,9 +148,7 @@ export function ScorecardCriterionEditor({
             </Box>
 
             <Box>
-                <FieldLabel className={uiTokens.form.subLabel}>
-                    Exemple de verbatim conformes <RequiredMark />
-                </FieldLabel>
+                <FieldLabel required className={uiTokens.form.subLabel}>Exemple de verbatim conformes</FieldLabel>
                 <TextArea
                     value={criterion.verbatim}
                     onChange={(event) => onPatch({ verbatim: event.target.value })}
@@ -174,14 +158,6 @@ export function ScorecardCriterionEditor({
                 />
             </Box>
         </CardSurface>
-    );
-}
-
-function RequiredMark() {
-    return (
-        <Text as="span" className={uiTokens.text.required}>
-            *
-        </Text>
     );
 }
 

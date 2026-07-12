@@ -1,11 +1,19 @@
 import { requireAdmin } from "@/features/auth/server";
+import { resolveDuplicateName } from "@/features/content/server";
 import type { SaveQuizDto } from "@/features/evaluations/dto/save-quiz.dto";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createQuiz } from "./create-quiz";
 import { getQuizById } from "./get-quiz-by-id";
 
 export async function duplicateQuiz(quizId: string) {
     await requireAdmin();
     const source = await getQuizById(quizId);
+    const duplicateTitle = await resolveDuplicateName(createAdminClient(), {
+        column: "title",
+        maxLength: 180,
+        sourceName: source.title,
+        table: "quizzes",
+    });
     const input: SaveQuizDto = {
         assignedUserId: null,
         category: source.category,
@@ -22,7 +30,7 @@ export async function duplicateQuiz(quizId: string) {
         scope: "public",
         status: "draft",
         tags: source.tags,
-        title: `Copie de ${source.title}`,
+        title: duplicateTitle,
         validationThreshold: source.validationThreshold,
         steps: source.steps.map((step) => ({
             competenceIds: step.competenceIds,

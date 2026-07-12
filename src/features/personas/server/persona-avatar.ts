@@ -17,8 +17,28 @@ function normalizePersonaAvatarPath(path: string) {
         : path;
 }
 
+export async function copyPersonaAvatar(
+    supabase: SupabaseClient,
+    sourcePath: string | null | undefined,
+    targetPersonaId: string,
+) {
+    if (!sourcePath || !isPersonaAvatarStoragePath(sourcePath)) {
+        return sourcePath ?? null;
+    }
+
+    const normalizedSourcePath = normalizePersonaAvatarPath(sourcePath);
+    const sourceFileName = normalizedSourcePath.split("/").at(-1) ?? "avatar";
+    const targetPath = `${targetPersonaId}/${crypto.randomUUID()}-${sourceFileName}`;
+    const { error } = await supabase.storage
+        .from(PERSONA_AVATAR_BUCKET)
+        .copy(normalizedSourcePath, targetPath);
+
+    if (error) throw error;
+    return targetPath;
+}
+
 export function isOwnedPersonaAvatarPath(path: string | null | undefined, personaId: string) {
-    if (!isPersonaAvatarStoragePath(path)) return false;
+    if (!path || !isPersonaAvatarStoragePath(path)) return false;
 
     return normalizePersonaAvatarPath(path.trim()).startsWith(`${personaId}/`);
 }

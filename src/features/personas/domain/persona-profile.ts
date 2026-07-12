@@ -1,20 +1,14 @@
-export const PERSONA_DISC_PROFILE = {
-    conscientious: "Consciencieux",
-    dominant: "Dominant",
-    influential: "Influent",
-    stable: "Stable",
-    unknown: "Inconnu",
-} as const;
+import {
+    DISC_PROFILE,
+    DISC_PROFILES_WITH_UNKNOWN,
+    type DiscProfileValue,
+} from "@/features/content/domain";
 
-export const PERSONA_DISC_PROFILES = [
-    PERSONA_DISC_PROFILE.dominant,
-    PERSONA_DISC_PROFILE.influential,
-    PERSONA_DISC_PROFILE.stable,
-    PERSONA_DISC_PROFILE.conscientious,
-    PERSONA_DISC_PROFILE.unknown,
-] as const;
+export const PERSONA_DISC_PROFILE = DISC_PROFILE;
 
-export type PersonaDiscProfile = (typeof PERSONA_DISC_PROFILES)[number];
+export const PERSONA_DISC_PROFILES = DISC_PROFILES_WITH_UNKNOWN;
+
+export type PersonaDiscProfile = DiscProfileValue;
 
 export const PERSONA_DISC_PROFILE_OPTIONS: Array<{
     description: string;

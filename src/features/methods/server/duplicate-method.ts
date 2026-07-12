@@ -1,19 +1,27 @@
 import { requireAdmin } from "@/features/auth/server";
 import { CONTENT_STATUS } from "@/features/content/domain";
+import { resolveDuplicateName } from "@/features/content/server";
 import type { SaveMethodDto } from "@/features/methods/dto/save-method.dto";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createMethod } from "./create-method";
 import { getMethodById } from "./get-method-by-id";
 
 export async function duplicateMethod(methodId: string) {
     await requireAdmin();
     const source = await getMethodById(methodId);
+    const duplicateName = await resolveDuplicateName(createAdminClient(), {
+        column: "name",
+        maxLength: 180,
+        sourceName: source.name,
+        table: "methods",
+    });
 
     const input: SaveMethodDto = {
         category: source.category,
         challenges: source.challenges,
         description: source.description,
         domain: source.domain,
-        name: `Copie de ${source.name}`,
+        name: duplicateName,
         objectives: source.objectives,
         organizationId: source.organizationId,
         quizId: null,

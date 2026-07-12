@@ -15,6 +15,7 @@ const validPersona = {
     maritalStatus: "Marié",
     name: "Sophie Martin",
     nationality: "Française",
+    netIncomeBeforeTax: "3 200 € / mois",
     residenceCountry: "France",
     role: "Directrice commerciale",
     systemInstructions: "Répondre comme une persona exigeante.",
@@ -32,6 +33,7 @@ describe("savePersonaDto", () => {
             discProfile: "Stable",
             employeeCount: "50",
             industry: "Technologie",
+            netIncomeBeforeTax: "3 200 € / mois",
         });
     });
 
@@ -52,5 +54,13 @@ describe("savePersonaDto", () => {
                 age: "131",
             }),
         ).toThrow("L'âge doit être un nombre entier positif inférieur ou égal à 130.");
+    });
+
+    it("keeps net income optional for existing clients and personas", () => {
+        const legacyPayload: Partial<typeof validPersona> = { ...validPersona };
+        delete legacyPayload.netIncomeBeforeTax;
+        const parsed = savePersonaDto.parse(legacyPayload);
+
+        expect(parsed.netIncomeBeforeTax).toBe("");
     });
 });

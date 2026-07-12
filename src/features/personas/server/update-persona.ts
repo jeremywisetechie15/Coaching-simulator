@@ -66,6 +66,7 @@ export async function updatePersona(
             marital_status: input.maritalStatus || null,
             name: input.name,
             nationality: input.nationality || null,
+            net_income_before_tax: input.netIncomeBeforeTax || null,
             residence_country: input.residenceCountry || null,
             role: input.role || null,
             system_instructions: input.systemInstructions,

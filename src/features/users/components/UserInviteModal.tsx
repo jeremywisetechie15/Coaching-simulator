@@ -55,14 +55,6 @@ interface UserInviteModalProps {
     values: UserInviteFormValues;
 }
 
-function RequiredMark() {
-    return (
-        <Text as="span" className="text-[#FF4E68]">
-            *
-        </Text>
-    );
-}
-
 function UserTextField({
     autoFocus = false,
     id,
@@ -82,8 +74,8 @@ function UserTextField({
 }) {
     return (
         <Box className="space-y-2">
-            <FieldLabel htmlFor={id} className="text-[14px] font-bold leading-5 text-[#111827]">
-                {label} {required && <RequiredMark />}
+            <FieldLabel required={required} htmlFor={id} className="text-[14px] font-bold leading-5 text-[#111827]">
+                {label}
             </FieldLabel>
             <TextInput
                 id={id}
@@ -117,8 +109,8 @@ function UserSelectField({
 }) {
     return (
         <Box className="space-y-2">
-            <FieldLabel htmlFor={id} className="text-[14px] font-bold leading-5 text-[#111827]">
-                {label} {required && <RequiredMark />}
+            <FieldLabel required={required} htmlFor={id} className="text-[14px] font-bold leading-5 text-[#111827]">
+                {label}
             </FieldLabel>
             <Box className="relative">
                 <SelectInput

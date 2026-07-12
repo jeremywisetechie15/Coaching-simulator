@@ -124,6 +124,7 @@ export function QuizQuestionEditor({
             <Box className="space-y-4">
                 <Box className="flex items-start gap-3">
                     <Box className="flex-1 space-y-3">
+                        <FieldLabel required className={uiTokens.form.subLabel}>Énoncé de la question</FieldLabel>
                         <TextArea
                             value={question.prompt}
                             onChange={(event) => onPatch({ prompt: event.target.value })}
@@ -201,9 +202,7 @@ export function QuizQuestionEditor({
                         Évaluation de la compétence
                     </Text>
                     <Box>
-                        <FieldLabel className={uiTokens.form.subLabel}>
-                            Compétence évaluée <RequiredMark />
-                        </FieldLabel>
+                        <FieldLabel required className={uiTokens.form.subLabel}>Compétence évaluée</FieldLabel>
                         <SingleSelectField
                             options={questionCompetenceOptions}
                             value={question.competenceId}
@@ -232,8 +231,8 @@ export function QuizQuestionEditor({
                             />
                         </Box>
                         <Box>
-                            <FieldLabel className={uiTokens.form.subLabel}>
-                                Item de {dimensionLabel} évalué <RequiredMark />
+                            <FieldLabel required className={uiTokens.form.subLabel}>
+                                Item de {dimensionLabel} évalué
                             </FieldLabel>
                             <SingleSelectField
                                 disabled={!question.competenceId || dimensionItemOptions.length === 0}
@@ -402,12 +401,4 @@ function attachmentUploadPreview(attachment: QuizAttachmentFormState) {
         fileName: attachment.uploadedFileName || attachment.label || attachment.storagePath,
         sizeBytes: attachment.uploadedFileSizeBytes,
     };
-}
-
-function RequiredMark() {
-    return (
-        <Text as="span" className={uiTokens.text.required}>
-            *
-        </Text>
-    );
 }

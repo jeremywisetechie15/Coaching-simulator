@@ -1,8 +1,9 @@
-import type { ChangeEventHandler } from "react";
+import type { ChangeEventHandler, HTMLInputAutoCompleteAttribute } from "react";
 import { Eye, EyeOff, LockKeyhole } from "lucide-react";
 import { FieldLabel, IconButton, InlineIcon, InputIcon, InputShell, Stack, TextInput } from "@/lib/ui/atoms";
 
 interface PasswordFieldProps {
+    autoComplete?: HTMLInputAutoCompleteAttribute;
     id: string;
     isVisible: boolean;
     label?: string;
@@ -13,6 +14,7 @@ interface PasswordFieldProps {
 }
 
 export function PasswordField({
+    autoComplete = "current-password",
     id,
     isVisible,
     label = "Password",
@@ -23,14 +25,14 @@ export function PasswordField({
 }: PasswordFieldProps) {
     return (
         <Stack className="space-y-2">
-            <FieldLabel htmlFor={id}>{label}</FieldLabel>
+            <FieldLabel htmlFor={id} required>{label}</FieldLabel>
             <InputShell>
                 <InputIcon icon={LockKeyhole} />
                 <TextInput
                     id={id}
                     name={name}
                     type={isVisible ? "text" : "password"}
-                    autoComplete="current-password"
+                    autoComplete={autoComplete}
                     required
                     value={value}
                     onChange={onChange}

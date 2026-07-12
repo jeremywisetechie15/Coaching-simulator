@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/features/auth/server";
 import { CONTENT_STATUS } from "@/features/content/domain";
+import { resolveDuplicateName } from "@/features/content/server";
 import { QUIZ_PARTICIPATION, QUIZ_PARTICIPATIONS, type QuizParticipation } from "@/features/evaluations/domain";
 import type { RoleplayDetail } from "@/features/roleplays/domain";
 import type { SaveRoleplayDto } from "@/features/roleplays/dto";
@@ -23,6 +24,20 @@ export async function duplicateRoleplay(roleplayId: string): Promise<RoleplayDet
 
     const adminSupabase = createAdminClient();
     const source = await fetchRoleplayDetail(adminSupabase, roleplayId);
+    const duplicateTitle = await resolveDuplicateName(adminSupabase, {
+        column: "title",
+        maxLength: 180,
+        sourceName: source.title,
+        table: "scenarios",
+    });
+    const duplicatePreviewTitle = source.previewTitle
+        ? await resolveDuplicateName(adminSupabase, {
+            column: "preview_title",
+            maxLength: 180,
+            sourceName: source.previewTitle,
+            table: "scenarios",
+        })
+        : "";
     const { data: sourceQuizRows, error: sourceQuizError } = await adminSupabase
         .from("scenario_quizzes")
         .select("quiz_id, participation")
@@ -53,7 +68,7 @@ export async function duplicateRoleplay(roleplayId: string): Promise<RoleplayDet
         organizationId: source.organizationId,
         personaId: source.personaId,
         previewDescription: source.previewDescription,
-        previewTitle: source.previewTitle ? `Copie de ${source.previewTitle}` : "",
+        previewTitle: duplicatePreviewTitle,
         quizIds: explicitQuizRows.map((quiz) => quiz.quiz_id),
         quizParticipation: normalizeQuizParticipation(explicitQuizRows[0]?.participation),
         resources: source.resources.map((resource) => ({
@@ -67,7 +82,7 @@ export async function duplicateRoleplay(roleplayId: string): Promise<RoleplayDet
         scope: source.scope,
         scorecardId: source.scorecardId,
         status: CONTENT_STATUS.draft,
-        title: `Copie de ${source.title}`,
+        title: duplicateTitle,
     };
 
     return createRoleplay(input);

@@ -1,5 +1,5 @@
 import type { ChangeEventHandler } from "react";
-import { FieldLabel, Stack, Text, TextArea, TextInput } from "@/lib/ui/atoms";
+import { FieldLabel, Stack, TextArea, TextInput } from "@/lib/ui/atoms";
 
 interface ProfileFieldProps {
     id: string;
@@ -26,14 +26,7 @@ export function ProfileField({
 
     return (
         <Stack className="space-y-2">
-            <FieldLabel htmlFor={id}>
-                {label}{" "}
-                {required && (
-                    <Text as="span" className="text-[#FF4E68]">
-                        *
-                    </Text>
-                )}
-            </FieldLabel>
+            <FieldLabel htmlFor={id} required={required}>{label}</FieldLabel>
             {multiline ? (
                 <TextArea
                     id={id}

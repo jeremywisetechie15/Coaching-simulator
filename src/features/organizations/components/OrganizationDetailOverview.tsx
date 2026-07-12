@@ -81,13 +81,8 @@ function EditField({
 
     return (
         <Box className="space-y-2">
-            <FieldLabel htmlFor={id} className="text-[15px] font-extrabold leading-5 text-[#171B2A]">
+            <FieldLabel required={required} htmlFor={id} className="text-[15px] font-extrabold leading-5 text-[#171B2A]">
                 {label}
-                {required && (
-                    <Text as="span" className="text-[#FF4E68]">
-                        *
-                    </Text>
-                )}
             </FieldLabel>
             <TextInput
                 id={id}

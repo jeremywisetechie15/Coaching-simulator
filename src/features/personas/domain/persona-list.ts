@@ -3,7 +3,10 @@ import {
     type VoiceId,
 } from "@/lib/openai/realtime-voices";
 import type { ContentStatus } from "@/features/content/domain";
-import { PERSONA_DISC_PROFILE, type PersonaDiscProfile } from "./persona-profile";
+import {
+    PERSONA_DISC_PROFILE,
+    type PersonaDiscProfile,
+} from "./persona-profile";
 
 export interface PersonaListItem {
     avatarUrl: string | null;
@@ -31,10 +34,20 @@ export interface PersonaEditorValues {
     maritalStatus: string;
     name: string;
     nationality: string;
+    netIncomeBeforeTax: string;
     residenceCountry: string;
     role: string;
     systemInstructions: string;
     voiceId: VoiceId;
+}
+
+export interface PersonaDetail extends PersonaEditorValues {
+    createdAt: string | null;
+    id: string;
+    status: ContentStatus;
+    updatedAt: string | null;
+    voiceCharacteristic: string | null;
+    voiceName: string;
 }
 
 export const PERSONA_AVATAR_BUCKET = "personas-avatars";
@@ -53,6 +66,7 @@ export const EMPTY_PERSONA_EDITOR_VALUES: PersonaEditorValues = {
     maritalStatus: "",
     name: "",
     nationality: "",
+    netIncomeBeforeTax: "",
     residenceCountry: "",
     role: "",
     systemInstructions: "",
@@ -86,7 +100,7 @@ export function getPersonaAvatarPublicUrl(avatarPath: string | null | undefined)
 
 export function isPersonaAvatarStoragePath(
     avatarPath: string | null | undefined,
-): avatarPath is string {
+): boolean {
     const normalizedPath = avatarPath?.trim();
 
     if (!normalizedPath || /^https?:\/\//i.test(normalizedPath) || normalizedPath.startsWith("/")) {

@@ -895,9 +895,7 @@ export function CreateRoleplayPageContent({
                     {formError && <AlertMessage message={formError} />}
                     <Box className="space-y-5">
                         <Box>
-                            <Text as="span" className={fieldLabelClasses}>
-                                Persona IA
-                            </Text>
+                            <FieldLabel required className={fieldLabelClasses}>Persona IA</FieldLabel>
                             <Box className="flex gap-2.5">
                                 <Box className="flex-1">
                                     <SingleSelect
@@ -915,9 +913,7 @@ export function CreateRoleplayPageContent({
                         </Box>
 
                         <Box>
-                            <Text as="span" className={fieldLabelClasses}>
-                                Coach IA
-                            </Text>
+                            <FieldLabel required className={fieldLabelClasses}>Coach IA</FieldLabel>
                             <Box className="flex gap-2.5">
                                 <Box className="flex-1">
                                     <SingleSelect
@@ -939,9 +935,7 @@ export function CreateRoleplayPageContent({
 
                     <Box className="space-y-5">
                         <Box>
-                            <Text as="span" className={fieldLabelClasses}>
-                                Méthodes et Playbooks
-                            </Text>
+                            <FieldLabel required className={fieldLabelClasses}>Méthodes et Playbooks</FieldLabel>
                             <Box className="flex gap-2.5">
                                 <Box className="flex-1">
                                     <SingleSelect
@@ -959,9 +953,9 @@ export function CreateRoleplayPageContent({
                         </Box>
 
                         <Box>
-                            <Text as="span" className={fieldLabelClasses}>
+                            <FieldLabel required className={fieldLabelClasses}>
                                 Scorecard de la méthode sélectionnée
-                            </Text>
+                            </FieldLabel>
                             <SingleSelectField
                                 disabled={!method || scorecardSelectOptions.length === 0}
                                 options={scorecardSelectOptions}
@@ -996,9 +990,7 @@ export function CreateRoleplayPageContent({
 
                     <Box className="space-y-5">
                         <Box>
-                            <Text as="span" className={fieldLabelClasses}>
-                                Domaines
-                            </Text>
+                            <FieldLabel required className={fieldLabelClasses}>Domaines</FieldLabel>
                             <SingleSelect
                                 options={staticOptions(roleplayDomainOptions)}
                                 value={domain}
@@ -1011,9 +1003,7 @@ export function CreateRoleplayPageContent({
                         </Box>
 
                         <Box>
-                            <Text as="span" className={fieldLabelClasses}>
-                                Catégorie
-                            </Text>
+                            <FieldLabel required className={fieldLabelClasses}>Catégorie</FieldLabel>
                             <SingleSelect
                                 options={staticOptions(roleplayCategoryOptions)}
                                 value={category}
@@ -1024,9 +1014,7 @@ export function CreateRoleplayPageContent({
                         </Box>
 
                         <Box>
-                            <Text as="span" className={fieldLabelClasses}>
-                                Niveau de difficulté
-                            </Text>
+                            <FieldLabel required className={fieldLabelClasses}>Niveau de difficulté</FieldLabel>
                             <SingleSelect
                                 options={staticOptions(roleplayDifficultyOptions)}
                                 value={difficulty}

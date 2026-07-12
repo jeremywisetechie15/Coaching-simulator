@@ -5,22 +5,10 @@ import { useSearchParams } from "next/navigation";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { resolveInternalHref } from "@/features/app-shell/domain";
 import { createClient } from "@/lib/supabase/client";
+import { validateNewPassword } from "@/features/auth/domain/password-recovery";
 import { FormRoot } from "@/lib/ui/atoms";
-import { AlertMessage, FormHeader, PasswordField, SubmitButton } from "@/lib/ui/molecules";
-import { CenteredCardFrame } from "@/lib/ui/organisms";
-
-const frameClasses = {
-    surface: "bg-[#F7F8FB] px-5 py-8 text-slate-950",
-    container: "min-h-[calc(100vh-4rem)] max-w-5xl",
-    card: "max-w-[400px] rounded-[18px] border border-white px-6 py-7 shadow-[0_20px_45px_rgba(15,23,42,0.11)] sm:px-7 sm:py-8",
-};
-
-const headerClasses = {
-    root: "mb-6 text-center",
-    eyebrow: "text-[24px] font-black tracking-normal text-[#5140F0] sm:text-[26px]",
-    title: "mt-6 text-[20px] font-extrabold tracking-normal text-slate-950 sm:text-[22px]",
-    description: "mt-2 text-[13px] font-semibold tracking-normal text-slate-500 sm:text-[14px]",
-};
+import { AlertMessage, PasswordField, SubmitButton } from "@/lib/ui/molecules";
+import { AuthCardFrame } from "./AuthCardFrame";
 
 const expiredInvitationMessage = "Lien d'invitation expiré ou déjà utilisé. Demandez une nouvelle invitation.";
 
@@ -73,13 +61,10 @@ export function SetPasswordCard() {
 
         setError(null);
 
-        if (password.length < 8) {
-            setError("Le mot de passe doit contenir au moins 8 caractères.");
-            return;
-        }
+        const validationError = validateNewPassword(password, confirmPassword);
 
-        if (password !== confirmPassword) {
-            setError("Les mots de passe ne correspondent pas.");
+        if (validationError) {
+            setError(validationError);
             return;
         }
 
@@ -134,22 +119,13 @@ export function SetPasswordCard() {
     };
 
     return (
-        <CenteredCardFrame
-            surfaceClassName={frameClasses.surface}
-            containerClassName={frameClasses.container}
-            cardClassName={frameClasses.card}
+        <AuthCardFrame
+            title="Créer votre mot de passe"
+            description="Définissez un mot de passe pour activer votre compte"
         >
-            <FormHeader
-                eyebrow="MaiaCoach"
-                title="Créer votre mot de passe"
-                description="Définissez un mot de passe pour activer votre compte"
-                className={headerClasses.root}
-                eyebrowClassName={headerClasses.eyebrow}
-                titleClassName={headerClasses.title}
-                descriptionClassName={headerClasses.description}
-            />
             <FormRoot onSubmit={handleSubmit}>
                 <PasswordField
+                    autoComplete="new-password"
                     id="password"
                     name="password"
                     label="Mot de passe"
@@ -159,6 +135,7 @@ export function SetPasswordCard() {
                     onToggleVisibility={() => setIsPasswordVisible((value) => !value)}
                 />
                 <PasswordField
+                    autoComplete="new-password"
                     id="confirm-password"
                     name="confirm-password"
                     label="Confirmer le mot de passe"
@@ -174,6 +151,6 @@ export function SetPasswordCard() {
                     loadingLabel="Activation..."
                 />
             </FormRoot>
-        </CenteredCardFrame>
+        </AuthCardFrame>
     );
 }

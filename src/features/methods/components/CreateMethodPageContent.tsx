@@ -704,7 +704,7 @@ export function CreateMethodPageContent({
                     </Text>
                     <Box className="mt-5 space-y-5">
                         <Box>
-                            <FieldLabel className={labelClasses}>Nom de la méthode</FieldLabel>
+                            <FieldLabel required className={labelClasses}>Nom de la méthode</FieldLabel>
                             <TextInput
                                 value={name}
                                 onChange={(event) => setName(event.target.value)}
@@ -915,9 +915,7 @@ export function CreateMethodPageContent({
 
                     {visibility === CONTENT_VISIBILITY_CHOICE.private && (
                         <CardSurface className={cn("mt-4", uiTokens.surface.nestedCard)}>
-                            <FieldLabel className={uiTokens.form.subLabel}>
-                                Organisation propriétaire <Text as="span" className={uiTokens.text.required}>*</Text>
-                            </FieldLabel>
+                            <FieldLabel required className={uiTokens.form.subLabel}>Organisation propriétaire</FieldLabel>
                             <SingleSelectField
                                 options={organizationSelectOptions}
                                 value={selectedOrganizationId}
@@ -1002,7 +1000,7 @@ export function CreateMethodPageContent({
 
                                 <Box className="mt-4 space-y-4">
                                     <Box>
-                                        <FieldLabel className={uiTokens.form.subLabel}>Titre de l&apos;étape</FieldLabel>
+                                        <FieldLabel required className={uiTokens.form.subLabel}>Titre de l&apos;étape</FieldLabel>
                                         <TextInput
                                             value={step.title}
                                             onChange={(event) =>

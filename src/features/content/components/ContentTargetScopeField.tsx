@@ -150,7 +150,7 @@ export function ContentTargetScopeField({
             {isPrivate && (
                 <Box className="mt-3 space-y-4">
                     <Box>
-                        <FieldLabel className={uiTokens.form.label}>Organisation</FieldLabel>
+                        <FieldLabel required className={uiTokens.form.label}>Organisation</FieldLabel>
                         <SingleSelectField
                             options={organizationOptions.map((organization) => ({
                                 label: organization.name,

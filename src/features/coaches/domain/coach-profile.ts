@@ -34,21 +34,11 @@ export const COACHING_STYLE_OPTIONS: Array<{
     },
 ];
 
-export const COACH_DISC_PROFILE = {
-    conscientious: "Consciencieux",
-    dominant: "Dominant",
-    influential: "Influent",
-    stable: "Stable",
-} as const;
+export const COACH_DISC_PROFILE = DISC_PROFILE;
 
-export const COACH_DISC_PROFILES = [
-    COACH_DISC_PROFILE.dominant,
-    COACH_DISC_PROFILE.influential,
-    COACH_DISC_PROFILE.stable,
-    COACH_DISC_PROFILE.conscientious,
-] as const;
+export const COACH_DISC_PROFILES = DISC_PROFILES;
 
-export type CoachDiscProfile = (typeof COACH_DISC_PROFILES)[number];
+export type CoachDiscProfile = DiscProfile;
 
 export const COACH_DISC_PROFILE_OPTIONS: Array<{
     description: string;
@@ -76,3 +66,8 @@ export const COACH_DISC_PROFILE_OPTIONS: Array<{
         value: COACH_DISC_PROFILE.conscientious,
     },
 ];
+import {
+    DISC_PROFILE,
+    DISC_PROFILES,
+    type DiscProfile,
+} from "@/features/content/domain";

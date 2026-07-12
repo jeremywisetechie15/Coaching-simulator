@@ -21,10 +21,10 @@ import {
     useContextualReturnHref,
 } from "@/features/app-shell/components";
 import { withReturnTo } from "@/features/app-shell/domain";
+import { DiscProfileBadge } from "@/features/content/components";
 import { ROLEPLAY_ANALYSIS_STEPS } from "@/features/roleplays/data/session-analysis";
 import {
     difficultyBadgeStyles,
-    discBadgeStyles,
     type RoleplayItem,
 } from "@/features/roleplays/data/roleplays";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
@@ -69,7 +69,6 @@ export function RoleplaySessionPageContent({ roleplay }: { roleplay: RoleplayIte
     const [sessionFeedback, setSessionFeedback] = useState<string | null>(null);
     const { detail } = roleplay;
     const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
-    const discStyle = discBadgeStyles[roleplay.disc];
     const prepDocuments = roleplay.prepDocuments ?? [];
     const analyzing = analysisStep !== null;
 
@@ -304,12 +303,10 @@ export function RoleplaySessionPageContent({ roleplay }: { roleplay: RoleplayIte
                             >
                                 {roleplay.difficulty}
                             </Box>
-                            <Box
-                                className="inline-flex h-7 items-center rounded-lg px-3 text-[13px] font-bold"
-                                style={{ backgroundColor: discStyle.bg, color: discStyle.text }}
-                            >
-                                {roleplay.disc}
-                            </Box>
+                            <DiscProfileBadge
+                                profile={roleplay.disc}
+                                className="h-7 border-0 px-3 text-[13px]"
+                            />
                         </Box>
 
                         <Box className="mt-5 space-y-4">

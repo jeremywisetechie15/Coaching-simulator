@@ -2,9 +2,10 @@
 
 import { ArrowLeft, Lightbulb } from "lucide-react";
 import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
+import { DiscProfileBadge } from "@/features/content/components";
 import { Box, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
-import { difficultyBadgeStyles, discBadgeStyles } from "@/features/roleplays/data/roleplays";
+import { difficultyBadgeStyles } from "@/features/roleplays/data/roleplays";
 import type { Method } from "@/features/methods/data/methods";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import { ROLEPLAY_ROUTES } from "@/features/roleplays/domain";
@@ -32,7 +33,6 @@ export function RoleplayStepsPageContent({
     variant = "prepare",
 }: RoleplayStepsPageContentProps) {
     const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
-    const discStyle = discBadgeStyles[roleplay.disc];
     const isImprove = variant === "improve";
     const verb = isImprove ? "S'améliorer" : "Se préparer";
     const stepSuffix = isImprove
@@ -82,12 +82,10 @@ export function RoleplayStepsPageContent({
                             >
                                 {roleplay.difficulty}
                             </Box>
-                            <Box
-                                className="inline-flex h-6 items-center rounded-md px-2.5 text-[12px] font-bold"
-                                style={{ backgroundColor: discStyle.bg, color: discStyle.text }}
-                            >
-                                {roleplay.disc}
-                            </Box>
+                            <DiscProfileBadge
+                                profile={roleplay.disc}
+                                className="h-6 rounded-md border-0 text-[12px]"
+                            />
                         </Box>
                     </Box>
 

@@ -30,14 +30,8 @@ export function OrganizationFormField(props: OrganizationFormFieldProps) {
 
     return (
         <Box className="space-y-1.5">
-            <FieldLabel htmlFor={props.id} className="text-[14px] font-bold leading-5 text-[#171B2A]">
+            <FieldLabel required={props.required} htmlFor={props.id} className="text-[14px] font-bold leading-5 text-[#171B2A]">
                 {props.label}
-                {props.required && (
-                    <Text as="span" className="text-[#FF4E68]">
-                        {" "}
-                        *
-                    </Text>
-                )}
             </FieldLabel>
 
             {props.type === "select" ? (

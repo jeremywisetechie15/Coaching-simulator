@@ -23,6 +23,24 @@ export interface UploadedSessionBackground {
     path: string;
 }
 
+export async function copySessionBackground(
+    supabase: SupabaseClient,
+    owner: SessionBackgroundOwner,
+    ownerId: string,
+    sourcePath: string | null | undefined,
+) {
+    if (!sourcePath) return null;
+
+    const sourceFileName = sourcePath.split("/").at(-1) ?? "background";
+    const targetPath = `${owner}/${ownerId}/${crypto.randomUUID()}-${sourceFileName}`;
+    const { error } = await supabase.storage
+        .from(SESSION_BACKGROUND_UPLOAD_BUCKET)
+        .copy(sourcePath, targetPath);
+
+    if (error) throw error;
+    return targetPath;
+}
+
 export async function uploadSessionBackground(
     supabase: SupabaseClient,
     owner: SessionBackgroundOwner,

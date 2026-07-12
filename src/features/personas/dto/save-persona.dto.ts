@@ -39,6 +39,7 @@ export const savePersonaDto = z.object({
         .min(1, "Le nom du persona est requis.")
         .max(160, "Le nom du persona est trop long."),
     nationality: optionalString(120, "La nationalité est trop longue."),
+    netIncomeBeforeTax: optionalString(120, "Le revenu net avant impôt est trop long."),
     residenceCountry: optionalString(120, "Le pays de résidence est trop long."),
     role: z.string().trim().max(120, "La fonction est trop longue.").optional().default(""),
     systemInstructions: z

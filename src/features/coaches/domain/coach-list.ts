@@ -10,14 +10,18 @@ import {
 export interface CoachListItem {
     avatarSrc: string | null;
     backgroundImagePath: string | null;
+    certifications: string;
+    coachingStyle: CoachingStyle;
     createdAt: string;
+    diploma: string;
+    discProfile: CoachDiscProfile;
+    expertiseDomain: ContentDomain | "";
     id: string;
     name: string;
     status: ContentStatus;
     voiceCharacteristic: string | null;
     voiceId: string | null;
     voiceName: string;
-    voiceRecommended: boolean;
 }
 
 export interface CoachEditorValues {
@@ -31,6 +35,15 @@ export interface CoachEditorValues {
     name: string;
     systemInstructions: string;
     voiceId: VoiceId;
+}
+
+export interface CoachDetail extends CoachEditorValues {
+    createdAt: string | null;
+    id: string;
+    status: ContentStatus;
+    updatedAt: string | null;
+    voiceCharacteristic: string | null;
+    voiceName: string;
 }
 
 export const EMPTY_COACH_EDITOR_VALUES: CoachEditorValues = {

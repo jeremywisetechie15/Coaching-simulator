@@ -9,10 +9,10 @@ import {
     useCurrentAppHref,
 } from "@/features/app-shell/components";
 import { withSearchParam, withoutSearchParam } from "@/features/app-shell/domain";
+import { DiscProfileBadge } from "@/features/content/components";
 import {
     categoryBadgeStyles,
     difficultyBadgeStyles,
-    discBadgeStyles,
 } from "@/features/roleplays/data/roleplays";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import { ROLEPLAY_ROUTES } from "@/features/roleplays/domain";
@@ -83,7 +83,6 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
     const { detail } = roleplay;
     const categoryStyle = categoryBadgeStyles[roleplay.category] ?? { bg: "#F3E8FD", text: "#8B2FD6" };
     const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
-    const discStyle = discBadgeStyles[roleplay.disc];
     const [activeModal, setActiveModal] = useState<"quiz" | "documents" | null>(() => {
         const panel = searchParams.get("panel");
         return panel === "quizzes" ? "quiz" : panel === "documents" ? "documents" : null;
@@ -163,12 +162,10 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
                             <Text as="h1" className="text-[28px] font-extrabold text-[#111827]">
                                 {roleplay.name}
                             </Text>
-                            <Box
-                                className="inline-flex h-7 items-center rounded-lg px-3 text-[13px] font-bold"
-                                style={{ backgroundColor: discStyle.bg, color: discStyle.text }}
-                            >
-                                {roleplay.disc}
-                            </Box>
+                            <DiscProfileBadge
+                                profile={roleplay.disc}
+                                className="h-7 border-0 px-3 text-[13px]"
+                            />
                         </Box>
                         <Text className="mt-1 text-[15px] font-semibold text-[#596273]">
                             {roleplay.role} @{roleplay.company}

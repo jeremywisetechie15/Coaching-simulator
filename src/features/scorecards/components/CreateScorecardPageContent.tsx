@@ -291,9 +291,7 @@ export function CreateScorecardPageContent({
                         <SectionHeading title="Informations générales" />
                         <Box className="mt-6 space-y-5">
                             <Box>
-                                <FieldLabel className={uiTokens.form.label}>
-                                    Nom de la scorecard <RequiredMark />
-                                </FieldLabel>
+                                <FieldLabel required className={uiTokens.form.label}>Nom de la scorecard</FieldLabel>
                                 <TextInput
                                     value={form.name}
                                     onChange={(event) => patch("name", event.target.value)}
@@ -303,9 +301,7 @@ export function CreateScorecardPageContent({
                             </Box>
 
                             <Box>
-                                <FieldLabel className={uiTokens.form.label}>
-                                    Méthode associée <RequiredMark />
-                                </FieldLabel>
+                                <FieldLabel required className={uiTokens.form.label}>Méthode associée</FieldLabel>
                                 <SingleSelectField
                                     options={methodSelectOptions}
                                     value={form.methodId}
@@ -390,7 +386,7 @@ export function CreateScorecardPageContent({
                                 </Box>
                                 {isPrivate && (
                                     <Box className="mt-3">
-                                        <FieldLabel className={uiTokens.form.label}>Organisation</FieldLabel>
+                                        <FieldLabel required className={uiTokens.form.label}>Organisation</FieldLabel>
                                         <SingleSelectField
                                             options={organizationSelectOptions}
                                             value={form.organizationId}
@@ -518,14 +514,6 @@ export function CreateScorecardPageContent({
                 </Box>
             </Box>
         </Box>
-    );
-}
-
-function RequiredMark() {
-    return (
-        <Text as="span" className={uiTokens.text.required}>
-            *
-        </Text>
     );
 }
 

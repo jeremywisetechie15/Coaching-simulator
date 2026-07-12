@@ -1,4 +1,14 @@
 export const uiTokens = {
+    auth: {
+        card: "max-w-[400px] rounded-[18px] border border-white px-6 py-7 shadow-[0_20px_45px_rgba(15,23,42,0.11)] sm:px-7 sm:py-8",
+        container: "min-h-[calc(100vh-4rem)] max-w-5xl",
+        description: "mt-2 text-[13px] font-semibold tracking-normal text-[#6B7280] sm:text-[14px]",
+        eyebrow: "text-[24px] font-black tracking-normal text-[#5140F0] sm:text-[26px]",
+        header: "mb-6 text-center",
+        link: "font-semibold text-[#5140F0] transition hover:text-[#4635E7] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0] focus-visible:ring-offset-2",
+        page: "bg-[#F7F8FB] px-5 py-8 text-[#111827]",
+        title: "mt-6 text-[20px] font-extrabold tracking-normal text-[#111827] sm:text-[22px]",
+    },
     badge: {
         stepNumber:
             "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#5140F0] text-[13px] font-bold text-white",
@@ -10,12 +20,94 @@ export const uiTokens = {
             "inline-flex h-7 items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-[#F7F8FB] px-2.5 text-[12px] font-bold text-[#4B5563]",
         dateBadgeIcon: "h-3.5 w-3.5 text-[#9CA3AF]",
     },
+    discProfile: {
+        badge: "inline-flex items-center rounded-lg border px-2.5 font-bold",
+        grid: "grid gap-3 sm:grid-cols-2",
+        option:
+            "min-h-[84px] rounded-[12px] border px-4 py-4 text-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0]/40",
+        optionIdle: "border-[#E5E7EB] bg-white text-[#111827] hover:border-[#D5D7DE]",
+        selected: {
+            blue: "border-[#2563EB] bg-[#EFF6FF] text-[#1D4ED8]",
+            green: "border-[#16A34A] bg-[#F0FDF4] text-[#15803D]",
+            neutral: "border-[#9CA3AF] bg-[#F3F4F6] text-[#4B5563]",
+            red: "border-[#DC2626] bg-[#FEF2F2] text-[#B91C1C]",
+            yellow: "border-[#EAB308] bg-[#FEFCE8] text-[#A16207]",
+        },
+    },
+    detailField: {
+        icon: "h-4 w-4",
+        iconBox: "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#F4F3FE] text-[#5140F0]",
+        label: "text-[11px] font-bold uppercase text-[#8A91A0]",
+        root: "flex min-w-0 items-start gap-3 py-3",
+        value: "mt-1 break-words text-[13px] font-semibold leading-5 text-[#374151]",
+    },
+    entityDetails: {
+        avatar: "flex h-[112px] w-[112px] items-center justify-center overflow-hidden rounded-full border-[3px] border-[#E7EAFF] bg-[#F1F2F6]",
+        avatarImage: "h-full w-full bg-cover bg-center",
+        avatarInitials: "text-[24px] font-extrabold text-[#5140F0]",
+        dates: "hidden max-w-[190px] space-y-1.5 text-right sm:block",
+        dateRow: "flex items-center justify-end gap-1.5 text-[11px] font-semibold text-[#737B8E]",
+        grid: "grid gap-x-6 sm:grid-cols-2",
+        layout: "grid gap-6 md:grid-cols-[140px_minmax(0,1fr)]",
+        section: "border-t border-[#ECEEF3] pt-5 first:border-t-0 first:pt-0",
+        sectionTitle: "mb-1 text-[14px] font-extrabold text-[#111827]",
+        sidebar: "flex flex-col items-center gap-3",
+    },
+    toast: {
+        actionButton: "!rounded-lg !bg-[#5140F0] !px-3 !font-bold !text-white hover:!bg-[#4635E7]",
+        cancelButton: "!rounded-lg !bg-[#F3F4F6] !px-3 !font-bold !text-[#4B5563] hover:!bg-[#E5E7EB]",
+        closeButton:
+            "!border-[#E5E7EB] !bg-white !text-[#6B7280] hover:!border-[#D5D7DE] hover:!text-[#111827]",
+        description: "!text-[12px] !font-medium !leading-5 !text-[#6B7280]",
+        error: "!border-[#FECACA] !bg-[#FEF2F2] !text-[#B91C1C]",
+        icon: "h-4 w-4",
+        info: "!border-[#BFDBFE] !bg-[#EFF6FF] !text-[#1D4ED8]",
+        loading: "!border-[#E5E7EB] !bg-white !text-[#5140F0]",
+        loadingIcon: "h-4 w-4 animate-spin",
+        root:
+            "!flex !w-full !items-start !gap-3 !rounded-xl !border !border-[#E5E7EB] !bg-white !px-4 !py-3.5 !text-[#111827] !shadow-[0_16px_38px_rgba(17,24,39,0.16)]",
+        success: "!border-[#BBF7D0] !bg-[#F0FDF4] !text-[#15803D]",
+        title: "!text-[13px] !font-bold !leading-5",
+        warning: "!border-[#FDE68A] !bg-[#FFFBEB] !text-[#B45309]",
+    },
+    voice: {
+        recommendedBadge: "inline-flex h-6 items-center rounded-lg border px-2.5 text-[11px] font-bold",
+    },
+    coachCard: {
+        badge: "inline-flex h-7 max-w-[190px] items-center rounded-lg border px-2.5 text-[12px] font-bold",
+        badgeDivider: "mx-auto h-[3px] w-16 rounded-full bg-[#E5E7EB]",
+        badgeLabel: "min-w-0 truncate",
+        badgesContainer: "mt-3 space-y-4",
+        certificationBadge: "border-[#E5E7EB] bg-[#F7F8FB] text-[#4B5563]",
+        diplomaBadge: "border-[#BFDBFE] bg-[#EFF6FF] text-[#1D4ED8]",
+        discBadge: "h-7 px-2.5 text-[12px]",
+        expertiseBadge: "border-[#DDD6FE] bg-[#F5F3FF] text-[#6D28D9]",
+        primaryBadges: "flex flex-wrap items-center justify-center gap-2",
+        profileBadges: "flex flex-wrap items-center justify-center gap-2",
+        styleBadge: "border-[#E5E7EB] bg-white text-[#111827]",
+    },
     progress: {
         /** Remplissage couleur primaire (défaut). */
         fill: "absolute inset-y-0 left-0 rounded-full bg-[#5140F0]",
         /** Remplissage sans couleur — la teinte est fournie en style inline (ex. par niveau). */
         fillBase: "absolute inset-y-0 left-0 rounded-full",
         track: "relative h-1.5 overflow-hidden rounded-full bg-[#E5E7EB]",
+    },
+    personaAvatar: {
+        controls: "min-w-0 space-y-4",
+        gallery: "grid grid-cols-3 gap-3 sm:grid-cols-6",
+        galleryImage: "absolute inset-0 bg-cover bg-center",
+        galleryOption: "relative aspect-square min-w-0 overflow-hidden rounded-xl border-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0]/40",
+        galleryOptionActive: "border-[#5140F0] shadow-[0_8px_18px_rgba(81,64,240,0.20)]",
+        galleryOptionIdle: "border-transparent hover:border-[#E5E7EB]",
+        initials: "text-[24px] font-extrabold text-[#5140F0]",
+        layout: "grid gap-6 md:grid-cols-[132px_minmax(0,1fr)] md:items-start",
+        preview: "flex h-[112px] w-[112px] items-center justify-center overflow-hidden rounded-full border-[3px] border-[#E7DCFB] bg-[#F1F2F6] shadow-[0_8px_18px_rgba(139,47,214,0.18)]",
+        previewColumn: "flex flex-col items-center gap-2",
+        previewImage: "h-full w-full bg-cover bg-center",
+        previewLabel: "text-[12px] font-semibold text-[#9CA3AF]",
+        removeButton: "inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-semibold text-[#6B7280] transition hover:bg-[#FEF2F2] hover:text-[#DC2626] disabled:cursor-not-allowed disabled:opacity-60",
+        removeIcon: "h-3.5 w-3.5",
     },
     action: {
         addButton:
@@ -37,7 +129,7 @@ export const uiTokens = {
         listRemoveButton:
             "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#9CA3AF] transition hover:bg-[#F3F4F8] hover:text-[#111827]",
         menuItem:
-            "flex h-9 w-full min-w-0 items-center gap-2 rounded-md px-3 text-[13px] font-semibold transition hover:bg-[#F6F7FB]",
+            "flex h-9 w-full min-w-0 items-center justify-start gap-2 rounded-md px-3 text-left text-[13px] font-semibold transition hover:bg-[#F6F7FB]",
         menuPanel: "rounded-lg border border-[#E5E7EB] bg-white shadow-[0_18px_40px_rgba(17,24,39,0.16)]",
         primaryButton:
             "bg-[#5140F0] shadow-[0_10px_20px_rgba(81,64,240,0.18)] hover:bg-[#4635E7]",
@@ -238,6 +330,15 @@ export const uiTokens = {
             "flex w-full flex-wrap items-baseline gap-x-2 gap-y-0.5 rounded-lg px-3 py-2 text-left transition hover:bg-[#F6F7FB]",
         panel: "rounded-xl border border-[#E5E7EB] bg-white p-2 shadow-[0_1px_2px_rgba(17,24,39,0.04)]",
     },
+    segmentedControl: {
+        icon: "h-4 w-4 shrink-0",
+        label: "min-w-0 truncate",
+        option: "flex min-h-9 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-[13px] font-semibold transition",
+        optionActive: "bg-white text-[#5140F0] shadow-[0_1px_3px_rgba(17,24,39,0.12)]",
+        optionDisabled: "cursor-not-allowed opacity-60",
+        optionIdle: "text-[#6B7280] hover:text-[#374151]",
+        root: "flex w-full min-w-0 gap-1 rounded-xl border border-[#E5E7EB] bg-[#F3F4F6] p-1",
+    },
     /** Cartes sémantiques colorées d'une étape de méthode (objectifs, bonnes pratiques, erreurs…). */
     stepBlock: {
         card: "rounded-[14px] border p-5",
@@ -331,8 +432,6 @@ export const uiTokens = {
         textarea: "min-h-[88px] resize-none text-[13px]",
         time: "shrink-0 text-[11px] font-semibold text-[#9CA3AF]",
         title: "text-[15px] font-extrabold text-[#111827]",
-        toast:
-            "fixed bottom-6 right-6 z-50 rounded-lg bg-[#111827] px-4 py-3 text-[13px] font-bold text-white shadow-[0_14px_30px_rgba(17,24,39,0.22)]",
         typeBadge: "inline-flex min-w-0 items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-bold",
         typeIcon: "h-3 w-3 shrink-0",
         typeTone: {

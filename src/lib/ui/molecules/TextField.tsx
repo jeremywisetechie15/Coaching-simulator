@@ -29,7 +29,7 @@ export function TextField({
 }: TextFieldProps) {
     return (
         <Stack className="space-y-2">
-            <FieldLabel htmlFor={id}>{label}</FieldLabel>
+            <FieldLabel htmlFor={id} required={required}>{label}</FieldLabel>
             <InputShell>
                 <InputIcon icon={icon} />
                 <TextInput

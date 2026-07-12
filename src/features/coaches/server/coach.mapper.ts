@@ -1,4 +1,4 @@
-import type { CoachEditorValues, CoachListItem } from "@/features/coaches/domain/coach-list";
+import type { CoachDetail, CoachEditorValues, CoachListItem } from "@/features/coaches/domain/coach-list";
 import {
     COACH_DISC_PROFILE,
     COACH_DISC_PROFILES,
@@ -17,7 +17,7 @@ import {
 import { getOpenAIRealtimeVoice, isOpenAIRealtimeVoiceId } from "@/lib/openai/realtime-voices";
 
 export const COACH_SELECT =
-    "id, name, voice_id, system_instructions, avatar_url, background_image_path, expertise_domain, coaching_style, disc_profile, diploma, certifications, created_at, status";
+    "id, name, voice_id, system_instructions, avatar_url, background_image_path, expertise_domain, coaching_style, disc_profile, diploma, certifications, created_at, updated_at, status";
 
 export interface CoachRow {
     avatar_url: string | null;
@@ -32,6 +32,7 @@ export interface CoachRow {
     name: string;
     status?: ContentStatus | string | null;
     system_instructions: string;
+    updated_at: string | null;
     voice_id: string | null;
 }
 
@@ -67,14 +68,18 @@ export function mapCoachRowToListItem(row: CoachRow): CoachListItem {
     return {
         avatarSrc: row.avatar_url,
         backgroundImagePath: row.background_image_path ?? null,
+        certifications: row.certifications ?? "",
+        coachingStyle: normalizeCoachingStyle(row.coaching_style),
         createdAt: formatDate(row.created_at),
+        diploma: row.diploma ?? "",
+        discProfile: normalizeCoachDiscProfile(row.disc_profile),
+        expertiseDomain: normalizeExpertiseDomain(row.expertise_domain),
         id: row.id,
         name: row.name,
         status: normalizeContentStatus(row.status, CONTENT_STATUS.published),
         voiceCharacteristic: voice?.characteristic ?? null,
         voiceId: row.voice_id,
         voiceName: voice?.name ?? row.voice_id ?? "Non configurée",
-        voiceRecommended: voice?.recommended ?? false,
     };
 }
 
@@ -92,5 +97,19 @@ export function mapCoachRowToEditorValues(row: CoachRow): CoachEditorValues {
         name: row.name,
         systemInstructions: row.system_instructions,
         voiceId,
+    };
+}
+
+export function mapCoachRowToDetail(row: CoachRow): CoachDetail {
+    const voice = getOpenAIRealtimeVoice(row.voice_id);
+
+    return {
+        ...mapCoachRowToEditorValues(row),
+        createdAt: row.created_at,
+        id: row.id,
+        status: normalizeContentStatus(row.status, CONTENT_STATUS.published),
+        updatedAt: row.updated_at,
+        voiceCharacteristic: voice?.characteristic ?? null,
+        voiceName: voice?.name ?? row.voice_id ?? "Non configurée",
     };
 }

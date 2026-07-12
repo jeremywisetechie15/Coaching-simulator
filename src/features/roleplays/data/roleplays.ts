@@ -1,10 +1,16 @@
 import { methods, type Method } from "@/features/methods/data/methods";
-import { ALL_CONTENT_CATEGORIES, CONTENT_DOMAINS, getCategoriesForDomain } from "@/features/content/domain";
+import {
+    ALL_CONTENT_CATEGORIES,
+    CONTENT_DOMAINS,
+    DISC_PROFILE,
+    DISC_PROFILES,
+    getCategoriesForDomain,
+} from "@/features/content/domain";
 import type { PrepDocument, PrepQuiz } from "./preparation";
-import type { RoleplayIndexSession } from "@/features/roleplays/domain";
+import type { RoleplayDiscProfile, RoleplayIndexSession } from "@/features/roleplays/domain";
 
 export type RoleplayDifficulty = "Facile" | "Moyen" | "Difficile";
-export type RoleplayDisc = "Dominant" | "Influent" | "Stable" | "Consciencieux";
+export type RoleplayDisc = RoleplayDiscProfile;
 
 export const roleplayDifficultyOptions: RoleplayDifficulty[] = ["Facile", "Moyen", "Difficile"];
 
@@ -228,13 +234,6 @@ export const difficultyBadgeStyles: Record<RoleplayDifficulty, { bg: string; bor
     Difficile: { bg: "#FEF2F2", border: "#FECACA", text: "#DC2626" },
 };
 
-export const discBadgeStyles: Record<RoleplayDisc, { bg: string; text: string }> = {
-    Dominant: { bg: "#FEE2E2", text: "#DC2626" },
-    Influent: { bg: "#FEF9C3", text: "#A16207" },
-    Stable: { bg: "#DCFCE7", text: "#16A34A" },
-    Consciencieux: { bg: "#DBEAFE", text: "#2563EB" },
-};
-
 export const roleplayDomainFilterOptions = ["Tous les domaines", ...CONTENT_DOMAINS];
 
 export const roleplayCategoryFilterOptions = ["Toutes les catégories", ...ALL_CONTENT_CATEGORIES];
@@ -243,11 +242,8 @@ export const roleplayLevelFilterOptions = ["Tous les niveaux", ...roleplayDiffic
 
 export const roleplayDiscFilterOptions = [
     "Tous les DISC",
-    "Dominant",
-    "Influent",
-    "Stable",
-    "Consciencieux",
-    "Inconnu",
+    ...DISC_PROFILES,
+    DISC_PROFILE.unknown,
 ];
 
 export interface RoleplayLibraryFilters {

@@ -1,9 +1,12 @@
 import {
+    DISC_PROFILE,
+    DISC_PROFILES,
     CONTENT_VISIBILITY_SCOPE,
     CONTENT_VISIBILITY_SCOPE_LABELS,
     CONTENT_VISIBILITY_SCOPES,
     type ContentStatus,
     type ContentVisibilityScope,
+    type DiscProfile,
 } from "@/features/content/domain";
 import type { QuizKind, QuizParticipation, QuizType } from "@/features/evaluations/domain";
 import type { RoleplayIndexSession, RoleplayIndexTrend } from "./roleplay-index";
@@ -12,9 +15,9 @@ export const ROLEPLAY_DIFFICULTIES = ["Facile", "Moyen", "Difficile"] as const;
 
 export type RoleplayDifficulty = (typeof ROLEPLAY_DIFFICULTIES)[number];
 
-export const ROLEPLAY_DISC_PROFILES = ["Dominant", "Influent", "Stable", "Consciencieux"] as const;
+export const ROLEPLAY_DISC_PROFILES = DISC_PROFILES;
 
-export type RoleplayDiscProfile = (typeof ROLEPLAY_DISC_PROFILES)[number];
+export type RoleplayDiscProfile = DiscProfile;
 
 export const ROLEPLAY_VISIBILITY_SCOPE = CONTENT_VISIBILITY_SCOPE;
 
@@ -171,7 +174,7 @@ export function isRoleplayDiscProfile(value: unknown): value is RoleplayDiscProf
 }
 
 export function normalizeRoleplayDiscProfile(value: unknown): RoleplayDiscProfile {
-    return isRoleplayDiscProfile(value) ? value : "Stable";
+    return isRoleplayDiscProfile(value) ? value : DISC_PROFILE.stable;
 }
 
 export function isRoleplayVisibilityScope(value: unknown): value is RoleplayVisibilityScope {

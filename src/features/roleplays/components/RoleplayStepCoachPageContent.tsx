@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AlertTriangle, CheckCircle2, MessageSquare, Quote, Target } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -24,6 +24,7 @@ import {
     type RoleplayCoachTranscriptMessage,
 } from "@/features/roleplays/domain";
 import { Box, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import { notify } from "@/lib/ui/feedback/toast";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 import { SimulationView } from "./SimulationView";
@@ -118,8 +119,6 @@ export function RoleplayStepCoachPageContent({
     const [isSavingNotes, setIsSavingNotes] = useState(false);
     const [savedNotesSignature, setSavedNotesSignature] = useState("[]");
     const [saveFeedback, setSaveFeedback] = useState("");
-    const [toastMessage, setToastMessage] = useState("");
-    const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const tipItems: Record<MethodStepSection, string[]> = {
         [METHOD_STEP_SECTION.objectives]: step.objectifs,
@@ -146,16 +145,6 @@ export function RoleplayStepCoachPageContent({
             referenceSessionId ? `&ref_session_id=${encodeURIComponent(referenceSessionId)}` : ""
         }`
         : null;
-
-    const showToast = useCallback((message: string) => {
-        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-        setToastMessage(message);
-        toastTimerRef.current = setTimeout(() => setToastMessage(""), 2200);
-    }, []);
-
-    useEffect(() => () => {
-        if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
-    }, []);
 
     useEffect(() => {
         function receiveTranscriptMessage(event: MessageEvent<unknown>) {
@@ -245,7 +234,7 @@ export function RoleplayStepCoachPageContent({
             type: ROLEPLAY_COACH_NOTE_TYPE.keyPoint,
         }]);
         setSaveFeedback("");
-        showToast("Message ajouté aux notes");
+        notify.success("Message ajouté aux notes");
     }
 
     function addManualNote() {
@@ -261,7 +250,7 @@ export function RoleplayStepCoachPageContent({
         }]);
         setNoteDraft("");
         setSaveFeedback("");
-        showToast("Note ajoutée");
+        notify.success("Note ajoutée");
     }
 
     function deleteNote(noteId: string) {
@@ -295,7 +284,7 @@ export function RoleplayStepCoachPageContent({
 
             setSaveFeedback("Notes sauvegardées.");
             setSavedNotesSignature(notesSignature);
-            showToast("Notes sauvegardées");
+            notify.success("Notes sauvegardées");
         } catch (error) {
             setSaveFeedback(error instanceof Error ? error.message : "Impossible de sauvegarder les notes.");
         } finally {
@@ -336,8 +325,7 @@ export function RoleplayStepCoachPageContent({
     );
 
     return (
-        <>
-            <SimulationView
+        <SimulationView
                 addedTranscriptMessageIds={addedTranscriptMessageIds}
                 backLabel={backLabel}
                 title={`Coach IA — ${verb} sur « ${step.title} » · ${method.name} · Étape ${stepNumber}`}
@@ -365,9 +353,5 @@ export function RoleplayStepCoachPageContent({
                 onBack={() => router.push(backHref)}
                 panel={tipsPanel}
             />
-            {toastMessage ? (
-                <Box aria-live="polite" className={uiTokens.coachNotes.toast}>{toastMessage}</Box>
-            ) : null}
-        </>
     );
 }

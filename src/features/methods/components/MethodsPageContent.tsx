@@ -13,6 +13,7 @@ import { CONTENT_STATUS_LABELS } from "@/features/content/domain";
 import { getMethodScopeLabel, METHOD_ROUTES, type MethodListItem } from "@/features/methods/domain/method";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { CardActionMenu, CardActionMenuButton, CardActionMenuLink } from "@/lib/ui/molecules";
+import { ENTITY_ACTION_LABELS } from "@/lib/ui/domain/entity-action";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
@@ -139,19 +140,19 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
                                             <CardActionMenuLink
                                                 href={withReturnTo(METHOD_ROUTES.app.edit(method.id), currentHref)}
                                                 icon={Edit3}
-                                                label="Modifier"
+                                                label={ENTITY_ACTION_LABELS.modify}
                                             />
                                             <CardActionMenuButton
                                                 disabled={busyMethodId === method.id}
                                                 icon={Copy}
-                                                label="Dupliquer"
+                                                label={ENTITY_ACTION_LABELS.duplicate}
                                                 onClick={() => void handleDuplicate(method.id)}
                                             />
                                             <CardActionMenuButton
                                                 danger
                                                 disabled={busyMethodId === method.id}
                                                 icon={Trash2}
-                                                label="Supprimer"
+                                                label={ENTITY_ACTION_LABELS.delete}
                                                 onClick={() => void handleArchive(method.id)}
                                             />
                                         </CardActionMenu>

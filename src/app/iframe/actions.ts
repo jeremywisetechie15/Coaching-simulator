@@ -13,6 +13,7 @@ import {
     serializeRoleplayCoachContext,
 } from "@/features/roleplays/server/get-roleplay-coach-context";
 import { getRoleplaySessionEvaluation } from "@/features/roleplays/server/get-roleplay-session-evaluation";
+import { resolveRoleplayCoachId } from "@/features/roleplays/server/resolve-roleplay-coach-id";
 import { createSessionBackgroundSignedUrl } from "@/lib/uploads/session-background";
 
 export interface IframeSessionConfig {
@@ -213,9 +214,13 @@ export async function prepareIframeSession(params: PrepareParams): Promise<{
         // MODE COACH (mode=coach)
         // =============================================
         if (mode === "coach") {
-            // Fetch coach from DB (coachId provided or fallback to DEFAULT_COACH_ID)
+            // Priorité : override explicite, coach du scénario, puis fallback global.
             let coach: Coach | null = null;
-            const effectiveCoachId = coachId || process.env.DEFAULT_COACH_ID;
+            const effectiveCoachId = await resolveRoleplayCoachId(supabase, {
+                explicitCoachId: coachId,
+                fallbackCoachId: process.env.DEFAULT_COACH_ID,
+                scenarioId,
+            });
 
             if (effectiveCoachId) {
                 const { data: coachData, error: coachError } = await supabase
@@ -232,7 +237,7 @@ export async function prepareIframeSession(params: PrepareParams): Promise<{
             }
 
             if (!coach) {
-                console.error("No coach found and DEFAULT_COACH_ID not set");
+                console.error("No coach found for the scenario and DEFAULT_COACH_ID is unavailable");
                 return { success: false, error: "No coach available" };
             }
 

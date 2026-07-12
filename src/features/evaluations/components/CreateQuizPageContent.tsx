@@ -453,9 +453,7 @@ export function CreateQuizPageContent({
                         <SectionHeading title="Informations générales" />
                         <Box className="mt-6 space-y-5">
                             <Box>
-                                <FieldLabel className={uiTokens.form.label}>
-                                    Titre du quiz <RequiredMark />
-                                </FieldLabel>
+                                <FieldLabel required className={uiTokens.form.label}>Titre du quiz</FieldLabel>
                                 <TextInput
                                     value={form.title}
                                     onChange={(event) => patch("title", event.target.value)}
@@ -521,9 +519,7 @@ export function CreateQuizPageContent({
                                 )}
                             </Box>
                             <Box>
-                                <FieldLabel className={uiTokens.form.label}>
-                                    Description <RequiredMark />
-                                </FieldLabel>
+                                <FieldLabel required className={uiTokens.form.label}>Description</FieldLabel>
                                 <TextArea
                                     value={form.description}
                                     onChange={(event) => patch("description", event.target.value)}
@@ -646,7 +642,7 @@ export function CreateQuizPageContent({
                                 {isPrivate && (
                                     <Box className="mt-3 space-y-4">
                                         <Box>
-                                            <FieldLabel className={uiTokens.form.label}>Organisation</FieldLabel>
+                                            <FieldLabel required className={uiTokens.form.label}>Organisation</FieldLabel>
                                             <SingleSelectField
                                                 options={organizationSelectOptions}
                                                 value={form.organizationId}
@@ -821,8 +817,8 @@ export function CreateQuizPageContent({
                                             {!step.collapsed && (
                                                 <>
                                                     <Box className="mt-4">
-                                                        <FieldLabel className={uiTokens.form.subLabel}>
-                                                            Compétences évaluées dans cette étape <RequiredMark />
+                                                        <FieldLabel required className={uiTokens.form.subLabel}>
+                                                            Compétences évaluées dans cette étape
                                                         </FieldLabel>
                                                         <SearchableMultiSelectField
                                                             options={competenceOptions}
@@ -977,14 +973,6 @@ export function CreateQuizPageContent({
                 </Box>
             </Box>
         </Box>
-    );
-}
-
-function RequiredMark() {
-    return (
-        <Text as="span" className={uiTokens.text.required}>
-            *
-        </Text>
     );
 }
 

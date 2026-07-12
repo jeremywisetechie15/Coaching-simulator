@@ -15,7 +15,7 @@ import {
 import { ContentTargetScopeField, type ContentTargetScopeValue } from "@/features/content/components";
 import type { SaveSkillInput } from "@/features/skills/dto";
 import type { SkillCategory, SkillDetail } from "@/features/skills/domain/skills";
-import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text } from "@/lib/ui/atoms";
 import { AlertMessage } from "@/lib/ui/molecules";
 import {
     skillDomainOptions,
@@ -432,9 +432,9 @@ export function CreateSkillPageContent({
 
                     <Box className="mt-6 space-y-5">
                         <Box>
-                            <Text as="span" className={`${fieldLabelClasses} mb-2`}>
+                            <FieldLabel required className={`${fieldLabelClasses} mb-2`}>
                                 Nom de la compétence
-                            </Text>
+                            </FieldLabel>
                             <input
                                 value={name}
                                 onChange={(event) => setName(event.target.value)}

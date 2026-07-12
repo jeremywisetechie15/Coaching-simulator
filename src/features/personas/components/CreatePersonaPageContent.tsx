@@ -3,19 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check } from "lucide-react";
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useState, type FormEvent } from "react";
 import { ContextualBackLink } from "@/features/app-shell/components";
-import { AlertMessage, ImageUploadField, SingleSelectField } from "@/lib/ui/molecules";
-import { CONTENT_UPLOAD_PURPOSES } from "@/lib/uploads/content-upload";
+import { DiscProfileSelector, VoiceRecommendationBadge } from "@/features/content/components";
+import { AlertMessage, SingleSelectField } from "@/lib/ui/molecules";
 import { Box, CardSurface, FieldLabel, InlineIcon, SelectInput, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 import { OPENAI_REALTIME_VOICES } from "@/lib/openai/realtime-voices";
 import {
     EMPTY_PERSONA_EDITOR_VALUES,
-    getPersonaAvatarPublicUrl,
-    getPersonaInitials,
-    isPersonaAvatarStoragePath,
     type PersonaEditorValues,
     type PersonaListItem,
 } from "@/features/personas/domain/persona-list";
@@ -23,7 +20,7 @@ import {
     PERSONA_BUSINESS_SECTORS,
     PERSONA_DISC_PROFILE_OPTIONS,
 } from "@/features/personas/domain/persona-profile";
-import { personaAvatarOptions } from "@/features/personas/data/persona-creation";
+import { PersonaAvatarField } from "./PersonaAvatarField";
 
 interface CreatePersonaPageContentProps {
     embedded?: boolean;
@@ -81,14 +78,16 @@ function Field({
     children,
     htmlFor,
     label,
+    required = false,
 }: {
     children: React.ReactNode;
     htmlFor: string;
     label: string;
+    required?: boolean;
 }) {
     return (
         <Box>
-            <FieldLabel htmlFor={htmlFor} className="mb-1.5 text-[12px] font-semibold text-[#374151]">
+            <FieldLabel required={required} htmlFor={htmlFor} className="mb-1.5 text-[12px] font-semibold text-[#374151]">
                 {label}
             </FieldLabel>
             {children}
@@ -106,11 +105,8 @@ export function CreatePersonaPageContent({
     const queryClient = useQueryClient();
     const [form, setForm] = useState<PersonaEditorValues>(initialValues);
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
-    const [localAvatarPreviewUrl, setLocalAvatarPreviewUrl] = useState<string | null>(null);
-    const avatarObjectUrlRef = useRef<string | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
     const isEditing = Boolean(personaId);
-    const avatarPreviewUrl = localAvatarPreviewUrl ?? getPersonaAvatarPublicUrl(form.avatarUrl);
     const mutation = useMutation({
         mutationFn: (values: PersonaEditorValues) => savePersona(personaId, values, avatarFile),
         onError: (error) => {
@@ -135,35 +131,6 @@ export function CreatePersonaPageContent({
             router.refresh();
         },
     });
-
-    useEffect(() => () => {
-        if (avatarObjectUrlRef.current) {
-            URL.revokeObjectURL(avatarObjectUrlRef.current);
-        }
-    }, []);
-
-    function clearLocalAvatarPreview() {
-        if (avatarObjectUrlRef.current) {
-            URL.revokeObjectURL(avatarObjectUrlRef.current);
-            avatarObjectUrlRef.current = null;
-        }
-        setLocalAvatarPreviewUrl(null);
-    }
-
-    function selectAvatarFile(file: File) {
-        clearLocalAvatarPreview();
-        const previewUrl = URL.createObjectURL(file);
-        avatarObjectUrlRef.current = previewUrl;
-        setLocalAvatarPreviewUrl(previewUrl);
-        setAvatarFile(file);
-        patch("avatarUrl", "");
-    }
-
-    function selectAvatarValue(value: string) {
-        clearLocalAvatarPreview();
-        setAvatarFile(null);
-        patch("avatarUrl", value);
-    }
 
     function patch<K extends keyof PersonaEditorValues>(key: K, value: PersonaEditorValues[K]) {
         setForm((previous) => ({ ...previous, [key]: value }));
@@ -192,116 +159,56 @@ export function CreatePersonaPageContent({
                 </Box>}
 
                 <CardSurface className={cn(uiTokens.surface.formCard, "space-y-7")}>
-                    <FormSection title="Identité du persona">
-                        <Box className="flex flex-col gap-5 md:flex-row md:items-start">
-                            <Box className="flex h-[88px] w-[88px] shrink-0 items-center justify-center overflow-hidden rounded-full border-[3px] border-[#E7DCFB] bg-[#F1F2F6] shadow-[0_8px_18px_rgba(139,47,214,0.18)]">
-                                {avatarPreviewUrl ? (
-                                    <Box
-                                        role="img"
-                                        aria-label={form.name || "Avatar du persona"}
-                                        className="h-full w-full bg-cover bg-center"
-                                        style={{ backgroundImage: `url(${avatarPreviewUrl})` }}
-                                    />
-                                ) : (
-                                    <Text className="text-[20px] font-extrabold text-[#5140F0]">
-                                        {getPersonaInitials(form.name)}
-                                    </Text>
-                                )}
-                            </Box>
-                            <Box className="grid w-full gap-4 sm:grid-cols-2">
-                                <Field label="Nom du persona" htmlFor="persona-name">
-                                    <TextInput
-                                        density="sm"
-                                        id="persona-name"
-                                        placeholder="Ex : Sophie Martin"
-                                        hasLeadingIcon={false}
-                                        required
-                                        value={form.name}
-                                        onChange={(event) => patch("name", event.target.value)}
-                                    />
-                                </Field>
-                                <Field label="Âge" htmlFor="persona-age">
-                                    <TextInput
-                                        density="sm"
-                                        id="persona-age"
-                                        placeholder="Ex : 42"
-                                        hasLeadingIcon={false}
-                                        inputMode="numeric"
-                                        min={0}
-                                        max={130}
-                                        type="number"
-                                        value={form.age}
-                                        onChange={(event) => patch("age", event.target.value)}
-                                    />
-                                </Field>
-                                <Field label="Fonction" htmlFor="persona-role">
-                                    <TextInput
-                                        density="sm"
-                                        id="persona-role"
-                                        placeholder="Ex : Directrice commerciale"
-                                        hasLeadingIcon={false}
-                                        value={form.role}
-                                        onChange={(event) => patch("role", event.target.value)}
-                                    />
-                                </Field>
-                                <Field label="URL image de l'avatar" htmlFor="persona-avatar">
-                                    <TextInput
-                                        density="sm"
-                                        id="persona-avatar"
-                                        placeholder="https://..."
-                                        hasLeadingIcon={false}
-                                        value={form.avatarUrl}
-                                        onChange={(event) => selectAvatarValue(event.target.value)}
-                                    />
-                                </Field>
-                            </Box>
-                        </Box>
-                    </FormSection>
-
-                    <FormSection title="Images avatars proposées">
-                        <Box className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-                            {personaAvatarOptions.map((avatar) => (
-                                <button
-                                    key={avatar.id}
-                                    aria-label={avatar.alt}
-                                    aria-pressed={form.avatarUrl === avatar.src}
-                                    onClick={() => selectAvatarValue(avatar.src)}
-                                    type="button"
-                                    className={cn(
-                                        "relative aspect-square overflow-hidden rounded-xl border-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0]/40",
-                                        form.avatarUrl === avatar.src
-                                            ? "border-[#5140F0] shadow-[0_8px_18px_rgba(81,64,240,0.20)]"
-                                            : "border-transparent hover:border-[#E5E7EB]",
-                                    )}
-                                >
-                                    <Box
-                                        role="img"
-                                        aria-label={avatar.alt}
-                                        className="absolute inset-0 bg-cover bg-center"
-                                        style={{ backgroundImage: `url(${avatar.src})` }}
-                                    />
-                                </button>
-                            ))}
-                        </Box>
-                    </FormSection>
-
-                    <FormSection title="Importer une image depuis mon ordinateur">
-                        <ImageUploadField
+                    <FormSection title="Avatar du persona">
+                        <PersonaAvatarField
+                            avatarFile={avatarFile}
+                            avatarUrl={form.avatarUrl}
                             disabled={mutation.isPending}
-                            file={avatarFile}
-                            helpText="Image JPG, PNG ou WebP, 10 Mo maximum."
-                            inputId="persona-avatar-file"
-                            label="Image de l'avatar"
+                            onAvatarFileChange={setAvatarFile}
+                            onAvatarUrlChange={(value) => patch("avatarUrl", value)}
                             onError={setFormError}
-                            onFileSelected={selectAvatarFile}
-                            onClear={() => {
-                                clearLocalAvatarPreview();
-                                setAvatarFile(null);
-                                patch("avatarUrl", "");
-                            }}
-                            storedPath={isPersonaAvatarStoragePath(form.avatarUrl) ? form.avatarUrl : ""}
-                            uploadPurpose={CONTENT_UPLOAD_PURPOSES.personaAvatar}
+                            personaName={form.name}
                         />
+                    </FormSection>
+
+                    <FormSection title="Identité du persona">
+                        <Box className="grid w-full gap-4 sm:grid-cols-2">
+                            <Field required label="Nom du persona" htmlFor="persona-name">
+                                <TextInput
+                                    density="sm"
+                                    id="persona-name"
+                                    placeholder="Ex : Sophie Martin"
+                                    hasLeadingIcon={false}
+                                    required
+                                    value={form.name}
+                                    onChange={(event) => patch("name", event.target.value)}
+                                />
+                            </Field>
+                            <Field label="Âge" htmlFor="persona-age">
+                                <TextInput
+                                    density="sm"
+                                    id="persona-age"
+                                    placeholder="Ex : 42"
+                                    hasLeadingIcon={false}
+                                    inputMode="numeric"
+                                    min={0}
+                                    max={130}
+                                    type="number"
+                                    value={form.age}
+                                    onChange={(event) => patch("age", event.target.value)}
+                                />
+                            </Field>
+                            <Field label="Fonction" htmlFor="persona-role">
+                                <TextInput
+                                    density="sm"
+                                    id="persona-role"
+                                    placeholder="Ex : Directrice commerciale"
+                                    hasLeadingIcon={false}
+                                    value={form.role}
+                                    onChange={(event) => patch("role", event.target.value)}
+                                />
+                            </Field>
+                        </Box>
                     </FormSection>
 
                     <FormSection title="Informations professionnelles">
@@ -420,37 +327,27 @@ export function CreatePersonaPageContent({
                                     onChange={(event) => patch("residenceCountry", event.target.value)}
                                 />
                             </Field>
+                            <Field label="Revenu net (avant impôt)" htmlFor="persona-net-income-before-tax">
+                                <TextInput
+                                    density="sm"
+                                    id="persona-net-income-before-tax"
+                                    placeholder="Ex : 3 200 € / mois"
+                                    hasLeadingIcon={false}
+                                    value={form.netIncomeBeforeTax}
+                                    onChange={(event) => patch("netIncomeBeforeTax", event.target.value)}
+                                />
+                            </Field>
                         </Box>
                     </FormSection>
 
                     <FormSection title="Profil DISC">
-                        <Box className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-                            {PERSONA_DISC_PROFILE_OPTIONS.map((option) => {
-                                const isSelected = form.discProfile === option.value;
-
-                                return (
-                                    <button
-                                        key={option.value}
-                                        type="button"
-                                        aria-pressed={isSelected}
-                                        onClick={() => patch("discProfile", option.value)}
-                                        className={cn(
-                                            "min-h-[84px] rounded-[12px] border px-4 py-4 text-center transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0]/40",
-                                            isSelected
-                                                ? uiTokens.tone.success.soft
-                                                : "border-[#E5E7EB] bg-white text-[#111827] hover:border-[#D5D7DE]",
-                                        )}
-                                    >
-                                        <Text as="span" className="block text-[14px] font-extrabold">
-                                            {option.label}
-                                        </Text>
-                                        <Text as="span" className="mt-2 block text-[12px] font-bold opacity-70">
-                                            {option.description}
-                                        </Text>
-                                    </button>
-                                );
-                            })}
-                        </Box>
+                        <DiscProfileSelector
+                            className="lg:grid-cols-5"
+                            disabled={mutation.isPending}
+                            options={PERSONA_DISC_PROFILE_OPTIONS}
+                            value={form.discProfile}
+                            onChange={(value) => patch("discProfile", value)}
+                        />
                     </FormSection>
 
                     <FormSection title="Voix">
@@ -463,15 +360,17 @@ export function CreatePersonaPageContent({
                             >
                                 {OPENAI_REALTIME_VOICES.map((voice) => (
                                     <option key={voice.id} value={voice.id}>
-                                        {voice.name} ({voice.id}) - {voice.characteristic}
+                                        {voice.name} ({voice.id})
+                                        {voice.characteristic ? ` - ${voice.characteristic}` : ""}
                                     </option>
                                 ))}
                             </SelectInput>
+                            <VoiceRecommendationBadge className="mt-2" voiceId={form.voiceId} />
                         </Field>
                     </FormSection>
 
                     <FormSection title="Instructions du persona">
-                        <Field label="Ajouter des informations complémentaires sur le persona" htmlFor="persona-instructions">
+                        <Field required label="Ajouter des informations complémentaires sur le persona" htmlFor="persona-instructions">
                             <TextArea
                                 id="persona-instructions"
                                 rows={8}

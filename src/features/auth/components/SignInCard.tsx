@@ -2,25 +2,15 @@
 
 import { useMemo, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
+import Link from "next/link";
 import { Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { resolveInternalHref } from "@/features/app-shell/domain";
+import { AUTH_PATHS, buildAuthPath } from "@/features/auth/domain/password-recovery";
 import { FormRoot } from "@/lib/ui/atoms";
-import { AlertMessage, FormHeader, PasswordField, SubmitButton, TextField } from "@/lib/ui/molecules";
-import { CenteredCardFrame } from "@/lib/ui/organisms";
-
-const frameClasses = {
-    surface: "bg-[#F7F8FB] px-5 py-8 text-slate-950",
-    container: "min-h-[calc(100vh-4rem)] max-w-5xl",
-    card: "max-w-[400px] rounded-[18px] border border-white px-6 py-7 shadow-[0_20px_45px_rgba(15,23,42,0.11)] sm:px-7 sm:py-8",
-};
-
-const headerClasses = {
-    root: "mb-6 text-center",
-    eyebrow: "text-[24px] font-black tracking-normal text-[#5140F0] sm:text-[26px]",
-    title: "mt-6 text-[20px] font-extrabold tracking-normal text-slate-950 sm:text-[22px]",
-    description: "mt-2 text-[13px] font-semibold tracking-normal text-slate-500 sm:text-[14px]",
-};
+import { AlertMessage, PasswordField, StatusMessage, SubmitButton, TextField } from "@/lib/ui/molecules";
+import { uiTokens } from "@/lib/ui/tokens";
+import { AuthCardFrame } from "./AuthCardFrame";
 
 export function SignInCard() {
     const searchParams = useSearchParams();
@@ -28,6 +18,8 @@ export function SignInCard() {
         () => resolveInternalHref(searchParams.get("redirect"), "/profile"),
         [searchParams],
     );
+    const forgotPasswordHref = buildAuthPath(AUTH_PATHS.forgotPassword, redirectTo);
+    const didResetPassword = searchParams.get("status") === "password-reset";
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -58,21 +50,14 @@ export function SignInCard() {
     };
 
     return (
-        <CenteredCardFrame
-            surfaceClassName={frameClasses.surface}
-            containerClassName={frameClasses.container}
-            cardClassName={frameClasses.card}
-        >
-            <FormHeader
-                eyebrow="MaiaCoach"
-                title="Welcome Back"
-                description="Sign in to continue your training"
-                className={headerClasses.root}
-                eyebrowClassName={headerClasses.eyebrow}
-                titleClassName={headerClasses.title}
-                descriptionClassName={headerClasses.description}
-            />
+        <AuthCardFrame title="Welcome Back" description="Sign in to continue your training">
             <FormRoot onSubmit={handleSubmit}>
+                {didResetPassword && (
+                    <StatusMessage
+                        tone="success"
+                        message="Votre mot de passe a été modifié. Vous pouvez maintenant vous connecter."
+                    />
+                )}
                 <TextField
                     id="email"
                     name="email"
@@ -93,9 +78,14 @@ export function SignInCard() {
                     onChange={(event) => setPassword(event.target.value)}
                     onToggleVisibility={() => setIsPasswordVisible((value) => !value)}
                 />
+                <div className="flex justify-end text-[13px]">
+                    <Link href={forgotPasswordHref} className={uiTokens.auth.link}>
+                        Mot de passe oublié ?
+                    </Link>
+                </div>
                 {error && <AlertMessage message={error} />}
                 <SubmitButton isSubmitting={isSubmitting} label="Sign In" loadingLabel="Connexion..." />
             </FormRoot>
-        </CenteredCardFrame>
+        </AuthCardFrame>
     );
 }

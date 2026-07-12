@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Eye, Pencil, Plus } from "lucide-react";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import { ENTITY_ACTION_LABELS } from "@/lib/ui/domain/entity-action";
 import {
     type OrganizationGroupRow,
     type OrganizationUserRow,
@@ -302,8 +303,8 @@ export function OrganizationDetailUsers({
                                     <Box as="td" className="px-7 py-5">
                                         <Box className="flex items-center gap-5 text-[#9AA2B2]">
                                             {[
-                                                { icon: Eye, label: "Voir" },
-                                                { icon: Pencil, label: "Éditer" },
+                                                { icon: Eye, label: ENTITY_ACTION_LABELS.view },
+                                                { icon: Pencil, label: ENTITY_ACTION_LABELS.modify },
                                             ].map(({ icon, label }) => (
                                                 <Button
                                                     key={label}

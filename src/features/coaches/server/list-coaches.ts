@@ -13,7 +13,9 @@ export async function listCoaches(): Promise<CoachListItem[]> {
         .select(COACH_SELECT)
         .order("created_at", { ascending: false });
 
-    if (context.platformRole !== "admin") {
+    if (context.platformRole === "admin") {
+        query = query.neq("status", CONTENT_STATUS.archived);
+    } else {
         query = query.eq("status", CONTENT_STATUS.published);
     }
 

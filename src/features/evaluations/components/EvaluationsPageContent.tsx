@@ -21,6 +21,7 @@ import {
 import { ALL_CONTENT_CATEGORIES, CONTENT_DOMAINS, getCategoriesForDomain } from "@/features/content/domain";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { CardActionMenu, CardActionMenuButton, CardActionMenuLink } from "@/lib/ui/molecules";
+import { ENTITY_ACTION_LABELS } from "@/lib/ui/domain/entity-action";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
@@ -248,19 +249,19 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                                             <CardActionMenuLink
                                                 href={withReturnTo(EVALUATION_ROUTES.app.edit(quiz.id), currentHref)}
                                                 icon={Edit3}
-                                                label="Modifier"
+                                                label={ENTITY_ACTION_LABELS.modify}
                                             />
                                             <CardActionMenuButton
                                                 disabled={busyQuizId === quiz.id}
                                                 icon={Copy}
-                                                label="Dupliquer"
+                                                label={ENTITY_ACTION_LABELS.duplicate}
                                                 onClick={() => void handleDuplicate(quiz.id)}
                                             />
                                             <CardActionMenuButton
                                                 danger
                                                 disabled={busyQuizId === quiz.id}
                                                 icon={Trash2}
-                                                label="Supprimer"
+                                                label={ENTITY_ACTION_LABELS.delete}
                                                 onClick={() => void handleArchive(quiz.id)}
                                             />
                                         </CardActionMenu>

@@ -13,8 +13,8 @@ export const OPENAI_REALTIME_VOICES = [
     { characteristic: "Calme et posée", id: "sage", name: "Sage", recommended: false },
     { characteristic: "Vive et enjouée", id: "shimmer", name: "Shimmer", recommended: false },
     { characteristic: "Narrative", id: "verse", name: "Verse", recommended: false },
-    { characteristic: "Qualité recommandée", id: "marin", name: "Marin", recommended: true },
-    { characteristic: "Qualité recommandée", id: "cedar", name: "Cedar", recommended: true },
+    { characteristic: null, id: "marin", name: "Marin", recommended: true },
+    { characteristic: null, id: "cedar", name: "Cedar", recommended: true },
 ] as const;
 
 export type VoiceId = (typeof OPENAI_REALTIME_VOICES)[number]["id"];

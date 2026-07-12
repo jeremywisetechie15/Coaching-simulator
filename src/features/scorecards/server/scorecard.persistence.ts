@@ -114,7 +114,11 @@ interface DuplicateScorecardCriterionSource {
     verbatim?: string | null;
 }
 
-export function createDuplicateScorecardInsert(source: DuplicateScorecardSource, createdBy: string) {
+export function createDuplicateScorecardInsert(
+    source: DuplicateScorecardSource,
+    createdBy: string,
+    duplicateName: string,
+) {
     const now = new Date().toISOString();
     const visibilityScope = source.visibility_scope === "organization" ? "organization" : "public";
 
@@ -127,7 +131,7 @@ export function createDuplicateScorecardInsert(source: DuplicateScorecardSource,
         is_active: true,
         level: source.level ?? null,
         method_id: source.method_id,
-        name: `Copie de ${source.name}`,
+        name: duplicateName,
         organization_id: visibilityScope === "organization" ? source.organization_id ?? null : null,
         status: CONTENT_STATUS.draft,
         updated_at: now,
