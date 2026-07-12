@@ -54,6 +54,7 @@ import {
 import { ROLEPLAY_ANALYSIS_STEPS, ROLEPLAY_PDF_EXPORT_STEPS } from "@/features/roleplays/data/session-analysis";
 import { SimulationView } from "./SimulationView";
 import { EvaluationKeyMomentsSection } from "./EvaluationKeyMomentsSection";
+import { RoleplayGuidanceTabsPanel } from "./RoleplayGuidanceTabsPanel";
 
 const stepIcons: Record<EvaluationStep["icon"], { icon: LucideIcon; bg: string; color: string }> = {
     phone: { icon: Phone, bg: "#E7EDFD", color: "#3B6FD0" },
@@ -793,18 +794,45 @@ function PersonaFeedbackPanel({ evaluation }: { evaluation: Evaluation }) {
 }
 
 function CoachDebriefPanel({ evaluation }: { evaluation: Evaluation }) {
+    const progressPlans = evaluation.planEtapes ?? [evaluation.planEtape];
+
     return (
-        <CardSurface className="rounded-[20px] border border-[#E9E7FB] p-6 shadow-[0_1px_2px_rgba(17,24,39,0.04)]">
-            <Box className="flex items-center gap-3">
-                <Box className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F3E8FD]">
-                    <InlineIcon icon={Phone} className="h-[18px] w-[18px] text-[#8B2FD6]" />
-                </Box>
-                <Text as="h3" className="text-[16px] font-bold text-[#111827]">
-                    Appréciation globale par le coach IA
-                </Text>
-            </Box>
-            <Text className="mt-4 text-[14px] font-medium leading-7 text-[#4B5563]">{evaluation.coachAppreciation}</Text>
-        </CardSurface>
+        <RoleplayGuidanceTabsPanel
+            ariaLabel="Débrief du coach IA"
+            initialTab="coach-feedback"
+            tabs={[
+                {
+                    icon: Phone,
+                    items: evaluation.coachAppreciation ? [evaluation.coachAppreciation] : [],
+                    key: "coach-feedback",
+                    label: "Avis du coach",
+                    tone: "violet",
+                },
+                {
+                    icon: CheckCircle2,
+                    items: evaluation.pointsPositifs,
+                    key: "strengths",
+                    label: "Points forts",
+                    tone: "green",
+                },
+                {
+                    icon: Info,
+                    items: evaluation.axesAmelioration,
+                    key: "improvements",
+                    label: "Axes d'amélioration",
+                    tone: "rose",
+                },
+                {
+                    icon: Sparkles,
+                    items: progressPlans.map(
+                        (plan) => `Étape ${plan.number} • ${plan.title} — ${plan.text}`,
+                    ),
+                    key: "progress-plan",
+                    label: "Plan de progrès",
+                    tone: "indigo",
+                },
+            ]}
+        />
     );
 }
 

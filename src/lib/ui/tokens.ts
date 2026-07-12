@@ -355,6 +355,7 @@ export const uiTokens = {
             indigo: { accent: "text-[#5140F0]", dot: "bg-[#5140F0]", solid: "bg-[#5140F0] text-white", surface: "border-[#C9C2FB] bg-[#F1F0FE]" },
             orange: { accent: "text-[#EA580C]", dot: "bg-[#EA580C]", solid: "bg-[#EA580C] text-white", surface: "border-[#FED7AA] bg-[#FFF7ED]" },
             red: { accent: "text-[#DC2626]", dot: "bg-[#DC2626]", solid: "bg-[#DC2626] text-white", surface: "border-[#FECACA] bg-[#FEF2F2]" },
+            rose: { accent: "text-[#E11D48]", dot: "bg-[#E11D48]", solid: "bg-[#E11D48] text-white", surface: "border-[#FECDD3] bg-[#FFF1F2]" },
             violet: { accent: "text-[#8B2FD6]", dot: "bg-[#8B2FD6]", solid: "bg-[#8B2FD6] text-white", surface: "border-[#E6D9FB] bg-[#F8F5FE]" },
         },
     },
@@ -366,6 +367,7 @@ export const uiTokens = {
         itemText: "text-[14px] font-medium leading-6 text-[#4B5563]",
         list: "space-y-2.5",
         listDot: "mt-2 h-1.5 w-1.5 shrink-0 rounded-full",
+        panel: "rounded-[20px] border border-[#E9E7FB] p-6 shadow-[0_1px_2px_rgba(17,24,39,0.04)]",
         tabList: "flex flex-wrap gap-2 border-b border-[#EDEEF3] pb-3",
     },
     /** Page de détail d'une scorecard : en-tête statistique, accordéon d'étape et tableau de critères. */

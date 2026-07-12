@@ -23,12 +23,10 @@ import {
     type RoleplayCoachNoteType,
     type RoleplayCoachTranscriptMessage,
 } from "@/features/roleplays/domain";
-import { Box, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { notify } from "@/lib/ui/feedback/toast";
-import { uiTokens } from "@/lib/ui/tokens";
-import { cn } from "@/lib/ui/utils/cn";
 import { SimulationView } from "./SimulationView";
 import { MeetingNotesPanel } from "./MeetingNotesPanel";
+import { RoleplayGuidanceTabsPanel, type RoleplayGuidanceTabTone } from "./RoleplayGuidanceTabsPanel";
 
 /** « prepare » = avant la session (before_training) ; « improve » = après, depuis l'évaluation (after_training). */
 export type StepCoachVariant = "prepare" | "improve";
@@ -45,9 +43,7 @@ interface RoleplayStepCoachPageContentProps {
     variant?: StepCoachVariant;
 }
 
-type StepTabTone = keyof typeof uiTokens.stepBlock.tone;
-
-const stepTabs: { key: MethodStepSection; label: string; icon: LucideIcon; tone: StepTabTone }[] = [
+const stepTabs: { key: MethodStepSection; label: string; icon: LucideIcon; tone: RoleplayGuidanceTabTone }[] = [
     {
         key: METHOD_STEP_SECTION.objectives,
         label: METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.objectives],
@@ -80,25 +76,6 @@ const stepTabs: { key: MethodStepSection; label: string; icon: LucideIcon; tone:
     },
 ];
 
-function TipList({ items, italic, tone }: { items: string[]; italic?: boolean; tone: StepTabTone }) {
-    if (items.length === 0) {
-        return <Text className={uiTokens.stepTabs.empty}>Aucune information renseignée pour cette section.</Text>;
-    }
-
-    const palette = uiTokens.stepBlock.tone[tone];
-
-    return (
-        <Box className={uiTokens.stepTabs.list}>
-            {items.map((item) => (
-                <Box key={item} className={uiTokens.stepTabs.item}>
-                    <Box className={cn(uiTokens.stepTabs.listDot, palette.dot)} />
-                    <Text className={cn(uiTokens.stepTabs.itemText, italic && "italic")}>{item}</Text>
-                </Box>
-            ))}
-        </Box>
-    );
-}
-
 export function RoleplayStepCoachPageContent({
     coachSessionId,
     initialTranscript = [],
@@ -110,7 +87,6 @@ export function RoleplayStepCoachPageContent({
     variant = "prepare",
 }: RoleplayStepCoachPageContentProps) {
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState<MethodStepSection>(METHOD_STEP_SECTION.objectives);
     const [coachTranscript, setCoachTranscript] = useState<RoleplayCoachTranscriptMessage[]>([]);
     const [notes, setNotes] = useState<RoleplayCoachNote[]>([]);
     const [noteDraft, setNoteDraft] = useState("");
@@ -127,8 +103,6 @@ export function RoleplayStepCoachPageContent({
         [METHOD_STEP_SECTION.posture]: step.posture,
         [METHOD_STEP_SECTION.verbatims]: step.verbatims,
     };
-    const activeTabConfig = stepTabs.find((tab) => tab.key === activeTab)!;
-
     const isImprove = variant === "improve";
     const coachMode = isImprove ? ROLEPLAY_COACH_MODE.afterTraining : ROLEPLAY_COACH_MODE.beforeTraining;
     const verb = isImprove ? "S'améliorer" : "Se préparer";
@@ -293,35 +267,15 @@ export function RoleplayStepCoachPageContent({
     }
 
     const tipsPanel = (
-        <CardSurface className="rounded-[20px] border border-[#E9E7FB] p-6 shadow-[0_1px_2px_rgba(17,24,39,0.04)]">
-            <Box className={uiTokens.stepTabs.tabList}>
-                {stepTabs.map((tab) => {
-                    const isActive = tab.key === activeTab;
-                    const palette = uiTokens.stepBlock.tone[tab.tone];
-                    return (
-                        <button
-                            key={tab.key}
-                            type="button"
-                            onClick={() => setActiveTab(tab.key)}
-                            className={cn(
-                                uiTokens.stepTabs.button,
-                                isActive ? palette.solid : uiTokens.stepTabs.buttonIdle,
-                            )}
-                        >
-                            <InlineIcon icon={tab.icon} className="h-4 w-4" />
-                            {tab.label}
-                        </button>
-                    );
-                })}
-            </Box>
-            <Box className="mt-4">
-                <TipList
-                    items={tipItems[activeTab]}
-                    italic={activeTab === METHOD_STEP_SECTION.verbatims}
-                    tone={activeTabConfig.tone}
-                />
-            </Box>
-        </CardSurface>
+        <RoleplayGuidanceTabsPanel
+            ariaLabel="Détails de l'étape"
+            initialTab={METHOD_STEP_SECTION.objectives}
+            tabs={stepTabs.map((tab) => ({
+                ...tab,
+                italic: tab.key === METHOD_STEP_SECTION.verbatims,
+                items: tipItems[tab.key],
+            }))}
+        />
     );
 
     return (
