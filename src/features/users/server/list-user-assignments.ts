@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/features/auth/server";
 import { getQuizTypeLabel, type QuizType } from "@/features/evaluations/domain";
+import { MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS } from "@/features/roleplays/domain";
 import type {
     UserAssignedQuiz,
     UserAssignedRoleplay,
@@ -38,6 +39,7 @@ interface PersonaRow {
 
 interface SessionRow {
     created_at: string | null;
+    duration_seconds: number | null;
     id: string;
     notation_json: unknown;
     scenario_id: string | null;
@@ -226,9 +228,10 @@ export async function listUserAssignedRoleplays(userId: string): Promise<UserAss
         scenarioIds.length > 0
             ? adminSupabase
                   .from("sessions")
-                  .select("id, scenario_id, status, notation_json, created_at")
+                  .select("id, scenario_id, status, notation_json, created_at, duration_seconds")
                   .eq("user_id", userId)
                   .in("scenario_id", scenarioIds)
+                  .gte("duration_seconds", MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS)
                   .returns<SessionRow[]>()
             : Promise.resolve({ data: [] as SessionRow[], error: null }),
     ]);

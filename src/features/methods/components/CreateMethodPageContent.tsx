@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, MessageSquare, Phone, Plus, Shield, X } from "lucide-react";
 import { useState } from "react";
+import { ContextualBackLink, useContextualReturnHref } from "@/features/app-shell/components";
+import { buildPostSaveHref } from "@/features/app-shell/domain";
 import {
     CONTENT_DOMAINS,
     CONTENT_VISIBILITY_CHOICE,
@@ -456,6 +457,7 @@ export function CreateMethodPageContent({
     const canPublish = canSubmit;
     const isSaving = savingStatus !== null;
     const returnHref = initialMethod ? `/methods/${initialMethod.id}` : "/methods";
+    const contextualReturnHref = useContextualReturnHref(returnHref);
 
     function updateList(
         list: string[],
@@ -664,7 +666,9 @@ export function CreateMethodPageContent({
                 return;
             }
 
-            router.push(`/methods/${savedMethod.id}`);
+            router.push(
+                buildPostSaveHref(`/methods/${savedMethod.id}`, contextualReturnHref, isEditing),
+            );
             router.refresh();
         } catch (error) {
             setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer la méthode.");
@@ -678,8 +682,8 @@ export function CreateMethodPageContent({
             <Box className={embedded ? "" : "mx-auto max-w-[1000px]"}>
                 {!embedded && (
                     <Box className="mb-6 flex items-center gap-4">
-                        <Link
-                            href={returnHref}
+                        <ContextualBackLink
+                            fallbackHref={returnHref}
                             aria-label="Retour"
                             className={cn(
                                 "flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white",
@@ -687,7 +691,7 @@ export function CreateMethodPageContent({
                             )}
                         >
                             <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                        </Link>
+                        </ContextualBackLink>
                         <Text as="h1" className={cn("text-[26px] font-extrabold leading-tight md:text-[30px]", uiTokens.text.heading)}>
                             {isEditing ? "Modifier la méthode" : "Ajouter une méthode"}
                         </Text>

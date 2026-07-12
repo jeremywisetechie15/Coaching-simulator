@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useCurrentAppHref } from "@/features/app-shell/components";
+import { withSearchParam, withoutSearchParam } from "@/features/app-shell/domain";
 import { Box, CardSurface } from "@/lib/ui/atoms";
 import {
     type CreateOrganizationFieldErrors,
@@ -19,6 +22,7 @@ import { OrganizationDetailOverview } from "./OrganizationDetailOverview";
 import { OrganizationDetailRoleplays } from "./OrganizationDetailRoleplays";
 import {
     OrganizationDetailTabs,
+    ORGANIZATION_DETAIL_TABS,
     type OrganizationDetailTab,
 } from "./OrganizationDetailTabs";
 import { OrganizationDetailUsers } from "./OrganizationDetailUsers";
@@ -73,12 +77,8 @@ function mapValidationIssuesToFieldErrors(issues: ApiValidationIssue[] | undefin
     return fieldErrors;
 }
 
-function clearEditSearchParam() {
-    const url = new URL(window.location.href);
-    if (!url.searchParams.has("edit")) return;
-
-    url.searchParams.delete("edit");
-    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+function isOrganizationDetailTab(value: string | null): value is OrganizationDetailTab {
+    return ORGANIZATION_DETAIL_TABS.some((tab) => tab.value === value);
 }
 
 export function OrganizationDetailContent({
@@ -87,7 +87,13 @@ export function OrganizationDetailContent({
     organization,
     roleplays = [],
 }: OrganizationDetailContentProps) {
-    const [activeTab, setActiveTab] = useState<OrganizationDetailTab>("overview");
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const currentHref = useCurrentAppHref();
+    const [activeTab, setActiveTab] = useState<OrganizationDetailTab>(() => {
+        const tab = searchParams.get("tab");
+        return isOrganizationDetailTab(tab) ? tab : "overview";
+    });
     const [currentOrganization, setCurrentOrganization] = useState(organization);
     const [isEditing, setIsEditing] = useState(initialIsEditing);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -96,13 +102,23 @@ export function OrganizationDetailContent({
     const [formValues, setFormValues] = useState(() => getFormValuesFromOrganization(organization));
 
     useEffect(() => {
-        if (initialIsEditing) {
-            clearEditSearchParam();
+        if (initialIsEditing && searchParams.has("edit")) {
+            router.replace(withoutSearchParam(currentHref, "edit"), { scroll: false });
         }
-    }, [initialIsEditing]);
+    }, [currentHref, initialIsEditing, router, searchParams]);
+
+    const selectTab = (tab: OrganizationDetailTab) => {
+        setActiveTab(tab);
+        router.replace(
+            tab === "overview"
+                ? withoutSearchParam(currentHref, "tab")
+                : withSearchParam(currentHref, "tab", tab),
+            { scroll: false },
+        );
+    };
 
     const startEditing = () => {
-        setActiveTab("overview");
+        selectTab("overview");
         setFormValues(getFormValuesFromOrganization(currentOrganization));
         setFieldErrors({});
         setFormError(null);
@@ -189,7 +205,7 @@ export function OrganizationDetailContent({
                 />
 
                 <CardSurface className="overflow-hidden rounded-[14px] border border-[#E1E4EB] shadow-none">
-                    <OrganizationDetailTabs activeTab={activeTab} onTabChange={setActiveTab} />
+                    <OrganizationDetailTabs activeTab={activeTab} onTabChange={selectTab} />
                     {activeTab === "overview" && (
                         <OrganizationDetailOverview
                             fieldErrors={fieldErrors}

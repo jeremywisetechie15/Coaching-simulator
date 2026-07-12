@@ -1,10 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check } from "lucide-react";
 import { useState, type FormEvent } from "react";
+import { ContextualBackLink } from "@/features/app-shell/components";
 import { AlertMessage, SingleSelectField } from "@/lib/ui/molecules";
 import { Box, CardSurface, FieldLabel, InlineIcon, SelectInput, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
@@ -137,13 +137,13 @@ export function CreatePersonaPageContent({
         <Box as={embedded ? "div" : "main"} className={embedded ? "" : "px-5 pb-16 md:px-9 lg:px-12"}>
             <form onSubmit={handleSubmit} className={embedded ? "space-y-4" : "mx-auto max-w-[960px] space-y-4"}>
                 {!embedded && <Box className="flex items-center gap-3">
-                    <Link
-                        href="/personas"
+                    <ContextualBackLink
+                        fallbackHref="/personas"
                         aria-label="Retour"
                         className="flex h-8 w-8 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
                     >
                         <InlineIcon icon={ArrowLeft} className="h-4 w-4" />
-                    </Link>
+                    </ContextualBackLink>
                     <Text as="h1" className="text-[22px] font-extrabold text-[#111827]">
                         {isEditing ? "Modifier le persona IA" : "Créer un persona IA"}
                     </Text>

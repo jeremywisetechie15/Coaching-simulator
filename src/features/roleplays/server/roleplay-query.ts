@@ -1,11 +1,21 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CONTENT_STATUS } from "@/features/content/domain";
 import { QUIZ_KIND } from "@/features/evaluations/domain";
-import type { RoleplayDetail, RoleplayListItem, RoleplayStats } from "@/features/roleplays/domain";
+import {
+    calculateRoleplayIndex,
+    calculateRoleplayIndexSeries,
+    isRoleplaySessionEligibleForEvaluation,
+    ROLEPLAY_INDEX_RECENT_SESSION_LIMIT,
+    selectRoleplayIndexScorePositions,
+    type RoleplayDetail,
+    type RoleplayListItem,
+    type RoleplayStats,
+} from "@/features/roleplays/domain";
 import { NotFoundError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
     createEmptyRoleplayStats,
+    formatRoleplayDate,
     formatRoleplayDuration,
     mapRoleplayRowsToDetail,
     mapRoleplayRowToListItem,
@@ -78,6 +88,11 @@ interface RoleplaySessionResultStatsRow {
     completed_at: string | null;
     score_percent: number | string | null;
     session_id: string;
+}
+
+interface RoleplaySessionAttemptRow {
+    duration_seconds: number | null;
+    scenario_id: string | null;
 }
 
 function uniqueValues(values: Array<string | null | undefined>) {
@@ -379,11 +394,14 @@ async function fetchRoleplayStats(supabase: SupabaseClient, scenarioId: string, 
     if (error) throw error;
 
     const sessions = data ?? [];
-    if (sessions.length === 0) {
+    const eligibleSessions = sessions.filter((session) =>
+        isRoleplaySessionEligibleForEvaluation(session.duration_seconds),
+    );
+    if (eligibleSessions.length === 0) {
         return createEmptyRoleplayStats();
     }
 
-    const sessionIds = sessions.map((session) => session.id);
+    const sessionIds = eligibleSessions.map((session) => session.id);
     const { data: normalizedResults, error: normalizedError } = await supabase
         .from("roleplay_session_results")
         .select("session_id, score_percent, completed_at")
@@ -398,23 +416,77 @@ async function fetchRoleplayStats(supabase: SupabaseClient, scenarioId: string, 
             .filter((entry): entry is readonly [string, number] => entry[1] !== null),
     );
 
-    const scores = sessions
-        .map((session) => scoresBySessionId.get(session.id) ?? extractScore(session.notation_json))
-        .filter((score): score is number => score !== null);
-    const latest = sessions[0];
+    const scoredSessions = eligibleSessions.map((session) => ({
+        score: scoresBySessionId.get(session.id) ?? extractScore(session.notation_json),
+        session,
+    }));
+    const scoredSessionResults = scoredSessions.flatMap(({ score, session }) =>
+        score !== null ? [{ score, session }] : [],
+    );
+    const latestScoredSession = scoredSessionResults[0] ?? null;
+    const bestScoredSession = scoredSessionResults.reduce<(typeof scoredSessionResults)[number] | null>(
+        (best, current) => (!best || current.score > best.score ? current : best),
+        null,
+    );
+    const indexSourceSessions = scoredSessionResults.map(({ score }) => score);
+    const index = calculateRoleplayIndex(indexSourceSessions);
+    const indexSeries = calculateRoleplayIndexSeries(indexSourceSessions);
+    const selectedIndexPositions = new Set(selectRoleplayIndexScorePositions(indexSourceSessions));
+    const indexSessions = scoredSessionResults
+        .slice(0, ROLEPLAY_INDEX_RECENT_SESSION_LIMIT)
+        .map(({ score, session }, position) => ({
+            completedAt: session.created_at,
+            durationSeconds: session.duration_seconds,
+            indexScore: indexSeries[position] ?? 0,
+            isTopScore: selectedIndexPositions.has(position),
+            score,
+            sessionId: session.id,
+        }));
+    const latestEligibleSessionId = eligibleSessions[0]?.id ?? null;
 
     return {
-        bestScore: scores.length > 0 ? Math.max(...scores) : 0,
-        lastDate: latest.created_at
-            ? new Intl.DateTimeFormat("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" }).format(new Date(latest.created_at))
-            : "Aucune session",
-        lastDuration: formatRoleplayDuration(latest.duration_seconds),
-        scoreActuel: scores[0] ?? 0,
-        simulations: sessions.length,
+        bestScore: bestScoredSession?.score ?? 0,
+        bestScoreDate: formatRoleplayDate(bestScoredSession?.session.created_at),
+        indexDelta: index.delta,
+        indexScore: index.score,
+        indexSessions,
+        indexSessionCount: index.sessionCount,
+        indexTrend: index.trend,
+        lastDate: formatRoleplayDate(latestScoredSession?.session.created_at),
+        lastDuration: formatRoleplayDuration(latestScoredSession?.session.duration_seconds),
+        latestEligibleSessionId,
+        scoreActuel: latestScoredSession?.score ?? 0,
+        simulations: eligibleSessions.length,
     };
 }
 
-export async function fetchRoleplayList(supabase: SupabaseClient): Promise<RoleplayListItem[]> {
+async function fetchRoleplayAttemptCounts(
+    supabase: SupabaseClient,
+    scenarioIds: string[],
+    userId?: string | null,
+) {
+    if (scenarioIds.length === 0 || !userId) return new Map<string, number>();
+
+    const { data, error } = await supabase
+        .from("sessions")
+        .select("scenario_id, duration_seconds")
+        .in("scenario_id", scenarioIds)
+        .eq("user_id", userId)
+        .eq("status", "completed")
+        .returns<RoleplaySessionAttemptRow[]>();
+
+    if (error) throw error;
+
+    const counts = new Map<string, number>();
+    for (const session of data ?? []) {
+        if (!session.scenario_id || !isRoleplaySessionEligibleForEvaluation(session.duration_seconds)) continue;
+        counts.set(session.scenario_id, (counts.get(session.scenario_id) ?? 0) + 1);
+    }
+
+    return counts;
+}
+
+export async function fetchRoleplayList(supabase: SupabaseClient, userId?: string | null): Promise<RoleplayListItem[]> {
     const { data, error } = await supabase
         .from("scenarios")
         .select(ROLEPLAY_SELECT)
@@ -426,14 +498,24 @@ export async function fetchRoleplayList(supabase: SupabaseClient): Promise<Rolep
 
     const rows = await withRoleplayRelations(data ?? []);
     const scenarioIds = rows.map((row) => row.id);
-    const scenarioQuizRows = await fetchScenarioQuizzes(createAdminClient(), scenarioIds);
+    const adminSupabase = createAdminClient();
+    const [scenarioQuizRows, attemptCountsByScenarioId] = await Promise.all([
+        fetchScenarioQuizzes(adminSupabase, scenarioIds),
+        fetchRoleplayAttemptCounts(adminSupabase, scenarioIds, userId),
+    ]);
     const quizCountsByScenarioId = new Map<string, number>();
 
     for (const row of scenarioQuizRows) {
         quizCountsByScenarioId.set(row.scenario_id, (quizCountsByScenarioId.get(row.scenario_id) ?? 0) + 1);
     }
 
-    return rows.map((row) => mapRoleplayRowToListItem(row, quizCountsByScenarioId.get(row.id) ?? 0));
+    return rows.map((row) =>
+        mapRoleplayRowToListItem(
+            row,
+            quizCountsByScenarioId.get(row.id) ?? 0,
+            attemptCountsByScenarioId.get(row.id) ?? 0,
+        ),
+    );
 }
 
 export async function fetchRoleplaysByIds(supabase: SupabaseClient, roleplayIds: string[]): Promise<RoleplayListItem[]> {

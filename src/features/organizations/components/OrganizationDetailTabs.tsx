@@ -7,7 +7,7 @@ interface OrganizationDetailTabsProps {
     onTabChange: (tab: OrganizationDetailTab) => void;
 }
 
-const tabs: Array<{ label: string; value: OrganizationDetailTab }> = [
+export const ORGANIZATION_DETAIL_TABS: Array<{ label: string; value: OrganizationDetailTab }> = [
     { label: "Informations de base", value: "overview" },
     { label: "Groupes", value: "groups" },
     { label: "Utilisateurs", value: "users" },
@@ -18,7 +18,7 @@ const tabs: Array<{ label: string; value: OrganizationDetailTab }> = [
 export function OrganizationDetailTabs({ activeTab, onTabChange }: OrganizationDetailTabsProps) {
     return (
         <Box className="flex overflow-x-auto border-b border-[#E4E7EE] px-6">
-            {tabs.map((tab) => {
+            {ORGANIZATION_DETAIL_TABS.map((tab) => {
                 const isActive = activeTab === tab.value;
 
                 return (

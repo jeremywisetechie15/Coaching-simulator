@@ -1,4 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import {
+    getRoleplaySessionEvaluationDecision,
+    ROLEPLAY_NOTATION_STATUS,
+} from "@/features/roleplays/domain";
 import { createClient } from "@/lib/supabase/server";
 
 interface Message {
@@ -17,6 +21,7 @@ export async function POST(request: NextRequest) {
     try {
         const body: RequestBody = await request.json();
         const { scenario_id, duration_seconds, messages } = body;
+        const evaluationDecision = getRoleplaySessionEvaluationDecision(duration_seconds);
 
         if (!scenario_id || !messages || messages.length === 0) {
             return NextResponse.json(
@@ -36,6 +41,9 @@ export async function POST(request: NextRequest) {
             .insert({
                 scenario_id,
                 duration_seconds: duration_seconds || 0,
+                notation_status: evaluationDecision.eligible
+                    ? ROLEPLAY_NOTATION_STATUS.notStarted
+                    : ROLEPLAY_NOTATION_STATUS.skipped,
                 status: "completed",
                 user_id: user?.id ?? null,
             })
@@ -69,7 +77,10 @@ export async function POST(request: NextRequest) {
 
         return NextResponse.json({
             success: true,
+            evaluation_eligible: evaluationDecision.eligible,
+            minimum_duration_seconds: evaluationDecision.minimumDurationSeconds,
             session_id: session.id,
+            skip_reason: evaluationDecision.skipReason,
             messages_count: messages.length,
         });
 

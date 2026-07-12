@@ -12,10 +12,11 @@ import { getRoleplayById } from "@/features/roleplays/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
+import { buildAuthRedirectHref, withReturnTo, withSearchParam } from "@/features/app-shell/domain";
 
 interface PageProps {
     params: Promise<{ roleplayId: string; stepIndex: string }>;
-    searchParams: Promise<{ coach?: string }>;
+    searchParams: Promise<{ coach?: string; returnTo?: string; sessionId?: string }>;
 }
 
 export async function generateMetadata() {
@@ -26,8 +27,9 @@ export async function generateMetadata() {
 
 export default async function Page({ params, searchParams }: PageProps) {
     const { roleplayId, stepIndex } = await params;
-    const { coach } = await searchParams;
+    const { coach, returnTo, sessionId } = await searchParams;
     const variant = coach === "after" ? "improve" : "prepare";
+    const coachSessionId = crypto.randomUUID();
     let profile;
     let dbMethodId: string | null = null;
 
@@ -35,7 +37,11 @@ export default async function Page({ params, searchParams }: PageProps) {
         profile = await getCurrentProfile();
     } catch (error) {
         if (error instanceof UnauthorizedError) {
-            redirect(`/auth?redirect=/roleplays/${roleplayId}/steps/${stepIndex}`);
+            const stepHref = coach === "after"
+                ? withSearchParam(`/roleplays/${roleplayId}/steps/${stepIndex}`, "coach", "after")
+                : `/roleplays/${roleplayId}/steps/${stepIndex}`;
+            const sessionStepHref = sessionId ? withSearchParam(stepHref, "sessionId", sessionId) : stepHref;
+            redirect(buildAuthRedirectHref(withReturnTo(sessionStepHref, returnTo)));
         }
 
         throw error;
@@ -86,9 +92,11 @@ export default async function Page({ params, searchParams }: PageProps) {
 
     return (
         <RoleplayStepCoachPage
+            coachSessionId={coachSessionId}
             profileValues={toProfileFormValues(profile)}
             roleplay={roleplay}
             method={method}
+            referenceSessionId={sessionId}
             step={step}
             stepNumber={stepNumber}
             variant={variant}

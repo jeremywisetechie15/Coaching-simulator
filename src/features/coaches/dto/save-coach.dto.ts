@@ -13,6 +13,7 @@ const optionalString = (max: number, message: string) =>
 
 export const saveCoachDto = z.object({
     avatarSrc: z.string().trim().max(500, "L'URL de l'avatar est trop longue.").optional().default(""),
+    backgroundImagePath: optionalString(1000, "Le chemin de l'image de fond est trop long."),
     certifications: optionalString(1200, "Les certifications obtenues sont trop longues."),
     coachingStyle: z.enum(COACHING_STYLES).optional().default(COACHING_STYLE.optimistic),
     diploma: optionalString(800, "Le diplôme est trop long."),

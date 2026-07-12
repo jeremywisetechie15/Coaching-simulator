@@ -4,12 +4,18 @@ import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { listScorecards } from "@/features/scorecards/server";
 import { UnauthorizedError } from "@/lib/server/errors";
+import { buildAuthRedirectHref, withReturnTo, withSearchParams } from "@/features/app-shell/domain";
+
+interface PageProps {
+    searchParams?: Promise<{ domain?: string; q?: string; returnTo?: string }>;
+}
 
 export const metadata = {
     title: "Scorecards | MaiaCoach",
 };
 
-export default async function Page() {
+export default async function Page({ searchParams }: PageProps) {
+    const filters = searchParams ? await searchParams : {};
     let profile;
 
     try {
@@ -19,7 +25,14 @@ export default async function Page() {
             throw error;
         }
 
-        redirect("/auth?redirect=/scorecards");
+        redirect(
+            buildAuthRedirectHref(
+                withReturnTo(
+                    withSearchParams("/scorecards", { domain: filters.domain, q: filters.q }),
+                    filters.returnTo,
+                ),
+            ),
+        );
     }
 
     const scorecards = await listScorecards();

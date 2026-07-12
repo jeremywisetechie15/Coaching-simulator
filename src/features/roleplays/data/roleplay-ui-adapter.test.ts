@@ -26,6 +26,8 @@ function createRoleplayDetail({
     return {
         assignedUserId: null,
         assignedUserName: null,
+        attemptCount: 0,
+        backgroundImagePath: null,
         category: "Vente",
         coachId: null,
         coachName: null,
@@ -64,8 +66,15 @@ function createRoleplayDetail({
         scorecardName: null,
         stats: {
             bestScore: 0,
+            bestScoreDate: "Aucune session",
+            indexDelta: null,
+            indexScore: null,
+            indexSessions: [],
+            indexSessionCount: 0,
+            indexTrend: "unavailable",
             lastDate: "Aucune session",
             lastDuration: "0s",
+            latestEligibleSessionId: null,
             scoreActuel: 0,
             simulations: 0,
         },
@@ -227,11 +236,63 @@ describe("roleplay UI adapter", () => {
         const roleplay = mapDbRoleplayToUi(createRoleplayDetail());
 
         expect(roleplay.detail).toMatchObject({
+            bestScoreDate: "Aucune session",
+            indexDelta: null,
+            indexScore: null,
+            indexSessions: [],
+            indexSessionCount: 0,
+            indexTrend: "unavailable",
             lastDate: "Aucune session",
             lastDuration: "0s",
             meilleurScore: 0,
             scoreActuel: 0,
             simulations: 0,
+        });
+    });
+
+    it("exposes the latest eligible session route input from DB stats", () => {
+        const detail = createRoleplayDetail();
+        detail.stats.latestEligibleSessionId = "session-eligible";
+
+        const roleplay = mapDbRoleplayToUi(detail, null);
+
+        expect(roleplay.latestEvaluationSessionId).toBe("session-eligible");
+    });
+
+    it("maps the roleplay index from DB stats", () => {
+        const detail = createRoleplayDetail();
+        detail.stats.indexDelta = 12;
+        detail.stats.indexScore = 74;
+        detail.stats.indexSessions = [
+            {
+                completedAt: "2026-07-10T10:00:00.000Z",
+                durationSeconds: 120,
+                indexScore: 74,
+                isTopScore: true,
+                score: 74,
+                sessionId: "session-1",
+            },
+        ];
+        detail.stats.indexSessionCount = 6;
+        detail.stats.indexTrend = "up";
+
+        const roleplay = mapDbRoleplayToUi(detail, null);
+
+        expect(roleplay.detail).toMatchObject({
+            indexDelta: 12,
+            indexScore: 74,
+            indexSessions: [
+                {
+                    completedAt: "2026-07-10T10:00:00.000Z",
+                    durationSeconds: 120,
+                    indexScore: 74,
+                    isTopScore: true,
+                    score: 74,
+                    sessionId: "session-1",
+                },
+            ],
+            indexSessionCount: 6,
+            indexTrend: "up",
         });
     });
 });

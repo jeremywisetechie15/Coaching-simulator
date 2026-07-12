@@ -19,17 +19,20 @@ import {
     listRoleplayUserOptions,
 } from "@/features/roleplays/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
+import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
 
 interface PageProps {
     params: Promise<{ roleplayId: string }>;
+    searchParams?: Promise<{ returnTo?: string }>;
 }
 
 export const metadata = {
     title: "Modifier le scénario | MaiaCoach",
 };
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
     const { roleplayId } = await params;
+    const { returnTo } = searchParams ? await searchParams : {};
     let profile;
     let roleplay;
 
@@ -37,7 +40,7 @@ export default async function Page({ params }: PageProps) {
         profile = await getCurrentProfile();
     } catch (error) {
         if (error instanceof UnauthorizedError) {
-            redirect(`/auth?redirect=/roleplays/${roleplayId}/edit`);
+            redirect(buildAuthRedirectHref(withReturnTo(`/roleplays/${roleplayId}/edit`, returnTo)));
         }
 
         throw error;

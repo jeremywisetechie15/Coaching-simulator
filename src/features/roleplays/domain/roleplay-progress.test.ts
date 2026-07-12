@@ -109,25 +109,25 @@ function createProgressInput(): BuildRoleplayProgressInput {
 }
 
 describe("roleplay progress helpers", () => {
-    it("builds progress from the best session and compares it to the first session", () => {
+    it("builds progress from the INDEX sessions and compares it to the first session", () => {
         const progress = buildRoleplayProgress(createProgressInput());
 
         expect(progress).toMatchObject({
-            afterTraining: 75,
-            delta: 30,
+            afterTraining: 60,
+            delta: 15,
             initialScore: 45,
-            masteryScore: 75,
+            masteryScore: 60,
             title: "Progression découverte",
         });
         expect(progress.steps[0]).toMatchObject({
-            delta: 30,
-            score: 75,
+            delta: 15,
+            score: 60,
             title: "Qualifier le besoin",
         });
         expect(progress.steps[0].competencies[0]).toMatchObject({
-            delta: 30,
+            delta: 15,
             name: "Découverte des besoins",
-            score: 75,
+            score: 60,
         });
     });
 
@@ -183,9 +183,9 @@ describe("roleplay progress helpers", () => {
 
         expect(progressCompetencies(progress)).toEqual([
             {
-                delta: 30,
+                delta: 15,
                 name: "Découverte des besoins",
-                score: 75,
+                score: 60,
             },
         ]);
     });
@@ -215,10 +215,113 @@ describe("roleplay progress helpers", () => {
         expect(progress.dimensions.find((dimension) => dimension.key === "savoir")?.score).toBe(90);
         expect(progress.modalities.find((modality) => modality.icon === "quiz")?.score).toBe(90);
         expect(progress.steps[0]?.competencies[0]?.dimensions).toContainEqual({
-            diagnostic: "Savoir maîtrisé sur la meilleure session.",
+            diagnostic: "Savoir maîtrisé selon les résultats retenus.",
             key: "savoir",
             label: "Savoir",
             score: 90,
+        });
+    });
+
+    it("uses the best three of the six latest sessions while keeping the first session as initial", () => {
+        const sessionScores = [
+            ["session-initial", 99],
+            ["session-2", 10],
+            ["session-3", 80],
+            ["session-4", 70],
+            ["session-5", 60],
+            ["session-6", 50],
+            ["session-7", 40],
+        ] as const;
+        const progress = buildRoleplayProgress({
+            criteria: [],
+            sessions: sessionScores.map(([sessionId, scorePercent], index) => ({
+                completedAt: `2026-06-${String(index + 1).padStart(2, "0")}T10:00:00.000Z`,
+                scorePercent,
+                sessionId,
+            })),
+            steps: sessionScores.map(([sessionId, scorePercent]) => ({
+                coachComment: null,
+                pointsAwarded: scorePercent,
+                pointsMax: 100,
+                scorePercent,
+                scorecardStepId: "step-1",
+                sessionId,
+                stepOrder: 1,
+                title: "Qualifier le besoin",
+            })),
+            title: "Progression découverte",
+        });
+
+        expect(progress).toMatchObject({
+            afterTraining: 70,
+            delta: -29,
+            initialScore: 99,
+            masteryScore: 70,
+        });
+        expect(progress.steps[0]).toMatchObject({
+            delta: -29,
+            score: 70,
+        });
+    });
+
+    it("uses the best completed method quiz instead of the latest quiz score", () => {
+        const quizCriterion = (sessionId: string, completedAt: string, score: number) => ({
+            advice: null,
+            coachComment: null,
+            completedAt,
+            criterionRef: `quiz-${sessionId}`,
+            dimension: "savoir",
+            dimensionItemId: "item-savoir",
+            dimensionItemLabel: "Connaissance des étapes",
+            pointsAwarded: score,
+            pointsMax: 100,
+            scorePercent: score,
+            scorecardStepId: "step-1",
+            sessionId,
+            skillId: "skill-1",
+            skillName: "Découverte des besoins",
+        });
+        const progress = buildRoleplayProgress({
+            ...createProgressInput(),
+            quizCriteria: [
+                quizCriterion("quiz-old", "2026-06-01T10:00:00.000Z", 100),
+                quizCriterion("quiz-latest", "2026-06-15T10:00:00.000Z", 40),
+            ],
+        });
+
+        expect(progress.dimensions.find((dimension) => dimension.key === "savoir")?.score).toBe(100);
+        expect(progress.modalities.find((modality) => modality.icon === "quiz")?.score).toBe(100);
+    });
+
+    it("does not derive savoir from roleplay simulation criteria", () => {
+        const input = createProgressInput();
+        const progress = buildRoleplayProgress({
+            ...input,
+            criteria: [
+                ...input.criteria,
+                {
+                    advice: null,
+                    coachComment: null,
+                    criterionRef: "legacy-savoir",
+                    dimension: "savoir",
+                    dimensionItemId: "legacy-item",
+                    pointsAwarded: 10,
+                    pointsMax: 10,
+                    scorePercent: 100,
+                    scorecardStepId: "step-1",
+                    sessionId: "session-best",
+                    skillId: "skill-1",
+                    skillName: "Découverte des besoins",
+                },
+            ],
+        });
+
+        expect(progress.dimensions.find((dimension) => dimension.key === "savoir")?.score).toBe(0);
+        expect(progress.steps[0]?.competencies[0]?.dimensions).toContainEqual({
+            diagnostic: "Aucune donnée exploitable pour savoir.",
+            key: "savoir",
+            label: "Savoir",
+            score: 0,
         });
     });
 });

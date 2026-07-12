@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { ArrowLeft, Check, Pencil, Trash2, X } from "lucide-react";
+import { ContextualBackLink } from "@/features/app-shell/components";
 import { Box, Button, InlineIcon, Text } from "@/lib/ui/atoms";
 
 interface OrganizationDetailHeaderProps {
@@ -22,13 +22,13 @@ export function OrganizationDetailHeader({
     return (
         <Box className="mb-8 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <Box className="flex items-center gap-7">
-                <Link
-                    href="/organizations"
+                <ContextualBackLink
+                    fallbackHref="/organizations"
                     className="flex h-10 w-10 items-center justify-center rounded-full text-[#171B2A] transition hover:bg-white"
                     aria-label="Retour aux organisations"
                 >
                     <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                </Link>
+                </ContextualBackLink>
                 <Text as="h1" className="text-[26px] font-extrabold tracking-[-0.02em] text-[#171B2A]">
                     {name}
                 </Text>

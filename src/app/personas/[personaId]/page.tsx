@@ -9,19 +9,22 @@ import { getPersonaById } from "@/features/personas/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { ForbiddenError, UnauthorizedError } from "@/lib/server/errors";
+import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
 
 interface PageProps {
     params: Promise<{
         personaId: string;
     }>;
+    searchParams?: Promise<{ returnTo?: string }>;
 }
 
 export const metadata = {
     title: "Modifier un persona IA | MaiaCoach",
 };
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
     const { personaId } = await params;
+    const { returnTo } = searchParams ? await searchParams : {};
     let profile;
     let persona;
 
@@ -29,7 +32,7 @@ export default async function Page({ params }: PageProps) {
         profile = await getCurrentProfile();
     } catch (error) {
         if (error instanceof UnauthorizedError) {
-            redirect(`/auth?redirect=/personas/${personaId}`);
+            redirect(buildAuthRedirectHref(withReturnTo(`/personas/${personaId}`, returnTo)));
         }
 
         throw error;

@@ -1,5 +1,6 @@
 import { requireAdmin } from "@/features/auth/server";
 import { getQuizTypeLabel, type QuizType } from "@/features/evaluations/domain";
+import { MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS } from "@/features/roleplays/domain";
 import type {
     OrganizationActivityStatus,
     OrganizationEvaluationRow,
@@ -36,6 +37,7 @@ interface PersonaRow {
 }
 
 interface SessionRow {
+    duration_seconds: number | null;
     scenario_id: string | null;
     status: string | null;
 }
@@ -271,7 +273,12 @@ export async function listOrganizationRoleplays(organizationId: string): Promise
             ? adminSupabase.from("personas").select("id, name").in("id", personaIds).returns<PersonaRow[]>()
             : Promise.resolve({ data: [] as PersonaRow[], error: null }),
         scenarioIds.length > 0
-            ? adminSupabase.from("sessions").select("scenario_id, status").in("scenario_id", scenarioIds).returns<SessionRow[]>()
+            ? adminSupabase
+                  .from("sessions")
+                  .select("scenario_id, status, duration_seconds")
+                  .in("scenario_id", scenarioIds)
+                  .gte("duration_seconds", MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS)
+                  .returns<SessionRow[]>()
             : Promise.resolve({ data: [] as SessionRow[], error: null }),
     ]);
 

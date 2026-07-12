@@ -9,20 +9,23 @@ import { getOrganizationGroupPageData, type OrganizationGroupPageData } from "@/
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { ForbiddenError, NotFoundError, UnauthorizedError } from "@/lib/server/errors";
+import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
 
 interface PageProps {
     params: Promise<{
         groupId: string;
         organizationId: string;
     }>;
+    searchParams?: Promise<{ returnTo?: string; tab?: string }>;
 }
 
 export const metadata = {
     title: "Détail du groupe | MaiaCoach",
 };
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
     const { groupId, organizationId } = await params;
+    const { returnTo, tab } = searchParams ? await searchParams : {};
     let groupData: OrganizationGroupPageData;
     let profile;
 
@@ -30,7 +33,10 @@ export default async function Page({ params }: PageProps) {
         profile = await getCurrentProfile();
     } catch (error) {
         if (error instanceof UnauthorizedError) {
-            redirect(`/auth?redirect=/organizations/${organizationId}/groups/${groupId}`);
+            const groupHref = tab
+                ? `/organizations/${organizationId}/groups/${groupId}?tab=${encodeURIComponent(tab)}`
+                : `/organizations/${organizationId}/groups/${groupId}`;
+            redirect(buildAuthRedirectHref(withReturnTo(groupHref, returnTo)));
         }
 
         throw error;

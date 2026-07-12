@@ -2,7 +2,6 @@
 
 import type { ReactNode } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import {
     ArrowLeft,
     BookOpen,
@@ -22,8 +21,10 @@ import {
     X,
     type LucideIcon,
 } from "lucide-react";
+import { ContextualBackLink, useContextualReturnHref } from "@/features/app-shell/components";
 import {
     EVALUATION_ROUTES,
+    QUIZ_KIND,
     QUIZ_DIMENSION_LABELS,
     QUIZ_DIMENSIONS,
     getQuizDimensionDiagnostic,
@@ -38,6 +39,7 @@ import {
     type QuizQuestionAttachment,
     type QuizStep,
 } from "@/features/evaluations/domain";
+import { METHOD_ROUTES } from "@/features/methods/domain/method";
 import type { SkillOption } from "@/features/skills/domain/skills";
 import { getStoragePathFileName } from "@/lib/uploads/content-upload";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
@@ -195,6 +197,11 @@ export function EvaluationQuizPageContent({
     quiz,
     skillOptions,
 }: EvaluationQuizPageContentProps) {
+    const completionFallbackHref =
+        quiz.kind === QUIZ_KIND.methodKnowledge && quiz.methodId
+            ? METHOD_ROUTES.app.detail(quiz.methodId)
+            : EVALUATION_ROUTES.app.detail(quiz.id);
+    const completionHref = useContextualReturnHref(completionFallbackHref);
     const skillNameById = useMemo(
         () => new Map(skillOptions.map((skill) => [skill.id, skill.name])),
         [skillOptions],
@@ -355,12 +362,12 @@ export function EvaluationQuizPageContent({
                         <Text className={cn("mt-2 text-[14px] font-semibold", uiTokens.text.muted)}>
                             Ce quiz ne contient pas encore de question.
                         </Text>
-                        <Link
-                            href={`/evaluations/${quiz.id}`}
+                        <ContextualBackLink
+                            fallbackHref={completionFallbackHref}
+                            showLabel
                             className={cn(uiTokens.action.secondaryButton, "mt-5 w-fit")}
                         >
-                            Retour au détail
-                        </Link>
+                        </ContextualBackLink>
                     </CardSurface>
                 </Box>
             </Box>
@@ -572,8 +579,8 @@ export function EvaluationQuizPageContent({
             <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
                 <Box className="mx-auto max-w-[860px]">
                     <Box className="mb-5 flex items-center gap-3">
-                        <Link
-                            href={`/evaluations/${quiz.id}`}
+                        <ContextualBackLink
+                            fallbackHref={completionFallbackHref}
                             aria-label="Retour"
                             className={cn(
                                 "flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white",
@@ -581,7 +588,7 @@ export function EvaluationQuizPageContent({
                             )}
                         >
                             <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                        </Link>
+                        </ContextualBackLink>
                         <Text as="h1" className={cn("text-[26px] font-extrabold", uiTokens.text.heading)}>
                             Résultat du quiz
                         </Text>
@@ -784,12 +791,12 @@ export function EvaluationQuizPageContent({
                                 {attemptsRemaining > 0 ? ` (${attemptsRemaining} restante${attemptsRemaining > 1 ? "s" : ""})` : ""}
                             </Button>
                         )}
-                        <Link
-                            href={`/evaluations/${quiz.id}`}
+                        <Button
+                            onClick={() => window.location.assign(completionHref)}
                             className={cn("flex h-11 items-center justify-center rounded-xl px-5 text-[14px] font-bold text-white transition", uiTokens.action.primaryButton)}
                         >
                             Valider et continuer
-                        </Link>
+                        </Button>
                     </Box>
                     {attemptError && (
                         <Text className={cn("mt-4 text-center text-[13px] font-semibold", uiTokens.text.danger)}>
@@ -805,8 +812,8 @@ export function EvaluationQuizPageContent({
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1120px]">
                 <Box className="mb-5 flex items-center justify-between">
-                    <Link
-                        href={`/evaluations/${quiz.id}`}
+                    <ContextualBackLink
+                        fallbackHref={completionFallbackHref}
                         aria-label="Retour"
                         className={cn(
                             "flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white",
@@ -814,7 +821,7 @@ export function EvaluationQuizPageContent({
                         )}
                     >
                         <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                    </Link>
+                    </ContextualBackLink>
                     <Box className="flex min-w-0 flex-col items-end gap-1 text-right">
                         <Text className={cn("text-[13px] font-bold", uiTokens.text.muted)}>
                             Question {currentIndex + 1}/{flatQuestions.length}
@@ -1090,8 +1097,8 @@ function ResultStateCard({
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[820px]">
                 <Box className="mb-5 flex items-center gap-3">
-                    <Link
-                        href={`/evaluations/${quizId}`}
+                    <ContextualBackLink
+                        fallbackHref={EVALUATION_ROUTES.app.detail(quizId)}
                         aria-label="Retour"
                         className={cn(
                             "flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white",
@@ -1099,7 +1106,7 @@ function ResultStateCard({
                         )}
                     >
                         <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                    </Link>
+                    </ContextualBackLink>
                     <Text as="h1" className={cn("text-[26px] font-extrabold", uiTokens.text.heading)}>
                         Résultat du quiz
                     </Text>

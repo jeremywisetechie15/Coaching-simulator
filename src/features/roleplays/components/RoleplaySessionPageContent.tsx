@@ -1,7 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
     AlertCircle,
@@ -16,6 +15,12 @@ import {
     User,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import {
+    ContextualBackLink,
+    ContextualLink,
+    useContextualReturnHref,
+} from "@/features/app-shell/components";
+import { withReturnTo } from "@/features/app-shell/domain";
 import { ROLEPLAY_ANALYSIS_STEPS } from "@/features/roleplays/data/session-analysis";
 import {
     difficultyBadgeStyles,
@@ -26,6 +31,12 @@ import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { AnalysisLoaderDialog } from "@/lib/ui/organisms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
+import {
+    isRoleplaySessionLifecycleEvent,
+    ROLEPLAY_ROUTES,
+    ROLEPLAY_SESSION_LIFECYCLE_STATUS,
+    type RoleplaySessionLifecycleStatus,
+} from "@/features/roleplays/domain";
 import { RoleplayDocumentsModal } from "./RoleplayDocumentsModal";
 import { roleplayChipIcons } from "./roleplayChipIcons";
 
@@ -49,8 +60,13 @@ function SectionRow({ icon, children }: { icon: LucideIcon; children: React.Reac
 
 export function RoleplaySessionPageContent({ roleplay }: { roleplay: RoleplayItem }) {
     const router = useRouter();
+    const roleplayReturnHref = useContextualReturnHref(ROLEPLAY_ROUTES.app.detail(roleplay.id));
+    const iframeRef = useRef<HTMLIFrameElement | null>(null);
     const [documentsOpen, setDocumentsOpen] = useState(false);
     const [analysisStep, setAnalysisStep] = useState<number | null>(null);
+    const [completedSessionId, setCompletedSessionId] = useState<string | null>(null);
+    const [sessionLifecycleStatus, setSessionLifecycleStatus] = useState<RoleplaySessionLifecycleStatus | null>(null);
+    const [sessionFeedback, setSessionFeedback] = useState<string | null>(null);
     const { detail } = roleplay;
     const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
     const discStyle = discBadgeStyles[roleplay.disc];
@@ -68,23 +84,81 @@ export function RoleplaySessionPageContent({ roleplay }: { roleplay: RoleplayIte
         return () => clearTimeout(stepTimer);
     }, [analysisStep]);
 
+    useEffect(() => {
+        function receiveSessionLifecycle(event: MessageEvent<unknown>) {
+            if (event.origin !== window.location.origin) return;
+            if (event.source !== iframeRef.current?.contentWindow) return;
+            if (!isRoleplaySessionLifecycleEvent(event.data)) return;
+            if (event.data.scenarioId !== roleplay.scenarioId) return;
+
+            setCompletedSessionId(event.data.sessionId);
+            setSessionLifecycleStatus(event.data.status);
+
+            if (event.data.status === ROLEPLAY_SESSION_LIFECYCLE_STATUS.saved) {
+                setSessionFeedback(null);
+                setAnalysisStep(0);
+                return;
+            }
+
+            setAnalysisStep(null);
+
+            if (event.data.status === ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationCompleted) {
+                setSessionFeedback(null);
+                return;
+            }
+
+            if (event.data.status === ROLEPLAY_SESSION_LIFECYCLE_STATUS.skipped) {
+                setSessionFeedback("Cette session est sauvegardée, mais elle est trop courte pour être évaluée.");
+                return;
+            }
+
+            setSessionFeedback(event.data.error || "Impossible de finaliser cette session.");
+        }
+
+        window.addEventListener("message", receiveSessionLifecycle);
+        return () => window.removeEventListener("message", receiveSessionLifecycle);
+    }, [roleplay.scenarioId]);
+
     const completeSimulation = async () => {
         if (analyzing) return;
 
-        if (!roleplay.scenarioId) {
-            window.alert("Impossible de lancer l'évaluation : aucun scénario n'est associé à ce roleplay.");
+        if (!completedSessionId) {
             return;
         }
 
+        if (sessionLifecycleStatus === ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationCompleted) {
+            router.push(
+                withReturnTo(
+                    ROLEPLAY_ROUTES.app.sessionHistoryDetail(completedSessionId),
+                    roleplayReturnHref,
+                ),
+            );
+            return;
+        }
+
+        if (sessionLifecycleStatus !== ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationFailed) return;
+
+        setSessionLifecycleStatus(ROLEPLAY_SESSION_LIFECYCLE_STATUS.saved);
+        setSessionFeedback(null);
         setAnalysisStep(0);
 
         try {
             const response = await fetch("/api/notation", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ scenario_id: roleplay.scenarioId }),
+                body: JSON.stringify({ session_id: completedSessionId }),
             });
             const payload: unknown = await response.json().catch(() => null);
+            const skipped =
+                payload && typeof payload === "object" && "skipped" in payload && payload.skipped === true;
+
+            if (skipped) {
+                setAnalysisStep(null);
+                setSessionLifecycleStatus(ROLEPLAY_SESSION_LIFECYCLE_STATUS.skipped);
+                setSessionFeedback("Cette session est sauvegardée, mais elle est trop courte pour être évaluée.");
+                return;
+            }
+
             const sessionId =
                 payload && typeof payload === "object" && "session_id" in payload
                     ? String(payload.session_id ?? "")
@@ -98,14 +172,41 @@ export function RoleplaySessionPageContent({ roleplay }: { roleplay: RoleplayIte
                 throw new Error(errorMessage);
             }
 
-            setAnalysisStep(ROLEPLAY_ANALYSIS_STEPS.length - 1);
-            router.push(`/roleplays/history/${encodeURIComponent(sessionId)}`);
+            setAnalysisStep(null);
+            setCompletedSessionId(sessionId);
+            setSessionLifecycleStatus(ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationCompleted);
+            router.push(
+                withReturnTo(
+                    ROLEPLAY_ROUTES.app.sessionHistoryDetail(sessionId),
+                    roleplayReturnHref,
+                ),
+            );
         } catch (error) {
             console.error("Erreur pendant l'évaluation complète:", error);
             setAnalysisStep(null);
-            window.alert(error instanceof Error ? error.message : "Impossible de générer l'évaluation complète.");
+            setSessionLifecycleStatus(ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationFailed);
+            setSessionFeedback(error instanceof Error ? error.message : "Impossible de générer l'évaluation complète.");
         }
     };
+
+    const canOpenEvaluation =
+        Boolean(completedSessionId) &&
+        sessionLifecycleStatus === ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationCompleted;
+    const canRetryEvaluation =
+        Boolean(completedSessionId) &&
+        sessionLifecycleStatus === ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationFailed;
+    const completionButtonLabel = canOpenEvaluation
+        ? "Voir mon évaluation"
+        : canRetryEvaluation
+          ? "Relancer l'évaluation"
+          : sessionLifecycleStatus === ROLEPLAY_SESSION_LIFECYCLE_STATUS.saved
+            ? "Analyse en cours..."
+            : sessionLifecycleStatus === ROLEPLAY_SESSION_LIFECYCLE_STATUS.skipped
+              ? "Session trop courte"
+              : "Terminer la simulation";
+    const sessionFeedbackTone = sessionLifecycleStatus === ROLEPLAY_SESSION_LIFECYCLE_STATUS.skipped
+        ? uiTokens.text.muted
+        : uiTokens.text.danger;
 
     const analysisSteps = ROLEPLAY_ANALYSIS_STEPS.map((label, index) => ({
         label,
@@ -121,27 +222,38 @@ export function RoleplaySessionPageContent({ roleplay }: { roleplay: RoleplayIte
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1320px]">
                 <Box className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                    <Link href={`/roleplays/${roleplay.id}`} className={uiTokens.action.backLink}>
-                        <InlineIcon icon={ArrowLeft} className="h-4 w-4" />
-                        Retour
-                    </Link>
-                    <Button
-                        onClick={completeSimulation}
-                        disabled={analyzing}
-                        className={cn(
-                            "flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-[14px] font-bold text-white transition",
-                            uiTokens.action.primaryButton,
-                            analyzing && "cursor-wait opacity-80",
-                        )}
+                    <ContextualBackLink
+                        fallbackHref={ROLEPLAY_ROUTES.app.detail(roleplay.id)}
+                        showLabel
+                        className={uiTokens.action.backLink}
                     >
-                        Terminer la simulation
-                    </Button>
+                        <InlineIcon icon={ArrowLeft} className="h-4 w-4" />
+                    </ContextualBackLink>
+                    <Box className="flex flex-col items-end gap-1.5">
+                        <Button
+                            onClick={completeSimulation}
+                            disabled={analyzing || (!canOpenEvaluation && !canRetryEvaluation)}
+                            className={cn(
+                                "flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-[14px] font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-50",
+                                uiTokens.action.primaryButton,
+                                analyzing && "cursor-wait opacity-80",
+                            )}
+                        >
+                            {completionButtonLabel}
+                        </Button>
+                        {sessionFeedback && (
+                            <Text className={cn("max-w-[420px] text-right text-[12px] font-semibold", sessionFeedbackTone)}>
+                                {sessionFeedback}
+                            </Text>
+                        )}
+                    </Box>
                 </Box>
 
                 <Box className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
                     <CardSurface className={uiTokens.session.frameCard}>
                         {iframeSrc ? (
                             <iframe
+                                ref={iframeRef}
                                 title={`Simulation — ${roleplay.name}`}
                                 src={iframeSrc}
                                 className={uiTokens.session.frame}
@@ -216,13 +328,13 @@ export function RoleplaySessionPageContent({ roleplay }: { roleplay: RoleplayIte
                                 </Box>
                                 <InlineIcon icon={ExternalLink} className="h-4 w-4 text-[#9CA3AF]" />
                             </Button>
-                            <Link
+                            <ContextualLink
                                 href={`/roleplays/${roleplay.id}/steps`}
                                 className="flex items-center gap-2.5 text-[14px] font-bold text-[#374151] transition hover:text-[#5140F0]"
                             >
                                 <InlineIcon icon={BookOpen} className={uiTokens.session.panelHeaderIcon} />
                                 Voir les notes de préparation
-                            </Link>
+                            </ContextualLink>
                         </Box>
                     </CardSurface>
                 </Box>

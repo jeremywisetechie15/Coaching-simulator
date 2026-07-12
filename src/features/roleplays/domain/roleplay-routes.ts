@@ -12,6 +12,8 @@ export const ROLEPLAY_ROUTES = {
     api: {
         collection: "/api/roleplays",
         detail: (roleplayId: string) => `/api/roleplays/${encodeRouteSegment(roleplayId)}`,
+        coachNotes: (roleplayId: string) =>
+            `/api/roleplays/${encodeRouteSegment(roleplayId)}/coach-notes`,
         duplicate: (roleplayId: string) => `/api/roleplays/${encodeRouteSegment(roleplayId)}/duplicate`,
         resource: (roleplayId: string, resourceId: string) =>
             `/api/roleplays/${encodeRouteSegment(roleplayId)}/resources/${encodeRouteSegment(resourceId)}`,

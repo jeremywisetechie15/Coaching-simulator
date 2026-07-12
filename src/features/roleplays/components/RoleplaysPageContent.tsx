@@ -1,9 +1,14 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { AlertTriangle, ArrowLeft, Check, ChevronDown, Copy, Edit3, MoreHorizontal, Phone, Plus, Trash2 } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { AlertTriangle, ArrowLeft, Check, ChevronDown, Copy, Edit3, History, MoreHorizontal, Phone, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import {
+    ContextualBackLink,
+    ContextualLink,
+    useCurrentAppHref,
+} from "@/features/app-shell/components";
+import { withReturnTo, withSearchParams } from "@/features/app-shell/domain";
 import {
     categoryBadgeStyles,
     difficultyBadgeStyles,
@@ -17,7 +22,7 @@ import {
 } from "@/features/roleplays/data/roleplays";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import { ROLEPLAY_ROUTES } from "@/features/roleplays/domain";
-import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import { Box, Button, CardSurface, InlineIcon, Text, Tooltip } from "@/lib/ui/atoms";
 import { CardActionMenu, CardActionMenuButton, CardActionMenuLink } from "@/lib/ui/molecules";
 import { Modal } from "@/lib/ui/organisms";
 import { uiTokens } from "@/lib/ui/tokens";
@@ -127,10 +132,28 @@ function FilterSelect({
 
 export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageContentProps) {
     const router = useRouter();
-    const [domain, setDomain] = useState(roleplayDomainFilterOptions[0]);
-    const [category, setCategory] = useState(roleplayCategoryFilterOptions[0]);
-    const [level, setLevel] = useState(roleplayLevelFilterOptions[0]);
-    const [disc, setDisc] = useState(roleplayDiscFilterOptions[0]);
+    const searchParams = useSearchParams();
+    const currentHref = useCurrentAppHref();
+    const initialDomain = roleplayDomainFilterOptions.includes(searchParams.get("domain") ?? "")
+        ? searchParams.get("domain")!
+        : roleplayDomainFilterOptions[0];
+    const initialCategoryOptions = getRoleplayCategoryFilterOptions(initialDomain);
+    const [domain, setDomain] = useState(initialDomain);
+    const [category, setCategory] = useState(
+        initialCategoryOptions.includes(searchParams.get("category") ?? "")
+            ? searchParams.get("category")!
+            : roleplayCategoryFilterOptions[0],
+    );
+    const [level, setLevel] = useState(
+        roleplayLevelFilterOptions.includes(searchParams.get("level") ?? "")
+            ? searchParams.get("level")!
+            : roleplayLevelFilterOptions[0],
+    );
+    const [disc, setDisc] = useState(
+        roleplayDiscFilterOptions.includes(searchParams.get("disc") ?? "")
+            ? searchParams.get("disc")!
+            : roleplayDiscFilterOptions[0],
+    );
     const [busyRoleplayId, setBusyRoleplayId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -145,6 +168,26 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
     function selectDomain(nextDomain: string) {
         setDomain(nextDomain);
         setCategory(roleplayCategoryFilterOptions[0]);
+        router.replace(
+            withSearchParams(currentHref, {
+                category: null,
+                domain: nextDomain === roleplayDomainFilterOptions[0] ? null : nextDomain,
+            }),
+            { scroll: false },
+        );
+    }
+
+    function selectFilter(
+        key: "category" | "disc" | "level",
+        value: string,
+        fallback: string,
+        setter: (nextValue: string) => void,
+    ) {
+        setter(value);
+        router.replace(
+            withSearchParams(currentHref, { [key]: value === fallback ? null : value }),
+            { scroll: false },
+        );
     }
 
     async function handleDuplicate(roleplayId: string) {
@@ -182,21 +225,29 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
     return (
         <Box as="main" className="px-5 pb-12 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1260px]">
-                <Box className="mb-7 flex items-start gap-6">
-                    <Link
-                        href="/"
+                <Box className="mb-7 flex items-start gap-4 md:gap-6">
+                    <ContextualBackLink
+                        fallbackHref="/"
                         aria-label="Retour"
                         className="mt-2 flex h-8 w-8 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
                     >
                         <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                    </Link>
-                    <Box>
-                        <Text as="h1" className="text-[30px] font-extrabold leading-tight text-[#111827] md:text-[34px]">
-                            Bibliothèque de Roleplays
-                        </Text>
-                        <Text className="mt-2 text-[15px] font-semibold leading-6 text-[#596273]">
-                            Pratiquez vos compétences avec des scénarios réalistes
-                        </Text>
+                    </ContextualBackLink>
+                    <Box className="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+                        <Box className="min-w-0">
+                            <Text as="h1" className="text-[30px] font-extrabold leading-tight text-[#111827] md:text-[34px]">
+                                Bibliothèque de Roleplays
+                            </Text>
+                            <Text className="mt-2 text-[15px] font-semibold leading-6 text-[#596273]">
+                                Pratiquez vos compétences avec des scénarios réalistes
+                            </Text>
+                        </Box>
+                        <ContextualLink
+                            href={ROLEPLAY_ROUTES.app.history}
+                            className="flex h-11 shrink-0 items-center justify-center rounded-xl border border-[#C9C2FB] bg-white px-6 text-[14px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
+                        >
+                            Historique des sessions
+                        </ContextualLink>
                     </Box>
                 </Box>
 
@@ -209,23 +260,33 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                             <FilterSelect
                                 options={categoryOptions}
                                 value={category}
-                                onChange={setCategory}
+                                onChange={(value) =>
+                                    selectFilter("category", value, roleplayCategoryFilterOptions[0], setCategory)
+                                }
                             />
                         </Box>
                         <Box className="min-w-[160px] flex-1 sm:max-w-[208px]">
-                            <FilterSelect options={roleplayLevelFilterOptions} value={level} onChange={setLevel} />
+                            <FilterSelect
+                                options={roleplayLevelFilterOptions}
+                                value={level}
+                                onChange={(value) => selectFilter("level", value, roleplayLevelFilterOptions[0], setLevel)}
+                            />
                         </Box>
                         <Box className="min-w-[160px] flex-1 sm:max-w-[208px]">
-                            <FilterSelect options={roleplayDiscFilterOptions} value={disc} onChange={setDisc} />
+                            <FilterSelect
+                                options={roleplayDiscFilterOptions}
+                                value={disc}
+                                onChange={(value) => selectFilter("disc", value, roleplayDiscFilterOptions[0], setDisc)}
+                            />
                         </Box>
                         {canManage && (
-                            <Link
+                            <ContextualLink
                                 href="/roleplays/new"
                                 className="ml-auto flex h-11 items-center justify-center gap-2 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7]"
                             >
                                 <InlineIcon icon={Plus} className="h-4 w-4" />
                                 Créer un scénario
-                            </Link>
+                            </ContextualLink>
                         )}
                     </Box>
                 </CardSurface>
@@ -245,6 +306,8 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                             const discStyle = discBadgeStyles[roleplay.disc];
                             const cardDescription = getCardDescriptionExcerpt(roleplay.description);
                             const cardTitle = roleplay.title || roleplay.category;
+                            const attemptCount = roleplay.detail.simulations;
+                            const attemptLabel = `${attemptCount} tentative${attemptCount === 1 ? "" : "s"} réalisée${attemptCount === 1 ? "" : "s"}`;
 
                             return (
                                 <CardSurface
@@ -258,43 +321,55 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                                         >
                                             {roleplay.category}
                                         </Box>
-                                        {canManage && (
-                                            <Box className="absolute right-3 top-3 z-20">
-                                                <Button
-                                                    aria-label={`Actions pour ${roleplay.name}`}
-                                                    onClick={() => setOpenMenuId(openMenuId === roleplay.id ? null : roleplay.id)}
-                                                    className="flex h-7 w-7 items-center justify-center rounded-lg text-white/80 transition hover:bg-white/15"
+                                        <Box className="absolute right-3 top-3 z-20 flex items-center gap-1.5">
+                                            <Tooltip content={attemptLabel}>
+                                                <Box
+                                                    aria-label={`Nombre de tentatives : ${attemptCount}`}
+                                                    className={uiTokens.roleplayCard.attemptBadge}
+                                                    tabIndex={0}
                                                 >
-                                                    <InlineIcon icon={MoreHorizontal} className="h-4 w-4" />
-                                                </Button>
-                                                {openMenuId === roleplay.id && (
-                                                    <CardActionMenu>
-                                                        <CardActionMenuLink
-                                                            href={ROLEPLAY_ROUTES.app.edit(roleplay.id)}
-                                                            icon={Edit3}
-                                                            label="Modifier"
-                                                        />
-                                                        <CardActionMenuButton
-                                                            disabled={busyRoleplayId === roleplay.id}
-                                                            icon={Copy}
-                                                            label="Dupliquer"
-                                                            onClick={() => void handleDuplicate(roleplay.id)}
-                                                        />
-                                                        <CardActionMenuButton
-                                                            danger
-                                                            disabled={busyRoleplayId === roleplay.id}
-                                                            icon={Trash2}
-                                                            label="Supprimer"
-                                                            onClick={() => {
-                                                                setError(null);
-                                                                setOpenMenuId(null);
-                                                                setRoleplayToDelete(roleplay);
-                                                            }}
-                                                        />
-                                                    </CardActionMenu>
-                                                )}
-                                            </Box>
-                                        )}
+                                                    <InlineIcon icon={History} className="h-3.5 w-3.5 shrink-0" />
+                                                    <Text as="span">{attemptCount}</Text>
+                                                </Box>
+                                            </Tooltip>
+                                            {canManage && (
+                                                <Box className="relative">
+                                                    <Button
+                                                        aria-label={`Actions pour ${roleplay.name}`}
+                                                        onClick={() => setOpenMenuId(openMenuId === roleplay.id ? null : roleplay.id)}
+                                                        className="flex h-7 w-7 items-center justify-center rounded-lg text-white/80 transition hover:bg-white/15"
+                                                    >
+                                                        <InlineIcon icon={MoreHorizontal} className="h-4 w-4" />
+                                                    </Button>
+                                                    {openMenuId === roleplay.id && (
+                                                        <CardActionMenu>
+                                                            <CardActionMenuLink
+                                                                href={withReturnTo(ROLEPLAY_ROUTES.app.edit(roleplay.id), currentHref)}
+                                                                icon={Edit3}
+                                                                label="Modifier"
+                                                            />
+                                                            <CardActionMenuButton
+                                                                disabled={busyRoleplayId === roleplay.id}
+                                                                icon={Copy}
+                                                                label="Dupliquer"
+                                                                onClick={() => void handleDuplicate(roleplay.id)}
+                                                            />
+                                                            <CardActionMenuButton
+                                                                danger
+                                                                disabled={busyRoleplayId === roleplay.id}
+                                                                icon={Trash2}
+                                                                label="Supprimer"
+                                                                onClick={() => {
+                                                                    setError(null);
+                                                                    setOpenMenuId(null);
+                                                                    setRoleplayToDelete(roleplay);
+                                                                }}
+                                                            />
+                                                        </CardActionMenu>
+                                                    )}
+                                                </Box>
+                                            )}
+                                        </Box>
                                     </Box>
 
                                     <Box className="-mt-[46px] flex flex-1 flex-col items-center px-6 pb-6">
@@ -353,13 +428,13 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                                             </Text>
                                         </Box>
 
-                                        <Link
+                                        <ContextualLink
                                             href={ROLEPLAY_ROUTES.app.detail(roleplay.id)}
                                             className="mt-5 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#5140F0] text-[14px] font-semibold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7]"
                                         >
                                             <InlineIcon icon={Phone} className="h-4 w-4" />
                                             S&apos;entraîner
-                                        </Link>
+                                        </ContextualLink>
                                     </Box>
                                 </CardSurface>
                             );
@@ -427,15 +502,6 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                         </Box>
                     </Modal>
                 )}
-
-                <Box className="mt-10 flex justify-center">
-                    <Link
-                        href={ROLEPLAY_ROUTES.app.history}
-                        className="flex h-11 items-center justify-center rounded-xl border border-[#C9C2FB] bg-white px-6 text-[14px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
-                    >
-                        Historique des sessions
-                    </Link>
-                </Box>
             </Box>
         </Box>
     );

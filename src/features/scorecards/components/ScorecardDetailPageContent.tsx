@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
     ArrowLeft,
     CheckCircle2,
@@ -14,6 +13,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Fragment, useState } from "react";
+import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
 import {
     getScorecardStepPoints,
     getScorecardViewStats,
@@ -122,12 +122,15 @@ export function ScorecardDetailPageContent({
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1180px]">
                 <Box className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                    <Link href={SCORECARD_ROUTES.app.collection} className={uiTokens.action.backLink}>
+                    <ContextualBackLink
+                        fallbackHref={SCORECARD_ROUTES.app.collection}
+                        showLabel
+                        className={uiTokens.action.backLink}
+                    >
                         <InlineIcon icon={ArrowLeft} className="h-4 w-4" />
-                        Retour aux scorecards
-                    </Link>
+                    </ContextualBackLink>
                     {canManage && (
-                        <Link
+                        <ContextualLink
                             href={SCORECARD_ROUTES.app.edit(scorecard.id)}
                             className={cn(
                                 "flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-[14px] font-bold text-white transition",
@@ -136,7 +139,7 @@ export function ScorecardDetailPageContent({
                         >
                             <InlineIcon icon={Pencil} className="h-4 w-4" />
                             Modifier
-                        </Link>
+                        </ContextualLink>
                     )}
                 </Box>
 

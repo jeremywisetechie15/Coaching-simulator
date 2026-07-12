@@ -6,17 +6,20 @@ import { mapScorecardDetailToView, SCORECARD_ROUTES } from "@/features/scorecard
 import { getScorecardById } from "@/features/scorecards/server";
 import { listSkillOptions } from "@/features/skills/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
+import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
 
 interface PageProps {
     params: Promise<{ scorecardId: string }>;
+    searchParams?: Promise<{ returnTo?: string }>;
 }
 
 export const metadata = {
     title: "Scorecard | MaiaCoach",
 };
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
     const { scorecardId } = await params;
+    const { returnTo } = searchParams ? await searchParams : {};
     let profile;
     let scorecard;
     let skillOptions;
@@ -29,7 +32,7 @@ export default async function Page({ params }: PageProps) {
         ]);
     } catch (error) {
         if (error instanceof UnauthorizedError) {
-            redirect(`/auth?redirect=${SCORECARD_ROUTES.app.detail(scorecardId)}`);
+            redirect(buildAuthRedirectHref(withReturnTo(SCORECARD_ROUTES.app.detail(scorecardId), returnTo)));
         }
 
         if (error instanceof NotFoundError) {

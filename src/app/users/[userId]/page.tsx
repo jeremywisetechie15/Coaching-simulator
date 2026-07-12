@@ -13,10 +13,10 @@ import {
     listUserSkillProgresses,
     listUserStatistics,
 } from "@/features/users/server";
-import type { UserAssignedQuiz, UserAssignedRoleplay, UserSkillProgress, UserStatistics } from "@/features/users/domain/users";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import { getCurrentProfile } from "@/features/profile/server";
+import { buildAuthRedirectHref, withReturnTo, withSearchParam } from "@/features/app-shell/domain";
 
 export const metadata = {
     title: "Fiche utilisateur | MaiaCoach",
@@ -28,6 +28,7 @@ interface PageProps {
     }>;
     searchParams?: Promise<{
         mode?: string;
+        returnTo?: string;
     }>;
 }
 
@@ -36,17 +37,22 @@ export default async function Page({ params, searchParams }: PageProps) {
     const resolvedSearchParams = searchParams ? await searchParams : undefined;
 
     let profile;
-    let assignedQuizzes: UserAssignedQuiz[] = [];
-    let assignedRoleplays: UserAssignedRoleplay[] = [];
-    let skills: UserSkillProgress[] = [];
-    let statistics: UserStatistics;
     let user;
 
     try {
         profile = await getCurrentProfile();
     } catch (error) {
         if (error instanceof UnauthorizedError) {
-            redirect(`/auth?redirect=/users/${userId}`);
+            redirect(
+                buildAuthRedirectHref(
+                    withReturnTo(
+                        resolvedSearchParams?.mode === "edit"
+                            ? withSearchParam(`/users/${userId}`, "mode", "edit")
+                            : `/users/${userId}`,
+                        resolvedSearchParams?.returnTo,
+                    ),
+                ),
+            );
         }
 
         throw error;
@@ -84,11 +90,11 @@ export default async function Page({ params, searchParams }: PageProps) {
         notFound();
     }
 
-    [assignedRoleplays, assignedQuizzes] = await Promise.all([
+    const [assignedRoleplays, assignedQuizzes] = await Promise.all([
         listUserAssignedRoleplays(user.id),
         listUserAssignedQuizzes(user.id),
     ]);
-    [statistics, skills] = await Promise.all([
+    const [statistics, skills] = await Promise.all([
         listUserStatistics(user.id, {
             assignedQuizzes,
             assignedRoleplays,

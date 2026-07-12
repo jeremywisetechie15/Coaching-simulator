@@ -1,9 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { ArrowLeft, BookOpen, ChevronDown, ChevronUp, Edit3, Target, TrendingUp, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
 import { QUIZ_DIMENSION_LABELS } from "@/features/evaluations/domain";
 import {
     getSkillLevel,
@@ -82,18 +82,18 @@ export function SkillDetailPageContent({ canManage = false, skill }: SkillDetail
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1080px]">
                 <Box className="mb-5 flex items-center justify-between gap-4">
-                    <Link
-                        href="/skills"
+                    <ContextualBackLink
+                        fallbackHref="/skills"
+                        showLabel
                         className={cn("flex items-center gap-2 text-[14px] font-semibold transition hover:opacity-80", uiTokens.text.muted)}
                     >
                         <InlineIcon icon={ArrowLeft} className="h-4 w-4" />
-                        Retour aux compétences
-                    </Link>
+                    </ContextualBackLink>
                     {canManage && (
-                        <Link href={`/skills/${skill.id}/edit`} className={cn(uiTokens.action.addButton, "shrink-0")}>
+                        <ContextualLink href={`/skills/${skill.id}/edit`} className={cn(uiTokens.action.addButton, "shrink-0")}>
                             <InlineIcon icon={Edit3} className="h-4 w-4" />
                             Modifier
-                        </Link>
+                        </ContextualLink>
                     )}
                 </Box>
 

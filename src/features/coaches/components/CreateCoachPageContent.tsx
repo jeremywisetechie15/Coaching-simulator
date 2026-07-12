@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check } from "lucide-react";
 import { useState, type FormEvent } from "react";
-import { AlertMessage, SingleSelectField } from "@/lib/ui/molecules";
+import { ContextualBackLink } from "@/features/app-shell/components";
+import { AlertMessage, SessionBackgroundUploadField, SingleSelectField } from "@/lib/ui/molecules";
 import { Box, CardSurface, FieldLabel, InlineIcon, SelectInput, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -33,10 +33,18 @@ interface ApiErrorPayload {
     issues?: Array<{ message: string }>;
 }
 
-async function saveCoach(coachId: string | undefined, values: CoachEditorValues) {
+async function saveCoach(coachId: string | undefined, values: CoachEditorValues, backgroundFile: File | null) {
+    const body = backgroundFile ? new FormData() : JSON.stringify(values);
+    const headers = backgroundFile ? undefined : { "Content-Type": "application/json" };
+
+    if (body instanceof FormData && backgroundFile) {
+        body.append("payload", JSON.stringify(values));
+        body.append("backgroundFile", backgroundFile);
+    }
+
     const response = await fetch(coachId ? `/api/coaches/${coachId}` : "/api/coaches", {
-        body: JSON.stringify(values),
-        headers: { "Content-Type": "application/json" },
+        body,
+        headers,
         method: coachId ? "PATCH" : "POST",
     });
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
@@ -92,10 +100,11 @@ export function CreateCoachPageContent({
     const router = useRouter();
     const queryClient = useQueryClient();
     const [form, setForm] = useState<CoachEditorValues>(initialValues);
+    const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
     const isEditing = Boolean(coachId);
     const mutation = useMutation({
-        mutationFn: (values: CoachEditorValues) => saveCoach(coachId, values),
+        mutationFn: (values: CoachEditorValues) => saveCoach(coachId, values, backgroundFile),
         onError: (error) => {
             setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer le coach IA.");
         },
@@ -133,13 +142,13 @@ export function CreateCoachPageContent({
         <Box as={embedded ? "div" : "main"} className={embedded ? "" : "px-5 pb-16 md:px-9 lg:px-12"}>
             <form onSubmit={handleSubmit} className={embedded ? "space-y-4" : "mx-auto max-w-[960px] space-y-4"}>
                 {!embedded && <Box className="flex items-center gap-3">
-                    <Link
-                        href="/coaches"
+                    <ContextualBackLink
+                        fallbackHref="/coaches"
                         aria-label="Retour"
                         className="flex h-8 w-8 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
                     >
                         <InlineIcon icon={ArrowLeft} className="h-4 w-4" />
-                    </Link>
+                    </ContextualBackLink>
                     <Text as="h1" className="text-[22px] font-extrabold text-[#111827]">
                         {isEditing ? "Modifier le coach IA" : "Créer un coach IA"}
                     </Text>
@@ -213,6 +222,24 @@ export function CreateCoachPageContent({
                                 </button>
                             ))}
                         </Box>
+                    </FormSection>
+
+                    <FormSection title="Décor des sessions de coaching">
+                        <SessionBackgroundUploadField
+                            disabled={mutation.isPending}
+                            file={backgroundFile}
+                            inputId="coach-session-background"
+                            storedPath={form.backgroundImagePath}
+                            onError={setFormError}
+                            onFileSelected={(file) => {
+                                setBackgroundFile(file);
+                                patch("backgroundImagePath", "");
+                            }}
+                            onClear={() => {
+                                setBackgroundFile(null);
+                                patch("backgroundImagePath", "");
+                            }}
+                        />
                     </FormSection>
 
                     <FormSection title="Domaine d'expertise">

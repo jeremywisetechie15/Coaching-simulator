@@ -1,4 +1,5 @@
 import { ArrowLeft, Plus } from "lucide-react";
+import { ContextualBackLink } from "@/features/app-shell/components";
 import { Box, Button, InlineIcon, Text } from "@/lib/ui/atoms";
 
 interface OrganizationsPageHeaderProps {
@@ -13,9 +14,13 @@ export function OrganizationsPageHeader({
     return (
         <Box className="mb-9 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <Box className="flex items-center gap-7">
-                <Button className="flex h-10 w-10 items-center justify-center rounded-full text-[#171B2A] transition hover:bg-white">
+                <ContextualBackLink
+                    fallbackHref="/"
+                    aria-label="Retour"
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-[#171B2A] transition hover:bg-white"
+                >
                     <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                </Button>
+                </ContextualBackLink>
                 <Text as="h1" className="text-[26px] font-extrabold tracking-[-0.02em] text-[#171B2A]">
                     Organisations
                 </Text>

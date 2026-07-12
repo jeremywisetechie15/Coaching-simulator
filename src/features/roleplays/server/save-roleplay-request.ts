@@ -4,6 +4,7 @@ import { AppError } from "@/lib/server/errors";
 import type { RoleplayUploadFilesByClientId } from "./roleplay-upload-files";
 
 export interface ParsedSaveRoleplayRequest {
+    backgroundFile: File | null;
     input: SaveRoleplayDto;
     uploadFilesByClientId: RoleplayUploadFilesByClientId;
 }
@@ -25,6 +26,7 @@ export async function parseSaveRoleplayRequest(request: NextRequest): Promise<Pa
 
     if (!contentType.includes("multipart/form-data")) {
         return {
+            backgroundFile: null,
             input: saveRoleplayDto.parse(await request.json()),
             uploadFilesByClientId: new Map(),
         };
@@ -32,6 +34,7 @@ export async function parseSaveRoleplayRequest(request: NextRequest): Promise<Pa
 
     const formData = await request.formData();
     const payload = parseMultipartPayload(formData.get("payload"));
+    const backgroundEntry = formData.get("backgroundFile");
     const uploadFilesByClientId: RoleplayUploadFilesByClientId = new Map();
 
     for (const [key, value] of formData.entries()) {
@@ -45,6 +48,7 @@ export async function parseSaveRoleplayRequest(request: NextRequest): Promise<Pa
     }
 
     return {
+        backgroundFile: backgroundEntry instanceof File ? backgroundEntry : null,
         input: saveRoleplayDto.parse(payload),
         uploadFilesByClientId,
     };

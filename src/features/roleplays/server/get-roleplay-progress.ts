@@ -7,6 +7,7 @@ import {
 } from "@/features/evaluations/server/quiz-skill-criteria";
 import {
     buildRoleplayProgress,
+    MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
     type ProgressBaselineCriterion,
     type ProgressBaselineStep,
     type ProgressCriterionResult,
@@ -76,10 +77,6 @@ interface NamedRow {
 
 interface ProgressQuizRow {
     id: string;
-}
-
-interface ProgressScenarioQuizRow {
-    quiz_id: string;
 }
 
 interface ScorecardStepMethodRow {
@@ -190,35 +187,24 @@ async function fetchProgressBaseline(scorecardId?: string | null, methodId?: str
     return methodId ? fetchMethodBaseline(methodId) : [];
 }
 
-async function fetchProgressQuizIds(
+async function fetchMethodKnowledgeQuizIds(
     supabase: ReturnType<typeof createAdminClient>,
-    roleplayId: string,
     methodId?: string | null,
 ) {
-    const scenarioQuizPromise = supabase
-        .from("scenario_quizzes")
-        .select("quiz_id")
-        .eq("scenario_id", roleplayId)
-        .returns<ProgressScenarioQuizRow[]>();
-    const methodQuizPromise = methodId
-        ? supabase
-              .from("quizzes")
-              .select("id")
-              .eq("method_id", methodId)
-              .eq("quiz_kind", QUIZ_KIND.methodKnowledge)
-              .eq("is_active", true)
-              .neq("status", CONTENT_STATUS.archived)
-              .returns<ProgressQuizRow[]>()
-        : Promise.resolve({ data: [] as ProgressQuizRow[], error: null });
-    const [scenarioQuizResult, methodQuizResult] = await Promise.all([scenarioQuizPromise, methodQuizPromise]);
+    if (!methodId) return [];
 
-    if (scenarioQuizResult.error) throw scenarioQuizResult.error;
+    const methodQuizResult = await supabase
+        .from("quizzes")
+        .select("id")
+        .eq("method_id", methodId)
+        .eq("quiz_kind", QUIZ_KIND.methodKnowledge)
+        .eq("is_active", true)
+        .neq("status", CONTENT_STATUS.archived)
+        .returns<ProgressQuizRow[]>();
+
     if (methodQuizResult.error) throw methodQuizResult.error;
 
-    return uniqueValues([
-        ...(scenarioQuizResult.data ?? []).map((row) => row.quiz_id),
-        ...(methodQuizResult.data ?? []).map((row) => row.id),
-    ]);
+    return uniqueValues((methodQuizResult.data ?? []).map((row) => row.id));
 }
 
 async function fetchScorecardStepIdByMethodStepId(
@@ -251,6 +237,7 @@ function mapQuizSkillCriteriaToProgressCriteria(
     return rows.map((row, index) => ({
         advice: null,
         coachComment: null,
+        completedAt: row.createdAt,
         criterionRef: `quiz:${row.quizId}:${row.sourceId}:${row.dimensionItemId ?? index}`,
         dimension: row.dimension,
         dimensionItemId: row.dimensionItemId,
@@ -276,9 +263,10 @@ export async function getRoleplayProgress(
 
     const { data: sessionRows, error: sessionError } = await supabase
         .from("roleplay_session_results")
-        .select("session_id, score_percent, completed_at")
+        .select("session_id, score_percent, completed_at, sessions!inner(duration_seconds)")
         .eq("scenario_id", roleplayId)
         .eq("user_id", context.userId)
+        .gte("sessions.duration_seconds", MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS)
         .order("completed_at", { ascending: true })
         .returns<SessionResultRow[]>();
 
@@ -291,7 +279,7 @@ export async function getRoleplayProgress(
     }));
     const baselineSteps = await fetchProgressBaseline(scorecardId, methodId);
     const [quizIds, scorecardStepIdByMethodStepId] = await Promise.all([
-        fetchProgressQuizIds(supabase, roleplayId, methodId),
+        fetchMethodKnowledgeQuizIds(supabase, methodId),
         fetchScorecardStepIdByMethodStepId(supabase, scorecardId),
     ]);
     const quizSkillCriteria = await fetchCompletedQuizSkillCriteria(supabase, {

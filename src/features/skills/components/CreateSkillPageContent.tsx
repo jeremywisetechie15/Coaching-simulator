@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, ChevronDown, Plus, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { ContextualBackLink } from "@/features/app-shell/components";
 import {
     CONTENT_STATUS,
     CONTENT_VISIBILITY_SCOPE,
@@ -411,13 +411,13 @@ export function CreateSkillPageContent({
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1180px]">
                 <Box className="mb-6 flex items-center gap-4">
-                    <Link
-                        href="/skills"
+                    <ContextualBackLink
+                        fallbackHref="/skills"
                         aria-label="Retour"
                         className="flex h-9 w-9 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
                     >
                         <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                    </Link>
+                    </ContextualBackLink>
                     <Text as="h1" className="text-[28px] font-extrabold leading-tight text-[#111827] md:text-[32px]">
                         {isEditing ? "Modifier la compétence" : "Ajouter une compétence"}
                     </Text>

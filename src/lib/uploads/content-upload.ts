@@ -3,6 +3,7 @@
 export const CONTENT_UPLOAD_BUCKET = "notation_pdf";
 export const QUIZ_UPLOAD_BUCKET = "quizzes";
 export const SCENARIO_RESOURCE_UPLOAD_BUCKET = "resource_scenarios";
+export const SESSION_BACKGROUND_UPLOAD_BUCKET = "session-backgrounds";
 
 export const CONTENT_RESOURCE_DELIVERY_TYPE = {
     file: "file",
@@ -22,6 +23,7 @@ export const CONTENT_RESOURCE_DELIVERY_OPTIONS = [
 ] as const;
 
 export const MAX_CONTENT_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
+export const MAX_SESSION_BACKGROUND_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 export const MAX_VIDEO_UPLOAD_SIZE_BYTES = 250 * 1024 * 1024;
 
 export const CONTENT_UPLOAD_RESOURCE_TYPES = ["document", "video", "audio", "image"] as const;
@@ -33,6 +35,7 @@ export const CONTENT_UPLOAD_PURPOSES = {
     methodDocument: "method_document",
     quizAttachment: "quiz_attachment",
     scenarioResource: "scenario_resource",
+    sessionBackground: "session_background",
 } as const;
 
 export type ContentUploadPurpose = (typeof CONTENT_UPLOAD_PURPOSES)[keyof typeof CONTENT_UPLOAD_PURPOSES];
@@ -89,6 +92,12 @@ const QUIZ_ATTACHMENT_UPLOAD_MIME_TYPES = Object.entries(CONTENT_UPLOAD_MIME_TYP
 
 export const QUIZ_ATTACHMENT_UPLOAD_ACCEPT = QUIZ_ATTACHMENT_UPLOAD_MIME_TYPES.join(",");
 
+const IMAGE_UPLOAD_MIME_TYPES = Object.entries(CONTENT_UPLOAD_MIME_TYPES)
+    .filter(([, config]) => config.resourceType === "image")
+    .map(([mimeType]) => mimeType);
+
+export const IMAGE_UPLOAD_ACCEPT = IMAGE_UPLOAD_MIME_TYPES.join(",");
+
 export interface ContentUploadFileLike {
     name: string;
     size: number;
@@ -98,6 +107,7 @@ export interface ContentUploadFileLike {
 export function getContentUploadAccept(purpose: ContentUploadPurpose = CONTENT_UPLOAD_PURPOSES.contentAsset) {
     if (purpose === CONTENT_UPLOAD_PURPOSES.methodDocument) return DOCUMENT_UPLOAD_ACCEPT;
     if (purpose === CONTENT_UPLOAD_PURPOSES.quizAttachment) return QUIZ_ATTACHMENT_UPLOAD_ACCEPT;
+    if (purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground) return IMAGE_UPLOAD_ACCEPT;
 
     return CONTENT_UPLOAD_ACCEPT;
 }
@@ -131,18 +141,25 @@ export function validateContentUploadFile(
         return "Les pièces jointes de quiz acceptent uniquement des documents, images, vidéos ou audios.";
     }
 
+    if (purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground && mimeConfig.resourceType !== "image") {
+        return "Le fond de session accepte uniquement une image JPG, PNG ou WebP.";
+    }
+
     if (file.size <= 0) {
         return "Le fichier est vide.";
     }
 
-    const maxSizeBytes =
-        (purpose === CONTENT_UPLOAD_PURPOSES.quizAttachment || purpose === CONTENT_UPLOAD_PURPOSES.scenarioResource) &&
+    const maxSizeBytes = purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground
+        ? MAX_SESSION_BACKGROUND_UPLOAD_SIZE_BYTES
+        : (purpose === CONTENT_UPLOAD_PURPOSES.quizAttachment || purpose === CONTENT_UPLOAD_PURPOSES.scenarioResource) &&
             mimeConfig.resourceType === "video"
             ? MAX_VIDEO_UPLOAD_SIZE_BYTES
             : MAX_CONTENT_UPLOAD_SIZE_BYTES;
 
     if (file.size > maxSizeBytes) {
-        return mimeConfig.resourceType === "video" && maxSizeBytes === MAX_VIDEO_UPLOAD_SIZE_BYTES
+        return purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground
+            ? "L'image de fond ne doit pas dépasser 10 Mo."
+            : mimeConfig.resourceType === "video" && maxSizeBytes === MAX_VIDEO_UPLOAD_SIZE_BYTES
             ? "La vidéo ne doit pas dépasser 250 Mo."
             : "Le fichier ne doit pas dépasser 25 Mo.";
     }

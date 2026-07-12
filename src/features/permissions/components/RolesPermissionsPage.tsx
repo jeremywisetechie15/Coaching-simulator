@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { ArrowLeft, Check, ChevronDown, Minus } from "lucide-react";
-import { AppShell } from "@/features/app-shell/components";
+import { AppShell, ContextualBackLink } from "@/features/app-shell/components";
 import type { PlatformRole } from "@/features/users/domain/users";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 
@@ -155,9 +155,13 @@ export function RolesPermissionsPage({ avatarUrl, initials, platformRole }: Role
             <Box as="main" className="px-5 pb-12 md:px-9 lg:px-14">
                 <Box className="max-w-[833px]">
                     <Box className="mb-9 flex items-center gap-6">
-                        <Button className="flex h-10 w-10 items-center justify-center rounded-full text-[#171B2A] transition hover:bg-white">
+                        <ContextualBackLink
+                            fallbackHref="/profile"
+                            aria-label="Retour"
+                            className="flex h-10 w-10 items-center justify-center rounded-full text-[#171B2A] transition hover:bg-white"
+                        >
                             <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                        </Button>
+                        </ContextualBackLink>
                         <Text as="h1" className="text-[26px] font-extrabold tracking-[-0.02em] text-[#171B2A]">
                             Rôles & Permissions
                         </Text>

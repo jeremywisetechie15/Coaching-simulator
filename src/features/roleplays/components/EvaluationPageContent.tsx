@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
     ArrowLeft,
@@ -24,6 +23,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { CardActionMenu, CardActionMenuButton } from "@/lib/ui/molecules";
 import { AnalysisLoaderDialog, Drawer, Modal } from "@/lib/ui/organisms";
@@ -197,6 +197,10 @@ export function EvaluationPageContent({ evaluation, roleplay, session }: Evaluat
             });
             const payload: unknown = await response.json().catch(() => null);
 
+            if (payload && typeof payload === "object" && "skipped" in payload && payload.skipped === true) {
+                throw new Error("Cette session ne peut pas être notée.");
+            }
+
             if (!response.ok) {
                 const errorMessage =
                     payload && typeof payload === "object" && "error" in payload
@@ -253,12 +257,15 @@ export function EvaluationPageContent({ evaluation, roleplay, session }: Evaluat
         // Embarque le runtime public existant sans le modifier (contrat iframe).
         const iframeSrc = roleplay.scenarioId
             ? `/iframe?scenario_id=${roleplay.scenarioId}${
-                  isPersona ? "&variant=coach" : "&mode=coach&coach_mode=after_training"
+                  isPersona
+                      ? "&variant=coach"
+                      : `&mode=coach&coach_mode=after_training&ref_session_id=${encodeURIComponent(session.id)}`
               }`
             : null;
 
         return (
             <SimulationView
+                backLabel="Retour à l'évaluation de la session"
                 title={
                     isPersona
                         ? `${roleplay.name} — Avis et ressenti`
@@ -285,13 +292,13 @@ export function EvaluationPageContent({ evaluation, roleplay, session }: Evaluat
             <Box className="mx-auto max-w-[1180px]">
                 <Box className="mb-5 flex items-center justify-between gap-4">
                     <Box className="flex items-center gap-4">
-                        <Link
-                            href="/roleplays/history"
+                        <ContextualBackLink
+                            fallbackHref={ROLEPLAY_ROUTES.app.history}
                             aria-label="Retour"
                             className="flex h-9 w-9 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
                         >
                             <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                        </Link>
+                        </ContextualBackLink>
                         <Text as="h1" className="text-[28px] font-extrabold leading-tight text-[#111827] md:text-[32px]">
                             Évaluation de la simulation
                         </Text>
@@ -521,7 +528,7 @@ export function EvaluationPageContent({ evaluation, roleplay, session }: Evaluat
                                 evaluation={evaluationData}
                                 onAskPersona={() => setSimView("persona")}
                                 onDebrief={() => setSimView("coach")}
-                                stepsHref={`/roleplays/${roleplay.id}/steps?coach=after`}
+                                stepsHref={`/roleplays/${roleplay.id}/steps?coach=after&sessionId=${encodeURIComponent(session.id)}`}
                             />
                         )}
                         {activeTab === "Analyse méthodologique" && (
@@ -683,13 +690,13 @@ function SyntheseTab({
                             Plan de progrès
                         </Text>
                     </Box>
-                    <Link
+                    <ContextualLink
                         href={stepsHref}
                         className="flex h-9 items-center gap-2 rounded-lg border border-[#C9C2FB] bg-white px-3 text-[13px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
                     >
                         <InlineIcon icon={Sparkles} className="h-4 w-4" />
                         S&apos;améliorer avec l&apos;IA
-                    </Link>
+                    </ContextualLink>
                 </Box>
                 <Box className="mt-4 space-y-4">
                     {(evaluation.planEtapes ?? [evaluation.planEtape]).map((plan) => (

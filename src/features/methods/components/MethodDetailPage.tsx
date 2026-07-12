@@ -1,18 +1,24 @@
 import { AppShell } from "@/features/app-shell/components";
 import { APP_NAVIGATION_RESOURCE, canManageAppResource } from "@/features/auth/domain/access-control";
 import type { QuizOption } from "@/features/evaluations/domain";
-import type { MethodDetail } from "@/features/methods/domain/method";
+import type { MethodDetail, MethodMastery } from "@/features/methods/domain/method";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import { MethodDetailPageContent } from "./MethodDetailPageContent";
 
 interface MethodDetailPageProps {
     associatedQuiz: QuizOption | null;
+    mastery: MethodMastery | null;
     profileValues: ProfileFormValues;
     method: MethodDetail;
 }
 
-export function MethodDetailPage({ associatedQuiz, profileValues, method }: MethodDetailPageProps) {
+export function MethodDetailPage({
+    associatedQuiz,
+    mastery,
+    profileValues,
+    method,
+}: MethodDetailPageProps) {
     const canManageMethods = canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.methods);
 
     return (
@@ -25,7 +31,12 @@ export function MethodDetailPage({ associatedQuiz, profileValues, method }: Meth
             email={profileValues.email}
             searchPlaceholder="Rechercher..."
         >
-            <MethodDetailPageContent associatedQuiz={associatedQuiz} canManage={canManageMethods} method={method} />
+            <MethodDetailPageContent
+                associatedQuiz={associatedQuiz}
+                canManage={canManageMethods}
+                mastery={mastery}
+                method={method}
+            />
         </AppShell>
     );
 }

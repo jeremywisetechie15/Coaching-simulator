@@ -1,3 +1,8 @@
+import {
+    calculateRoleplayIndex,
+    selectRoleplayIndexScorePositions,
+} from "./roleplay-index";
+
 export type DimensionKey = "savoir" | "savoir-faire" | "savoir-etre";
 
 export type ScoreLevel = "green" | "yellow" | "orange" | "red";
@@ -80,6 +85,7 @@ export interface ProgressStepResult {
 export interface ProgressCriterionResult {
     advice: string | null;
     coachComment: string | null;
+    completedAt?: string | null;
     criterionRef: string;
     dimension: string;
     dimensionItemId: string | null;
@@ -134,13 +140,6 @@ function dateValue(value: string | null) {
     return value ? new Date(value).getTime() : 0;
 }
 
-function compareSessionByScore(first: ProgressSessionResult, second: ProgressSessionResult) {
-    const scoreDelta = second.scorePercent - first.scorePercent;
-    if (scoreDelta !== 0) return scoreDelta;
-
-    return dateValue(second.completedAt) - dateValue(first.completedAt);
-}
-
 function weightedScore(items: Array<{ pointsAwarded: number | null; pointsMax: number | null; scorePercent: number }>) {
     const pointsMax = items.reduce((total, item) => total + Math.max(0, Number(item.pointsMax) || 0), 0);
 
@@ -166,7 +165,7 @@ function progressDelta(current: number, initial: number) {
 }
 
 function scoreDiagnostic(score: number, label: string) {
-    if (score >= 80) return `${label} maîtrisé sur la meilleure session.`;
+    if (score >= 80) return `${label} maîtrisé selon les résultats retenus.`;
     if (score >= 60) return `${label} solide, à consolider pour atteindre la cible.`;
     if (score >= 40) return `${label} à renforcer avec de nouveaux entraînements.`;
     if (score > 0) return `${label} prioritaire dans les prochains entraînements.`;
@@ -212,12 +211,12 @@ function buildCompetencyDimensions(criteria: ProgressCriterionResult[]): Dimensi
 }
 
 function buildCompetencies(
-    bestCriteria: ProgressCriterionResult[],
+    currentCriteria: ProgressCriterionResult[],
     initialCriteria: ProgressCriterionResult[],
 ): ProgressCompetency[] {
     const initialCriteriaBySkill = groupBy(initialCriteria, criterionSkillKey);
 
-    return Array.from(groupBy(bestCriteria, criterionSkillKey).entries()).map(([, criteria]) => {
+    return Array.from(groupBy(currentCriteria, criterionSkillKey).entries()).map(([, criteria]) => {
         const sample = criteria[0];
         const initial = weightedScore(initialCriteriaBySkill.get(criterionSkillKey(sample)) ?? []);
         const score = weightedScore(criteria);
@@ -233,13 +232,20 @@ function buildCompetencies(
     });
 }
 
-function selectBestCriteriaBySession(criteria: ProgressCriterionResult[]) {
+function selectBestQuizCriteriaByAttempt(criteria: ProgressCriterionResult[]) {
     const criteriaBySession = Array.from(groupBy(criteria, (criterion) => criterion.sessionId).values());
     if (criteriaBySession.length === 0) return [];
 
     return criteriaBySession
         .slice()
-        .sort((first, second) => weightedScore(second) - weightedScore(first))[0] ?? [];
+        .sort((first, second) => {
+            const scoreDelta = weightedScore(second) - weightedScore(first);
+            if (scoreDelta !== 0) return scoreDelta;
+
+            const firstCompletedAt = Math.max(...first.map((criterion) => dateValue(criterion.completedAt ?? null)));
+            const secondCompletedAt = Math.max(...second.map((criterion) => dateValue(criterion.completedAt ?? null)));
+            return secondCompletedAt - firstCompletedAt;
+        })[0] ?? [];
 }
 
 function buildBaselineCompetencies(criteria: ProgressBaselineCriterion[]): ProgressCompetency[] {
@@ -279,30 +285,49 @@ function buildBaselineSteps(steps: ProgressBaselineStep[]): ProgressStep[] {
 }
 
 function buildProgressSteps(
-    bestSessionId: string,
+    selectedSessionIds: string[],
     initialSessionId: string,
     steps: ProgressStepResult[],
     criteria: ProgressCriterionResult[],
+    quizCriteria: ProgressCriterionResult[],
 ): ProgressStep[] {
+    const selectedSessionIdSet = new Set(selectedSessionIds);
     const initialStepsByOrder = new Map(
         steps.filter((step) => step.sessionId === initialSessionId).map((step) => [step.stepOrder, step]),
     );
     const criteriaByStepId = groupBy(criteria, (criterion) => criterion.scorecardStepId || `step-${criterion.sessionId}`);
+    const quizCriteriaByStepId = groupBy(quizCriteria, (criterion) => criterion.scorecardStepId || "unassigned");
+    const selectedStepsByOrder = groupBy(
+        steps.filter((step) => selectedSessionIdSet.has(step.sessionId)),
+        (step) => String(step.stepOrder),
+    );
 
-    return steps
-        .filter((step) => step.sessionId === bestSessionId)
-        .sort((first, second) => first.stepOrder - second.stepOrder)
-        .map((step) => {
-            const initialStepScore = roundScore(initialStepsByOrder.get(step.stepOrder)?.scorePercent ?? step.scorePercent);
+    return Array.from(selectedStepsByOrder.values())
+        .sort((first, second) => first[0].stepOrder - second[0].stepOrder)
+        .map((selectedSteps) => {
+            const step = selectedSteps[0];
+            const initialStepScore = roundScore(initialStepsByOrder.get(step.stepOrder)?.scorePercent ?? 0);
             const stepCriteria = step.scorecardStepId ? criteriaByStepId.get(step.scorecardStepId) ?? [] : [];
-            const bestCriteria = stepCriteria.filter((criterion) => criterion.sessionId === bestSessionId);
-            const initialCriteria = stepCriteria.filter((criterion) => criterion.sessionId === initialSessionId);
-            const score = roundScore(step.scorePercent);
+            const currentCriteria = stepCriteria.filter(
+                (criterion) =>
+                    selectedSessionIdSet.has(criterion.sessionId) && normalizeDimension(criterion.dimension) !== "savoir",
+            );
+            const initialCriteria = stepCriteria.filter(
+                (criterion) =>
+                    criterion.sessionId === initialSessionId && normalizeDimension(criterion.dimension) !== "savoir",
+            );
+            const currentQuizCriteria = step.scorecardStepId
+                ? quizCriteriaByStepId.get(step.scorecardStepId) ?? []
+                : [];
+            const score = weightedScore(selectedSteps);
+            const latestSelectedStep = selectedSessionIds
+                .map((sessionId) => selectedSteps.find((candidate) => candidate.sessionId === sessionId))
+                .find((candidate): candidate is ProgressStepResult => Boolean(candidate));
 
             return {
-                competencies: buildCompetencies(bestCriteria, initialCriteria),
+                competencies: buildCompetencies([...currentCriteria, ...currentQuizCriteria], initialCriteria),
                 delta: progressDelta(score, initialStepScore),
-                diagnostic: step.coachComment || scoreDiagnostic(score, step.title),
+                diagnostic: latestSelectedStep?.coachComment || scoreDiagnostic(score, step.title),
                 icon: stepIcon(step.stepOrder),
                 number: step.stepOrder,
                 score,
@@ -339,7 +364,7 @@ export function createEmptyRoleplayProgress(title: string, baselineSteps: Progre
 }
 
 export function buildRoleplayProgress(input: BuildRoleplayProgressInput): RoleplayProgress {
-    const bestQuizCriteria = selectBestCriteriaBySession(input.quizCriteria ?? []);
+    const bestQuizCriteria = selectBestQuizCriteriaByAttempt(input.quizCriteria ?? []);
     const quizScore = bestQuizCriteria.length > 0 ? weightedScore(bestQuizCriteria) : null;
 
     if (input.sessions.length === 0) {
@@ -360,24 +385,26 @@ export function buildRoleplayProgress(input: BuildRoleplayProgressInput): Rolepl
     }
 
     const sessionsByDate = input.sessions.slice().sort((first, second) => dateValue(first.completedAt) - dateValue(second.completedAt));
+    const sessionsByRecency = sessionsByDate.slice().reverse();
     const initialSession = sessionsByDate[0];
-    const bestSession = input.sessions.slice().sort(compareSessionByScore)[0];
-    const bestSessionCriteria = input.criteria.filter((criterion) => criterion.sessionId === bestSession.sessionId);
+    const selectedSessionIds = selectRoleplayIndexScorePositions(
+        sessionsByRecency.map((session) => session.scorePercent),
+    ).map((position) => sessionsByRecency[position].sessionId);
+    const selectedSessionIdSet = new Set(selectedSessionIds);
+    const selectedSessionCriteria = input.criteria.filter((criterion) => selectedSessionIdSet.has(criterion.sessionId));
     const bestQuizSavoirCriteria = bestQuizCriteria.filter((criterion) => normalizeDimension(criterion.dimension) === "savoir");
     const dimensions = ROLEPLAY_PROGRESS_DIMENSIONS.map((dimension) => ({
         ...dimension,
         score: weightedScore(
-            dimension.key === "savoir" && bestQuizSavoirCriteria.length > 0
+            dimension.key === "savoir"
                 ? bestQuizSavoirCriteria
-                : bestSessionCriteria.filter((criterion) => normalizeDimension(criterion.dimension) === dimension.key),
+                : selectedSessionCriteria.filter((criterion) => normalizeDimension(criterion.dimension) === dimension.key),
         ),
     }));
-    const masteryScore = roundScore(bestSession.scorePercent);
+    const masteryScore = calculateRoleplayIndex(
+        sessionsByRecency.map((session) => session.scorePercent),
+    ).score ?? 0;
     const initialScore = roundScore(initialSession.scorePercent);
-    const quizCriteriaForBestSession = bestQuizCriteria.map((criterion) => ({
-        ...criterion,
-        sessionId: bestSession.sessionId,
-    }));
 
     return {
         afterTraining: masteryScore,
@@ -400,10 +427,11 @@ export function buildRoleplayProgress(input: BuildRoleplayProgressInput): Rolepl
             },
         ],
         steps: buildProgressSteps(
-            bestSession.sessionId,
+            selectedSessionIds,
             initialSession.sessionId,
             input.steps,
-            [...input.criteria, ...quizCriteriaForBestSession],
+            input.criteria,
+            bestQuizCriteria,
         ),
         target: ROLEPLAY_PROGRESS_TARGET,
         title: input.title,

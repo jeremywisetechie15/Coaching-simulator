@@ -22,6 +22,7 @@ export interface Coach {
     voice_id: VoiceId;
     system_instructions: string;
     avatar_url?: string;
+    background_image_path?: string;
     created_at?: string;
     updated_at?: string;
 }
@@ -32,6 +33,7 @@ export interface Scenario {
     description: string | null;
     persona_id: string;
     persona?: Persona;
+    background_image_path?: string;
     created_at?: string;
     updated_at?: string;
 }

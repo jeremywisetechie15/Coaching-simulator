@@ -3,6 +3,10 @@ import type { RoleplayDetail } from "@/features/roleplays/domain";
 import type { SaveRoleplayDto } from "@/features/roleplays/dto";
 import { AppError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
+import {
+    SESSION_BACKGROUND_OWNER,
+    uploadSessionBackground,
+} from "@/lib/uploads/session-background";
 import { fetchRoleplayDetail } from "./roleplay-query";
 import { assertRoleplayQuizzesMatchMethod } from "./roleplay-quiz-assignment.validation";
 import { createRoleplayInsert } from "./roleplay.persistence";
@@ -52,6 +56,7 @@ export async function assertScorecardMatchesMethod(input: SaveRoleplayDto) {
 export async function createRoleplay(
     input: SaveRoleplayDto,
     uploadFilesByClientId: RoleplayUploadFilesByClientId = new Map(),
+    backgroundFile: File | null = null,
 ): Promise<RoleplayDetail> {
     const context = await requireAdmin();
     const adminSupabase = createAdminClient();
@@ -61,6 +66,14 @@ export async function createRoleplay(
 
     await assertScorecardMatchesMethod(input);
     await assertRoleplayQuizzesMatchMethod(input);
+
+    if (!backgroundFile && input.backgroundImagePath) {
+        throw new AppError(
+            "Un fond existant ne peut pas être attribué à un nouveau roleplay.",
+            400,
+            "ROLEPLAY_BACKGROUND_INVALID",
+        );
+    }
 
     try {
         const { data, error } = await adminSupabase
@@ -75,6 +88,22 @@ export async function createRoleplay(
         }
 
         createdRoleplayId = data.id;
+        if (backgroundFile) {
+            const uploadedBackground = await uploadSessionBackground(
+                adminSupabase,
+                SESSION_BACKGROUND_OWNER.roleplay,
+                data.id,
+                backgroundFile,
+            );
+            uploadedObjects.push(uploadedBackground);
+
+            const { error: backgroundUpdateError } = await adminSupabase
+                .from("scenarios")
+                .update({ background_image_path: uploadedBackground.path })
+                .eq("id", data.id);
+
+            if (backgroundUpdateError) throw backgroundUpdateError;
+        }
         await saveRoleplayChildren(adminSupabase, data.id, input, uploadFilesByClientId, uploadedObjects);
 
         return fetchRoleplayDetail(adminSupabase, data.id);

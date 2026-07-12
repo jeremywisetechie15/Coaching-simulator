@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
     ArrowLeft,
@@ -12,6 +11,8 @@ import {
     Trash2,
     X,
 } from "lucide-react";
+import { ContextualBackLink, useContextualReturnHref } from "@/features/app-shell/components";
+import { buildPostSaveHref } from "@/features/app-shell/domain";
 import type { ContentStatus } from "@/features/content/domain";
 import { CONTENT_STATUS, getCategoriesForDomain } from "@/features/content/domain";
 import {
@@ -120,6 +121,7 @@ export function CreateQuizPageContent({
     const router = useRouter();
     const isEditing = Boolean(initialQuiz);
     const returnHref = initialQuiz ? `/evaluations/${initialQuiz.id}` : "/evaluations";
+    const contextualReturnHref = useContextualReturnHref(returnHref);
     const [form, setForm] = useState<QuizFormState>(() =>
         quizToFormState(initialQuiz, groupOptions, userOptions),
     );
@@ -414,7 +416,9 @@ export function CreateQuizPageContent({
 
         try {
             const savedQuiz = await saveQuiz(initialQuiz?.id, toSaveQuizInput(form, status), collectUploadFiles());
-            router.push(`/evaluations/${savedQuiz.id}`);
+            router.push(
+                buildPostSaveHref(`/evaluations/${savedQuiz.id}`, contextualReturnHref, isEditing),
+            );
             router.refresh();
         } catch (error) {
             setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer le quiz.");
@@ -427,8 +431,8 @@ export function CreateQuizPageContent({
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[900px]">
                 <Box className="mb-6 flex items-center gap-4">
-                    <Link
-                        href={returnHref}
+                    <ContextualBackLink
+                        fallbackHref={returnHref}
                         aria-label="Retour"
                         className={cn(
                             "flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white",
@@ -436,7 +440,7 @@ export function CreateQuizPageContent({
                         )}
                     >
                         <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                    </Link>
+                    </ContextualBackLink>
                     <Text as="h1" className={cn("text-[28px] font-extrabold leading-tight", uiTokens.text.heading)}>
                         {isEditing ? "Modifier le quiz" : "Créer un quiz"}
                     </Text>

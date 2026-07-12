@@ -6,10 +6,13 @@ import { METHOD_SCOPE, type MethodDetail } from "@/features/methods/domain/metho
 import { mapMethodResourcesToModalDocuments, MethodDetailPageContent } from "./MethodDetailPageContent";
 
 vi.mock("next/navigation", () => ({
+    usePathname: () => "/methods/method-1",
     useRouter: () => ({
         push: vi.fn(),
         refresh: vi.fn(),
+        replace: vi.fn(),
     }),
+    useSearchParams: () => new URLSearchParams(),
 }));
 
 const method: MethodDetail = {
@@ -47,12 +50,24 @@ describe("MethodDetailPageContent", () => {
                     questionCount: 3,
                     title: "Quiz DAGO",
                 }}
+                mastery={{
+                    completedAt: "2026-07-09T15:25:38.909Z",
+                    delta: 12,
+                    scorePercent: 72,
+                    trend: "up",
+                }}
                 method={method}
             />,
         );
 
-        expect(html).toContain("/evaluations/22222222-2222-4222-8222-222222222222/quiz");
+        expect(html).toContain(
+            "/evaluations/22222222-2222-4222-8222-222222222222/quiz?returnTo=%2Fmethods%2Fmethod-1",
+        );
         expect(html).toContain("Vérifier mes connaissances");
+        expect(html).toContain("72%");
+        expect(html).toContain("09/07/2026");
+        expect(html).toContain("Progression de 12 points depuis le quiz précédent");
+        expect(html).not.toContain("Non testée");
     });
 
     it("maps complementary method resources to the document modal", () => {

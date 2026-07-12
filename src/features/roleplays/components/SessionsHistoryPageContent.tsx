@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { ArrowLeft, CalendarDays, Clock, History } from "lucide-react";
+import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
 import { Box, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import {
     categoryBadgeStyles,
@@ -63,13 +63,13 @@ export function SessionsHistoryPageContent({
         <Box as="main" className="px-5 pb-12 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1260px]">
                 <Box className="mb-7 flex items-start gap-6">
-                    <Link
-                        href={backHref}
+                    <ContextualBackLink
+                        fallbackHref={backHref}
                         aria-label="Retour"
                         className="mt-2 flex h-8 w-8 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
                     >
                         <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                    </Link>
+                    </ContextualBackLink>
                     <Box>
                         <Text as="h1" className="text-[30px] font-extrabold leading-tight text-[#111827] md:text-[34px]">
                             Historique des sessions
@@ -148,12 +148,12 @@ export function SessionsHistoryPageContent({
 
                                     <Box className="flex items-center gap-5 md:shrink-0">
                                         <ScoreRing score={session.score} />
-                                        <Link
+                                        <ContextualLink
                                             href={ROLEPLAY_ROUTES.app.sessionHistoryDetail(session.id)}
                                             className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#5140F0] px-5 text-[14px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7]"
                                         >
                                             Voir évaluation &gt;
-                                        </Link>
+                                        </ContextualLink>
                                     </Box>
                                 </CardSurface>
                             );

@@ -5,6 +5,11 @@ export const uiTokens = {
         stepNumberMuted:
             "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F3F4F6] text-[13px] font-bold text-[#9CA3AF]",
     },
+    metadata: {
+        dateBadge:
+            "inline-flex h-7 items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-[#F7F8FB] px-2.5 text-[12px] font-bold text-[#4B5563]",
+        dateBadgeIcon: "h-3.5 w-3.5 text-[#9CA3AF]",
+    },
     progress: {
         /** Remplissage couleur primaire (défaut). */
         fill: "absolute inset-y-0 left-0 rounded-full bg-[#5140F0]",
@@ -41,6 +46,8 @@ export const uiTokens = {
             "flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#5140F0] text-[15px] font-bold text-white shadow-[0_16px_30px_rgba(81,64,240,0.22)] transition hover:bg-[#4735EA] disabled:cursor-not-allowed disabled:opacity-70",
         secondaryButton:
             "flex h-11 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-6 text-[14px] font-semibold text-[#374151] transition hover:border-[#D5D7DE]",
+        successButton:
+            "bg-[#16A34A] text-white shadow-[0_12px_24px_rgba(22,163,74,0.22)] hover:bg-[#15803D]",
         stepRemoveButton:
             "flex h-7 w-7 items-center justify-center rounded-lg text-[#9CA3AF] transition hover:bg-[#F3F4F8] hover:text-[#111827]",
     },
@@ -82,6 +89,57 @@ export const uiTokens = {
         indicatorSelected: "border-[#5140F0]",
         incorrect: "border-[#DC2626] bg-[#FEF2F2] shadow-[inset_0_0_0_1px_#DC2626]",
         selected: "border-[#5140F0] bg-[#F4F3FE]",
+    },
+    roleplayDetail: {
+        infoCardTitle: "text-[18px] font-medium text-[#5140F0]",
+        preparationCardTitle: "text-[16px] font-medium text-[#5140F0]",
+        quickLink:
+            "inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white px-3 text-[13px] font-semibold text-[#4B5563] transition hover:border-[#C9C2FB] hover:text-[#5140F0]",
+        quickLinkIcon: "h-4 w-4 text-[#9CA3AF]",
+        title: "mt-6 text-center text-[18px] font-extrabold leading-6 text-[#5140F0]",
+    },
+    roleplayIndex: {
+        card: "flex flex-col rounded-[14px] border border-[#C9C2FB] p-5 text-center shadow-none",
+        chartBarOther: "absolute bottom-0 w-7 rounded-t-lg bg-[#C9CED8]",
+        chartBarTop: "absolute bottom-0 w-7 rounded-t-lg bg-[#5140F0]",
+        chartBarValue:
+            "absolute left-1/2 z-20 -translate-x-1/2 translate-y-[-6px] whitespace-nowrap text-[11px] font-extrabold text-[#111827]",
+        chartCard: "rounded-[14px] border border-[#C9C2FB] bg-white p-5 shadow-[0_10px_30px_rgba(81,64,240,0.08)]",
+        chartColumn: "relative flex h-full items-end justify-center",
+        chartColumns: "absolute inset-0 z-10 grid items-end gap-2 px-1",
+        chartDate: "min-w-0 text-center text-[10px] font-semibold leading-4 text-[#6B7280]",
+        chartDates: "mt-2 grid gap-2 px-1",
+        chartEmpty: "mt-4 rounded-xl bg-[#F7F8FB] px-4 py-8 text-center text-[13px] font-medium text-[#6B7280]",
+        chartHeader: "flex items-end justify-between gap-4 border-b border-[#ECEEF3] pb-4",
+        chartIndexCurve: "pointer-events-none absolute inset-y-0 left-1 z-20 h-full w-[calc(100%_-_0.5rem)] overflow-visible text-[#16A34A]",
+        chartIndexPoint:
+            "group/index-point pointer-events-auto absolute left-1/2 z-30 h-3 w-3 -translate-x-1/2 translate-y-1/2 rounded-full border-2 border-white bg-[#16A34A] shadow-[0_1px_4px_rgba(22,163,74,0.35)] transition-transform duration-150 hover:scale-125 focus-visible:scale-125 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#16A34A]/30",
+        chartIndexPointValue:
+            "pointer-events-none absolute bottom-full left-1/2 mb-2 -translate-x-1/2 translate-y-1 whitespace-nowrap rounded-md border border-[#BBF7D0] bg-white px-1.5 py-0.5 text-[10px] font-extrabold text-[#16A34A] opacity-0 shadow-[0_4px_12px_rgba(22,163,74,0.14)] transition duration-150 group-hover/index-point:translate-y-0 group-hover/index-point:opacity-100 group-focus-visible/index-point:translate-y-0 group-focus-visible/index-point:opacity-100",
+        chartIndexPointValueVisible: "translate-y-0 opacity-100",
+        chartIndexPoints: "pointer-events-none absolute inset-0 z-30 grid gap-2 px-1",
+        chartIndexScore: "mt-1 text-[42px] font-extrabold leading-none text-[#5140F0]",
+        chartLegend: "mt-5 flex flex-wrap items-center gap-x-4 gap-y-2 text-[11px] font-semibold text-[#6B7280]",
+        chartLegendIndexCurve: "h-0.5 w-4 rounded-full bg-[#16A34A]",
+        chartLegendOtherDot: "h-2 w-2 rounded-full bg-[#C9CED8]",
+        chartLegendTopDot: "h-2 w-2 rounded-full bg-[#5140F0]",
+        chartPlot: "relative mt-4 h-[190px] border-b border-[#D5D7DE] bg-[linear-gradient(to_top,#ECEEF3_1px,transparent_1px)] bg-[length:100%_25%]",
+        chartTitle: "text-[14px] font-extrabold text-[#111827]",
+        definitionCard: "rounded-xl border border-[#C9C2FB] bg-[#F8F7FE] p-4",
+        definitionText: "mt-1 text-[13px] font-medium leading-5 text-[#4B5563]",
+        definitionTitle: "text-[13px] font-extrabold text-[#5140F0]",
+        drawerLabel: "text-[12px] font-bold uppercase tracking-[0.04em] text-[#6B7280]",
+        drawerTrend: "mt-2 inline-flex items-center justify-center gap-1 text-[13px] font-bold",
+        infoButton:
+            "flex h-6 w-6 items-center justify-center rounded-full text-[#9CA3AF] transition hover:bg-[#F4F3FE] hover:text-[#5140F0]",
+        score: "mt-2 text-[30px] font-extrabold text-[#5140F0]",
+        title: "text-[13px] font-bold text-[#4B5563]",
+        titleIcon: "h-4 w-4 text-[#5140F0]",
+        trend: "mt-1 inline-flex items-center justify-center gap-1 text-[12px] font-semibold",
+    },
+    roleplayCard: {
+        attemptBadge:
+            "inline-flex h-7 min-w-10 items-center justify-center gap-1 rounded-lg border border-white/25 bg-white/15 px-2 text-[12px] font-bold text-white backdrop-blur-sm",
     },
     routeStatus: {
         card: "w-full max-w-[560px] rounded-[20px] border border-[#E9E7FB] px-7 py-8 text-center shadow-[0_18px_50px_rgba(17,24,39,0.08)] md:px-10 md:py-10",
@@ -127,12 +185,23 @@ export const uiTokens = {
         text: "text-[14px] font-medium leading-6 text-[#4B5563]",
         title: "text-[15px] font-extrabold text-[#111827]",
         tone: {
-            blue: { accent: "text-[#2563EB]", dot: "bg-[#2563EB]", surface: "border-[#C2D8FD] bg-[#EFF4FF]" },
-            green: { accent: "text-[#16A34A]", dot: "bg-[#16A34A]", surface: "border-[#BBF7D0] bg-[#F0FDF4]" },
-            indigo: { accent: "text-[#5140F0]", dot: "bg-[#5140F0]", surface: "border-[#C9C2FB] bg-[#F1F0FE]" },
-            orange: { accent: "text-[#EA580C]", dot: "bg-[#EA580C]", surface: "border-[#FED7AA] bg-[#FFF7ED]" },
-            violet: { accent: "text-[#8B2FD6]", dot: "bg-[#8B2FD6]", surface: "border-[#E6D9FB] bg-[#F8F5FE]" },
+            blue: { accent: "text-[#2563EB]", dot: "bg-[#2563EB]", solid: "bg-[#2563EB] text-white", surface: "border-[#C2D8FD] bg-[#EFF4FF]" },
+            green: { accent: "text-[#16A34A]", dot: "bg-[#16A34A]", solid: "bg-[#16A34A] text-white", surface: "border-[#BBF7D0] bg-[#F0FDF4]" },
+            indigo: { accent: "text-[#5140F0]", dot: "bg-[#5140F0]", solid: "bg-[#5140F0] text-white", surface: "border-[#C9C2FB] bg-[#F1F0FE]" },
+            orange: { accent: "text-[#EA580C]", dot: "bg-[#EA580C]", solid: "bg-[#EA580C] text-white", surface: "border-[#FED7AA] bg-[#FFF7ED]" },
+            red: { accent: "text-[#DC2626]", dot: "bg-[#DC2626]", solid: "bg-[#DC2626] text-white", surface: "border-[#FECACA] bg-[#FEF2F2]" },
+            violet: { accent: "text-[#8B2FD6]", dot: "bg-[#8B2FD6]", solid: "bg-[#8B2FD6] text-white", surface: "border-[#E6D9FB] bg-[#F8F5FE]" },
         },
+    },
+    stepTabs: {
+        button: "flex min-h-9 items-center gap-2 rounded-lg px-3.5 py-2 text-[13px] font-bold transition",
+        buttonIdle: "border border-[#E5E7EB] bg-white text-[#4B5563] hover:border-[#D5D7DE]",
+        empty: "py-3 text-[13px] font-semibold text-[#9CA3AF]",
+        item: "flex gap-2.5",
+        itemText: "text-[14px] font-medium leading-6 text-[#4B5563]",
+        list: "space-y-2.5",
+        listDot: "mt-2 h-1.5 w-1.5 shrink-0 rounded-full",
+        tabList: "flex flex-wrap gap-2 border-b border-[#EDEEF3] pb-3",
     },
     /** Page de détail d'une scorecard : en-tête statistique, accordéon d'étape et tableau de critères. */
     scorecard: {
@@ -170,8 +239,77 @@ export const uiTokens = {
         verbatimBox:
             "rounded-[10px] bg-[#F0FDF4] px-3 py-2.5 text-[13px] font-medium italic leading-5 text-[#15803D]",
     },
+    /** Notes prises pendant une préparation avec le coach IA. */
+    coachNotes: {
+        actionIcon: "h-4 w-4 shrink-0",
+        addButton:
+            "inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#5140F0] px-3 text-[13px] font-bold text-white transition hover:bg-[#4433D8] disabled:cursor-not-allowed disabled:bg-[#D7D5F7]",
+        composer: "space-y-3 border-b border-[#ECEEF3] px-4 py-4",
+        composerActions: "flex items-center gap-2",
+        deleteButton:
+            "flex h-7 w-7 items-center justify-center rounded-md text-[#9CA3AF] opacity-0 transition hover:bg-white/70 hover:text-[#DC2626] group-hover/note:opacity-100 focus:opacity-100",
+        deleteIcon: "h-3.5 w-3.5",
+        deleteTooltip: "ml-auto shrink-0",
+        empty: "px-4 py-8 text-center text-[13px] font-semibold text-[#9CA3AF]",
+        feedback: "min-h-5 text-center text-[12px] font-semibold text-[#6B7280]",
+        footer: "space-y-2 border-t border-[#ECEEF3] px-4 pb-4 pt-3",
+        header: "flex items-center justify-between border-b border-[#ECEEF3] px-4 py-4",
+        list: "max-h-[520px] min-h-[160px] space-y-3 overflow-y-auto px-4 py-4",
+        note: "group/note rounded-[10px] border p-3",
+        noteHeader: "flex min-w-0 items-center gap-2",
+        noteText: "mt-2 whitespace-pre-wrap text-[13px] font-medium leading-5 text-[#374151]",
+        panel:
+            "flex min-h-[520px] flex-col overflow-hidden rounded-[16px] border border-[#E5E7EB] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.04)]",
+        saveButton:
+            "flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#5140F0] px-3 text-[13px] font-bold text-white transition hover:bg-[#4433D8] disabled:cursor-not-allowed disabled:bg-[#D7D5F7]",
+        select: "min-w-0 flex-1 text-[13px]",
+        subtitle: "mt-0.5 text-[12px] font-semibold text-[#9CA3AF]",
+        textarea: "min-h-[88px] resize-none text-[13px]",
+        time: "shrink-0 text-[11px] font-semibold text-[#9CA3AF]",
+        title: "text-[15px] font-extrabold text-[#111827]",
+        toast:
+            "fixed bottom-6 right-6 z-50 rounded-lg bg-[#111827] px-4 py-3 text-[13px] font-bold text-white shadow-[0_14px_30px_rgba(17,24,39,0.22)]",
+        typeBadge: "inline-flex min-w-0 items-center gap-1.5 rounded-full px-2 py-1 text-[11px] font-bold",
+        typeIcon: "h-3 w-3 shrink-0",
+        typeTone: {
+            example: {
+                badge: "bg-[#DCFCE7] text-[#15803D]",
+                surface: "border-[#BBF7D0] bg-[#F0FDF4]",
+            },
+            key_point: {
+                badge: "bg-[#DBEAFE] text-[#1D4ED8]",
+                surface: "border-[#BFDBFE] bg-[#EFF6FF]",
+            },
+            suggestion: {
+                badge: "bg-[#EDE9FE] text-[#6D28D9]",
+                surface: "border-[#DDD6FE] bg-[#F5F3FF]",
+            },
+        },
+    },
+    transcript: {
+        action:
+            "mt-2 inline-flex items-center gap-1.5 text-[12px] font-bold text-[#5140F0] opacity-100 transition hover:text-[#4433D8] focus:opacity-100 disabled:text-[#16A34A] disabled:opacity-100 md:opacity-0 md:group-hover/message:opacity-100",
+        actionIcon: "h-3.5 w-3.5",
+        avatarAi: "bg-[#5140F0] text-white",
+        avatarUser: "bg-[#EEF0F5] text-[#6B7280]",
+        bubbleAi: "bg-[#EEF0FF] text-[#1F2433]",
+        bubbleUser: "bg-[#F3F4F6] text-[#1F2433]",
+        card: "rounded-[16px] border border-[#E9E7FB] p-6 shadow-[0_1px_2px_rgba(17,24,39,0.04)]",
+        empty: "py-6 text-center text-[14px] font-semibold text-[#9CA3AF]",
+        grid: "grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]",
+        meta: "flex items-center gap-2 text-[12px] font-semibold text-[#9CA3AF]",
+    },
     /** Page de session roleplay : cadre de l'iframe runtime + panneau d'infos persona à droite. */
     session: {
+        avatar: {
+            container:
+                "h-48 w-48 overflow-hidden rounded-full border-4 transition-all duration-300 md:h-64 md:w-64",
+            idle: "border-white shadow-[0_20px_40px_-12px_rgba(0,0,0,0.25)]",
+            idleRing: "absolute -inset-3 rounded-full border-4 border-[#C8D4FF]/50",
+            speaking:
+                "border-[#7C8FFF] shadow-[0_0_40px_rgba(124,143,255,0.4),0_20px_40px_-12px_rgba(0,0,0,0.25)]",
+            speakingRing: "absolute -inset-6 rounded-full border-[3px] border-[#7C8FFF]",
+        },
         countBadge:
             "inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-[#EEF0FE] px-1.5 text-[12px] font-bold text-[#5140F0]",
         documentsButton:
@@ -236,8 +374,8 @@ export const uiTokens = {
         /** Pastille ambre « Après training : xx% » (texte toujours sur une ligne). */
         afterPill:
             "inline-flex shrink-0 items-center whitespace-nowrap rounded-full bg-[#FEF3C7] px-2.5 py-1 text-[12px] font-semibold text-[#B45309]",
-        /** Badge d'évolution vert « ↗ +x% » (texte toujours sur une ligne). */
-        delta: "inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[13px] font-bold text-[#16A34A]",
+        /** Base du badge d'évolution ; la couleur dépend du sens calculé dans le domaine. */
+        delta: "inline-flex shrink-0 items-center gap-0.5 whitespace-nowrap text-[13px] font-bold",
         /** Carte accordéon (étape, compétence, dimensions). */
         accordion: "overflow-hidden rounded-[14px] border border-[#E5E7EB] bg-white",
         accordionHeader: "flex w-full items-center gap-3 px-5 py-4 text-left",

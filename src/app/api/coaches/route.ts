@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { saveCoachDto } from "@/features/coaches/dto/save-coach.dto";
+import { requireAdmin } from "@/features/auth/server";
 import { createCoach, listCoaches } from "@/features/coaches/server";
+import { parseSaveCoachRequest } from "@/features/coaches/server/save-coach-request";
 import { jsonError } from "@/lib/server/http";
 
 export const dynamic = "force-dynamic";
@@ -17,8 +18,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
     try {
-        const input = saveCoachDto.parse(await request.json());
-        const coach = await createCoach(input);
+        await requireAdmin();
+        const { backgroundFile, input } = await parseSaveCoachRequest(request);
+        const coach = await createCoach(input, backgroundFile);
 
         return NextResponse.json({ coach }, { status: 201 });
     } catch (error) {

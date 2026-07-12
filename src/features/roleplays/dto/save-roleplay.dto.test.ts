@@ -47,6 +47,7 @@ describe("saveRoleplayDto", () => {
         );
 
         expect(result.scope).toBe(CONTENT_VISIBILITY_SCOPE.public);
+        expect(result.backgroundImagePath).toBe("");
         expect(result.quizIds).toEqual(["77777777-7777-4777-8777-777777777777"]);
         expect(result.previewDescription).toBe("Résumé court sur la carte.");
         expect(result.previewTitle).toBe("Décrocher un premier rendez-vous");
@@ -59,6 +60,14 @@ describe("saveRoleplayDto", () => {
             }),
         ]);
         expect(result.status).toBe(CONTENT_STATUS.published);
+    });
+
+    it("accepts an existing background path while editing", () => {
+        const result = saveRoleplayDto.parse(
+            roleplay({ backgroundImagePath: "roleplays/scenario-1/background.webp" }),
+        );
+
+        expect(result.backgroundImagePath).toBe("roleplays/scenario-1/background.webp");
     });
 
     it("deduplicates selected quizzes", () => {

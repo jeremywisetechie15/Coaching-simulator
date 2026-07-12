@@ -5,6 +5,7 @@ import {
     MAX_VIDEO_UPLOAD_SIZE_BYTES,
     QUIZ_UPLOAD_BUCKET,
     SCENARIO_RESOURCE_UPLOAD_BUCKET,
+    SESSION_BACKGROUND_UPLOAD_BUCKET,
     formatUploadFileSize,
     inferContentUploadResourceType,
     sanitizeUploadFileName,
@@ -16,6 +17,7 @@ describe("content upload domain", () => {
         expect(CONTENT_UPLOAD_BUCKET).toBe("notation_pdf");
         expect(QUIZ_UPLOAD_BUCKET).toBe("quizzes");
         expect(SCENARIO_RESOURCE_UPLOAD_BUCKET).toBe("resource_scenarios");
+        expect(SESSION_BACKGROUND_UPLOAD_BUCKET).toBe("session-backgrounds");
         expect(
             validateContentUploadFile({
                 name: "Guide DAGO.pdf",
@@ -36,6 +38,27 @@ describe("content upload domain", () => {
                 CONTENT_UPLOAD_PURPOSES.methodDocument,
             ),
         ).toBeNull();
+    });
+
+    it("accepts only appropriately sized images for session backgrounds", () => {
+        expect(
+            validateContentUploadFile(
+                { name: "bureau.webp", size: 2 * 1024 * 1024, type: "image/webp" },
+                CONTENT_UPLOAD_PURPOSES.sessionBackground,
+            ),
+        ).toBeNull();
+        expect(
+            validateContentUploadFile(
+                { name: "brief.pdf", size: 1024, type: "application/pdf" },
+                CONTENT_UPLOAD_PURPOSES.sessionBackground,
+            ),
+        ).toBe("Le fond de session accepte uniquement une image JPG, PNG ou WebP.");
+        expect(
+            validateContentUploadFile(
+                { name: "bureau.png", size: 10 * 1024 * 1024 + 1, type: "image/png" },
+                CONTENT_UPLOAD_PURPOSES.sessionBackground,
+            ),
+        ).toBe("L'image de fond ne doit pas dépasser 10 Mo.");
     });
 
     it("rejects unsupported or oversized files", () => {

@@ -47,6 +47,7 @@ export interface DiscourseMetric {
 }
 
 export interface TranscriptMessage {
+    id?: string;
     speaker: "you" | "persona";
     time: string;
     text: string;

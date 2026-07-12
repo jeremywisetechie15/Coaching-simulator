@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
-import Link from "next/link";
 import {
     ArrowLeft,
     ClipboardCheck,
@@ -13,6 +12,7 @@ import {
     RefreshCw,
     Star,
 } from "lucide-react";
+import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
 import {
     EVALUATION_ROUTES,
     getQuizCompetenceCount,
@@ -89,8 +89,8 @@ export function EvaluationDetailPageContent({ canManage = false, quiz, skillOpti
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[920px]">
                 <Box className="mb-5 flex items-center justify-between">
-                    <Link
-                        href="/evaluations"
+                    <ContextualBackLink
+                        fallbackHref={EVALUATION_ROUTES.app.collection}
                         aria-label="Retour"
                         className={cn(
                             "flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white",
@@ -98,15 +98,15 @@ export function EvaluationDetailPageContent({ canManage = false, quiz, skillOpti
                         )}
                     >
                         <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                    </Link>
+                    </ContextualBackLink>
                     {canManage && (
-                        <Link
+                        <ContextualLink
                             href={`/evaluations/${quiz.id}/edit`}
                             className={cn(uiTokens.action.secondaryButton, "h-10 gap-2 px-4")}
                         >
                             <InlineIcon icon={Edit3} className="h-4 w-4" />
                             Modifier
-                        </Link>
+                        </ContextualLink>
                     )}
                 </Box>
 
@@ -207,12 +207,12 @@ export function EvaluationDetailPageContent({ canManage = false, quiz, skillOpti
 
                     {hasCompletedAttempt ? (
                         <Box className="mt-7 flex flex-wrap gap-3">
-                            <Link href={resultHref} className={cn(uiTokens.action.secondaryButton, "h-12 gap-2 px-6")}>
+                            <ContextualLink href={resultHref} className={cn(uiTokens.action.secondaryButton, "h-12 gap-2 px-6")}>
                                 <InlineIcon icon={Eye} className="h-5 w-5" />
                                 Revoir mes réponses
-                            </Link>
+                            </ContextualLink>
                             {canRetry && (
-                                <Link
+                                <ContextualLink
                                     href={`${quizHref}?retry=1`}
                                     className={cn(
                                         "flex h-12 items-center justify-center gap-2 rounded-xl px-7 text-[15px] font-bold text-white transition",
@@ -221,11 +221,11 @@ export function EvaluationDetailPageContent({ canManage = false, quiz, skillOpti
                                 >
                                     <InlineIcon icon={RefreshCw} className="h-5 w-5" />
                                     Retenter le quiz ({attemptsUsed}/{maxAttempts} tentatives)
-                                </Link>
+                                </ContextualLink>
                             )}
                         </Box>
                     ) : (
-                        <Link
+                        <ContextualLink
                             href={quizHref}
                             className={cn(
                                 "mt-7 flex h-12 w-fit items-center justify-center rounded-xl px-7 text-[15px] font-bold text-white transition",
@@ -233,7 +233,7 @@ export function EvaluationDetailPageContent({ canManage = false, quiz, skillOpti
                             )}
                         >
                             {hasInProgressAttempt ? "Reprendre le quiz" : "Commencer le quiz"}
-                        </Link>
+                        </ContextualLink>
                     )}
                 </CardSurface>
             </Box>

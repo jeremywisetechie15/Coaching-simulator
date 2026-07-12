@@ -18,12 +18,22 @@ describe("saveCoachDto", () => {
         const parsed = saveCoachDto.parse(validCoach);
 
         expect(parsed).toMatchObject({
+            backgroundImagePath: "",
             certifications: "ICF, DISC",
             coachingStyle: "Optimiste",
             diploma: "Master coaching professionnel",
             discProfile: "Stable",
             expertiseDomain: "Commercial",
         });
+    });
+
+    it("accepts an existing background path while editing", () => {
+        expect(
+            saveCoachDto.parse({
+                ...validCoach,
+                backgroundImagePath: "coaches/coach-1/background.webp",
+            }).backgroundImagePath,
+        ).toBe("coaches/coach-1/background.webp");
     });
 
     it("rejects unknown domain, coaching style and DISC profile values", () => {

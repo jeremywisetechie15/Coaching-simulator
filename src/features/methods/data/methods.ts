@@ -1,6 +1,7 @@
 export type MethodStepIcon = "phone" | "message" | "shield" | "check";
 
 export interface MethodStep {
+    id?: string;
     title: string;
     icon: MethodStepIcon;
     summary: string;

@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
     ArrowLeft,
@@ -10,6 +9,8 @@ import {
     X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { ContextualBackLink, useContextualReturnHref } from "@/features/app-shell/components";
+import { buildPostSaveHref } from "@/features/app-shell/domain";
 import { CONTENT_STATUS, CONTENT_VISIBILITY_SCOPE } from "@/features/content/domain";
 import { ContentTargetScopeField, type ContentTargetScopeValue } from "@/features/content/components";
 import { CreateCoachPageContent } from "@/features/coaches/components/CreateCoachPageContent";
@@ -48,7 +49,12 @@ import {
     inferContentUploadResourceType,
 } from "@/lib/uploads/content-upload";
 import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextInput } from "@/lib/ui/atoms";
-import { AlertMessage, FileUploadField, SingleSelectField } from "@/lib/ui/molecules";
+import {
+    AlertMessage,
+    FileUploadField,
+    SessionBackgroundUploadField,
+    SingleSelectField,
+} from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
@@ -451,8 +457,13 @@ function EntityEditorDialog({
 const textareaClasses =
     "w-full resize-none rounded-lg border border-[#E5E7EB] bg-[#F3F4F6] px-3.5 py-3 text-[14px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#5140F0] focus:bg-white focus:ring-4 focus:ring-[#5140F0]/10";
 
-async function saveRoleplay(roleplayId: string | undefined, values: SaveRoleplayInput, uploadFiles: RoleplayUploadFile[]) {
-    const hasFiles = uploadFiles.length > 0;
+async function saveRoleplay(
+    roleplayId: string | undefined,
+    values: SaveRoleplayInput,
+    uploadFiles: RoleplayUploadFile[],
+    backgroundFile: File | null,
+) {
+    const hasFiles = uploadFiles.length > 0 || Boolean(backgroundFile);
     const body = hasFiles ? new FormData() : JSON.stringify(values);
     const headers = hasFiles ? undefined : { "Content-Type": "application/json" };
 
@@ -461,6 +472,7 @@ async function saveRoleplay(roleplayId: string | undefined, values: SaveRoleplay
         uploadFiles.forEach(({ clientFileId, file }) => {
             body.append(`file:${clientFileId}`, file);
         });
+        if (backgroundFile) body.append("backgroundFile", backgroundFile);
     }
 
     const response = await fetch(roleplayId ? ROLEPLAY_ROUTES.api.detail(roleplayId) : ROLEPLAY_ROUTES.api.collection, {
@@ -553,7 +565,9 @@ export function CreateRoleplayPageContent({
     scorecardOptions,
     userOptions,
 }: CreateRoleplayPageContentProps) {
+    const returnHref = roleplayId ? ROLEPLAY_ROUTES.app.detail(roleplayId) : ROLEPLAY_ROUTES.app.collection;
     const router = useRouter();
+    const contextualReturnHref = useContextualReturnHref(returnHref);
     const [localPersonaOptions, setLocalPersonaOptions] = useState(personaOptions);
     const [localCoachOptions, setLocalCoachOptions] = useState(coachOptions);
     const [localMethodOptions, setLocalMethodOptions] = useState(methodOptions);
@@ -575,6 +589,8 @@ export function CreateRoleplayPageContent({
     const [context, setContext] = useState(initialRoleplay?.context ?? "");
     const [objective, setObjective] = useState(initialRoleplay?.objective ?? "");
     const [obstacles, setObstacles] = useState(initialRoleplay?.obstacles ?? "");
+    const [backgroundImagePath, setBackgroundImagePath] = useState(initialRoleplay?.backgroundImagePath ?? "");
+    const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
     const [resources, setResources] = useState<RoleplayResourceFormItem[]>(() =>
         (initialRoleplay?.resources ?? []).map(roleplayResourceToForm),
     );
@@ -801,6 +817,7 @@ export function CreateRoleplayPageContent({
         });
         return {
             assignedUserId: scope === CONTENT_VISIBILITY_SCOPE.user ? targetScope.assignedUserId : null,
+            backgroundImagePath,
             category: category ?? "",
             coachId: coach,
             context,
@@ -837,8 +854,14 @@ export function CreateRoleplayPageContent({
         setFormError(null);
         setSaving(true);
         try {
-            const saved = await saveRoleplay(roleplayId, toSaveInput(), collectUploadFiles());
-            router.push(ROLEPLAY_ROUTES.app.detail(saved.id));
+            const saved = await saveRoleplay(roleplayId, toSaveInput(), collectUploadFiles(), backgroundFile);
+            router.push(
+                buildPostSaveHref(
+                    ROLEPLAY_ROUTES.app.detail(saved.id),
+                    contextualReturnHref,
+                    Boolean(roleplayId),
+                ),
+            );
             router.refresh();
         } catch (error) {
             setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer le roleplay.");
@@ -851,13 +874,13 @@ export function CreateRoleplayPageContent({
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1000px]">
                 <Box className="mb-6 flex items-start gap-4">
-                    <Link
-                        href="/roleplays"
+                    <ContextualBackLink
+                        fallbackHref={returnHref}
                         aria-label="Retour"
                         className="mt-1.5 flex h-9 w-9 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
                     >
                         <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                    </Link>
+                    </ContextualBackLink>
                     <Box>
                         <Text as="h1" className="text-[28px] font-extrabold leading-tight text-[#111827] md:text-[32px]">
                             Créer un scénario
@@ -1055,6 +1078,22 @@ export function CreateRoleplayPageContent({
                             />
                         </Box>
 
+                        <SessionBackgroundUploadField
+                            disabled={saving}
+                            file={backgroundFile}
+                            inputId="roleplay-session-background"
+                            storedPath={backgroundImagePath}
+                            onError={setFormError}
+                            onFileSelected={(file) => {
+                                setBackgroundFile(file);
+                                setBackgroundImagePath("");
+                            }}
+                            onClear={() => {
+                                setBackgroundFile(null);
+                                setBackgroundImagePath("");
+                            }}
+                        />
+
                         <Box>
                             <Text as="span" className={fieldLabelClasses}>
                                 Objectif(s) du scénario
@@ -1189,12 +1228,12 @@ export function CreateRoleplayPageContent({
                 </CardSurface>
 
                 <Box className="mt-6 flex justify-end gap-3">
-                    <Link
-                        href="/roleplays"
+                    <ContextualBackLink
+                        fallbackHref={returnHref}
                         className="flex h-11 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-6 text-[14px] font-semibold text-[#374151] transition hover:border-[#D5D7DE]"
                     >
                         Annuler
-                    </Link>
+                    </ContextualBackLink>
                     <Button
                         disabled={!canSubmit || saving}
                         onClick={() => void handleSave()}

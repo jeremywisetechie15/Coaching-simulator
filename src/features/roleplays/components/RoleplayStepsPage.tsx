@@ -10,10 +10,11 @@ interface RoleplayStepsPageProps {
     method: Method;
     profileValues: ProfileFormValues;
     roleplay: RoleplayItem;
+    referenceSessionId?: string;
     variant?: StepCoachVariant;
 }
 
-export function RoleplayStepsPage({ profileValues, roleplay, method, variant }: RoleplayStepsPageProps) {
+export function RoleplayStepsPage({ profileValues, roleplay, method, referenceSessionId, variant }: RoleplayStepsPageProps) {
     return (
         <AppShell
             activePrimaryItem="Roleplays"
@@ -24,7 +25,12 @@ export function RoleplayStepsPage({ profileValues, roleplay, method, variant }: 
             email={profileValues.email}
             searchPlaceholder="Rechercher..."
         >
-            <RoleplayStepsPageContent roleplay={roleplay} method={method} variant={variant} />
+            <RoleplayStepsPageContent
+                roleplay={roleplay}
+                method={method}
+                referenceSessionId={referenceSessionId}
+                variant={variant}
+            />
         </AppShell>
     );
 }

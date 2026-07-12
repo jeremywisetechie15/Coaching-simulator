@@ -14,9 +14,11 @@ import {
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
+import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
 
 interface PageProps {
     params: Promise<{ skillId: string }>;
+    searchParams?: Promise<{ returnTo?: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps) {
@@ -35,8 +37,9 @@ export async function generateMetadata({ params }: PageProps) {
     }
 }
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
     const { skillId } = await params;
+    const { returnTo } = searchParams ? await searchParams : {};
     let profile;
 
     try {
@@ -46,7 +49,7 @@ export default async function Page({ params }: PageProps) {
             throw error;
         }
 
-        redirect(`/auth?redirect=/skills/${skillId}/edit`);
+        redirect(buildAuthRedirectHref(withReturnTo(`/skills/${skillId}/edit`, returnTo)));
     }
 
     const profileValues = toProfileFormValues(profile);

@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Check, Eye, Pencil, Trash2, X } from "lucide-react";
 import { useState } from "react";
+import { ContextualBackLink, ContextualLink, useCurrentAppHref } from "@/features/app-shell/components";
+import { withSearchParam, withoutSearchParam } from "@/features/app-shell/domain";
 import type {
     OrganizationEvaluationRow,
     OrganizationGroupDetail,
@@ -46,6 +47,10 @@ const tabs: Array<{ label: string; value: GroupDetailTab }> = [
     { label: "Roleplays", value: "roleplays" },
     { label: "Évaluations", value: "evaluations" },
 ];
+
+function isGroupDetailTab(value: string | null): value is GroupDetailTab {
+    return tabs.some((tab) => tab.value === value);
+}
 
 const memberColumns = ["Utilisateur", "Email", "Rôle", "Statut", "Roleplays", "Quizzes", "Actions"];
 
@@ -246,13 +251,13 @@ function GroupMembersTable({ members }: { members: OrganizationUserRow[] }) {
                                         </Text>
                                     </Box>
                                     <Box as="td" className="px-7 py-5">
-                                        <Link
+                                        <ContextualLink
                                             href={`/users/${member.id}`}
                                             aria-label={`Voir ${member.name}`}
                                             className="flex h-8 w-8 items-center justify-center rounded-lg text-[#9AA2B2] transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
                                         >
                                             <InlineIcon icon={Eye} className="h-5 w-5" />
-                                        </Link>
+                                        </ContextualLink>
                                     </Box>
                                 </Box>
                             ))}
@@ -281,7 +286,12 @@ export function OrganizationGroupDetailContent({
     roleplays,
 }: OrganizationGroupDetailContentProps) {
     const router = useRouter();
-    const [activeTab, setActiveTab] = useState<GroupDetailTab>("overview");
+    const searchParams = useSearchParams();
+    const currentHref = useCurrentAppHref();
+    const [activeTab, setActiveTab] = useState<GroupDetailTab>(() => {
+        const tab = searchParams.get("tab");
+        return isGroupDetailTab(tab) ? tab : "overview";
+    });
     const [currentGroup, setCurrentGroup] = useState(group);
     const [isEditing, setIsEditing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -291,8 +301,18 @@ export function OrganizationGroupDetailContent({
         name: group.name,
     });
 
+    const selectTab = (tab: GroupDetailTab) => {
+        setActiveTab(tab);
+        router.replace(
+            tab === "overview"
+                ? withoutSearchParam(currentHref, "tab")
+                : withSearchParam(currentHref, "tab", tab),
+            { scroll: false },
+        );
+    };
+
     const startEditing = () => {
-        setActiveTab("overview");
+        selectTab("overview");
         setFormValues({
             description: currentGroup.description ?? "",
             name: currentGroup.name,
@@ -383,13 +403,13 @@ export function OrganizationGroupDetailContent({
             <Box className="mx-auto max-w-[1260px]">
                 <Box className="mb-8 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                     <Box className="flex items-center gap-7">
-                        <Link
-                            href={`/organizations/${currentGroup.organizationId}`}
+                        <ContextualBackLink
+                            fallbackHref={`/organizations/${currentGroup.organizationId}`}
                             className="flex h-10 w-10 items-center justify-center rounded-full text-[#171B2A] transition hover:bg-white"
                             aria-label="Retour à l'organisation"
                         >
                             <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                        </Link>
+                        </ContextualBackLink>
                         <Text as="h1" className="text-[26px] font-extrabold tracking-[-0.02em] text-[#171B2A]">
                             Détail du groupe
                         </Text>
@@ -436,7 +456,7 @@ export function OrganizationGroupDetailContent({
                 </Box>
 
                 <CardSurface className="overflow-hidden rounded-[14px] border border-[#E1E4EB] shadow-none">
-                    <GroupDetailTabs activeTab={activeTab} onTabChange={setActiveTab} />
+                    <GroupDetailTabs activeTab={activeTab} onTabChange={selectTab} />
                     {activeTab === "overview" && (
                         <GroupOverview
                             formError={formError}

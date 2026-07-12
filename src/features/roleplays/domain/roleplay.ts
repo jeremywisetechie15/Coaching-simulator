@@ -6,6 +6,7 @@ import {
     type ContentVisibilityScope,
 } from "@/features/content/domain";
 import type { QuizKind, QuizParticipation, QuizType } from "@/features/evaluations/domain";
+import type { RoleplayIndexSession, RoleplayIndexTrend } from "./roleplay-index";
 
 export const ROLEPLAY_DIFFICULTIES = ["Facile", "Moyen", "Difficile"] as const;
 
@@ -94,8 +95,15 @@ export interface RoleplayResource {
 
 export interface RoleplayStats {
     bestScore: number;
+    bestScoreDate: string;
+    indexDelta: number | null;
+    indexScore: number | null;
+    indexSessions: RoleplayIndexSession[];
+    indexSessionCount: number;
+    indexTrend: RoleplayIndexTrend;
     lastDate: string;
     lastDuration: string;
+    latestEligibleSessionId: string | null;
     scoreActuel: number;
     simulations: number;
 }
@@ -103,9 +111,11 @@ export interface RoleplayStats {
 export interface RoleplayListItem {
     assignedUserId: string | null;
     assignedUserName: string | null;
+    attemptCount: number;
     category: string;
     coachId: string | null;
     coachName: string | null;
+    backgroundImagePath: string | null;
     company: string;
     description: string;
     previewDescription: string;

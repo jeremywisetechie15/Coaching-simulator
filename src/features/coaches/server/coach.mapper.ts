@@ -17,10 +17,11 @@ import {
 import { getOpenAIRealtimeVoice, isOpenAIRealtimeVoiceId } from "@/lib/openai/realtime-voices";
 
 export const COACH_SELECT =
-    "id, name, voice_id, system_instructions, avatar_url, expertise_domain, coaching_style, disc_profile, diploma, certifications, created_at, status";
+    "id, name, voice_id, system_instructions, avatar_url, background_image_path, expertise_domain, coaching_style, disc_profile, diploma, certifications, created_at, status";
 
 export interface CoachRow {
     avatar_url: string | null;
+    background_image_path?: string | null;
     certifications: string | null;
     coaching_style: string | null;
     created_at: string | null;
@@ -65,6 +66,7 @@ export function mapCoachRowToListItem(row: CoachRow): CoachListItem {
 
     return {
         avatarSrc: row.avatar_url,
+        backgroundImagePath: row.background_image_path ?? null,
         createdAt: formatDate(row.created_at),
         id: row.id,
         name: row.name,
@@ -81,6 +83,7 @@ export function mapCoachRowToEditorValues(row: CoachRow): CoachEditorValues {
 
     return {
         avatarSrc: row.avatar_url ?? "",
+        backgroundImagePath: row.background_image_path ?? "",
         certifications: row.certifications ?? "",
         coachingStyle: normalizeCoachingStyle(row.coaching_style),
         diploma: row.diploma ?? "",

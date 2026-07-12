@@ -2,11 +2,17 @@
 
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Clock, Copy, Edit3, FileText, MoreHorizontal, Plus, Search, Trash2 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
+    ContextualBackLink,
+    ContextualLink,
+    useCurrentAppHref,
+} from "@/features/app-shell/components";
+import { withReturnTo, withSearchParams } from "@/features/app-shell/domain";
+import {
+    EVALUATION_ROUTES,
     getQuizKindLabel,
     getQuizStatusLabel,
     getQuizTypeLabel,
@@ -47,23 +53,38 @@ async function archiveQuiz(quizId: string) {
 
 export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageContentProps) {
     const router = useRouter();
-    const [query, setQuery] = useState("");
-    const [domain, setDomain] = useState("all");
-    const [category, setCategory] = useState("all");
-    const [type, setType] = useState("all");
-    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-    const [error, setError] = useState<string | null>(null);
-    const [busyQuizId, setBusyQuizId] = useState<string | null>(null);
-
+    const searchParams = useSearchParams();
+    const currentHref = useCurrentAppHref();
     const domainOptions = ["all", ...CONTENT_DOMAINS];
-    const categoryOptions = [
-        "all",
-        ...(domain === "all" ? ALL_CONTENT_CATEGORIES : getCategoriesForDomain(domain)),
-    ];
     const typeOptions = useMemo(
         () => ["all", ...Array.from(new Set(quizzes.map((quiz) => getQuizTypeLabel(quiz.type))))],
         [quizzes],
     );
+    const initialDomain = domainOptions.includes(searchParams.get("domain") ?? "")
+        ? searchParams.get("domain")!
+        : "all";
+    const initialCategoryOptions = [
+        "all",
+        ...(initialDomain === "all" ? ALL_CONTENT_CATEGORIES : getCategoriesForDomain(initialDomain)),
+    ];
+    const [query, setQuery] = useState(searchParams.get("q") ?? "");
+    const [domain, setDomain] = useState(initialDomain);
+    const [category, setCategory] = useState(
+        initialCategoryOptions.includes(searchParams.get("category") ?? "")
+            ? searchParams.get("category")!
+            : "all",
+    );
+    const [type, setType] = useState(
+        typeOptions.includes(searchParams.get("type") ?? "") ? searchParams.get("type")! : "all",
+    );
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [error, setError] = useState<string | null>(null);
+    const [busyQuizId, setBusyQuizId] = useState<string | null>(null);
+
+    const categoryOptions = [
+        "all",
+        ...(domain === "all" ? ALL_CONTENT_CATEGORIES : getCategoriesForDomain(domain)),
+    ];
 
     const filtered = useMemo(() => {
         const term = query.trim().toLowerCase();
@@ -116,6 +137,25 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
     function selectDomain(nextDomain: string) {
         setDomain(nextDomain);
         setCategory("all");
+        router.replace(
+            withSearchParams(currentHref, {
+                category: null,
+                domain: nextDomain === "all" ? null : nextDomain,
+            }),
+            { scroll: false },
+        );
+    }
+
+    function selectFilter(key: "category" | "type", value: string, setter: (nextValue: string) => void) {
+        setter(value);
+        router.replace(withSearchParams(currentHref, { [key]: value === "all" ? null : value }), {
+            scroll: false,
+        });
+    }
+
+    function updateQuery(value: string) {
+        setQuery(value);
+        router.replace(withSearchParams(currentHref, { q: value.trim() || null }), { scroll: false });
     }
 
     return (
@@ -123,8 +163,8 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
             <Box className="mx-auto max-w-[1260px]">
                 <Box className="mb-7 flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                     <Box className="flex items-start gap-6">
-                        <Link
-                            href="/"
+                        <ContextualBackLink
+                            fallbackHref="/"
                             aria-label="Retour"
                             className={cn(
                                 "mt-2 flex h-8 w-8 items-center justify-center rounded-full transition hover:bg-white",
@@ -132,7 +172,7 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                             )}
                         >
                             <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                        </Link>
+                        </ContextualBackLink>
                         <Box>
                             <Text as="h1" className={cn("text-[30px] font-extrabold leading-tight md:text-[34px]", uiTokens.text.heading)}>
                                 Évaluations
@@ -144,13 +184,13 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                     </Box>
 
                     {canManage && (
-                        <Link
+                        <ContextualLink
                             href="/evaluations/new"
                             className={cn("mt-1 flex h-9 items-center justify-center gap-2.5 rounded-lg px-4 text-[13px] font-bold text-white transition md:mt-2", uiTokens.action.primaryButton)}
                         >
                             <InlineIcon icon={Plus} className="h-4 w-4" />
                             Créer une évaluation
-                        </Link>
+                        </ContextualLink>
                     )}
                 </Box>
 
@@ -167,14 +207,24 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                             <input
                                 type="search"
                                 value={query}
-                                onChange={(event) => setQuery(event.target.value)}
+                                onChange={(event) => updateQuery(event.target.value)}
                                 placeholder="Rechercher une évaluation..."
                                 className={cn(uiTokens.form.control, "h-10 pl-11 text-[14px]")}
                             />
                         </Box>
                         <FilterSelect value={domain} onChange={selectDomain} options={domainOptions} allLabel="Tous les domaines" />
-                        <FilterSelect value={category} onChange={setCategory} options={categoryOptions} allLabel="Toutes les catégories" />
-                        <FilterSelect value={type} onChange={setType} options={typeOptions} allLabel="Tous les types" />
+                        <FilterSelect
+                            value={category}
+                            onChange={(value) => selectFilter("category", value, setCategory)}
+                            options={categoryOptions}
+                            allLabel="Toutes les catégories"
+                        />
+                        <FilterSelect
+                            value={type}
+                            onChange={(value) => selectFilter("type", value, setType)}
+                            options={typeOptions}
+                            allLabel="Tous les types"
+                        />
                     </Box>
                 </CardSurface>
 
@@ -195,7 +245,11 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                                     </Button>
                                     {openMenuId === quiz.id && (
                                         <CardActionMenu>
-                                            <CardActionMenuLink href={`/evaluations/${quiz.id}/edit`} icon={Edit3} label="Modifier" />
+                                            <CardActionMenuLink
+                                                href={withReturnTo(EVALUATION_ROUTES.app.edit(quiz.id), currentHref)}
+                                                icon={Edit3}
+                                                label="Modifier"
+                                            />
                                             <CardActionMenuButton
                                                 disabled={busyQuizId === quiz.id}
                                                 icon={Copy}
@@ -248,12 +302,12 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                                 )}
                             </Box>
 
-                            <Link
+                            <ContextualLink
                                 href={`/evaluations/${quiz.id}`}
                                 className={cn("mt-5 flex h-11 items-center justify-center rounded-xl text-[14px] font-bold text-white transition", uiTokens.action.primaryButton)}
                             >
                                 Voir l’évaluation
-                            </Link>
+                            </ContextualLink>
                         </CardSurface>
                     ))}
                 </Box>

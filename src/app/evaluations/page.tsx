@@ -4,12 +4,24 @@ import { listQuizzes } from "@/features/evaluations/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { UnauthorizedError } from "@/lib/server/errors";
+import { buildAuthRedirectHref, withReturnTo, withSearchParams } from "@/features/app-shell/domain";
+
+interface PageProps {
+    searchParams?: Promise<{
+        category?: string;
+        domain?: string;
+        q?: string;
+        returnTo?: string;
+        type?: string;
+    }>;
+}
 
 export const metadata = {
     title: "Évaluations | MaiaCoach",
 };
 
-export default async function Page() {
+export default async function Page({ searchParams }: PageProps) {
+    const filters = searchParams ? await searchParams : {};
     let profile;
 
     try {
@@ -19,7 +31,19 @@ export default async function Page() {
             throw error;
         }
 
-        redirect("/auth?redirect=/evaluations");
+        redirect(
+            buildAuthRedirectHref(
+                withReturnTo(
+                    withSearchParams("/evaluations", {
+                        category: filters.category,
+                        domain: filters.domain,
+                        q: filters.q,
+                        type: filters.type,
+                    }),
+                    filters.returnTo,
+                ),
+            ),
+        );
     }
 
     const quizzes = await listQuizzes();

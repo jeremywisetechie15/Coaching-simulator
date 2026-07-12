@@ -9,19 +9,22 @@ import { getCoachById } from "@/features/coaches/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { ForbiddenError, UnauthorizedError } from "@/lib/server/errors";
+import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
 
 interface PageProps {
     params: Promise<{
         coachId: string;
     }>;
+    searchParams?: Promise<{ returnTo?: string }>;
 }
 
 export const metadata = {
     title: "Modifier un coach IA | MaiaCoach",
 };
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
     const { coachId } = await params;
+    const { returnTo } = searchParams ? await searchParams : {};
     let profile;
     let coach;
 
@@ -29,7 +32,7 @@ export default async function Page({ params }: PageProps) {
         profile = await getCurrentProfile();
     } catch (error) {
         if (error instanceof UnauthorizedError) {
-            redirect(`/auth?redirect=/coaches/${coachId}`);
+            redirect(buildAuthRedirectHref(withReturnTo(`/coaches/${coachId}`, returnTo)));
         }
 
         throw error;

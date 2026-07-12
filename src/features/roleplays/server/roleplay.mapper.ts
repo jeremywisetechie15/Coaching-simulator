@@ -22,6 +22,7 @@ import {
 
 export interface RoleplayRow {
     assigned_user_id?: string | null;
+    background_image_path?: string | null;
     assigned_user_name?: string | null;
     category?: string | null;
     coach_id?: string | null;
@@ -112,7 +113,7 @@ export function formatRoleplayDuration(seconds: number | null | undefined) {
     return `${minutes}m ${remainingSeconds.toString().padStart(2, "0")}s`;
 }
 
-function formatRoleplayDate(value: string | null | undefined) {
+export function formatRoleplayDate(value: string | null | undefined) {
     if (!value) {
         return "Aucune session";
     }
@@ -124,10 +125,12 @@ function formatRoleplayDate(value: string | null | undefined) {
     }).format(new Date(value));
 }
 
-export function mapRoleplayRowToListItem(row: RoleplayRow, quizCount = 0): RoleplayListItem {
+export function mapRoleplayRowToListItem(row: RoleplayRow, quizCount = 0, attemptCount = 0): RoleplayListItem {
     return {
         assignedUserId: row.assigned_user_id ?? null,
         assignedUserName: row.assigned_user_name ?? null,
+        backgroundImagePath: row.background_image_path ?? null,
+        attemptCount,
         category: row.category ?? "",
         coachId: row.coach_id ?? null,
         coachName: row.coach_name ?? null,
@@ -197,8 +200,15 @@ export function mapRoleplayRowsToDetail(
         scenarioId: row.id,
         stats: {
             bestScore: stats.bestScore,
+            bestScoreDate: stats.bestScoreDate,
+            indexDelta: stats.indexDelta,
+            indexScore: stats.indexScore,
+            indexSessions: stats.indexSessions,
+            indexSessionCount: stats.indexSessionCount,
+            indexTrend: stats.indexTrend,
             lastDate: stats.lastDate || formatRoleplayDate(null),
             lastDuration: stats.lastDuration || formatRoleplayDuration(0),
+            latestEligibleSessionId: stats.latestEligibleSessionId,
             scoreActuel: stats.scoreActuel,
             simulations: stats.simulations,
         },
@@ -208,8 +218,15 @@ export function mapRoleplayRowsToDetail(
 export function createEmptyRoleplayStats(): RoleplayStats {
     return {
         bestScore: 0,
+        bestScoreDate: formatRoleplayDate(null),
+        indexDelta: null,
+        indexScore: null,
+        indexSessions: [],
+        indexSessionCount: 0,
+        indexTrend: "unavailable",
         lastDate: formatRoleplayDate(null),
         lastDuration: formatRoleplayDuration(0),
+        latestEligibleSessionId: null,
         scoreActuel: 0,
         simulations: 0,
     };

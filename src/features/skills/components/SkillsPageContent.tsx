@@ -1,8 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import { ArrowLeft, Check, ChevronDown, Plus, Search, SlidersHorizontal, Star, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+    ContextualBackLink,
+    ContextualLink,
+    useCurrentAppHref,
+} from "@/features/app-shell/components";
+import { withSearchParams } from "@/features/app-shell/domain";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import {
     skillCategoryStyles,
@@ -89,10 +95,24 @@ function FilterSelect({
 }
 
 export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps) {
-    const [query, setQuery] = useState("");
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const currentHref = useCurrentAppHref();
+    const initialFilters: FilterState = {
+        domain: skillDomainOptions.includes(searchParams.get("domain") ?? "")
+            ? searchParams.get("domain")!
+            : defaultFilters.domain,
+        function: skillFunctionOptions.includes(searchParams.get("function") ?? "")
+            ? searchParams.get("function")!
+            : defaultFilters.function,
+        type: skillTypeOptions.includes(searchParams.get("type") ?? "")
+            ? searchParams.get("type")!
+            : defaultFilters.type,
+    };
+    const [query, setQuery] = useState(searchParams.get("q") ?? "");
     const [filtersOpen, setFiltersOpen] = useState(false);
-    const [appliedFilters, setAppliedFilters] = useState<FilterState>(defaultFilters);
-    const [draftFilters, setDraftFilters] = useState<FilterState>(defaultFilters);
+    const [appliedFilters, setAppliedFilters] = useState<FilterState>(initialFilters);
+    const [draftFilters, setDraftFilters] = useState<FilterState>(initialFilters);
 
     const filteredSkills = useMemo(() => {
         const normalized = query.trim().toLowerCase();
@@ -128,6 +148,19 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
     function applyFilters() {
         setAppliedFilters(draftFilters);
         setFiltersOpen(false);
+        router.replace(
+            withSearchParams(currentHref, {
+                domain: draftFilters.domain === defaultFilters.domain ? null : draftFilters.domain,
+                function: draftFilters.function === defaultFilters.function ? null : draftFilters.function,
+                type: draftFilters.type === defaultFilters.type ? null : draftFilters.type,
+            }),
+            { scroll: false },
+        );
+    }
+
+    function updateQuery(value: string) {
+        setQuery(value);
+        router.replace(withSearchParams(currentHref, { q: value.trim() || null }), { scroll: false });
     }
 
     return (
@@ -135,13 +168,13 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
             <Box className="mx-auto max-w-[1260px]">
                 <Box className="mb-7 flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                     <Box className="flex items-start gap-6">
-                        <Link
-                            href="/"
+                        <ContextualBackLink
+                            fallbackHref="/"
                             aria-label="Retour"
                             className="mt-2 flex h-8 w-8 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
                         >
                             <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                        </Link>
+                        </ContextualBackLink>
                         <Box>
                             <Text as="h1" className="text-[30px] font-extrabold leading-tight text-[#111827] md:text-[34px]">
                                 Compétences
@@ -153,13 +186,13 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
                     </Box>
 
                     {canManage && (
-                        <Link
+                        <ContextualLink
                             href="/skills/new"
                             className="mt-1 flex h-9 items-center justify-center gap-2.5 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7] md:mt-2"
                         >
                             <InlineIcon icon={Plus} className="h-4 w-4" />
                             Ajouter une compétence
-                        </Link>
+                        </ContextualLink>
                     )}
                 </Box>
 
@@ -171,7 +204,7 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
                         />
                         <input
                             value={query}
-                            onChange={(event) => setQuery(event.target.value)}
+                            onChange={(event) => updateQuery(event.target.value)}
                             placeholder="Rechercher..."
                             aria-label="Rechercher une compétence"
                             className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white pl-11 pr-4 text-[14px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#5140F0] focus:ring-4 focus:ring-[#5140F0]/10"
@@ -199,7 +232,7 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
                         {filteredSkills.map((skill) => {
                             const style = skillCategoryStyles[skill.category];
                             return (
-                                <Link
+                                <ContextualLink
                                     key={skill.id}
                                     href={`/skills/${skill.id}`}
                                     className="relative flex min-h-[132px] flex-col rounded-[14px] border border-[#E5E7EB] bg-white p-6 transition duration-200 hover:-translate-y-0.5 hover:border-[#D8DCE6] hover:shadow-[0_14px_34px_rgba(17,24,39,0.10)]"
@@ -218,7 +251,7 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
                                     >
                                         {skill.category}
                                     </Box>
-                                </Link>
+                                </ContextualLink>
                             );
                         })}
                     </Box>

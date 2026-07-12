@@ -2,13 +2,15 @@ import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
 import { getMethodAssociatedQuizOption } from "@/features/evaluations/server";
 import { MethodDetailPage } from "@/features/methods/components";
-import { getMethodById } from "@/features/methods/server";
+import { getMethodById, getMethodMastery } from "@/features/methods/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
+import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
 
 interface PageProps {
     params: Promise<{ methodId: string }>;
+    searchParams?: Promise<{ returnTo?: string }>;
 }
 
 const getCachedMethodById = cache(getMethodById);
@@ -29,8 +31,9 @@ export async function generateMetadata({ params }: PageProps) {
     }
 }
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
     const { methodId } = await params;
+    const { returnTo } = searchParams ? await searchParams : {};
     let profile;
 
     try {
@@ -40,7 +43,7 @@ export default async function Page({ params }: PageProps) {
             throw error;
         }
 
-        redirect(`/auth?redirect=/methods/${methodId}`);
+        redirect(buildAuthRedirectHref(withReturnTo(`/methods/${methodId}`, returnTo)));
     }
 
     let method;
@@ -56,6 +59,14 @@ export default async function Page({ params }: PageProps) {
     }
 
     const associatedQuiz = await getMethodAssociatedQuizOption(methodId);
+    const mastery = associatedQuiz ? await getMethodMastery(associatedQuiz.id) : null;
 
-    return <MethodDetailPage associatedQuiz={associatedQuiz} profileValues={toProfileFormValues(profile)} method={method} />;
+    return (
+        <MethodDetailPage
+            associatedQuiz={associatedQuiz}
+            mastery={mastery}
+            profileValues={toProfileFormValues(profile)}
+            method={method}
+        />
+    );
 }

@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { Building2, ChevronLeft, ChevronRight, Eye, Pencil } from "lucide-react";
+import { ContextualLink } from "@/features/app-shell/components";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import type { OrganizationListItem } from "@/features/organizations/domain/organization-list";
 import { OrganizationStatusBadge } from "./OrganizationStatusBadge";
@@ -89,20 +89,20 @@ export function OrganizationsTable({ organizations, totalOrganizationCount }: Or
                                     </Box>
                                     <Box as="td" className="p-[17px]">
                                         <Box className="flex items-center gap-5 text-[#4F5868]">
-                                            <Link
+                                            <ContextualLink
                                                 href={`/organizations/${organization.id}`}
                                                 aria-label={`Voir ${organization.name}`}
                                                 className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
                                             >
                                                 <InlineIcon icon={Eye} className="h-5 w-5" />
-                                            </Link>
-                                            <Link
+                                            </ContextualLink>
+                                            <ContextualLink
                                                 href={`/organizations/${organization.id}?edit=1`}
                                                 aria-label={`Modifier ${organization.name}`}
                                                 className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
                                             >
                                                 <InlineIcon icon={Pencil} className="h-5 w-5" />
-                                            </Link>
+                                            </ContextualLink>
                                         </Box>
                                     </Box>
                                 </Box>

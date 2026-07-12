@@ -7,11 +7,13 @@ import {
     ArrowLeft,
     ArrowRight,
     BookOpen,
+    CalendarDays,
     CheckCircle2,
     ChevronDown,
     CircleAlert,
     Clock,
     FileText,
+    Minus,
     MessageSquare,
     Pencil,
     Phone,
@@ -19,11 +21,14 @@ import {
     Quote,
     ShieldCheck,
     Target,
+    TrendingDown,
+    TrendingUp,
     Video,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
+import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
 import {
     ContentResourcesModal,
     type ContentResourceDocument,
@@ -31,15 +36,21 @@ import {
 } from "@/features/content/components";
 import { EVALUATION_ROUTES, type QuizOption } from "@/features/evaluations/domain";
 import {
+    formatMethodMasteryDate,
     getMethodScopeLabel,
+    METHOD_MASTERY_TREND,
     METHOD_ROUTES,
+    METHOD_STEP_SECTION,
+    METHOD_STEP_SECTION_LABELS,
     type MethodDetail,
+    type MethodMastery,
     type MethodResource,
     type MethodStepIcon,
     type MethodStepItem,
 } from "@/features/methods/domain/method";
+import { ROLEPLAY_ROUTES } from "@/features/roleplays/domain";
 import { getStoragePathFileName } from "@/lib/uploads/content-upload";
-import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import { Box, Button, CardSurface, InlineIcon, Text, Tooltip } from "@/lib/ui/atoms";
 import { AlertMessage } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -100,9 +111,9 @@ interface MethodQuizActionProps {
 function MethodQuizAction({ associatedQuiz, children, className, onMissingQuiz }: MethodQuizActionProps) {
     if (associatedQuiz) {
         return (
-            <Link href={EVALUATION_ROUTES.app.quiz(associatedQuiz.id)} className={className}>
+            <ContextualLink href={EVALUATION_ROUTES.app.quiz(associatedQuiz.id)} className={className}>
                 {children}
-            </Link>
+            </ContextualLink>
         );
     }
 
@@ -126,6 +137,38 @@ function getMethodResourceMeta(resource: MethodResource) {
     if (resource.externalUrl) return "URL";
     if (resource.storagePath) return getStoragePathFileName(resource.storagePath);
     return undefined;
+}
+
+function getMethodMasteryTrendPresentation(mastery: MethodMastery | null): {
+    icon: LucideIcon;
+    label: string;
+    tone: keyof typeof uiTokens.tone;
+} {
+    if (!mastery) {
+        return { icon: Minus, label: "Aucune évaluation terminée", tone: "neutral" };
+    }
+
+    if (mastery.trend === METHOD_MASTERY_TREND.up) {
+        return {
+            icon: TrendingUp,
+            label: `Progression de ${mastery.delta ?? 0} points depuis le quiz précédent`,
+            tone: "success",
+        };
+    }
+
+    if (mastery.trend === METHOD_MASTERY_TREND.down) {
+        return {
+            icon: TrendingDown,
+            label: `Baisse de ${Math.abs(mastery.delta ?? 0)} points depuis le quiz précédent`,
+            tone: "danger",
+        };
+    }
+
+    if (mastery.trend === METHOD_MASTERY_TREND.stable) {
+        return { icon: Minus, label: "Score stable depuis le quiz précédent", tone: "neutral" };
+    }
+
+    return { icon: Minus, label: "Première évaluation terminée", tone: "primary" };
 }
 
 export function mapMethodResourcesToModalDocuments(method: MethodDetail): ContentResourceDocument[] {
@@ -212,20 +255,25 @@ function StepAccordion({
                     )}
 
                     <Box className="mt-4 space-y-4">
-                        <StepBlock tone="violet" icon={Target} title="Objectifs et enjeux" items={step.objectives} />
+                        <StepBlock
+                            tone="violet"
+                            icon={Target}
+                            title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.objectives]}
+                            items={step.objectives}
+                        />
 
                         {(step.bestPractices.length > 0 || step.pitfalls.length > 0) && (
                             <Box className="grid gap-4 lg:grid-cols-2">
                                 <StepBlock
                                     tone="green"
                                     icon={CheckCircle2}
-                                    title="Bonnes pratiques"
+                                    title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.bestPractices]}
                                     items={step.bestPractices}
                                 />
                                 <StepBlock
                                     tone="orange"
                                     icon={CircleAlert}
-                                    title="Erreurs à éviter"
+                                    title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.pitfalls]}
                                     items={step.pitfalls}
                                 />
                             </Box>
@@ -236,13 +284,13 @@ function StepAccordion({
                                 <StepBlock
                                     tone="blue"
                                     icon={MessageSquare}
-                                    title="Posture & Communication"
+                                    title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.posture]}
                                     items={step.posture}
                                 />
                                 <StepBlock
                                     tone="indigo"
                                     icon={Quote}
-                                    title="Verbatims préconisés"
+                                    title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.verbatims]}
                                     items={step.verbatims}
                                     italic
                                 />
@@ -282,10 +330,12 @@ async function archiveMethodRequest(methodId: string) {
 export function MethodDetailPageContent({
     associatedQuiz,
     canManage = false,
+    mastery = null,
     method,
 }: {
     associatedQuiz: QuizOption | null;
     canManage?: boolean;
+    mastery?: MethodMastery | null;
     method: MethodDetail;
 }) {
     const router = useRouter();
@@ -295,6 +345,8 @@ export function MethodDetailPageContent({
     const [showResourcesModal, setShowResourcesModal] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
     const isArchived = method.status === "archived";
+    const masteryDateLabel = formatMethodMasteryDate(mastery?.completedAt);
+    const masteryTrend = getMethodMasteryTrendPresentation(mastery);
     const resourceDocuments = mapMethodResourcesToModalDocuments(method);
 
     async function handleArchive() {
@@ -329,23 +381,23 @@ export function MethodDetailPageContent({
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1180px]">
                 <Box className="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <Link
-                        href="/methods"
+                    <ContextualBackLink
+                        fallbackHref={METHOD_ROUTES.app.collection}
+                        showLabel
                         className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#4B5563] transition hover:text-[#111827]"
                     >
                         <InlineIcon icon={ArrowLeft} className="h-4 w-4" />
-                        Retour aux méthodes
-                    </Link>
+                    </ContextualBackLink>
 
                     {canManage && (
                         <Box className="flex flex-wrap gap-3">
-                            <Link
+                            <ContextualLink
                                 href={`/methods/${method.id}/edit`}
                                 className="flex h-10 items-center justify-center gap-3 rounded-lg bg-[#5140F0] px-5 text-[14px] font-bold text-white shadow-[0_12px_24px_rgba(81,64,240,0.20)] transition hover:bg-[#4635E7]"
                             >
                                 <InlineIcon icon={Pencil} className="h-5 w-5" />
                                 Modifier
-                            </Link>
+                            </ContextualLink>
                             <Button
                                 disabled={isArchived || isArchiving}
                                 onClick={handleArchive}
@@ -414,9 +466,22 @@ export function MethodDetailPageContent({
                             </Button>
                             <CardSurface className="rounded-[16px] border border-[#E5E7EB] bg-[#F7F8FB] p-5 shadow-none">
                                 <Text className="text-[13px] font-semibold text-[#6B7280]">Maîtrise de la méthode</Text>
-                                <Text as="h3" className="mt-1 text-[20px] font-extrabold text-[#111827]">
-                                    Non testée
-                                </Text>
+                                <Box className="mt-2 flex items-center gap-2.5">
+                                    <Tooltip content={masteryTrend.label}>
+                                        <Box className={cn("flex h-9 w-9 items-center justify-center rounded-lg border", uiTokens.tone[masteryTrend.tone].soft)}>
+                                            <InlineIcon icon={masteryTrend.icon} className="h-4 w-4" />
+                                        </Box>
+                                    </Tooltip>
+                                    <Text as="h3" className="text-[20px] font-extrabold text-[#111827]">
+                                        {mastery === null ? "Non testée" : `${Math.round(mastery.scorePercent)}%`}
+                                    </Text>
+                                </Box>
+                                {masteryDateLabel && (
+                                    <Box className={cn(uiTokens.metadata.dateBadge, "mt-2")}>
+                                        <InlineIcon icon={CalendarDays} className={uiTokens.metadata.dateBadgeIcon} />
+                                        {masteryDateLabel}
+                                    </Box>
+                                )}
                                 <MethodQuizAction
                                     associatedQuiz={associatedQuiz}
                                     onMissingQuiz={showMissingQuizMessage}
@@ -529,13 +594,13 @@ export function MethodDetailPageContent({
                                 <InlineIcon icon={FileText} className="h-4 w-4" />
                                 Vérifier mes connaissances
                             </MethodQuizAction>
-                            <Link
-                                href="/roleplays"
+                            <ContextualLink
+                                href={ROLEPLAY_ROUTES.app.collection}
                                 className="flex h-11 items-center justify-center gap-2 rounded-xl border border-[#C9C2FB] bg-white px-5 text-[14px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
                             >
                                 <InlineIcon icon={Phone} className="h-4 w-4" />
                                 Lancer un roleplay
-                            </Link>
+                            </ContextualLink>
                         </Box>
                     </CardSurface>
                 </CardSurface>

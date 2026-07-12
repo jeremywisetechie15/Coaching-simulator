@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { ArrowRight, CalendarDays, Clock, Flame, GraduationCap, MessagesSquare } from "lucide-react";
+import { ContextualLink } from "@/features/app-shell/components";
 import { Box, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { dashboardData, skillSummaryStyles } from "@/features/dashboard/data/dashboard";
 import type { DashboardStat, SkillSummaryItem } from "@/features/dashboard/data/dashboard";
@@ -108,12 +108,12 @@ function SectionHeader({ title, href }: { title: string; href?: string }) {
                 {title}
             </Text>
             {href && (
-                <Link
+                <ContextualLink
                     href={href}
                     className="text-[13px] font-bold text-[#5140F0] transition hover:text-[#4635E7]"
                 >
                     Voir tout
-                </Link>
+                </ContextualLink>
             )}
         </Box>
     );
@@ -155,13 +155,13 @@ function RecentRoleplayRow({ roleplay }: { roleplay: RoleplayItem }) {
             </Box>
             <Box className="flex items-center gap-3">
                 <ScoreRing score={roleplay.detail.scoreActuel} />
-                <Link
+                <ContextualLink
                     href={`/roleplays/${roleplay.id}`}
                     className="flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[#5140F0] px-4 text-[12px] font-bold text-white transition hover:bg-[#4635E7]"
                 >
                     Rejouer
                     <InlineIcon icon={ArrowRight} className="h-3.5 w-3.5" />
-                </Link>
+                </ContextualLink>
             </Box>
         </Box>
     );
@@ -192,20 +192,20 @@ export function DashboardPageContent({ firstName }: DashboardPageContentProps) {
                                 en attente
                             </Text>
                             <Box className="mt-3 flex flex-wrap gap-2.5">
-                                <Link
+                                <ContextualLink
                                     href="/methods"
                                     className="flex h-9 items-center justify-center gap-2 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_8px_16px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7]"
                                 >
                                     <InlineIcon icon={GraduationCap} className="h-4 w-4" />
                                     Accéder à l&apos;académie
-                                </Link>
-                                <Link
+                                </ContextualLink>
+                                <ContextualLink
                                     href="/roleplays"
                                     className="flex h-9 items-center justify-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-4 text-[13px] font-bold text-[#374151] transition hover:border-[#D5D7DE]"
                                 >
                                     <InlineIcon icon={MessagesSquare} className="h-4 w-4" />
                                     Accéder aux roleplays
-                                </Link>
+                                </ContextualLink>
                             </Box>
                         </Box>
 
@@ -276,13 +276,13 @@ export function DashboardPageContent({ firstName }: DashboardPageContentProps) {
                                     </Text>
                                 </Box>
                             </Box>
-                            <Link
+                            <ContextualLink
                                 href={`/roleplays/${replayHighlight.roleplayId}`}
                                 className="flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white transition hover:bg-[#4635E7]"
                             >
                                 Rejouer
                                 <InlineIcon icon={ArrowRight} className="h-3.5 w-3.5" />
-                            </Link>
+                            </ContextualLink>
                         </Box>
                     </CardSurface>
                 </Box>

@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
 import { ArrowLeft, BotMessageSquare, MoreVertical, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { getCoachInitials, type CoachListItem } from "@/features/coaches/domain/coach-list";
 
@@ -46,13 +46,13 @@ export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageCon
             <Box className="mx-auto max-w-[1260px]">
                 <Box className="mb-9 flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                     <Box className="flex items-start gap-6">
-                        <Link
-                            href="/"
+                        <ContextualBackLink
+                            fallbackHref="/"
                             aria-label="Retour"
                             className="mt-2 flex h-8 w-8 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
                         >
                             <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                        </Link>
+                        </ContextualBackLink>
                         <Box>
                             <Text as="h1" className="text-[30px] font-extrabold leading-tight text-[#111827] md:text-[34px]">
                                 Mes Coachs IA
@@ -64,13 +64,13 @@ export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageCon
                     </Box>
 
                     {canManage && (
-                        <Link
+                        <ContextualLink
                             href="/coaches/new"
                             className="mt-1 flex h-9 items-center justify-center gap-2.5 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7] md:mt-2"
                         >
                             <InlineIcon icon={Plus} className="h-4 w-4" />
                             Créer un coach IA
-                        </Link>
+                        </ContextualLink>
                     )}
                 </Box>
 
@@ -107,13 +107,13 @@ export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageCon
 
                                     {canManage && isMenuOpen && (
                                         <CardSurface className="absolute right-5 top-14 z-10 w-max rounded-lg border border-[#E1E4EB] px-1 py-1.5 text-left shadow-[0_12px_28px_rgba(17,24,39,0.14)]">
-                                            <Link
+                                            <ContextualLink
                                                 href={`/coaches/${coach.id}`}
                                                 className="flex h-7 w-full items-center gap-2 whitespace-nowrap rounded-md px-2.5 text-[12px] font-semibold text-[#111827] transition hover:bg-[#F7F8FB]"
                                             >
                                                 <InlineIcon icon={Pencil} className="h-3.5 w-3.5 text-[#737B8E]" />
                                                 Éditer
-                                            </Link>
+                                            </ContextualLink>
                                         </CardSurface>
                                     )}
 

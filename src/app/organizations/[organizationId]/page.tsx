@@ -19,6 +19,7 @@ import {
 } from "@/features/organizations/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
+import { buildAuthRedirectHref, withReturnTo, withSearchParams } from "@/features/app-shell/domain";
 
 interface PageProps {
     params: Promise<{
@@ -26,12 +27,14 @@ interface PageProps {
     }>;
     searchParams: Promise<{
         edit?: string;
+        returnTo?: string;
+        tab?: string;
     }>;
 }
 
 export default async function Page({ params, searchParams }: PageProps) {
     const { organizationId } = await params;
-    const { edit } = await searchParams;
+    const { edit, returnTo, tab } = await searchParams;
     let profile;
     let evaluations: OrganizationEvaluationRow[] = [];
     let organization: OrganizationDetail | null = null;
@@ -45,7 +48,17 @@ export default async function Page({ params, searchParams }: PageProps) {
             throw error;
         }
 
-        redirect(`/auth?redirect=/organizations/${organizationId}`);
+        redirect(
+            buildAuthRedirectHref(
+                withReturnTo(
+                    withSearchParams(`/organizations/${organizationId}`, {
+                        edit: edit === "1" || edit === "true" ? "1" : null,
+                        tab,
+                    }),
+                    returnTo,
+                ),
+            ),
+        );
     }
 
     const profileValues = toProfileFormValues(profile);

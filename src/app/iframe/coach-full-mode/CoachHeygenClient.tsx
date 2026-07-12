@@ -13,6 +13,10 @@ import {
 import { AlertCircle, Camera, Loader2, MicOff, Phone, PhoneOff, VideoOff } from "lucide-react";
 import { prepareIframeSession, type IframeSessionConfig } from "../actions";
 import CoachRealtimePanel, { type CoachRealtimeMessage } from "./CoachRealtimePanel";
+import {
+    ROLEPLAY_COACH_TRANSCRIPT_EVENT,
+    type RoleplayCoachTranscriptEvent,
+} from "@/features/roleplays/domain/coach-session-notes";
 
 type CoachSessionStatus = "loading" | "ready" | "connecting" | "connected" | "error" | "ended";
 
@@ -23,6 +27,7 @@ interface CoachHeygenClientProps {
     model: string;
     coachId?: string;
     coachMode?: "before_training" | "after_training" | "notation";
+    coachSessionId?: string;
     step?: number;
 }
 
@@ -44,6 +49,7 @@ export default function CoachHeygenClient({
     model,
     coachId,
     coachMode,
+    coachSessionId,
     step,
 }: CoachHeygenClientProps) {
     const [status, setStatus] = useState<CoachSessionStatus>("loading");
@@ -67,6 +73,7 @@ export default function CoachHeygenClient({
     const durationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const sessionDurationRef = useRef(0);
     const processedEventIdsRef = useRef(new Set<string>());
+    const lastMessageRef = useRef<CoachRealtimeMessage | null>(null);
     const initCalledRef = useRef(false);
     const isManuallyStoppingRef = useRef(false);
     const isMountedRef = useRef(true);
@@ -205,16 +212,23 @@ export default function CoachHeygenClient({
             processedEventIdsRef.current.add(eventId);
         }
 
-        setLiveMessages((previous) => {
-            const lastMessage = previous[previous.length - 1];
+        const lastMessage = lastMessageRef.current;
+        if (lastMessage && lastMessage.role === role && lastMessage.content === trimmed) return;
 
-            if (lastMessage && lastMessage.role === role && lastMessage.content === trimmed) {
-                return previous;
-            }
+        const newMessage = createMessage(role, trimmed, eventId);
+        lastMessageRef.current = newMessage;
+        setLiveMessages((previous) => [...previous, newMessage]);
 
-            return [...previous, createMessage(role, trimmed, eventId)];
-        });
-    }, []);
+        if (coachSessionId && scenarioId && window.parent !== window) {
+            const messageEvent: RoleplayCoachTranscriptEvent = {
+                coachSessionId,
+                message: newMessage,
+                scenarioId,
+                type: ROLEPLAY_COACH_TRANSCRIPT_EVENT,
+            };
+            window.parent.postMessage(messageEvent, window.location.origin);
+        }
+    }, [coachSessionId, scenarioId]);
 
     const syncLocalPreview = useCallback(() => {
         if (localPreviewRef.current && localVideoStreamRef.current && !isCameraOff) {
@@ -371,6 +385,7 @@ export default function CoachHeygenClient({
         setStatus("connecting");
         setError(null);
         setLiveMessages([]);
+        lastMessageRef.current = null;
         setUserDraft("");
         setAssistantDraft("");
         setSessionDuration(0);

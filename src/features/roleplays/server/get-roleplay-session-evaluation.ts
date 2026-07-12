@@ -6,6 +6,7 @@ import { mapDbRoleplayToUi } from "@/features/roleplays/data/roleplay-ui-adapter
 import {
     applyEvaluationSessionResults,
     extractNotationScore,
+    isRoleplaySessionEligibleForEvaluation,
     mapNotationToEvaluation,
     type EvaluationSessionResults,
     type NotationTranscriptMessage,
@@ -206,7 +207,10 @@ export async function getRoleplaySessionEvaluation(sessionId: string, userId?: s
     const { data: session, error: sessionError } = await query.maybeSingle<SessionRow>();
 
     if (sessionError) throw sessionError;
-    if (!session?.scenario_id) {
+    if (
+        !session?.scenario_id ||
+        !isRoleplaySessionEligibleForEvaluation(session.duration_seconds)
+    ) {
         throw new NotFoundError("Session de roleplay introuvable.");
     }
 

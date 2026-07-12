@@ -1,7 +1,10 @@
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import type { RoleplaySession } from "@/features/roleplays/data/sessions";
 import { mapDbRoleplayToUi } from "@/features/roleplays/data/roleplay-ui-adapter";
-import { extractNotationScore } from "@/features/roleplays/domain";
+import {
+    extractNotationScore,
+    MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
+} from "@/features/roleplays/domain";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { formatRoleplayDuration } from "./roleplay.mapper";
 import { fetchRoleplaysByIds } from "./roleplay-query";
@@ -48,6 +51,7 @@ export async function listRoleplaySessionHistory({
         .select("id, scenario_id, created_at, duration_seconds, notation_json")
         .eq("user_id", userId)
         .eq("status", "completed")
+        .gte("duration_seconds", MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS)
         .order("created_at", { ascending: false });
 
     if (scenarioId) {

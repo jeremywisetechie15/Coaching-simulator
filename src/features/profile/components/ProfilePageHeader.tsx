@@ -1,4 +1,5 @@
 import { ArrowLeft, Check, Pencil } from "lucide-react";
+import { ContextualBackLink } from "@/features/app-shell/components";
 import { Box, Button, InlineIcon, Text } from "@/lib/ui/atoms";
 
 interface ProfilePageHeaderProps {
@@ -12,9 +13,13 @@ export function ProfilePageHeader({ isEditing, isSaving, onEdit, onSave }: Profi
     return (
         <Box className="mb-9 flex items-center justify-between gap-4">
             <Box className="flex items-center gap-7">
-                <Button className="flex h-10 w-10 items-center justify-center rounded-full text-[#171B2A] transition hover:bg-white">
+                <ContextualBackLink
+                    fallbackHref="/"
+                    aria-label="Retour"
+                    className="flex h-10 w-10 items-center justify-center rounded-full text-[#171B2A] transition hover:bg-white"
+                >
                     <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                </Button>
+                </ContextualBackLink>
                 <Text as="h1" className="text-[26px] font-extrabold tracking-[-0.02em] text-[#171B2A]">
                     Mon Profil
                 </Text>

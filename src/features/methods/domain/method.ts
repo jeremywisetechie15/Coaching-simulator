@@ -50,6 +50,49 @@ export function getMethodScopeLabel(method: {
     return METHOD_SCOPE_LABELS[method.scope];
 }
 
+export function formatMethodMasteryDate(value: string | null | undefined) {
+    if (!value) return null;
+
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+
+    return new Intl.DateTimeFormat("fr-FR", {
+        day: "2-digit",
+        month: "2-digit",
+        timeZone: "Europe/Paris",
+        year: "numeric",
+    }).format(date);
+}
+
+export const METHOD_MASTERY_TREND = {
+    down: "down",
+    initial: "initial",
+    stable: "stable",
+    up: "up",
+} as const;
+
+export type MethodMasteryTrend = (typeof METHOD_MASTERY_TREND)[keyof typeof METHOD_MASTERY_TREND];
+
+export interface MethodMastery {
+    completedAt: string | null;
+    delta: number | null;
+    scorePercent: number;
+    trend: MethodMasteryTrend;
+}
+
+export function calculateMethodMasteryTrend(latestScore: number, previousScore: number | null) {
+    if (previousScore === null) {
+        return { delta: null, trend: METHOD_MASTERY_TREND.initial } as const;
+    }
+
+    const delta = Math.round(latestScore - previousScore);
+
+    if (delta > 0) return { delta, trend: METHOD_MASTERY_TREND.up } as const;
+    if (delta < 0) return { delta, trend: METHOD_MASTERY_TREND.down } as const;
+
+    return { delta: 0, trend: METHOD_MASTERY_TREND.stable } as const;
+}
+
 export interface MethodOrganizationOption {
     id: string;
     name: string;
@@ -111,6 +154,24 @@ export interface MethodStepItem {
     verbatims: string[];
     weight: number | null;
 }
+
+export const METHOD_STEP_SECTION = {
+    bestPractices: "bestPractices",
+    objectives: "objectives",
+    pitfalls: "pitfalls",
+    posture: "posture",
+    verbatims: "verbatims",
+} as const;
+
+export type MethodStepSection = (typeof METHOD_STEP_SECTION)[keyof typeof METHOD_STEP_SECTION];
+
+export const METHOD_STEP_SECTION_LABELS: Record<MethodStepSection, string> = {
+    [METHOD_STEP_SECTION.objectives]: "Objectifs et enjeux",
+    [METHOD_STEP_SECTION.bestPractices]: "Bonnes pratiques",
+    [METHOD_STEP_SECTION.pitfalls]: "Écueils à éviter",
+    [METHOD_STEP_SECTION.posture]: "Posture & Communication",
+    [METHOD_STEP_SECTION.verbatims]: "Verbatims préconisés",
+};
 
 export interface MethodListItem {
     category: string;

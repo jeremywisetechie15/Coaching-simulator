@@ -13,12 +13,18 @@ import { listUsers } from "@/features/users/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import { getCurrentProfile } from "@/features/profile/server";
+import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
+
+interface PageProps {
+    searchParams?: Promise<{ returnTo?: string }>;
+}
 
 export const metadata = {
     title: "Utilisateurs | MaiaCoach",
 };
 
-export default async function Page() {
+export default async function Page({ searchParams }: PageProps) {
+    const { returnTo } = searchParams ? await searchParams : {};
     let profile;
     let organizations: OrganizationListItem[] = [];
     let users: UserListItem[] = [];
@@ -30,7 +36,7 @@ export default async function Page() {
             throw error;
         }
 
-        redirect("/auth?redirect=/users");
+        redirect(buildAuthRedirectHref(withReturnTo("/users", returnTo)));
     }
 
     const profileValues = toProfileFormValues(profile);

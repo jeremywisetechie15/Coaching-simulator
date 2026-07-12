@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/features/auth/server";
 import {
     archiveRoleplay,
     getRoleplayById,
@@ -15,6 +16,7 @@ interface RoleplayRouteContext {
 
 export async function GET(_request: NextRequest, context: RoleplayRouteContext) {
     try {
+        await requireAdmin();
         const { roleplayId } = await context.params;
         const roleplay = await getRoleplayById(roleplayId);
 
@@ -27,8 +29,8 @@ export async function GET(_request: NextRequest, context: RoleplayRouteContext) 
 export async function PATCH(request: NextRequest, context: RoleplayRouteContext) {
     try {
         const { roleplayId } = await context.params;
-        const { input, uploadFilesByClientId } = await parseSaveRoleplayRequest(request);
-        const roleplay = await updateRoleplay(roleplayId, input, uploadFilesByClientId);
+        const { backgroundFile, input, uploadFilesByClientId } = await parseSaveRoleplayRequest(request);
+        const roleplay = await updateRoleplay(roleplayId, input, uploadFilesByClientId, backgroundFile);
 
         return NextResponse.json({ roleplay });
     } catch (error) {

@@ -1,9 +1,9 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Check, ChevronDown, ChevronUp, Plus } from "lucide-react";
+import { ContextualBackLink } from "@/features/app-shell/components";
 import {
     CONTENT_LEVELS,
     CONTENT_STATUS,
@@ -265,8 +265,8 @@ export function CreateScorecardPageContent({
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[900px]">
                 <Box className="mb-6 flex items-center gap-4">
-                    <Link
-                        href={
+                    <ContextualBackLink
+                        fallbackHref={
                             isEditing && scorecardId
                                 ? SCORECARD_ROUTES.app.detail(scorecardId)
                                 : SCORECARD_ROUTES.app.collection
@@ -278,7 +278,7 @@ export function CreateScorecardPageContent({
                         )}
                     >
                         <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                    </Link>
+                    </ContextualBackLink>
                     <Text as="h1" className={cn("text-[28px] font-extrabold leading-tight", uiTokens.text.heading)}>
                         {isEditing ? "Modifier la scorecard" : "Ajouter une scorecard"}
                     </Text>

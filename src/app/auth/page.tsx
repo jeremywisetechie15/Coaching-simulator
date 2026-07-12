@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { SignInCard, SignInCardFallback } from "@/features/auth/components";
 import { createClient } from "@/lib/supabase/server";
+import { resolveInternalHref } from "@/features/app-shell/domain";
 
 export const metadata = {
     title: "Sign In | MaiaCoach",
@@ -13,17 +14,9 @@ interface AuthPageProps {
     }>;
 }
 
-function getSafeRedirect(value: string | undefined) {
-    if (!value || !value.startsWith("/") || value.startsWith("//")) {
-        return "/profile";
-    }
-
-    return value;
-}
-
 export default async function AuthPage({ searchParams }: AuthPageProps) {
     const params = await searchParams;
-    const redirectTo = getSafeRedirect(params?.redirect);
+    const redirectTo = resolveInternalHref(params?.redirect, "/profile");
     const supabase = await createClient();
     const {
         data: { user },

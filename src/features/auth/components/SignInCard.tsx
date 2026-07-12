@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import { Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { resolveInternalHref } from "@/features/app-shell/domain";
 import { FormRoot } from "@/lib/ui/atoms";
 import { AlertMessage, FormHeader, PasswordField, SubmitButton, TextField } from "@/lib/ui/molecules";
 import { CenteredCardFrame } from "@/lib/ui/organisms";
@@ -21,19 +22,12 @@ const headerClasses = {
     description: "mt-2 text-[13px] font-semibold tracking-normal text-slate-500 sm:text-[14px]",
 };
 
-const defaultRedirectPath = "/profile";
-
-function getSafeRedirect(value: string | null) {
-    if (!value || !value.startsWith("/") || value.startsWith("//")) {
-        return defaultRedirectPath;
-    }
-
-    return value;
-}
-
 export function SignInCard() {
     const searchParams = useSearchParams();
-    const redirectTo = useMemo(() => getSafeRedirect(searchParams.get("redirect")), [searchParams]);
+    const redirectTo = useMemo(
+        () => resolveInternalHref(searchParams.get("redirect"), "/profile"),
+        [searchParams],
+    );
 
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");

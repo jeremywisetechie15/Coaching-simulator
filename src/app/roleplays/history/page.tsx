@@ -6,9 +6,10 @@ import { requireAuth } from "@/features/auth/server";
 import { ROLEPLAY_ROUTES } from "@/features/roleplays/domain";
 import { listRoleplaySessionHistory } from "@/features/roleplays/server";
 import { UnauthorizedError } from "@/lib/server/errors";
+import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
 
 interface PageProps {
-    searchParams?: Promise<{ scenario_id?: string }>;
+    searchParams?: Promise<{ returnTo?: string; scenario_id?: string }>;
 }
 
 export const metadata = {
@@ -18,6 +19,7 @@ export const metadata = {
 export default async function Page({ searchParams }: PageProps) {
     const params = await searchParams;
     const scenarioId = params?.scenario_id?.trim() || null;
+    const returnTo = params?.returnTo;
     let profile;
     let context;
 
@@ -29,7 +31,14 @@ export default async function Page({ searchParams }: PageProps) {
             throw error;
         }
 
-        redirect(`/auth?redirect=${encodeURIComponent(scenarioId ? ROLEPLAY_ROUTES.app.historyForRoleplay(scenarioId) : ROLEPLAY_ROUTES.app.history)}`);
+        redirect(
+            buildAuthRedirectHref(
+                withReturnTo(
+                    scenarioId ? ROLEPLAY_ROUTES.app.historyForRoleplay(scenarioId) : ROLEPLAY_ROUTES.app.history,
+                    returnTo,
+                ),
+            ),
+        );
     }
 
     const sessions = await listRoleplaySessionHistory({

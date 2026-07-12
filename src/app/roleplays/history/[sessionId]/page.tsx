@@ -5,17 +5,20 @@ import { getCurrentProfile } from "@/features/profile/server";
 import { requireAuth } from "@/features/auth/server";
 import { getRoleplaySessionEvaluation } from "@/features/roleplays/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
+import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
 
 interface PageProps {
     params: Promise<{ sessionId: string }>;
+    searchParams?: Promise<{ returnTo?: string }>;
 }
 
 export const metadata = {
     title: "Évaluation de la simulation | MaiaCoach",
 };
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
     const { sessionId } = await params;
+    const { returnTo } = searchParams ? await searchParams : {};
     let profile;
     let context;
 
@@ -27,7 +30,7 @@ export default async function Page({ params }: PageProps) {
             throw error;
         }
 
-        redirect(`/auth?redirect=/roleplays/history/${sessionId}`);
+        redirect(buildAuthRedirectHref(withReturnTo(`/roleplays/history/${sessionId}`, returnTo)));
     }
 
     let view;

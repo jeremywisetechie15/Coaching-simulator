@@ -6,6 +6,7 @@ import type {
     UserStatistics,
 } from "@/features/users/domain/users";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS } from "@/features/roleplays/domain";
 import { extractAssignmentScore, normalizeAssignmentScore } from "./user-assignment-visibility";
 import { getWeightedProgressScore } from "./user-progress-score";
 
@@ -333,11 +334,13 @@ export async function listUserStatistics(
             .select("id, created_at, duration_seconds, notation_json")
             .eq("user_id", userId)
             .eq("status", "completed")
+            .gte("duration_seconds", MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS)
             .returns<UserSessionStatsRow[]>(),
         supabase
             .from("roleplay_session_results")
-            .select("session_id, score_percent, completed_at")
+            .select("session_id, score_percent, completed_at, sessions!inner(duration_seconds)")
             .eq("user_id", userId)
+            .gte("sessions.duration_seconds", MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS)
             .returns<RoleplayResultStatsRow[]>(),
         supabase
             .from("quiz_attempts")
@@ -346,8 +349,9 @@ export async function listUserStatistics(
             .returns<QuizAttemptStatsRow[]>(),
         supabase
             .from("roleplay_session_criterion_results")
-            .select("skill_id, dimension_item_id, score_percent, points_awarded, points_max")
+            .select("skill_id, dimension_item_id, score_percent, points_awarded, points_max, sessions!inner(duration_seconds)")
             .eq("user_id", userId)
+            .gte("sessions.duration_seconds", MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS)
             .returns<CriterionStatsRow[]>(),
     ]);
 

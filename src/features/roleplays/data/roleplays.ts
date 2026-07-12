@@ -1,11 +1,18 @@
 import { methods, type Method } from "@/features/methods/data/methods";
 import { ALL_CONTENT_CATEGORIES, CONTENT_DOMAINS, getCategoriesForDomain } from "@/features/content/domain";
 import type { PrepDocument, PrepQuiz } from "./preparation";
+import type { RoleplayIndexSession } from "@/features/roleplays/domain";
 
 export type RoleplayDifficulty = "Facile" | "Moyen" | "Difficile";
 export type RoleplayDisc = "Dominant" | "Influent" | "Stable" | "Consciencieux";
 
 export interface RoleplayDetail {
+    bestScoreDate?: string;
+    indexDelta?: number | null;
+    indexScore?: number | null;
+    indexSessions?: RoleplayIndexSession[];
+    indexSessionCount?: number;
+    indexTrend?: "up" | "down" | "stable" | "unavailable";
     lastDate: string;
     lastDuration: string;
     infoChips: { icon: "users" | "money" | "building" | "calendar"; label: string }[];
@@ -33,6 +40,8 @@ export interface RoleplayItem {
     methodId: string;
     /** UUID Supabase du scénario, requis pour lancer le coach IA. */
     scenarioId?: string;
+    /** Dernière session de l'utilisateur admissible à l'évaluation (durée >= seuil métier). */
+    latestEvaluationSessionId?: string;
     /** Documents réellement attachés au scénario DB ; absent pour les mocks historiques. */
     prepDocuments?: PrepDocument[];
     /** Quiz réellement attachés au scénario DB ; absent pour les mocks historiques. */

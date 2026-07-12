@@ -1,19 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { ContextualBackLink } from "@/features/app-shell/components";
 import {
     ArrowLeft,
-    ArrowUpRight,
     BookOpen,
     CheckCircle2,
     ChevronDown,
     ClipboardCheck,
     Crosshair,
     MessageSquare,
+    Minus,
     Phone,
     ShieldCheck,
     Target,
+    TrendingDown,
+    TrendingUp,
     Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -21,6 +23,7 @@ import { Box, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 import {
+    getRoleplayIndexTrend,
     progressCompetencies,
     scoreLevel,
     type DimensionKey,
@@ -62,12 +65,21 @@ function ScorePill({ score }: { score: number }) {
     return <Text as="span" className={cn(t.scorePill, t.level[scoreLevel(score)].pill)}>{score}%</Text>;
 }
 
-/** Badge d'évolution vert « ↗ +x% ». */
+const deltaPresentation = {
+    down: { icon: TrendingDown, tone: uiTokens.text.danger },
+    stable: { icon: Minus, tone: uiTokens.text.muted },
+    up: { icon: TrendingUp, tone: uiTokens.text.success },
+    unavailable: { icon: Minus, tone: uiTokens.text.muted },
+} as const;
+
+/** Badge d'évolution dont le sens, l'icône et la couleur reposent sur la même SSOT métier. */
 function DeltaBadge({ delta }: { delta: number }) {
+    const presentation = deltaPresentation[getRoleplayIndexTrend(delta)];
+
     return (
-        <Text as="span" className={t.delta}>
-            <InlineIcon icon={ArrowUpRight} className="h-3.5 w-3.5" />
-            {delta >= 0 ? "+" : ""}
+        <Text as="span" className={cn(t.delta, presentation.tone)}>
+            <InlineIcon icon={presentation.icon} className="h-3.5 w-3.5" />
+            {delta > 0 ? "+" : ""}
             {delta}%
         </Text>
     );
@@ -355,9 +367,9 @@ export function RoleplayProgressPageContent({ backHref, progress }: RoleplayProg
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1180px]">
                 <Box className="mb-6 flex items-center gap-3">
-                    <Link href={backHref} aria-label="Retour" className={uiTokens.action.iconButtonGhost}>
+                    <ContextualBackLink fallbackHref={backHref} aria-label="Retour" className={uiTokens.action.iconButtonGhost}>
                         <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                    </Link>
+                    </ContextualBackLink>
                     <Text as="h1" className="text-[22px] font-bold text-[#111827]">
                         Détail de ma progression
                     </Text>
@@ -390,8 +402,9 @@ export function RoleplayProgressPageContent({ backHref, progress }: RoleplayProg
                         )}
 
                         <Text className={t.footnote}>
-                            Les scores sont calculés à partir de l&apos;ensemble de vos sessions de roleplay et
-                            d&apos;évaluation. Δ indique l&apos;évolution depuis votre score initial.
+                            L&apos;INDEX et les scores pratiques utilisent les 3 meilleures simulations parmi les 6
+                            dernières sessions éligibles. Le Savoir vient du meilleur quiz de méthode terminé. Δ indique
+                            l&apos;évolution depuis votre première session éligible.
                         </Text>
                     </Box>
                 </CardSurface>

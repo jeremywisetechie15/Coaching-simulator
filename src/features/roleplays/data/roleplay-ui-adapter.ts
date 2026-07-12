@@ -97,8 +97,14 @@ function findMockRoleplayForDb(roleplay: RoleplayListItem | DbRoleplayDetail) {
 
 function buildDetail(roleplay: RoleplayListItem | DbRoleplayDetail, mock: RoleplayItem | null): UiRoleplayDetail {
     const mockDetail = mock?.detail ?? {
+        bestScoreDate: "Aucune session",
         context: "",
         infoChips: [],
+        indexDelta: null,
+        indexScore: null,
+        indexSessions: [],
+        indexSessionCount: 0,
+        indexTrend: "unavailable" as const,
         lastDate: "Aucune session",
         lastDuration: "0s",
         meilleurScore: 0,
@@ -112,15 +118,21 @@ function buildDetail(roleplay: RoleplayListItem | DbRoleplayDetail, mock: Rolepl
     const hasDbStats = Boolean(dbStats);
 
     return {
+        bestScoreDate: hasDbStats && dbStats ? dbStats.bestScoreDate : mockDetail.bestScoreDate ?? mockDetail.lastDate,
         context: dbDetail ? textOrMock(dbDetail.context, mockDetail.context) : mockDetail.context,
         infoChips: mockDetail.infoChips,
+        indexDelta: hasDbStats && dbStats ? dbStats.indexDelta : mockDetail.indexDelta ?? null,
+        indexScore: hasDbStats && dbStats ? dbStats.indexScore : mockDetail.indexScore ?? null,
+        indexSessions: hasDbStats && dbStats ? dbStats.indexSessions : mockDetail.indexSessions ?? [],
+        indexSessionCount: hasDbStats && dbStats ? dbStats.indexSessionCount : mockDetail.indexSessionCount ?? 0,
+        indexTrend: hasDbStats && dbStats ? dbStats.indexTrend : mockDetail.indexTrend ?? "unavailable",
         lastDate: hasDbStats && dbStats ? dbStats.lastDate : mockDetail.lastDate,
         lastDuration: hasDbStats && dbStats ? dbStats.lastDuration : mockDetail.lastDuration,
         meilleurScore: hasDbStats && dbStats ? dbStats.bestScore : mockDetail.meilleurScore,
         method: textOrMock(roleplay.methodName, mockDetail.method),
         objections: dbDetail ? textOrMock(dbDetail.obstacles, mockDetail.objections) : mockDetail.objections,
         scoreActuel: hasDbStats && dbStats ? dbStats.scoreActuel : mockDetail.scoreActuel,
-        simulations: hasDbStats && dbStats ? dbStats.simulations : mockDetail.simulations,
+        simulations: hasDbStats && dbStats ? dbStats.simulations : roleplay.attemptCount,
     };
 }
 
@@ -142,6 +154,8 @@ export function mapDbRoleplayToUi(roleplay: RoleplayListItem | DbRoleplayDetail,
         disc: roleplay.disc,
         domain: textOrMock(roleplay.domain, mock?.domain ?? ""),
         id: roleplay.id,
+        latestEvaluationSessionId:
+            "stats" in roleplay ? roleplay.stats.latestEligibleSessionId ?? undefined : undefined,
         methodId: roleplay.methodId ?? mock?.methodId ?? "",
         name: textOrMock(roleplay.name, mock?.name ?? roleplay.title),
         prepDocuments,
@@ -202,6 +216,7 @@ export function mapMethodStepToUi(step: MethodStepItem, mock?: MethodStep): Meth
         bonnesPratiques: listOrMock(step.bestPractices, mock?.bonnesPratiques ?? []),
         capsule: mock?.capsule ?? { duration: "", title: step.title },
         erreurs: listOrMock(step.pitfalls, mock?.erreurs ?? []),
+        id: step.id,
         icon: step.icon,
         objectifs: listOrMock(step.objectives, mock?.objectifs ?? []),
         posture: listOrMock(step.posture, mock?.posture ?? []),

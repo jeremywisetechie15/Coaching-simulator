@@ -2,8 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
     AlertTriangle,
     ClipboardList,
@@ -17,6 +16,8 @@ import {
     Trash2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { ContextualLink, useCurrentAppHref } from "@/features/app-shell/components";
+import { withReturnTo, withSearchParams } from "@/features/app-shell/domain";
 import { CONTENT_DOMAINS } from "@/features/content/domain";
 import { getQuizStatusLabel } from "@/features/evaluations/domain";
 import { SCORECARD_ROUTES, SCORECARD_VISIBILITY_LABELS, type ScorecardListItem } from "@/features/scorecards/domain";
@@ -55,14 +56,17 @@ async function deleteScorecardRequest(scorecardId: string) {
 
 export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageContentProps) {
     const router = useRouter();
-    const [query, setQuery] = useState("");
-    const [domain, setDomain] = useState("all");
+    const searchParams = useSearchParams();
+    const currentHref = useCurrentAppHref();
+    const domainOptions = ["all", ...CONTENT_DOMAINS];
+    const [query, setQuery] = useState(searchParams.get("q") ?? "");
+    const [domain, setDomain] = useState(
+        domainOptions.includes(searchParams.get("domain") ?? "") ? searchParams.get("domain")! : "all",
+    );
     const [busyScorecardId, setBusyScorecardId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [scorecardToDelete, setScorecardToDelete] = useState<ScorecardListItem | null>(null);
-
-    const domainOptions = ["all", ...CONTENT_DOMAINS];
 
     const filtered = useMemo(() => {
         const term = query.trim().toLowerCase();
@@ -112,6 +116,18 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
         }
     }
 
+    function updateQuery(value: string) {
+        setQuery(value);
+        router.replace(withSearchParams(currentHref, { q: value.trim() || null }), { scroll: false });
+    }
+
+    function updateDomain(value: string) {
+        setDomain(value);
+        router.replace(withSearchParams(currentHref, { domain: value === "all" ? null : value }), {
+            scroll: false,
+        });
+    }
+
     return (
         <Box as="main" className="px-5 pb-12 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1260px]">
@@ -120,7 +136,7 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
                         Scorecards
                     </Text>
                     {canManage && (
-                        <Link
+                        <ContextualLink
                             href="/scorecards/new"
                             className={cn(
                                 "flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-[14px] font-bold text-white transition",
@@ -129,7 +145,7 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
                         >
                             <InlineIcon icon={Plus} className="h-4 w-4" />
                             Créer une scorecard
-                        </Link>
+                        </ContextualLink>
                     )}
                 </Box>
 
@@ -143,14 +159,14 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
                             <input
                                 type="search"
                                 value={query}
-                                onChange={(event) => setQuery(event.target.value)}
+                                onChange={(event) => updateQuery(event.target.value)}
                                 placeholder="Rechercher une scorecard..."
                                 className={cn(uiTokens.form.control, "h-11 pl-11 text-[14px]")}
                             />
                         </Box>
                         <select
                             value={domain}
-                            onChange={(event) => setDomain(event.target.value)}
+                            onChange={(event) => updateDomain(event.target.value)}
                             className={cn(uiTokens.form.control, "h-11 px-3 text-[14px]")}
                         >
                             {domainOptions.map((option) => (
@@ -273,6 +289,8 @@ function ScorecardCard({
     scorecard,
     showActions,
 }: ScorecardCardProps) {
+    const currentHref = useCurrentAppHref();
+
     return (
         <CardSurface className="relative flex h-full flex-col rounded-[16px] border border-[#E5E7EB] shadow-none transition hover:border-[#C9C2FB] hover:shadow-[0_16px_36px_rgba(17,24,39,0.08)]">
             {showActions && (
@@ -287,7 +305,7 @@ function ScorecardCard({
                     {isMenuOpen && (
                         <CardActionMenu>
                             <CardActionMenuLink
-                                href={SCORECARD_ROUTES.app.edit(scorecard.id)}
+                                href={withReturnTo(SCORECARD_ROUTES.app.edit(scorecard.id), currentHref)}
                                 icon={Edit3}
                                 label="Modifier"
                             />
@@ -309,7 +327,7 @@ function ScorecardCard({
                 </Box>
             )}
 
-            <Link
+            <ContextualLink
                 href={SCORECARD_ROUTES.app.detail(scorecard.id)}
                 aria-label={`Voir la scorecard ${scorecard.name}`}
                 className="flex h-full flex-col rounded-[16px] p-6 pr-12 transition focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#5140F0]/15"
@@ -358,7 +376,7 @@ function ScorecardCard({
                 <Box className="mt-4 flex items-center gap-2">
                     <Badge tone="gray">{SCORECARD_VISIBILITY_LABELS[scorecard.visibility]}</Badge>
                 </Box>
-            </Link>
+            </ContextualLink>
         </CardSurface>
     );
 }

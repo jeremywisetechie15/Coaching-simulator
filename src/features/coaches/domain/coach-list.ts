@@ -9,6 +9,7 @@ import {
 
 export interface CoachListItem {
     avatarSrc: string | null;
+    backgroundImagePath: string | null;
     createdAt: string;
     id: string;
     name: string;
@@ -21,6 +22,7 @@ export interface CoachListItem {
 
 export interface CoachEditorValues {
     avatarSrc: string;
+    backgroundImagePath: string;
     certifications: string;
     coachingStyle: CoachingStyle;
     diploma: string;
@@ -33,6 +35,7 @@ export interface CoachEditorValues {
 
 export const EMPTY_COACH_EDITOR_VALUES: CoachEditorValues = {
     avatarSrc: "",
+    backgroundImagePath: "",
     certifications: "",
     coachingStyle: COACHING_STYLE.optimistic,
     diploma: "",

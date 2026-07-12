@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -11,7 +10,7 @@ import {
     Search,
     UserRound,
 } from "lucide-react";
-import { AppShell } from "@/features/app-shell/components";
+import { AppShell, ContextualLink } from "@/features/app-shell/components";
 import { Box, Button, CardSurface, InlineIcon, SelectInput, Text, TextInput } from "@/lib/ui/atoms";
 import {
     getUserStatusLabel,
@@ -409,20 +408,20 @@ export function UsersPage({ avatarUrl, initials, initialUsers, organizations, pl
                                             </Box>
                                             <Box as="td" className="p-[17px]">
                                                 <Box className="flex items-center gap-2 text-[#4F5868]">
-                                                    <Link
+                                                    <ContextualLink
                                                         href={`/users/${user.id}`}
                                                         aria-label={`Voir ${user.name}`}
                                                         className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
                                                     >
                                                         <InlineIcon icon={Eye} className="h-5 w-5" />
-                                                    </Link>
-                                                    <Link
+                                                    </ContextualLink>
+                                                    <ContextualLink
                                                         href={`/users/${user.id}?mode=edit`}
                                                         aria-label={`Modifier ${user.name}`}
                                                         className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
                                                     >
                                                         <InlineIcon icon={Pencil} className="h-5 w-5" />
-                                                    </Link>
+                                                    </ContextualLink>
                                                 </Box>
                                             </Box>
                                         </Box>

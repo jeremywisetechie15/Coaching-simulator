@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/features/auth/server";
 import { createRoleplay, listRoleplays, parseSaveRoleplayRequest } from "@/features/roleplays/server";
 import { jsonError } from "@/lib/server/http";
 
@@ -16,8 +17,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
     try {
-        const { input, uploadFilesByClientId } = await parseSaveRoleplayRequest(request);
-        const roleplay = await createRoleplay(input, uploadFilesByClientId);
+        await requireAdmin();
+        const { backgroundFile, input, uploadFilesByClientId } = await parseSaveRoleplayRequest(request);
+        const roleplay = await createRoleplay(input, uploadFilesByClientId, backgroundFile);
 
         return NextResponse.json({ roleplay }, { status: 201 });
     } catch (error) {

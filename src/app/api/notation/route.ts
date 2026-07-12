@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { PUBLISHED_CONTENT_STATUS } from '@/features/content/domain';
 import {
+    getRoleplaySessionEvaluationDecision,
+    MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
     ROLEPLAY_NOTATION_SOURCE,
     ROLEPLAY_NOTATION_STATUS,
     type RoleplayNotationCriterionRef,
@@ -1005,6 +1007,7 @@ export async function POST(req: Request) {
         // 1. RÉSOUDRE LA SESSION ET RÉCUPÉRER LE SCÉNARIO
         let effectiveSessionId = session_id;
         let effectiveScenarioId: string | null = scenario_id || null;
+        let effectiveSessionDurationSeconds: number | null = null;
         let notationMethodId: string | null = null;
         let scenarioTitle = "";
         let scenarioDescription = "";
@@ -1013,7 +1016,7 @@ export async function POST(req: Request) {
             // Cas: scenario_id/persona_id fourni, on cherche la dernière session correspondante
             let latestSessionQuery = supabase
                 .from('sessions')
-                .select('id, scenario_id, scenarios!inner(title, description, persona_id, notation_method_id)')
+                .select('id, scenario_id, duration_seconds, scenarios!inner(title, description, persona_id, notation_method_id)')
                 .eq('status', 'completed')
                 .order('created_at', { ascending: false })
                 .limit(1);
@@ -1039,6 +1042,7 @@ export async function POST(req: Request) {
             }
             effectiveSessionId = latestSession.id;
             effectiveScenarioId = latestSession.scenario_id || scenario_id || null;
+            effectiveSessionDurationSeconds = latestSession.duration_seconds;
             const scenario = latestSession.scenarios as unknown as {
                 title: string;
                 description: string | null;
@@ -1051,21 +1055,26 @@ export async function POST(req: Request) {
             // Cas: session_id fourni, on récupère le scénario
             const { data: sessionData, error: sessionError } = await supabase
                 .from('sessions')
-                .select('scenario_id, scenarios(title, description, notation_method_id)')
+                .select('scenario_id, duration_seconds, scenarios(title, description, notation_method_id)')
                 .eq('id', effectiveSessionId)
                 .single();
 
-            if (!sessionError && sessionData) {
-                effectiveScenarioId = sessionData.scenario_id || scenario_id || null;
-                const scenario = sessionData.scenarios as unknown as {
-                    title: string;
-                    description: string | null;
-                    notation_method_id?: string | null;
-                } | null;
-                scenarioTitle = scenario?.title || "";
-                scenarioDescription = scenario?.description || "";
-                notationMethodId = scenario?.notation_method_id || null;
+            if (sessionError || !sessionData) {
+                return setCorsHeaders(
+                    NextResponse.json({ error: "Session introuvable pour la notation" }, { status: 404 })
+                );
             }
+
+            effectiveScenarioId = sessionData.scenario_id || scenario_id || null;
+            effectiveSessionDurationSeconds = sessionData.duration_seconds;
+            const scenario = sessionData.scenarios as unknown as {
+                title: string;
+                description: string | null;
+                notation_method_id?: string | null;
+            } | null;
+            scenarioTitle = scenario?.title || "";
+            scenarioDescription = scenario?.description || "";
+            notationMethodId = scenario?.notation_method_id || null;
         }
 
         console.log("📊 Notation API - Processing session:", effectiveSessionId);
@@ -1077,6 +1086,23 @@ export async function POST(req: Request) {
             return setCorsHeaders(
                 NextResponse.json({ error: "Session introuvable pour la notation" }, { status: 404 })
             );
+        }
+
+        const evaluationDecision = getRoleplaySessionEvaluationDecision(effectiveSessionDurationSeconds);
+        if (!evaluationDecision.eligible) {
+            await updateSessionNotationStatus(supabase, effectiveSessionId, {
+                notation_error: null,
+                notation_status: ROLEPLAY_NOTATION_STATUS.skipped,
+            });
+
+            return setCorsHeaders(NextResponse.json({
+                success: true,
+                evaluation_eligible: false,
+                minimum_duration_seconds: evaluationDecision.minimumDurationSeconds,
+                session_id: effectiveSessionId,
+                skip_reason: evaluationDecision.skipReason,
+                skipped: true,
+            }));
         }
 
         // 2. RÉCUPÉRER LE TRANSCRIPT DEPUIS LA TABLE MESSAGES
@@ -1452,6 +1478,7 @@ export async function GET(req: Request) {
                 )
             `)
             .eq('status', 'completed')
+            .gte('duration_seconds', MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS)
             .not('notation_json', 'is', null)
             .order('created_at', { ascending: false })
             .limit(1);

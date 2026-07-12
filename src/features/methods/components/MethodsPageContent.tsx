@@ -1,9 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, BookOpen, Copy, Edit3, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import {
+    ContextualBackLink,
+    ContextualLink,
+    useCurrentAppHref,
+} from "@/features/app-shell/components";
+import { withReturnTo } from "@/features/app-shell/domain";
 import { CONTENT_STATUS_LABELS } from "@/features/content/domain";
 import { getMethodScopeLabel, METHOD_ROUTES, type MethodListItem } from "@/features/methods/domain/method";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
@@ -40,6 +45,7 @@ async function archiveMethodRequest(methodId: string) {
 
 export function MethodsPageContent({ canManage, methods }: MethodsPageContentProps) {
     const router = useRouter();
+    const currentHref = useCurrentAppHref();
     const [busyMethodId, setBusyMethodId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -79,13 +85,13 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
             <Box className="mx-auto max-w-[1260px]">
                 <Box className="mb-9 flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
                     <Box className="flex items-start gap-6">
-                        <Link
-                            href="/"
+                        <ContextualBackLink
+                            fallbackHref="/"
                             aria-label="Retour"
                             className="mt-2 flex h-8 w-8 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
                         >
                             <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                        </Link>
+                        </ContextualBackLink>
                         <Box>
                             <Text as="h1" className="text-[30px] font-extrabold leading-tight text-[#111827] md:text-[34px]">
                                 Méthodes et Playbooks
@@ -97,13 +103,13 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
                     </Box>
 
                     {canManage && (
-                        <Link
+                        <ContextualLink
                             href="/methods/new"
                             className="mt-1 flex h-9 items-center justify-center gap-2.5 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7] md:mt-2"
                         >
                             <InlineIcon icon={Plus} className="h-4 w-4" />
                             Créer une méthode
-                        </Link>
+                        </ContextualLink>
                     )}
                 </Box>
 
@@ -131,7 +137,7 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
                                     {openMenuId === method.id && (
                                         <CardActionMenu>
                                             <CardActionMenuLink
-                                                href={METHOD_ROUTES.app.edit(method.id)}
+                                                href={withReturnTo(METHOD_ROUTES.app.edit(method.id), currentHref)}
                                                 icon={Edit3}
                                                 label="Modifier"
                                             />
@@ -153,7 +159,7 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
                                 </Box>
                             )}
 
-                            <Link href={METHOD_ROUTES.app.detail(method.id)} className="flex flex-1 flex-col p-6 pr-12">
+                            <ContextualLink href={METHOD_ROUTES.app.detail(method.id)} className="flex flex-1 flex-col p-6 pr-12">
                                 <Text as="h3" className="text-[19px] font-extrabold leading-7 text-[#111827]">
                                     {method.name}
                                 </Text>
@@ -176,7 +182,7 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
                                         {getMethodScopeLabel(method)}
                                     </Box>
                                 </Box>
-                            </Link>
+                            </ContextualLink>
                         </CardSurface>
                     ))}
                 </Box>

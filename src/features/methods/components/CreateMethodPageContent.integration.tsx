@@ -6,10 +6,13 @@ import { METHOD_SCOPE, type MethodDetail } from "@/features/methods/domain/metho
 import { CreateMethodPageContent } from "./CreateMethodPageContent";
 
 vi.mock("next/navigation", () => ({
+    usePathname: () => "/methods/new",
     useRouter: () => ({
         push: vi.fn(),
         refresh: vi.fn(),
+        replace: vi.fn(),
     }),
+    useSearchParams: () => new URLSearchParams(),
 }));
 
 describe("CreateMethodPageContent", () => {

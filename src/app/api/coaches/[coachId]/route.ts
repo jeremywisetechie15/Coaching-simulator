@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { saveCoachDto } from "@/features/coaches/dto/save-coach.dto";
+import { requireAdmin } from "@/features/auth/server";
 import { updateCoach } from "@/features/coaches/server";
+import { parseSaveCoachRequest } from "@/features/coaches/server/save-coach-request";
 import { jsonError } from "@/lib/server/http";
 
 interface RouteContext {
@@ -11,9 +12,10 @@ interface RouteContext {
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
     try {
+        await requireAdmin();
         const { coachId } = await params;
-        const input = saveCoachDto.parse(await request.json());
-        const coach = await updateCoach(coachId, input);
+        const { backgroundFile, input } = await parseSaveCoachRequest(request);
+        const coach = await updateCoach(coachId, input, backgroundFile);
 
         return NextResponse.json({ coach });
     } catch (error) {

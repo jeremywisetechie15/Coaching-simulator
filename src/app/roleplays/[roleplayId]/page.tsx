@@ -5,9 +5,11 @@ import { getRoleplayById } from "@/features/roleplays/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
+import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
 
 interface PageProps {
     params: Promise<{ roleplayId: string }>;
+    searchParams?: Promise<{ returnTo?: string }>;
 }
 
 export async function generateMetadata() {
@@ -16,15 +18,16 @@ export async function generateMetadata() {
     };
 }
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
     const { roleplayId } = await params;
+    const { returnTo } = searchParams ? await searchParams : {};
     let profile;
 
     try {
         profile = await getCurrentProfile();
     } catch (error) {
         if (error instanceof UnauthorizedError) {
-            redirect(`/auth?redirect=/roleplays/${roleplayId}`);
+            redirect(buildAuthRedirectHref(withReturnTo(`/roleplays/${roleplayId}`, returnTo)));
         }
 
         throw error;

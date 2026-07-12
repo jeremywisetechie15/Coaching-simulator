@@ -1,7 +1,7 @@
 "use client";
 
-import Link from "next/link";
 import { ArrowRight, Check } from "lucide-react";
+import { ContextualLink } from "@/features/app-shell/components";
 import { QUIZ_PARTICIPATION, QUIZ_PARTICIPATION_LABELS, type QuizParticipation } from "@/features/evaluations/domain";
 import type { PrepQuiz, PrepQuizStatus } from "@/features/roleplays/data/preparation";
 import { Box, Button, InlineIcon, Text } from "@/lib/ui/atoms";
@@ -30,9 +30,10 @@ function participationTone(participation: QuizParticipation) {
 interface RoleplayQuizModalProps {
     onClose: () => void;
     quizzes: PrepQuiz[];
+    returnHref: string;
 }
 
-export function RoleplayQuizModal({ onClose, quizzes }: RoleplayQuizModalProps) {
+export function RoleplayQuizModal({ onClose, quizzes, returnHref }: RoleplayQuizModalProps) {
     return (
         <Modal title="Choisissez un quiz" onClose={onClose} className="max-w-[560px]">
             <Box className="max-h-[min(58vh,520px)] space-y-3 overflow-y-auto pr-1">
@@ -104,10 +105,10 @@ export function RoleplayQuizModal({ onClose, quizzes }: RoleplayQuizModalProps) 
                             </Box>
 
                             {quiz.url ? (
-                                <Link href={quiz.url} className={actionClassName}>
+                                <ContextualLink href={quiz.url} returnHref={returnHref} className={actionClassName}>
                                     {config.actionLabel}
                                     <InlineIcon icon={ArrowRight} className="h-4 w-4" />
-                                </Link>
+                                </ContextualLink>
                             ) : (
                                 <Button disabled className={cn(actionClassName, "cursor-not-allowed opacity-60")}>
                                     {config.actionLabel}

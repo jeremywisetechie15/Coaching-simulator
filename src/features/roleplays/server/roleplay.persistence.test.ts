@@ -52,6 +52,7 @@ describe("roleplay persistence helpers", () => {
 
         expect(createRoleplayInsert(input, userId, "99999999-9999-4999-8999-999999999999")).toMatchObject({
             assigned_user_id: null,
+            background_image_path: null,
             coach_id: coachId,
             group_id: groupId,
             is_active: true,
@@ -87,6 +88,35 @@ describe("roleplay persistence helpers", () => {
                 sort_order: 1,
             },
         ]);
+    });
+
+    it("persists and maps the optional roleplay background path", () => {
+        const backgroundImagePath = "roleplays/scenario-1/background.webp";
+        const input = saveRoleplayDto.parse({
+            backgroundImagePath,
+            coachId,
+            methodId,
+            personaId,
+            title: "Roleplay avec décor",
+        });
+
+        expect(createRoleplayUpdate(input, null)).toMatchObject({
+            background_image_path: backgroundImagePath,
+        });
+
+        const detail = mapRoleplayRowsToDetail(
+            {
+                background_image_path: backgroundImagePath,
+                id: "scenario-1",
+                persona_id: personaId,
+                title: "Roleplay avec décor",
+            },
+            [],
+            [],
+            createEmptyRoleplayStats(),
+        );
+
+        expect(detail.backgroundImagePath).toBe(backgroundImagePath);
     });
 
     it("clears organization and group when a roleplay becomes public", () => {

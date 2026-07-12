@@ -12,10 +12,11 @@ import { getRoleplayById } from "@/features/roleplays/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
+import { buildAuthRedirectHref, withReturnTo, withSearchParam } from "@/features/app-shell/domain";
 
 interface PageProps {
     params: Promise<{ roleplayId: string }>;
-    searchParams: Promise<{ coach?: string }>;
+    searchParams: Promise<{ coach?: string; returnTo?: string; sessionId?: string }>;
 }
 
 export async function generateMetadata() {
@@ -26,7 +27,7 @@ export async function generateMetadata() {
 
 export default async function Page({ params, searchParams }: PageProps) {
     const { roleplayId } = await params;
-    const { coach } = await searchParams;
+    const { coach, returnTo, sessionId } = await searchParams;
     const variant = coach === "after" ? "improve" : "prepare";
     let profile;
     let dbMethodId: string | null = null;
@@ -35,7 +36,11 @@ export default async function Page({ params, searchParams }: PageProps) {
         profile = await getCurrentProfile();
     } catch (error) {
         if (error instanceof UnauthorizedError) {
-            redirect(`/auth?redirect=/roleplays/${roleplayId}/steps`);
+            const stepsHref = coach === "after"
+                ? withSearchParam(`/roleplays/${roleplayId}/steps`, "coach", "after")
+                : `/roleplays/${roleplayId}/steps`;
+            const sessionStepsHref = sessionId ? withSearchParam(stepsHref, "sessionId", sessionId) : stepsHref;
+            redirect(buildAuthRedirectHref(withReturnTo(sessionStepsHref, returnTo)));
         }
 
         throw error;
@@ -82,6 +87,7 @@ export default async function Page({ params, searchParams }: PageProps) {
             profileValues={toProfileFormValues(profile)}
             roleplay={roleplay}
             method={method}
+            referenceSessionId={sessionId}
             variant={variant}
         />
     );

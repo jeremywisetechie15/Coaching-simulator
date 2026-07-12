@@ -10,6 +10,7 @@ export const ROLEPLAY_NOTATION_STATUS = {
     failed: "failed",
     notStarted: "not_started",
     processing: "processing",
+    skipped: "skipped",
 } as const;
 
 export type RoleplayNotationStatus = (typeof ROLEPLAY_NOTATION_STATUS)[keyof typeof ROLEPLAY_NOTATION_STATUS];

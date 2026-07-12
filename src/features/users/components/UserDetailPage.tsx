@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -21,7 +20,7 @@ import {
     UserX,
     X,
 } from "lucide-react";
-import { AppShell } from "@/features/app-shell/components";
+import { AppShell, ContextualBackLink } from "@/features/app-shell/components";
 import {
     Box,
     Button,
@@ -1454,13 +1453,13 @@ export function UserDetailPage({
                 <Box className="w-full">
                     <Box className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                         <Box className="flex items-center gap-5">
-                            <Link
-                                href="/users"
+                            <ContextualBackLink
+                                fallbackHref="/users"
                                 aria-label="Retour aux utilisateurs"
                                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
                             >
                                 <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                            </Link>
+                            </ContextualBackLink>
                             <Text as="h1" className="text-[26px] font-extrabold tracking-[-0.03em] text-[#171B2A]">
                                 {pageTitle}
                             </Text>

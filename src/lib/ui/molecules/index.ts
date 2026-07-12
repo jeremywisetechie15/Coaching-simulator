@@ -9,6 +9,7 @@ export * from "./FormSkeleton";
 export * from "./GroupedTableSectionHeader";
 export * from "./PasswordField";
 export * from "./SearchableMultiSelectField";
+export * from "./SessionBackgroundUploadField";
 export * from "./SingleSelectField";
 export * from "./SubmitButton";
 export * from "./TextField";

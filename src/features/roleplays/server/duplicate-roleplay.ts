@@ -38,6 +38,7 @@ export async function duplicateRoleplay(roleplayId: string): Promise<RoleplayDet
 
     const input: SaveRoleplayDto = {
         assignedUserId: source.assignedUserId,
+        backgroundImagePath: "",
         category: source.category,
         coachId: source.coachId,
         context: source.context,

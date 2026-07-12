@@ -16,9 +16,11 @@ import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { listSkillOptions } from "@/features/skills/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
+import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
 
 interface PageProps {
     params: Promise<{ evaluationId: string }>;
+    searchParams?: Promise<{ returnTo?: string }>;
 }
 
 export async function generateMetadata({ params }: PageProps) {
@@ -37,8 +39,9 @@ export async function generateMetadata({ params }: PageProps) {
     }
 }
 
-export default async function Page({ params }: PageProps) {
+export default async function Page({ params, searchParams }: PageProps) {
     const { evaluationId } = await params;
+    const { returnTo } = searchParams ? await searchParams : {};
     let profile;
 
     try {
@@ -48,7 +51,7 @@ export default async function Page({ params }: PageProps) {
             throw error;
         }
 
-        redirect(`/auth?redirect=/evaluations/${evaluationId}/edit`);
+        redirect(buildAuthRedirectHref(withReturnTo(`/evaluations/${evaluationId}/edit`, returnTo)));
     }
 
     const profileValues = toProfileFormValues(profile);

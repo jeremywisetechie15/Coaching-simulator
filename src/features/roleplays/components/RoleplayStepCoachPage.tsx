@@ -6,8 +6,10 @@ import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import { RoleplayStepCoachPageContent, type StepCoachVariant } from "./RoleplayStepCoachPageContent";
 
 interface RoleplayStepCoachPageProps {
+    coachSessionId: string;
     method: Method;
     profileValues: ProfileFormValues;
+    referenceSessionId?: string;
     roleplay: RoleplayItem;
     step: MethodStep;
     stepNumber: number;
@@ -15,9 +17,11 @@ interface RoleplayStepCoachPageProps {
 }
 
 export function RoleplayStepCoachPage({
+    coachSessionId,
     profileValues,
     roleplay,
     method,
+    referenceSessionId,
     step,
     stepNumber,
     variant,
@@ -33,8 +37,10 @@ export function RoleplayStepCoachPage({
             searchPlaceholder="Rechercher..."
         >
             <RoleplayStepCoachPageContent
+                coachSessionId={coachSessionId}
                 roleplay={roleplay}
                 method={method}
+                referenceSessionId={referenceSessionId}
                 step={step}
                 stepNumber={stepNumber}
                 variant={variant}

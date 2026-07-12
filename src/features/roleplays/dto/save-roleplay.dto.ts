@@ -54,6 +54,7 @@ const roleplayResourceDto = z
 export const saveRoleplayDto = z
     .object({
         assignedUserId: optionalUuid,
+        backgroundImagePath: z.string().trim().max(1000, "Le chemin de l'image de fond est trop long.").optional().default(""),
         category: z.string().trim().max(120, "La catégorie est trop longue.").optional().default(""),
         coachId: z.string().uuid("Le coach sélectionné est invalide.").nullable().optional().default(null),
         context: z.string().trim().max(4000, "Le contexte est trop long.").optional().default(""),

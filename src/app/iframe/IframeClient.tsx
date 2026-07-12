@@ -5,13 +5,43 @@ import { Phone, PhoneOff, Loader2, AlertCircle, Waves, Volume2, Camera, VideoOff
 import { prepareIframeSession, type IframeSessionConfig } from "./actions";
 import type { VoiceId } from "@/types";
 import { extractRealtimeAssistantTranscript } from "@/lib/openai/realtime-transcript";
+import { uiTokens } from "@/lib/ui/tokens";
+import { cn } from "@/lib/ui/utils/cn";
+import {
+    ROLEPLAY_COACH_TRANSCRIPT_EVENT,
+    type RoleplayCoachTranscriptEvent,
+} from "@/features/roleplays/domain/coach-session-notes";
+import {
+    ROLEPLAY_SESSION_LIFECYCLE_EVENT,
+    ROLEPLAY_SESSION_LIFECYCLE_STATUS,
+    type RoleplaySessionLifecycleEvent,
+} from "@/features/roleplays/domain/roleplay-session-lifecycle";
 
 type SessionStatus = "loading" | "ready" | "connecting" | "connected" | "error" | "ended";
 
+const AVATAR_WAVE_DELAYS_SECONDS = [0, 0.5, 1, 1.5] as const;
+
 interface ConversationMessage {
+    id: string;
     role: "user" | "assistant";
     content: string;
     timestamp: string;
+}
+
+interface SaveSessionResponse {
+    evaluation_eligible: boolean;
+    session_id: string;
+}
+
+function notifyParentOfSessionLifecycle(
+    event: Omit<RoleplaySessionLifecycleEvent, "type">,
+) {
+    if (window.parent === window) return;
+
+    window.parent.postMessage(
+        { ...event, type: ROLEPLAY_SESSION_LIFECYCLE_EVENT } satisfies RoleplaySessionLifecycleEvent,
+        window.location.origin,
+    );
 }
 
 interface IframeClientProps {
@@ -21,11 +51,12 @@ interface IframeClientProps {
     model: string;
     coachId?: string;
     coachMode?: "before_training" | "after_training" | "notation";
+    coachSessionId?: string;
     step?: number;
     variant?: "coach";
 }
 
-export default function IframeClient({ scenarioId, mode, refSessionId, model, coachId, coachMode, step, variant }: IframeClientProps) {
+export default function IframeClient({ scenarioId, mode, refSessionId, model, coachId, coachMode, coachSessionId, step, variant }: IframeClientProps) {
     const [status, setStatus] = useState<SessionStatus>("loading");
     const [error, setError] = useState<string | null>(null);
     const [config, setConfig] = useState<IframeSessionConfig | null>(null);
@@ -226,12 +257,28 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
         if (lastMessage && lastMessage.role === role && lastMessage.content === trimmedContent) return;
 
         const newMessage: ConversationMessage = {
+            id: crypto.randomUUID(),
             role,
             content: trimmedContent,
             timestamp: new Date().toISOString(),
         };
 
         conversationRef.current.push(newMessage);
+
+        if (
+            mode === "coach" &&
+            coachSessionId &&
+            scenarioId &&
+            window.parent !== window
+        ) {
+            const messageEvent: RoleplayCoachTranscriptEvent = {
+                coachSessionId,
+                message: newMessage,
+                scenarioId,
+                type: ROLEPLAY_COACH_TRANSCRIPT_EVENT,
+            };
+            window.parent.postMessage(messageEvent, window.location.origin);
+        }
 
         // Update live state to trigger re-render of transcript panel
         setLiveMessages(prev => [...prev, newMessage]);
@@ -240,7 +287,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
         setTimeout(() => {
             transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
         }, 50);
-    }, []);
+    }, [coachSessionId, mode, scenarioId]);
 
     const handleRealtimeEvent = useCallback((event: { type: string;[key: string]: unknown }) => {
         const eventId = (event as { event_id?: string }).event_id;
@@ -588,43 +635,84 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                     }),
                 });
 
-                if (response.ok) {
-                    const result = await response.json();
-                    const savedSessionId = result.session_id;
+                if (!response.ok) {
+                    const saveError = await response.text();
+                    throw new Error(saveError || "Impossible de sauvegarder la session.");
+                }
 
-                    // Appeler l'API de notation pour les sessions persona (mode standard)
-                    // Ne PAS appeler pour les sessions coach ou persona_variant
-                    if (config.mode === "standard" && !config.coachMode && savedSessionId) {
-                        console.log("📊 Calculating notation for session:", savedSessionId);
+                const result = await response.json() as SaveSessionResponse;
+                const savedSessionId = result.session_id;
+                if (!savedSessionId) throw new Error("La session sauvegardée ne possède pas d'identifiant.");
 
-                        // Construire le transcript à partir des messages
-                        const transcript = messages
-                            .map(m => `[${m.role === "user" ? "Utilisateur" : "Persona"}]: ${m.content}`)
-                            .join("\n");
+                if (!result.evaluation_eligible) {
+                    notifyParentOfSessionLifecycle({
+                        error: null,
+                        evaluationEligible: false,
+                        scenarioId: config.scenarioId,
+                        sessionId: savedSessionId,
+                        status: ROLEPLAY_SESSION_LIFECYCLE_STATUS.skipped,
+                    });
+                    return;
+                }
 
-                        try {
-                            const notationResponse = await fetch("/api/notation", {
-                                method: "POST",
-                                headers: { "Content-Type": "application/json" },
-                                body: JSON.stringify({
-                                    transcript,
-                                    session_id: savedSessionId,
-                                }),
-                            });
+                notifyParentOfSessionLifecycle({
+                    error: null,
+                    evaluationEligible: true,
+                    scenarioId: config.scenarioId,
+                    sessionId: savedSessionId,
+                    status: ROLEPLAY_SESSION_LIFECYCLE_STATUS.saved,
+                });
 
-                            if (notationResponse.ok) {
-                                const notationResult = await notationResponse.json();
-                                console.log("✅ Notation saved:", notationResult.notation?.note_globale);
-                            } else {
-                                console.error("❌ Failed to calculate notation:", await notationResponse.text());
-                            }
-                        } catch (notationErr) {
-                            console.error("❌ Error calling notation API:", notationErr);
-                        }
+                console.log("📊 Calculating notation for session:", savedSessionId);
+
+                // Le transcript reste transmis pour préserver le contrat historique de l'iframe.
+                const transcript = messages
+                    .map(m => `[${m.role === "user" ? "Utilisateur" : "Persona"}]: ${m.content}`)
+                    .join("\n");
+
+                try {
+                    const notationResponse = await fetch("/api/notation", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            transcript,
+                            session_id: savedSessionId,
+                        }),
+                    });
+
+                    if (!notationResponse.ok) {
+                        const notationError = await notationResponse.text();
+                        throw new Error(notationError || "Impossible de générer l'évaluation.");
                     }
+
+                    const notationResult = await notationResponse.json();
+                    console.log("✅ Notation saved:", notationResult.notation?.note_globale);
+                    notifyParentOfSessionLifecycle({
+                        error: null,
+                        evaluationEligible: true,
+                        scenarioId: config.scenarioId,
+                        sessionId: savedSessionId,
+                        status: ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationCompleted,
+                    });
+                } catch (notationError) {
+                    console.error("❌ Error calling notation API:", notationError);
+                    notifyParentOfSessionLifecycle({
+                        error: notationError instanceof Error ? notationError.message : "Impossible de générer l'évaluation.",
+                        evaluationEligible: true,
+                        scenarioId: config.scenarioId,
+                        sessionId: savedSessionId,
+                        status: ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationFailed,
+                    });
                 }
             } catch (err) {
                 console.error("Failed to save session:", err);
+                notifyParentOfSessionLifecycle({
+                    error: err instanceof Error ? err.message : "Impossible de sauvegarder la session.",
+                    evaluationEligible: false,
+                    scenarioId: config.scenarioId,
+                    sessionId: null,
+                    status: ROLEPLAY_SESSION_LIFECYCLE_STATUS.saveFailed,
+                });
             }
         }
     };
@@ -734,6 +822,21 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
     };
 
     const isSessionActive = status === "connecting" || status === "connected";
+    const sessionBackgroundStyle = config.backgroundUrl
+        ? {
+              backgroundImage: `url(${config.backgroundUrl})`,
+              backgroundPosition: "center",
+              backgroundRepeat: "no-repeat",
+              backgroundSize: "cover",
+          }
+        : isCoachMode
+          ? {
+                backgroundImage: "url(/bg_coach_ai.png)",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+                backgroundSize: "cover",
+            }
+          : { background: "linear-gradient(to bottom right, #E8EEFF, #F0F4FF)" };
 
     return (
         <div className="relative h-screen w-full bg-white flex flex-row overflow-hidden font-sans">
@@ -744,14 +847,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                 {/* Main Content Area - Different background for coach mode */}
                 <div
                     className="flex-1 relative rounded-3xl m-4 overflow-hidden shadow-inner"
-                    style={isCoachMode ? {
-                        backgroundImage: 'url(/bg_coach_ai.png)',
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        backgroundRepeat: 'no-repeat'
-                    } : {
-                        background: 'linear-gradient(to bottom right, #E8EEFF, #F0F4FF)'
-                    }}
+                    style={sessionBackgroundStyle}
                 >
 
                     {/* Top Left: Persona Badge - Show for coach mode (always) or connected state */}
@@ -806,55 +902,32 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                                 {/* Sound Wave Rings - Only when AI is speaking */}
                                 {isAiSpeaking && (
                                     <>
-                                        {/* Wave 1 - Innermost */}
-                                        <div
-                                            className="absolute rounded-full border-[3px] border-[#7C8FFF]"
-                                            style={{
-                                                inset: '-20px',
-                                                animation: 'wave-expand 2s ease-out infinite',
-                                            }}
-                                        />
-                                        {/* Wave 2 */}
-                                        <div
-                                            className="absolute rounded-full border-[3px] border-[#7C8FFF]"
-                                            style={{
-                                                inset: '-20px',
-                                                animation: 'wave-expand 2s ease-out infinite 0.5s',
-                                            }}
-                                        />
-                                        {/* Wave 3 */}
-                                        <div
-                                            className="absolute rounded-full border-[3px] border-[#7C8FFF]"
-                                            style={{
-                                                inset: '-20px',
-                                                animation: 'wave-expand 2s ease-out infinite 1s',
-                                            }}
-                                        />
-                                        {/* Wave 4 - Outermost */}
-                                        <div
-                                            className="absolute rounded-full border-[3px] border-[#7C8FFF]"
-                                            style={{
-                                                inset: '-20px',
-                                                animation: 'wave-expand 2s ease-out infinite 1.5s',
-                                            }}
-                                        />
+                                        {AVATAR_WAVE_DELAYS_SECONDS.map((delaySeconds) => (
+                                            <div
+                                                key={delaySeconds}
+                                                className={uiTokens.session.avatar.speakingRing}
+                                                style={{
+                                                    animation: 'wave-expand 2s ease-out infinite',
+                                                    animationDelay: `${delaySeconds}s`,
+                                                }}
+                                            />
+                                        ))}
                                     </>
                                 )}
 
                                 {/* Static Ring when not speaking */}
                                 {!isAiSpeaking && (
-                                    <div className="absolute rounded-full border-4 border-[#C8D4FF]/50" style={{ inset: '-10px' }} />
+                                    <div className={uiTokens.session.avatar.idleRing} />
                                 )}
 
                                 {/* Avatar Container */}
                                 <div
-                                    className="w-40 h-40 md:w-48 md:h-48 rounded-full border-4 overflow-hidden shadow-xl transition-all duration-300"
-                                    style={{
-                                        borderColor: isAiSpeaking ? '#7C8FFF' : 'white',
-                                        boxShadow: isAiSpeaking
-                                            ? '0 0 40px rgba(124, 143, 255, 0.4), 0 20px 40px -12px rgba(0, 0, 0, 0.25)'
-                                            : '0 20px 40px -12px rgba(0, 0, 0, 0.25)'
-                                    }}
+                                    className={cn(
+                                        uiTokens.session.avatar.container,
+                                        isAiSpeaking
+                                            ? uiTokens.session.avatar.speaking
+                                            : uiTokens.session.avatar.idle,
+                                    )}
                                 >
                                     <img
                                         src={config.avatarUrl || "https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=200&h=200"}

@@ -3,6 +3,7 @@
 import { useMemo, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import type { EmailOtpType } from "@supabase/supabase-js";
+import { resolveInternalHref } from "@/features/app-shell/domain";
 import { createClient } from "@/lib/supabase/client";
 import { FormRoot } from "@/lib/ui/atoms";
 import { AlertMessage, FormHeader, PasswordField, SubmitButton } from "@/lib/ui/molecules";
@@ -20,14 +21,6 @@ const headerClasses = {
     title: "mt-6 text-[20px] font-extrabold tracking-normal text-slate-950 sm:text-[22px]",
     description: "mt-2 text-[13px] font-semibold tracking-normal text-slate-500 sm:text-[14px]",
 };
-
-function getSafeRedirect(value: string | null) {
-    if (!value || !value.startsWith("/") || value.startsWith("//")) {
-        return "/profile";
-    }
-
-    return value;
-}
 
 const expiredInvitationMessage = "Lien d'invitation expiré ou déjà utilisé. Demandez une nouvelle invitation.";
 
@@ -53,7 +46,10 @@ function getAuthHashErrorMessage() {
 
 export function SetPasswordCard() {
     const searchParams = useSearchParams();
-    const redirectTo = useMemo(() => getSafeRedirect(searchParams.get("redirect")), [searchParams]);
+    const redirectTo = useMemo(
+        () => resolveInternalHref(searchParams.get("redirect"), "/profile"),
+        [searchParams],
+    );
     const organizationId = searchParams.get("organization_id");
     const tokenHash = searchParams.get("token_hash");
     const otpType = searchParams.get("type");

@@ -21,6 +21,7 @@ describe("coach.mapper", () => {
         const values = mapCoachRowToEditorValues(baseCoachRow);
 
         expect(values).toMatchObject({
+            backgroundImagePath: "",
             certifications: "",
             coachingStyle: "Optimiste",
             diploma: "",
@@ -33,6 +34,7 @@ describe("coach.mapper", () => {
     it("maps persisted coach profile fields to editor values", () => {
         const values = mapCoachRowToEditorValues({
             ...baseCoachRow,
+            background_image_path: "coaches/coach-1/background.webp",
             certifications: "ICF",
             coaching_style: "Exigeant",
             diploma: "Master coaching",
@@ -41,6 +43,7 @@ describe("coach.mapper", () => {
         });
 
         expect(values).toMatchObject({
+            backgroundImagePath: "coaches/coach-1/background.webp",
             certifications: "ICF",
             coachingStyle: "Exigeant",
             diploma: "Master coaching",
