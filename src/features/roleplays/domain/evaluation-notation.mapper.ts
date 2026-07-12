@@ -1,8 +1,11 @@
 import {
+    demoEvaluationKeyMoments,
     evaluation as fallbackEvaluation,
     type DiscourseMetric,
     type Evaluation,
     type EvaluationCriterion,
+    type EvaluationKeyMoment,
+    type EvaluationKeyMomentImpactType,
     type EvaluationStep,
     type StepReformulation,
     type StepStatus,
@@ -20,6 +23,18 @@ export interface NotationTranscriptMessage {
 
 const STEP_ICONS: EvaluationStep["icon"][] = ["phone", "message", "shield", "check"];
 const IGNORED_METRIC_KEYS = new Set(["onglet", "status", "error", "message", "details"]);
+const KEY_MOMENT_IMPACT_TYPES = new Set<EvaluationKeyMomentImpactType>([
+    "moment_cle_negatif",
+    "moment_cle_positif",
+    "opportunite_manquee",
+    "moment_sensible",
+]);
+const KEY_MOMENT_IMPACT_FALLBACK_LABELS: Record<EvaluationKeyMomentImpactType, string> = {
+    moment_cle_negatif: "Impact négatif",
+    moment_cle_positif: "Impact positif",
+    moment_sensible: "Moment sensible",
+    opportunite_manquee: "Opportunité manquée",
+};
 
 function isRecord(value: unknown): value is JsonRecord {
     return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -47,16 +62,6 @@ function asNumber(value: unknown): number | null {
 function clampScore(value: number | null | undefined) {
     if (typeof value !== "number" || !Number.isFinite(value)) return 0;
     return Math.max(0, Math.min(100, Math.round(value)));
-}
-
-function getRecordPath(root: JsonRecord | null, path: string[]): JsonRecord | null {
-    let current: unknown = root;
-    for (const key of path) {
-        if (!isRecord(current)) return null;
-        current = current[key];
-    }
-
-    return asRecord(current);
 }
 
 function getValuePath(root: JsonRecord | null, path: string[]): unknown {
@@ -140,6 +145,17 @@ export function extractNotationScore(notationJson: unknown): number | null {
     }
 
     return null;
+}
+
+export function extractNotationPersonaFeedback(notationJson: unknown): string | null {
+    const synthese = asRecord(asRecord(notationJson)?.synthese);
+
+    return firstString(synthese, [
+        ["avis_persona_IA"],
+        ["avis_persona_ia"],
+        ["avis_persona"],
+        ["ressenti_persona"],
+    ]);
 }
 
 function stepStatus(score: number): StepStatus {
@@ -664,6 +680,78 @@ function mapPlanSteps(synthese: JsonRecord | null, steps: EvaluationStep[]): Non
     return [fallbackPlanStep(steps)];
 }
 
+function normalizeKeyMomentImpactType(value: unknown): EvaluationKeyMomentImpactType {
+    const impactType = asString(value) as EvaluationKeyMomentImpactType | null;
+
+    return impactType && KEY_MOMENT_IMPACT_TYPES.has(impactType)
+        ? impactType
+        : "moment_sensible";
+}
+
+function formatKeyMomentTimecode(value: string | null) {
+    if (!value) return "";
+
+    const normalized = value.trim().replace(/^\[|\]$/g, "");
+    const parts = normalized.split(":");
+
+    return parts.length === 3 ? `${parts[1]}:${parts[2]}` : normalized;
+}
+
+function mapKeyMomentTranscript(value: unknown): EvaluationKeyMoment["transcript"] {
+    if (!Array.isArray(value)) return [];
+
+    return value.flatMap((item) => {
+        if (!isRecord(item)) return [];
+
+        const text = firstString(item, [["verbatim"], ["texte"], ["text"]]);
+        if (!text) return [];
+
+        return [{
+            speaker: firstString(item, [["speaker"], ["role"], ["locuteur"]]) ?? "Apprenant",
+            text,
+            time: formatKeyMomentTimecode(firstString(item, [["timecode"], ["time"], ["timestamp"]])),
+        }];
+    });
+}
+
+function mapKeyMoments(synthese: JsonRecord | null): EvaluationKeyMoment[] {
+    const value = getValuePath(synthese, ["moments_cles"]);
+    if (!Array.isArray(value)) return demoEvaluationKeyMoments;
+
+    const moments = value.flatMap((item, index): EvaluationKeyMoment[] => {
+        if (!isRecord(item)) return [];
+
+        const impactType = normalizeKeyMomentImpactType(item.type_impact);
+        const transcript = mapKeyMomentTranscript(item.extrait_transcript);
+        const stepNumber = asNumber(item.etape_numero);
+        const stepTitle = asString(item.etape_titre);
+        const title = asString(item.titre) ?? asString(item.description) ?? `Moment clé ${index + 1}`;
+
+        return [{
+            clientPerception: asString(item.perception_client) ?? "-",
+            competencies: listFromValue(item.competences_associees),
+            description: asString(item.description) ?? title,
+            id: `notation-key-moment-${index + 1}`,
+            impact: asString(item.impact_label) ?? KEY_MOMENT_IMPACT_FALLBACK_LABELS[impactType],
+            impactOnObjective: asString(item.impact_sur_objectif) ?? "-",
+            impactType,
+            number: index + 1,
+            reason: asString(item.pourquoi_moment_cle) ?? "-",
+            recommendedResponse: asString(item.reponse_alternative_recommandee) ?? "-",
+            role: asString(item.role) ?? "",
+            stepLabel:
+                stepNumber !== null
+                    ? `Étape ${Math.max(1, Math.round(stepNumber))}${stepTitle ? ` : ${stepTitle}` : ""}`
+                    : stepTitle ?? "Étape non renseignée",
+            time: formatKeyMomentTimecode(asString(item.timecode_debut)) || transcript[0]?.time || "",
+            title,
+            transcript,
+        }];
+    });
+
+    return moments.length > 0 ? moments : demoEvaluationKeyMoments;
+}
+
 export function mapNotationToEvaluation(
     notationJson: unknown,
     messages: NotationTranscriptMessage[] = [],
@@ -698,9 +786,8 @@ export function mapNotationToEvaluation(
             firstString(scoreGlobal, [["interpretation"]]) ??
             fallbackEvaluation.coachAppreciation,
         discourse: mapDiscourseMetrics(notation),
-        personaAvis:
-            firstString(synthese, [["avis_persona_ia"], ["avis_persona"], ["ressenti_persona"]]) ??
-            fallbackEvaluation.personaAvis,
+        momentsCles: mapKeyMoments(synthese),
+        personaAvis: extractNotationPersonaFeedback(notation) ?? fallbackEvaluation.personaAvis,
         planEtape: planEtapes[0] ?? fallbackEvaluation.planEtape,
         planEtapes,
         pointsPositifs: firstList(

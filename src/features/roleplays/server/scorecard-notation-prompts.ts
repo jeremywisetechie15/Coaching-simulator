@@ -1,12 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PUBLISHED_CONTENT_STATUS } from "@/features/content/domain";
+import type { RoleplayNotationTab } from "@/features/roleplays/domain/roleplay-notation-tabs";
 
-export const SCORECARD_NOTATION_PROMPT_TITLES = {
-    discours: "notation.scorecard.discours",
+export const SCORECARD_NOTATION_PROMPT_TITLES: Record<RoleplayNotationTab, string> = {
     methodo: "notation.scorecard.methodo",
     synthese: "notation.scorecard.synthese",
     transcription: "notation.scorecard.transcription",
-} as const;
+};
 
 export type ScorecardNotationPromptTab = keyof typeof SCORECARD_NOTATION_PROMPT_TITLES;
 

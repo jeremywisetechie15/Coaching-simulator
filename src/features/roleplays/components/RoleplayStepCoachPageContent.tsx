@@ -34,6 +34,7 @@ export type StepCoachVariant = "prepare" | "improve";
 
 interface RoleplayStepCoachPageContentProps {
     coachSessionId: string;
+    initialTranscript?: TranscriptMessage[];
     roleplay: RoleplayItem;
     method: Method;
     referenceSessionId?: string;
@@ -99,6 +100,7 @@ function TipList({ items, italic, tone }: { items: string[]; italic?: boolean; t
 
 export function RoleplayStepCoachPageContent({
     coachSessionId,
+    initialTranscript = [],
     roleplay,
     method,
     referenceSessionId,
@@ -174,12 +176,16 @@ export function RoleplayStepCoachPageContent({
         return () => window.removeEventListener("message", receiveTranscriptMessage);
     }, [coachSessionId, roleplay.scenarioId]);
 
-    const transcript = useMemo<TranscriptMessage[]>(() => coachTranscript.map((message) => ({
+    const liveTranscript = useMemo<TranscriptMessage[]>(() => coachTranscript.map((message) => ({
         id: message.id,
         speaker: message.role === "assistant" ? "persona" : "you",
         text: message.content,
         time: formatRoleplayCoachMessageTime(message.timestamp),
     })), [coachTranscript]);
+    const transcript = useMemo(
+        () => [...initialTranscript, ...liveTranscript],
+        [initialTranscript, liveTranscript],
+    );
 
     const addedTranscriptMessageIds = useMemo(
         () => new Set(notes.flatMap((note) => note.sourceMessageId ? [note.sourceMessageId] : [])),

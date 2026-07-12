@@ -90,7 +90,7 @@ describe("navigation context", () => {
             "Retour aux évaluations du scénario",
         );
         expect(getContextualBackLabel("/roleplays/history/session-1?returnTo=%2Froleplays")).toBe(
-            "Retour à la session",
+            "Retour à l'évaluation",
         );
         expect(getContextualBackLabel("/roleplays/roleplay-1/steps?coach=after")).toBe(
             "Retour au plan de progrès",

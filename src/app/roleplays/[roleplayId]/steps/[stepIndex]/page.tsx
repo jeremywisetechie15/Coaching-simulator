@@ -11,8 +11,14 @@ import {
 import { getRoleplayById } from "@/features/roleplays/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
+import { requireAuth } from "@/features/auth/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
 import { buildAuthRedirectHref, withReturnTo, withSearchParam } from "@/features/app-shell/domain";
+import type { TranscriptMessage } from "@/features/roleplays/data/evaluation";
+import {
+    buildRoleplayStepCoachReferenceTranscript,
+} from "@/features/roleplays/domain";
+import { getRoleplaySessionEvaluation } from "@/features/roleplays/server";
 
 interface PageProps {
     params: Promise<{ roleplayId: string; stepIndex: string }>;
@@ -31,9 +37,11 @@ export default async function Page({ params, searchParams }: PageProps) {
     const variant = coach === "after" ? "improve" : "prepare";
     const coachSessionId = crypto.randomUUID();
     let profile;
+    let authContext: Awaited<ReturnType<typeof requireAuth>>;
     let dbMethodId: string | null = null;
 
     try {
+        authContext = await requireAuth();
         profile = await getCurrentProfile();
     } catch (error) {
         if (error instanceof UnauthorizedError) {
@@ -90,9 +98,34 @@ export default async function Page({ params, searchParams }: PageProps) {
         notFound();
     }
 
+    let initialTranscript: TranscriptMessage[] = [];
+    if (variant === "improve" && sessionId) {
+        try {
+            const evaluationView = await getRoleplaySessionEvaluation(sessionId, authContext.userId);
+            const evaluatedRoleplayId = evaluationView.roleplay.scenarioId ?? evaluationView.roleplay.id;
+            const currentRoleplayId = roleplay.scenarioId ?? roleplay.id;
+
+            if (evaluatedRoleplayId !== currentRoleplayId) {
+                notFound();
+            }
+
+            initialTranscript = buildRoleplayStepCoachReferenceTranscript(
+                evaluationView.evaluation,
+                stepNumber,
+            );
+        } catch (error) {
+            if (error instanceof NotFoundError) {
+                notFound();
+            }
+
+            throw error;
+        }
+    }
+
     return (
         <RoleplayStepCoachPage
             coachSessionId={coachSessionId}
+            initialTranscript={initialTranscript}
             profileValues={toProfileFormValues(profile)}
             roleplay={roleplay}
             method={method}

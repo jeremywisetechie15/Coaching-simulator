@@ -61,6 +61,27 @@ describe("content upload domain", () => {
         ).toBe("L'image de fond ne doit pas dépasser 10 Mo.");
     });
 
+    it("accepts only appropriately sized images for persona avatars", () => {
+        expect(
+            validateContentUploadFile(
+                { name: "persona.jpg", size: 2 * 1024 * 1024, type: "image/jpeg" },
+                CONTENT_UPLOAD_PURPOSES.personaAvatar,
+            ),
+        ).toBeNull();
+        expect(
+            validateContentUploadFile(
+                { name: "persona.pdf", size: 1024, type: "application/pdf" },
+                CONTENT_UPLOAD_PURPOSES.personaAvatar,
+            ),
+        ).toBe("L'avatar du persona accepte uniquement une image JPG, PNG ou WebP.");
+        expect(
+            validateContentUploadFile(
+                { name: "persona.png", size: 10 * 1024 * 1024 + 1, type: "image/png" },
+                CONTENT_UPLOAD_PURPOSES.personaAvatar,
+            ),
+        ).toBe("L'avatar du persona ne doit pas dépasser 10 Mo.");
+    });
+
     it("rejects unsupported or oversized files", () => {
         expect(
             validateContentUploadFile({

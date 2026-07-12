@@ -121,7 +121,20 @@ export function formatRoleplayDate(value: string | null | undefined) {
     return new Intl.DateTimeFormat("fr-FR", {
         day: "2-digit",
         month: "2-digit",
+        timeZone: "Europe/Paris",
         year: "numeric",
+    }).format(new Date(value));
+}
+
+export function formatRoleplayTime(value: string | null | undefined) {
+    if (!value) {
+        return "Heure inconnue";
+    }
+
+    return new Intl.DateTimeFormat("fr-FR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        timeZone: "Europe/Paris",
     }).format(new Date(value));
 }
 

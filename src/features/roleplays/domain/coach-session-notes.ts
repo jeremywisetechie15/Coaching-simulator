@@ -1,3 +1,5 @@
+import type { Evaluation, TranscriptMessage } from "@/features/roleplays/data/evaluation";
+
 export const ROLEPLAY_COACH_MODE = {
     afterTraining: "after_training",
     beforeTraining: "before_training",
@@ -73,4 +75,30 @@ export function formatRoleplayCoachMessageTime(value: string) {
         second: "2-digit",
         timeZone: "Europe/Paris",
     }).format(date);
+}
+
+export function buildRoleplayStepCoachReferenceTranscript(
+    evaluation: Evaluation,
+    stepNumber: number,
+): TranscriptMessage[] {
+    const stepTranscript = evaluation.steps.find((step) => step.number === stepNumber)?.stepTranscript;
+
+    if (stepTranscript?.lines.length) {
+        return stepTranscript.lines.map((line, index) => ({
+            id: `evaluated-step-${stepNumber}-message-${index + 1}`,
+            speaker: line.speaker,
+            text: line.text,
+            time:
+                index === 0
+                    ? stepTranscript.start
+                    : index === stepTranscript.lines.length - 1
+                      ? stepTranscript.end
+                      : "",
+        }));
+    }
+
+    return evaluation.transcript.map((message, index) => ({
+        ...message,
+        id: message.id ?? `evaluated-session-message-${index + 1}`,
+    }));
 }

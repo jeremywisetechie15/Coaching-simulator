@@ -26,6 +26,10 @@ export const ROLEPLAY_ROUTES = {
         edit: (roleplayId: string) => `/roleplays/${encodeRouteSegment(roleplayId)}/edit`,
         history: "/roleplays/history",
         historyForRoleplay: (roleplayId: string) => `/roleplays/history?scenario_id=${encodeRouteSegment(roleplayId)}`,
+        personaFeedback: (roleplayId: string, sessionId: string) =>
+            `/iframe?scenario_id=${encodeRouteSegment(roleplayId)}&variant=coach&ref_session_id=${encodeRouteSegment(sessionId)}`,
+        sessionDebrief: (roleplayId: string, sessionId: string) =>
+            `/iframe?scenario_id=${encodeRouteSegment(roleplayId)}&mode=coach&coach_mode=after_training&ref_session_id=${encodeRouteSegment(sessionId)}`,
         sessionHistoryPrint: (sessionId: string, template?: RoleplayPdfTemplate) =>
             `/roleplays/history/${encodeRouteSegment(sessionId)}/print${pdfTemplateQuery(template)}`,
         progress: (roleplayId: string) => `/roleplays/${encodeRouteSegment(roleplayId)}/progress`,

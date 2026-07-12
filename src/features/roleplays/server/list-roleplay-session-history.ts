@@ -6,7 +6,7 @@ import {
     MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
 } from "@/features/roleplays/domain";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { formatRoleplayDuration } from "./roleplay.mapper";
+import { formatRoleplayDate, formatRoleplayDuration, formatRoleplayTime } from "./roleplay.mapper";
 import { fetchRoleplaysByIds } from "./roleplay-query";
 
 interface SessionHistoryRow {
@@ -18,6 +18,7 @@ interface SessionHistoryRow {
 }
 
 export interface RoleplaySessionHistoryItem {
+    occurredAt: string;
     roleplay: RoleplayItem;
     session: RoleplaySession;
 }
@@ -27,14 +28,19 @@ interface ListRoleplaySessionHistoryInput {
     userId: string;
 }
 
-function formatSessionDate(value: string | null) {
-    if (!value) return "Date inconnue";
+function buildAttemptNumbers(sessions: SessionHistoryRow[]) {
+    const countByScenario = new Map<string, number>();
+    const attemptNumberBySession = new Map<string, number>();
 
-    return new Intl.DateTimeFormat("fr-FR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-    }).format(new Date(value));
+    for (const session of sessions.slice().reverse()) {
+        if (!session.scenario_id) continue;
+
+        const attemptNumber = (countByScenario.get(session.scenario_id) ?? 0) + 1;
+        countByScenario.set(session.scenario_id, attemptNumber);
+        attemptNumberBySession.set(session.id, attemptNumber);
+    }
+
+    return attemptNumberBySession;
 }
 
 function uniqueScenarioIds(sessions: SessionHistoryRow[]) {
@@ -67,6 +73,7 @@ export async function listRoleplaySessionHistory({
 
     const roleplays = await fetchRoleplaysByIds(supabase, uniqueScenarioIds(sessions));
     const roleplaysById = new Map(roleplays.map((roleplay) => [roleplay.id, mapDbRoleplayToUi(roleplay)]));
+    const attemptNumberBySession = buildAttemptNumbers(sessions);
 
     return sessions.flatMap((session) => {
         if (!session.scenario_id) return [];
@@ -76,13 +83,16 @@ export async function listRoleplaySessionHistory({
 
         return [
             {
+                occurredAt: session.created_at ?? "",
                 roleplay,
                 session: {
-                    date: formatSessionDate(session.created_at),
+                    attemptNumber: attemptNumberBySession.get(session.id) ?? 1,
+                    date: formatRoleplayDate(session.created_at),
                     duration: formatRoleplayDuration(session.duration_seconds),
                     id: session.id,
                     roleplayId: roleplay.id,
                     score: extractNotationScore(session.notation_json) ?? 0,
+                    time: formatRoleplayTime(session.created_at),
                 },
             },
         ];

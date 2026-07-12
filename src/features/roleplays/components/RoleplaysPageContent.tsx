@@ -1,8 +1,8 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, ArrowLeft, Check, ChevronDown, Copy, Edit3, History, MoreHorizontal, Phone, Plus, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { AlertTriangle, ArrowLeft, Copy, Edit3, History, MoreHorizontal, Phone, Plus, Trash2 } from "lucide-react";
+import { useMemo, useState } from "react";
 import {
     ContextualBackLink,
     ContextualLink,
@@ -23,7 +23,7 @@ import {
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import { ROLEPLAY_ROUTES } from "@/features/roleplays/domain";
 import { Box, Button, CardSurface, InlineIcon, Text, Tooltip } from "@/lib/ui/atoms";
-import { CardActionMenu, CardActionMenuButton, CardActionMenuLink } from "@/lib/ui/molecules";
+import { CardActionMenu, CardActionMenuButton, CardActionMenuLink, FilterSelect } from "@/lib/ui/molecules";
 import { Modal } from "@/lib/ui/organisms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -69,65 +69,6 @@ async function deleteRoleplayRequest(roleplayId: string) {
     if (!response.ok) {
         throw new Error(payload?.error || "Impossible de supprimer le roleplay.");
     }
-}
-
-function FilterSelect({
-    options,
-    value,
-    onChange,
-}: {
-    options: string[];
-    value: string;
-    onChange: (value: string) => void;
-}) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        function handleClick(event: MouseEvent) {
-            if (ref.current && !ref.current.contains(event.target as Node)) {
-                setOpen(false);
-            }
-        }
-        document.addEventListener("mousedown", handleClick);
-        return () => document.removeEventListener("mousedown", handleClick);
-    }, []);
-
-    return (
-        <div ref={ref} className="relative">
-            <Button
-                onClick={() => setOpen((current) => !current)}
-                aria-expanded={open}
-                className="flex h-11 w-full items-center justify-between rounded-lg border border-[#E5E7EB] bg-white px-3.5 text-[14px] font-medium text-[#374151] transition hover:border-[#D5D7DE]"
-            >
-                <Text as="span">{value}</Text>
-                <InlineIcon
-                    icon={ChevronDown}
-                    className={`h-4 w-4 text-[#9CA3AF] transition-transform ${open ? "rotate-180" : ""}`}
-                />
-            </Button>
-
-            {open && (
-                <CardSurface className="absolute left-0 right-0 top-[48px] z-30 max-h-[260px] overflow-y-auto rounded-xl border border-[#E5E7EB] p-1.5 shadow-[0_18px_40px_rgba(17,24,39,0.16)]">
-                    {options.map((option) => (
-                        <Button
-                            key={option}
-                            onClick={() => {
-                                onChange(option);
-                                setOpen(false);
-                            }}
-                            className={`flex h-10 w-full items-center justify-between gap-2 rounded-lg px-3 text-left text-[14px] font-medium transition hover:bg-[#F6F7FB] ${
-                                option === value ? "text-[#5140F0]" : "text-[#111827]"
-                            }`}
-                        >
-                            <Text as="span">{option}</Text>
-                            {option === value && <InlineIcon icon={Check} className="h-4 w-4 shrink-0 text-[#5140F0]" />}
-                        </Button>
-                    ))}
-                </CardSurface>
-            )}
-        </div>
-    );
 }
 
 export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageContentProps) {
@@ -254,10 +195,11 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                 <CardSurface className="mb-7 rounded-[16px] border border-[#E9E7FB] p-4 shadow-[0_1px_2px_rgba(17,24,39,0.04)]">
                     <Box className="flex flex-wrap items-center gap-3">
                         <Box className="min-w-[160px] flex-1 sm:max-w-[208px]">
-                            <FilterSelect options={roleplayDomainFilterOptions} value={domain} onChange={selectDomain} />
+                            <FilterSelect ariaLabel="Filtrer par domaine" options={roleplayDomainFilterOptions} value={domain} onChange={selectDomain} />
                         </Box>
                         <Box className="min-w-[160px] flex-1 sm:max-w-[208px]">
                             <FilterSelect
+                                ariaLabel="Filtrer par catégorie"
                                 options={categoryOptions}
                                 value={category}
                                 onChange={(value) =>
@@ -267,6 +209,7 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                         </Box>
                         <Box className="min-w-[160px] flex-1 sm:max-w-[208px]">
                             <FilterSelect
+                                ariaLabel="Filtrer par niveau"
                                 options={roleplayLevelFilterOptions}
                                 value={level}
                                 onChange={(value) => selectFilter("level", value, roleplayLevelFilterOptions[0], setLevel)}
@@ -274,6 +217,7 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                         </Box>
                         <Box className="min-w-[160px] flex-1 sm:max-w-[208px]">
                             <FilterSelect
+                                ariaLabel="Filtrer par profil DISC"
                                 options={roleplayDiscFilterOptions}
                                 value={disc}
                                 onChange={(value) => selectFilter("disc", value, roleplayDiscFilterOptions[0], setDisc)}

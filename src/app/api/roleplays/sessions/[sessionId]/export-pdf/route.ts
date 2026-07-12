@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { requireAuth } from "@/features/auth/server";
 import { ROLEPLAY_ROUTES, parseRoleplayPdfTemplate } from "@/features/roleplays/domain";
+import { launchPdfBrowser } from "@/lib/pdf/launch-pdf-browser";
 
 interface RouteContext {
     params: Promise<{ sessionId: string }>;
@@ -18,20 +19,19 @@ export async function GET(request: NextRequest, context: RouteContext) {
     await requireAuth();
 
     const template = parseRoleplayPdfTemplate(request.nextUrl.searchParams.get("template"));
-    const { chromium } = await import("playwright");
     const printUrl = new URL(ROLEPLAY_ROUTES.app.sessionHistoryPrint(sessionId, template), request.url);
     const cookieHeader = request.headers.get("cookie");
-    const browser = await chromium.launch({ headless: true });
+    let browser;
 
     try {
-        const browserContext = await browser.newContext({
-            extraHTTPHeaders: cookieHeader ? { cookie: cookieHeader } : undefined,
-            viewport: { height: 1600, width: 1280 },
-        });
-        const page = await browserContext.newPage();
+        browser = await launchPdfBrowser();
+        const page = await browser.newPage();
+        await page.setViewport({ height: 1600, width: 1280 });
+        if (cookieHeader) await page.setExtraHTTPHeaders({ cookie: cookieHeader });
+
         const response = await page.goto(printUrl.href, {
             timeout: 60_000,
-            waitUntil: "networkidle",
+            waitUntil: "networkidle2",
         });
 
         if (!response?.ok() || page.url().includes("/auth")) {
@@ -50,8 +50,6 @@ export async function GET(request: NextRequest, context: RouteContext) {
             printBackground: true,
         });
 
-        await browserContext.close();
-
         return new Response(new Uint8Array(pdf), {
             headers: {
                 "Cache-Control": "no-store",
@@ -59,7 +57,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
                 "Content-Type": "application/pdf",
             },
         });
+    } catch (error) {
+        console.error("PDF generation failed:", error);
+        return Response.json({ error: "Impossible de générer le PDF de cette session." }, { status: 500 });
     } finally {
-        await browser.close();
+        await browser?.close();
     }
 }

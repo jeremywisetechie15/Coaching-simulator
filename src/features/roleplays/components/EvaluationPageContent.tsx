@@ -9,7 +9,9 @@ import {
     CircleAlert,
     Clock,
     Download,
+    Eye,
     FileText,
+    Hash,
     Info,
     Layers,
     MessageSquare,
@@ -24,6 +26,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
+import { METHOD_ROUTES } from "@/features/methods/domain/method";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { CardActionMenu, CardActionMenuButton } from "@/lib/ui/molecules";
 import { AnalysisLoaderDialog, Drawer, Modal } from "@/lib/ui/organisms";
@@ -36,17 +39,21 @@ import {
 } from "@/features/roleplays/data/roleplays";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import type { RoleplaySession } from "@/features/roleplays/data/sessions";
-import { evaluation as fallbackEvaluation, stepStatusStyles } from "@/features/roleplays/data/evaluation";
+import {
+    evaluation as fallbackEvaluation,
+    stepStatusStyles,
+} from "@/features/roleplays/data/evaluation";
 import type { Evaluation, EvaluationCriterion, EvaluationStep } from "@/features/roleplays/data/evaluation";
 import {
     buildEvaluationScoreDetails,
-    ROLEPLAY_PDF_TEMPLATE_LABELS,
     ROLEPLAY_PDF_TEMPLATES,
     ROLEPLAY_ROUTES,
+    scoreLevel,
     type RoleplayPdfTemplate,
 } from "@/features/roleplays/domain";
 import { ROLEPLAY_ANALYSIS_STEPS, ROLEPLAY_PDF_EXPORT_STEPS } from "@/features/roleplays/data/session-analysis";
 import { SimulationView } from "./SimulationView";
+import { EvaluationKeyMomentsSection } from "./EvaluationKeyMomentsSection";
 
 const stepIcons: Record<EvaluationStep["icon"], { icon: LucideIcon; bg: string; color: string }> = {
     phone: { icon: Phone, bg: "#E7EDFD", color: "#3B6FD0" },
@@ -111,7 +118,7 @@ function Ring({ score, size = 110, stroke = 11 }: { score: number; size?: number
     );
 }
 
-const TABS = ["Synthèse globale", "Analyse méthodologique", "Analyse discours", "Transcription"] as const;
+const TABS = ["Synthèse globale", "Analyse méthodologique", "Transcription"] as const;
 type TabName = (typeof TABS)[number];
 
 interface EvaluationPageContentProps {
@@ -129,7 +136,6 @@ export function EvaluationPageContent({ evaluation, roleplay, session }: Evaluat
     const [openStep, setOpenStep] = useState<EvaluationStep | null>(null);
     const [transcriptQuery, setTranscriptQuery] = useState("");
     const [simView, setSimView] = useState<"persona" | "coach" | null>(null);
-    const [pdfMenuOpen, setPdfMenuOpen] = useState(false);
     const [pdfExportStep, setPdfExportStep] = useState<number | null>(null);
     const evaluationData = evaluation ?? fallbackEvaluation;
 
@@ -220,7 +226,6 @@ export function EvaluationPageContent({ evaluation, roleplay, session }: Evaluat
     const exportPdf = async (template: RoleplayPdfTemplate) => {
         if (pdfExporting) return;
 
-        setPdfMenuOpen(false);
         setPdfExportStep(0);
 
         try {
@@ -256,11 +261,9 @@ export function EvaluationPageContent({ evaluation, roleplay, session }: Evaluat
         const isPersona = simView === "persona";
         // Embarque le runtime public existant sans le modifier (contrat iframe).
         const iframeSrc = roleplay.scenarioId
-            ? `/iframe?scenario_id=${roleplay.scenarioId}${
-                  isPersona
-                      ? "&variant=coach"
-                      : `&mode=coach&coach_mode=after_training&ref_session_id=${encodeURIComponent(session.id)}`
-              }`
+            ? isPersona
+                ? ROLEPLAY_ROUTES.app.personaFeedback(roleplay.scenarioId, session.id)
+                : ROLEPLAY_ROUTES.app.sessionDebrief(roleplay.scenarioId, session.id)
             : null;
 
         return (
@@ -304,36 +307,14 @@ export function EvaluationPageContent({ evaluation, roleplay, session }: Evaluat
                         </Text>
                     </Box>
                     <Box className="flex items-center gap-2">
-                        <Box className="relative">
-                            <Button
-                                aria-expanded={pdfMenuOpen}
-                                aria-haspopup="menu"
-                                disabled={pdfExporting}
-                                onClick={() => setPdfMenuOpen((open) => !open)}
-                                className="flex h-10 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-4 text-[14px] font-semibold text-[#374151] transition hover:border-[#D5D7DE] disabled:cursor-not-allowed disabled:opacity-70"
-                            >
-                                <InlineIcon icon={Download} className="h-4 w-4" />
-                                Exporter PDF
-                                <InlineIcon
-                                    icon={ChevronDown}
-                                    className={cn("h-4 w-4 transition-transform", pdfMenuOpen && "rotate-180")}
-                                />
-                            </Button>
-                            {pdfMenuOpen && (
-                                <CardActionMenu>
-                                    <CardActionMenuButton
-                                        icon={FileText}
-                                        label={ROLEPLAY_PDF_TEMPLATE_LABELS[ROLEPLAY_PDF_TEMPLATES.report]}
-                                        onClick={() => exportPdf(ROLEPLAY_PDF_TEMPLATES.report)}
-                                    />
-                                    <CardActionMenuButton
-                                        icon={Sparkles}
-                                        label={ROLEPLAY_PDF_TEMPLATE_LABELS[ROLEPLAY_PDF_TEMPLATES.evaluation]}
-                                        onClick={() => exportPdf(ROLEPLAY_PDF_TEMPLATES.evaluation)}
-                                    />
-                                </CardActionMenu>
-                            )}
-                        </Box>
+                        <Button
+                            disabled={pdfExporting}
+                            onClick={() => exportPdf(ROLEPLAY_PDF_TEMPLATES.report)}
+                            className="flex h-10 items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-4 text-[14px] font-semibold text-[#374151] transition hover:border-[#D5D7DE] disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                            <InlineIcon icon={Download} className="h-4 w-4" />
+                            Exporter PDF
+                        </Button>
                         <Box className="relative">
                             <Button
                                 aria-expanded={actionMenuOpen}
@@ -366,8 +347,12 @@ export function EvaluationPageContent({ evaluation, roleplay, session }: Evaluat
                     <Box className="flex flex-col gap-4 rounded-[14px] bg-[#F7F8FB] px-5 py-4 md:flex-row md:items-center md:justify-between">
                         <Box className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[14px] font-semibold text-[#4B5563]">
                             <Box className="flex items-center gap-2">
+                                <InlineIcon icon={Hash} className="h-4 w-4 text-[#9CA3AF]" />
+                                Session n°{session.attemptNumber}
+                            </Box>
+                            <Box className="flex items-center gap-2">
                                 <InlineIcon icon={CalendarDays} className="h-4 w-4 text-[#9CA3AF]" />
-                                Réalisé le {session.date} • 21:17
+                                Réalisé le {session.date} à {session.time}
                             </Box>
                             <Box className="flex items-center gap-2">
                                 <InlineIcon icon={Clock} className="h-4 w-4 text-[#9CA3AF]" />
@@ -491,10 +476,22 @@ export function EvaluationPageContent({ evaluation, roleplay, session }: Evaluat
                                 {roleplay.detail.method.split(" - ")[0]}
                             </Text>
                         </Text>
-                        <Button className="flex items-center gap-1.5 text-[14px] font-bold text-[#5140F0]">
-                            Découvrir la méthode
-                            <InlineIcon icon={ChevronDown} className="h-4 w-4 -rotate-90" />
-                        </Button>
+                        {roleplay.methodId ? (
+                            <ContextualLink
+                                href={METHOD_ROUTES.app.detail(roleplay.methodId)}
+                                className="flex items-center gap-1.5 text-[14px] font-bold text-[#5140F0]"
+                            >
+                                Découvrir la méthode
+                                <InlineIcon icon={ChevronDown} className="h-4 w-4 -rotate-90" />
+                            </ContextualLink>
+                        ) : (
+                            <Button
+                                disabled
+                                className="flex items-center gap-1.5 text-[14px] font-bold text-[#9CA3AF]"
+                            >
+                                Aucune méthode associée
+                            </Button>
+                        )}
                     </Box>
 
                     <Box
@@ -538,7 +535,6 @@ export function EvaluationPageContent({ evaluation, roleplay, session }: Evaluat
                                 onOpenDetail={setOpenStep}
                             />
                         )}
-                        {activeTab === "Analyse discours" && <DiscoursTab evaluation={evaluationData} />}
                         {activeTab === "Transcription" && (
                             <TranscriptionTab
                                 query={transcriptQuery}
@@ -627,6 +623,8 @@ function SyntheseTab({
                     {evaluation.coachAppreciation}
                 </Text>
             </CardSurface>
+
+            <EvaluationKeyMomentsSection moments={evaluation.momentsCles} />
 
             <Box className="grid gap-5 lg:grid-cols-2">
                 <CardSurface className="rounded-[16px] border border-[#E5E7EB] p-6 shadow-none">
@@ -836,13 +834,14 @@ function MethodologieTab({
     );
 }
 
-function StepSectionList({ items }: { items: string[] }) {
+function StepSectionList({ items, tone }: { items: string[]; tone: "green" | "orange" }) {
     return (
-        <Box className="mt-2 space-y-1.5">
+        <Box className={uiTokens.stepBlock.list}>
             {items.map((item) => (
-                <Text key={item} className="text-[14px] font-medium leading-6 text-[#374151]">
-                    {item}
-                </Text>
+                <Box key={item} className={uiTokens.stepBlock.item}>
+                    <Box className={cn(uiTokens.stepBlock.dot, uiTokens.stepBlock.tone[tone].dot)} />
+                    <Text className={uiTokens.stepBlock.text}>{item}</Text>
+                </Box>
             ))}
         </Box>
     );
@@ -869,19 +868,34 @@ function criterionScoreTone(points: string): { bg: string; text: string } {
 }
 
 /** Tableau « Analyse des critères » affiché dans l'accordéon d'une étape. */
-function StepCriteriaTable({ criteria }: { criteria: EvaluationCriterion[] }) {
+function StepCriteriaTable({
+    criteria,
+    onOpenDetail,
+}: {
+    criteria: EvaluationCriterion[];
+    onOpenDetail: () => void;
+}) {
     if (criteria.length === 0) {
         return null;
     }
 
     return (
         <Box className="overflow-hidden rounded-[14px] border border-[#E5E7EB]">
-            <Box className="flex items-center justify-between gap-3 px-5 py-4">
-                <Box className="flex items-center gap-2">
-                    <InlineIcon icon={Layers} className="h-[18px] w-[18px] text-[#5140F0]" />
-                    <Text as="h3" className="text-[15px] font-extrabold text-[#111827]">
-                        Analyse des critères
-                    </Text>
+            <Box className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+                <Box className="flex flex-wrap items-center gap-2">
+                    <Box className="flex items-center gap-2">
+                        <InlineIcon icon={Layers} className="h-[18px] w-[18px] text-[#5140F0]" />
+                        <Text as="h3" className="text-[15px] font-extrabold text-[#111827]">
+                            Analyse des critères
+                        </Text>
+                    </Box>
+                    <Button
+                        onClick={onOpenDetail}
+                        className={cn(uiTokens.action.accentSecondaryButton, "whitespace-nowrap")}
+                    >
+                        <InlineIcon icon={Eye} className="h-4 w-4" />
+                        Voir l&apos;analyse détaillée
+                    </Button>
                 </Box>
                 <Text className="shrink-0 text-[13px] font-semibold text-[#9CA3AF]">
                     {criteria.length} critère{criteria.length > 1 ? "s" : ""}
@@ -988,12 +1002,6 @@ function MethodologieStep({
                     >
                         {step.status}
                     </Box>
-                    <Button
-                        onClick={() => onOpenDetail(step)}
-                        className="flex items-center gap-1.5 whitespace-nowrap text-[14px] font-bold text-[#5140F0]"
-                    >
-                        Voir l&apos;analyse détaillée
-                    </Button>
                     <button
                         type="button"
                         aria-label={open ? "Replier l'étape" : "Déplier l'étape"}
@@ -1040,7 +1048,7 @@ function MethodologieStep({
                                             Critères réussis
                                         </Text>
                                     </Box>
-                                    <StepSectionList items={reussis} />
+                                    <StepSectionList items={reussis} tone="green" />
                                 </Box>
                             )}
                             {ameliorer.length > 0 && (
@@ -1054,13 +1062,16 @@ function MethodologieStep({
                                             Critères à améliorer
                                         </Text>
                                     </Box>
-                                    <StepSectionList items={ameliorer} />
+                                    <StepSectionList items={ameliorer} tone="orange" />
                                 </Box>
                             )}
                         </Box>
                     )}
 
-                    <StepCriteriaTable criteria={step.criteria} />
+                    <StepCriteriaTable
+                        criteria={step.criteria}
+                        onOpenDetail={() => onOpenDetail(step)}
+                    />
 
                     {transcript && transcript.lines.length > 0 && (
                         <Box className="rounded-[14px] border border-[#E5E7EB] p-5">
@@ -1225,38 +1236,6 @@ function StepDetailModal({ step, onClose }: { step: EvaluationStep; onClose: () 
     );
 }
 
-function DiscoursTab({ evaluation }: { evaluation: Evaluation }) {
-    return (
-        <Box className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {evaluation.discourse.map((metric) => (
-                <CardSurface
-                    key={metric.title}
-                    className="flex min-h-[160px] flex-col rounded-[14px] border border-[#E5E7EB] p-6 shadow-none"
-                >
-                    <Box className="flex items-center gap-1.5">
-                        <Text className="text-[14px] font-semibold text-[#4B5563]">{metric.title}</Text>
-                        <InlineIcon icon={Info} className="h-3.5 w-3.5 text-[#C9CED8]" />
-                    </Box>
-                    <Text className="mt-3 text-[34px] font-extrabold leading-none text-[#111827]">
-                        {metric.value}
-                    </Text>
-                    {metric.subtitle && (
-                        <Box className="mt-auto flex items-center gap-2 pt-4">
-                            {metric.reco && (
-                                <Box
-                                    className="h-2 w-2 rounded-full"
-                                    style={{ backgroundColor: metric.reco === "ok" ? "#22C55E" : "#EF4444" }}
-                                />
-                            )}
-                            <Text className="text-[13px] font-medium text-[#6B7280]">{metric.subtitle}</Text>
-                        </Box>
-                    )}
-                </CardSurface>
-            ))}
-        </Box>
-    );
-}
-
 function TranscriptionTab({
     query,
     onQueryChange,
@@ -1334,6 +1313,7 @@ function TranscriptionTab({
 
 function ScoreInfoDrawer({ evaluation, onClose }: { evaluation: Evaluation; onClose: () => void }) {
     const scoreDetails = buildEvaluationScoreDetails(evaluation);
+    const totalLevel = scoreLevel(scoreDetails.total);
 
     return (
         <Drawer
@@ -1345,6 +1325,7 @@ function ScoreInfoDrawer({ evaluation, onClose }: { evaluation: Evaluation; onCl
                 {scoreDetails.rows.map(({ contribution, poids, score, stepNumber, title }) => {
                     const step = evaluation.steps.find((item) => item.number === stepNumber);
                     const icon = stepIcons[step?.icon ?? "phone"];
+                    const level = scoreLevel(score);
 
                     return (
                         <Box
@@ -1373,7 +1354,14 @@ function ScoreInfoDrawer({ evaluation, onClose }: { evaluation: Evaluation; onCl
                                     <Text className="text-[11px] font-bold uppercase tracking-[0.04em] text-[#9CA3AF]">
                                         Score étape
                                     </Text>
-                                    <Text className="mt-0.5 text-[16px] font-extrabold text-[#111827]">
+                                    <Text
+                                        as="span"
+                                        className={cn(
+                                            "mt-1",
+                                            uiTokens.progression.scorePill,
+                                            uiTokens.progression.level[level].pill,
+                                        )}
+                                    >
                                         {score}%
                                     </Text>
                                 </Box>
@@ -1400,19 +1388,19 @@ function ScoreInfoDrawer({ evaluation, onClose }: { evaluation: Evaluation; onCl
                         Somme pondérée des {evaluation.steps.length} étapes
                     </Text>
                 </Box>
-                <Text className="shrink-0 text-[22px] font-extrabold text-[#5140F0]">
+                <Text
+                    className={cn(
+                        "shrink-0 rounded-xl px-3 py-2 text-[22px] font-extrabold",
+                        uiTokens.progression.level[totalLevel].pill,
+                    )}
+                >
                     {scoreDetails.total}
-                    <Text as="span" className="text-[14px] font-bold text-[#9CA3AF]">
+                    <Text as="span" className="text-[14px] font-bold opacity-70">
                         /100
                     </Text>
                 </Text>
             </Box>
 
-            <Text className="mt-4 rounded-[12px] bg-[#FFFBEB] px-4 py-3 text-[12px] font-medium leading-5 text-[#926A1C]">
-                {scoreDetails.hasSourceDetails
-                    ? "Données issues de score_global.detail_calcul dans la notation de session."
-                    : "Détail réel indisponible pour cette session : calcul affiché avec les poids de fallback."}
-            </Text>
         </Drawer>
     );
 }

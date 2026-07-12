@@ -8,9 +8,15 @@ interface SessionsHistoryPageProps {
     backHref?: string;
     profileValues: ProfileFormValues;
     sessions: RoleplaySessionHistoryItem[];
+    showRoleplayFilter?: boolean;
 }
 
-export function SessionsHistoryPage({ backHref, profileValues, sessions }: SessionsHistoryPageProps) {
+export function SessionsHistoryPage({
+    backHref,
+    profileValues,
+    sessions,
+    showRoleplayFilter,
+}: SessionsHistoryPageProps) {
     return (
         <AppShell
             activePrimaryItem="Roleplays"
@@ -21,7 +27,11 @@ export function SessionsHistoryPage({ backHref, profileValues, sessions }: Sessi
             email={profileValues.email}
             searchPlaceholder="Rechercher..."
         >
-            <SessionsHistoryPageContent backHref={backHref} sessions={sessions} />
+            <SessionsHistoryPageContent
+                backHref={backHref}
+                sessions={sessions}
+                showRoleplayFilter={showRoleplayFilter}
+            />
         </AppShell>
     );
 }

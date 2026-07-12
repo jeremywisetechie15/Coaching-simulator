@@ -1,7 +1,85 @@
 import { describe, expect, it } from "vitest";
-import { extractNotationScore, mapNotationToEvaluation } from "./evaluation-notation.mapper";
+import {
+    extractNotationPersonaFeedback,
+    extractNotationScore,
+    mapNotationToEvaluation,
+} from "./evaluation-notation.mapper";
 
 describe("evaluation notation mapper", () => {
+    it("maps the persona feedback key produced by the active output schema", () => {
+        const evaluation = mapNotationToEvaluation({
+            synthese: {
+                avis_persona_IA: {
+                    texte: "Cet avis appartient à cette session.",
+                },
+            },
+        });
+
+        expect(extractNotationPersonaFeedback({
+            synthese: { avis_persona_IA: { texte: "Cet avis appartient à cette session." } },
+        })).toBe("Cet avis appartient à cette session.");
+        expect(evaluation.personaAvis).toBe("Cet avis appartient à cette session.");
+    });
+
+    it("maps key moments produced by the active synthese output schema", () => {
+        const evaluation = mapNotationToEvaluation({
+            synthese: {
+                moments_cles: [
+                    {
+                        competences_associees: ["Reformulation"],
+                        description: "Le besoin est reformulé avec précision.",
+                        etape_code: "D",
+                        etape_numero: 2,
+                        etape_titre: "Découvrir",
+                        extrait_transcript: [
+                            {
+                                speaker: "Apprenant",
+                                timecode: "13:01:42",
+                                verbatim: "Si je reformule, votre priorité est la rapidité.",
+                            },
+                        ],
+                        impact_label: "Besoin clarifié, confiance renforcée",
+                        impact_sur_objectif: "Le besoin est validé.",
+                        perception_client: "Je me sens compris.",
+                        pourquoi_moment_cle: "La reformulation valide la compréhension.",
+                        reponse_alternative_recommandee: "Demander une validation explicite.",
+                        role: "Apprenant",
+                        timecode_debut: "13:01:42",
+                        timecode_fin: "13:01:48",
+                        titre: "Reformulation précise du besoin",
+                        type_impact: "moment_cle_positif",
+                    },
+                ],
+            },
+        });
+
+        expect(evaluation.momentsCles).toEqual([
+            {
+                clientPerception: "Je me sens compris.",
+                competencies: ["Reformulation"],
+                description: "Le besoin est reformulé avec précision.",
+                id: "notation-key-moment-1",
+                impact: "Besoin clarifié, confiance renforcée",
+                impactOnObjective: "Le besoin est validé.",
+                impactType: "moment_cle_positif",
+                number: 1,
+                reason: "La reformulation valide la compréhension.",
+                recommendedResponse: "Demander une validation explicite.",
+                role: "Apprenant",
+                stepLabel: "Étape 2 : Découvrir",
+                time: "01:42",
+                title: "Reformulation précise du besoin",
+                transcript: [
+                    {
+                        speaker: "Apprenant",
+                        text: "Si je reformule, votre priorité est la rapidité.",
+                        time: "01:42",
+                    },
+                ],
+            },
+        ]);
+    });
+
     it("maps notation_json into the evaluation view", () => {
         const notation = {
             score_global: {

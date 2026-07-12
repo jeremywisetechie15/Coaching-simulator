@@ -3,6 +3,7 @@ import {
     buildRoleplayProgress,
     createEmptyRoleplayProgress,
     progressCompetencies,
+    scoreLevel,
     type BuildRoleplayProgressInput,
 } from "./roleplay-progress";
 
@@ -109,6 +110,17 @@ function createProgressInput(): BuildRoleplayProgressInput {
 }
 
 describe("roleplay progress helpers", () => {
+    it("maps score boundaries to the shared four-level scale", () => {
+        expect(scoreLevel(0)).toBe("red");
+        expect(scoreLevel(39)).toBe("red");
+        expect(scoreLevel(40)).toBe("orange");
+        expect(scoreLevel(59)).toBe("orange");
+        expect(scoreLevel(60)).toBe("yellow");
+        expect(scoreLevel(79)).toBe("yellow");
+        expect(scoreLevel(80)).toBe("green");
+        expect(scoreLevel(100)).toBe("green");
+    });
+
     it("builds progress from the INDEX sessions and compares it to the first session", () => {
         const progress = buildRoleplayProgress(createProgressInput());
 

@@ -1,15 +1,11 @@
 import {
-    BookOpen,
     CalendarDays,
     CheckCircle2,
     Clock,
-    Crosshair,
-    FileText,
     MessageSquare,
     Phone,
     ShieldCheck,
     Target,
-    Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -21,16 +17,11 @@ import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import type { RoleplaySession } from "@/features/roleplays/data/sessions";
 import {
     buildEvaluationScoreDetails,
-    progressCompetencies,
     scoreLevel,
-    type DimensionKey,
-    type ProgressCompetency,
-    type RoleplayProgress,
 } from "@/features/roleplays/domain";
 
 interface RoleplaySessionReportPrintPageProps {
     evaluation: Evaluation;
-    progress: RoleplayProgress;
     roleplay: RoleplayItem;
     session: RoleplaySession;
 }
@@ -40,18 +31,6 @@ const stepIcons: Record<EvaluationStep["icon"], { icon: LucideIcon; tone: string
     message: { icon: MessageSquare, tone: "bg-[#F3E8FD] text-[#8B2FD6]" },
     shield: { icon: ShieldCheck, tone: "bg-[#E7F9ED] text-[#16A34A]" },
     check: { icon: CheckCircle2, tone: "bg-[#FEECF0] text-[#E11D6B]" },
-};
-
-const dimensionIcons: Record<DimensionKey, LucideIcon> = {
-    savoir: BookOpen,
-    "savoir-faire": Crosshair,
-    "savoir-etre": Users,
-};
-
-const dimensionTone: Record<DimensionKey, string> = {
-    savoir: "bg-[#E7EDFD] text-[#3B6FD0]",
-    "savoir-faire": "bg-[#F3E8FD] text-[#8B2FD6]",
-    "savoir-etre": "bg-[#E4EDFF] text-[#2563EB]",
 };
 
 const scoreLabels = {
@@ -68,19 +47,6 @@ function ScoreBadge({ score }: { score: number }) {
         <Text as="span" className={cn(uiTokens.progression.scorePill, uiTokens.progression.level[level].pill)}>
             {score}%
         </Text>
-    );
-}
-
-function ScoreBar({ score }: { score: number }) {
-    const level = scoreLevel(score);
-
-    return (
-        <Box className={cn(uiTokens.progress.track, "h-2")}>
-            <Box
-                className={uiTokens.progress.fillBase}
-                style={{ width: `${score}%`, backgroundColor: uiTokens.progression.level[level].fill }}
-            />
-        </Box>
     );
 }
 
@@ -156,7 +122,7 @@ function Header({
             <Box className="flex items-start justify-between gap-6">
                 <Box className="min-w-0 flex-1">
                     <Text className="text-[12px] font-extrabold uppercase tracking-[0.14em] text-[#B9B2F8]">
-                        Rapport d'évaluation
+                        Rapport d&apos;évaluation
                     </Text>
                     <Text as="h1" className="mt-2 text-[30px] font-extrabold leading-tight text-white">
                         Évaluation de la simulation
@@ -303,7 +269,7 @@ function Synthesis({ evaluation }: { evaluation: Evaluation }) {
                     </Box>
                 </Box>
                 <Box className="rounded-[14px] border border-[#FECACA] bg-[#FEF2F2] p-4">
-                    <Text className="text-[14px] font-extrabold text-[#DC2626]">Axes d'amélioration</Text>
+                    <Text className="text-[14px] font-extrabold text-[#DC2626]">Axes d&apos;amélioration</Text>
                     <Box className="mt-3">
                         <BulletList items={evaluation.axesAmelioration} tone="red" />
                     </Box>
@@ -314,74 +280,6 @@ function Synthesis({ evaluation }: { evaluation: Evaluation }) {
                 <Text className="mt-2 text-[13px] font-medium leading-6 text-[#4B5563]">
                     {evaluation.prioriteStrategique}
                 </Text>
-            </Box>
-        </Section>
-    );
-}
-
-function ProgressSummary({ progress }: { progress: RoleplayProgress }) {
-    const competencies = progressCompetencies(progress);
-
-    return (
-        <Section eyebrow="Progression" title="Détail de ma progression">
-            <Box className="grid gap-3 md:grid-cols-4">
-                <Metric label="Score de maîtrise" value={`${progress.masteryScore}%`} />
-                <Metric label="Score initial" value={`${progress.initialScore}%`} />
-                <Metric label="Après training" value={`${progress.afterTraining}%`} />
-                <Metric label="Delta" value={`${progress.delta >= 0 ? "+" : ""}${progress.delta}%`} />
-            </Box>
-            <Box className="mt-5 grid gap-3 md:grid-cols-3">
-                {progress.dimensions.map((dimension) => (
-                    <Box key={dimension.key} className="rounded-[14px] border border-[#E5E7EB] p-4">
-                        <Box className="flex items-center justify-between gap-3">
-                            <Box className="flex items-center gap-2">
-                                <Box className={cn("flex h-9 w-9 items-center justify-center rounded-lg", dimensionTone[dimension.key])}>
-                                    <InlineIcon icon={dimensionIcons[dimension.key]} className="h-4 w-4" />
-                                </Box>
-                                <Box>
-                                    <Text className="text-[14px] font-bold text-[#111827]">{dimension.label}</Text>
-                                    <Text className="text-[12px] font-medium text-[#9CA3AF]">{dimension.subtitle}</Text>
-                                </Box>
-                            </Box>
-                            <ScoreBadge score={dimension.score} />
-                        </Box>
-                        <Box className="mt-3">
-                            <ScoreBar score={dimension.score} />
-                        </Box>
-                    </Box>
-                ))}
-            </Box>
-            <Box className="mt-5 grid gap-4 md:grid-cols-2">
-                <Box className="rounded-[14px] border border-[#E5E7EB] p-4">
-                    <Text className="text-[14px] font-extrabold text-[#111827]">Modalités d'évaluation</Text>
-                    <Box className="mt-3 space-y-3">
-                        {progress.modalities.map((modality) => (
-                            <Box key={modality.label}>
-                                <Box className="flex items-center justify-between gap-3">
-                                    <Text className="text-[13px] font-bold text-[#374151]">{modality.label}</Text>
-                                    <Text className="text-[13px] font-extrabold text-[#5140F0]">{modality.score}%</Text>
-                                </Box>
-                                <Text className="mt-1 text-[12px] font-medium leading-5 text-[#6B7280]">
-                                    {modality.description}
-                                </Text>
-                            </Box>
-                        ))}
-                    </Box>
-                </Box>
-                <Box className="rounded-[14px] border border-[#E5E7EB] p-4">
-                    <Text className="text-[14px] font-extrabold text-[#111827]">Compétences consolidées</Text>
-                    <Box className="mt-3 space-y-3">
-                        {competencies.slice(0, 8).map((competency) => (
-                            <Box key={competency.name}>
-                                <Box className="flex items-center justify-between gap-3">
-                                    <Text className="truncate text-[13px] font-bold text-[#374151]">{competency.name}</Text>
-                                    <Text className="text-[13px] font-extrabold text-[#5140F0]">{competency.score}%</Text>
-                                </Box>
-                                <ScoreBar score={competency.score} />
-                            </Box>
-                        ))}
-                    </Box>
-                </Box>
             </Box>
         </Section>
     );
@@ -516,100 +414,29 @@ function StepAnalysis({ evaluation }: { evaluation: Evaluation }) {
     );
 }
 
-function ProgressSteps({ progress }: { progress: RoleplayProgress }) {
+function Transcript({ evaluation, roleplay }: { evaluation: Evaluation; roleplay: RoleplayItem }) {
     return (
-        <Section eyebrow="Progression" title="Progression par étapes et compétences">
-            <Box className="space-y-4">
-                {progress.steps.map((step) => (
-                    <Box key={step.number} className="pdf-avoid rounded-[14px] border border-[#E5E7EB] p-4">
-                        <Box className="flex items-start justify-between gap-4">
-                            <Box>
-                                <Text className="text-[12px] font-extrabold text-[#5140F0]">Étape {step.number}</Text>
-                                <Text className="mt-1 text-[15px] font-extrabold text-[#111827]">{step.title}</Text>
-                                <Text className="mt-2 text-[12px] font-medium leading-5 text-[#4B5563]">{step.diagnostic}</Text>
-                            </Box>
-                            <ScoreBadge score={step.score} />
-                        </Box>
-                        <Box className="mt-4 grid gap-3 md:grid-cols-2">
-                            {step.competencies.map((competency) => (
-                                <CompetencyCard key={competency.name} competency={competency} />
-                            ))}
-                        </Box>
-                    </Box>
-                ))}
-            </Box>
-        </Section>
-    );
-}
+        <Section className="pdf-break" eyebrow="Session" title="Transcription">
+            <Box className="space-y-3">
+                {evaluation.transcript.length === 0 ? (
+                    <Text className="text-[13px] font-medium text-[#9CA3AF]">Aucune transcription disponible.</Text>
+                ) : (
+                    evaluation.transcript.map((message, index) => {
+                        const isPersona = message.speaker === "persona";
 
-function CompetencyCard({ competency }: { competency: ProgressCompetency }) {
-    return (
-        <Box className="rounded-[12px] border border-[#EEF0F4] bg-[#FBFBFD] p-4">
-            <Box className="flex items-start justify-between gap-3">
-                <Text className="text-[13px] font-extrabold leading-5 text-[#111827]">{competency.name}</Text>
-                <ScoreBadge score={competency.score} />
-            </Box>
-            <Box className="mt-3">
-                <ScoreBar score={competency.score} />
-            </Box>
-            <Box className="mt-3 grid grid-cols-3 gap-2">
-                <Metric label="Initial" value={`${competency.initial}%`} />
-                <Metric label="Après" value={`${competency.afterTraining}%`} />
-                <Metric label="Delta" value={`${competency.delta >= 0 ? "+" : ""}${competency.delta}%`} />
-            </Box>
-            <Box className="mt-3 space-y-2">
-                {competency.dimensions.map((dimension) => (
-                    <Box key={dimension.key} className="flex items-start justify-between gap-3">
-                        <Text className="text-[12px] font-bold text-[#4B5563]">{dimension.label}</Text>
-                        <Text className="text-[12px] font-extrabold text-[#5140F0]">{dimension.score}%</Text>
-                    </Box>
-                ))}
-            </Box>
-        </Box>
-    );
-}
-
-function DiscourseAndTranscript({ evaluation, roleplay }: { evaluation: Evaluation; roleplay: RoleplayItem }) {
-    return (
-        <Section className="pdf-break" eyebrow="Discours" title="Analyse discours et transcription">
-            <Box className="grid gap-3 md:grid-cols-3">
-                {evaluation.discourse.map((metric) => (
-                    <Box key={metric.title} className="rounded-[14px] border border-[#E5E7EB] p-4">
-                        <Text className="text-[12px] font-bold text-[#6B7280]">{metric.title}</Text>
-                        <Text className="mt-2 text-[24px] font-black text-[#111827]">{metric.value}</Text>
-                        {metric.subtitle && (
-                            <Text className="mt-2 text-[12px] font-medium leading-5 text-[#6B7280]">{metric.subtitle}</Text>
-                        )}
-                    </Box>
-                ))}
-            </Box>
-
-            <Box className="mt-5 rounded-[14px] border border-[#E5E7EB] p-4">
-                <Box className="flex items-center gap-2">
-                    <InlineIcon icon={FileText} className="h-4 w-4 text-[#5140F0]" />
-                    <Text className="text-[14px] font-extrabold text-[#111827]">Transcription</Text>
-                </Box>
-                <Box className="mt-4 space-y-3">
-                    {evaluation.transcript.length === 0 ? (
-                        <Text className="text-[13px] font-medium text-[#9CA3AF]">Aucune transcription disponible.</Text>
-                    ) : (
-                        evaluation.transcript.map((message, index) => {
-                            const isPersona = message.speaker === "persona";
-
-                            return (
-                                <Box key={`${message.time}-${index}`} className="rounded-[12px] bg-[#F7F8FB] px-4 py-3">
-                                    <Box className="flex items-center justify-between gap-3">
-                                        <Text className="text-[12px] font-extrabold text-[#111827]">
-                                            {isPersona ? roleplay.name : "Apprenant"}
-                                        </Text>
-                                        <Text className="text-[11px] font-bold text-[#9CA3AF]">{message.time}</Text>
-                                    </Box>
-                                    <Text className="mt-1 text-[13px] font-medium leading-6 text-[#4B5563]">{message.text}</Text>
+                        return (
+                            <Box key={`${message.time}-${index}`} className="rounded-[12px] bg-[#F7F8FB] px-4 py-3">
+                                <Box className="flex items-center justify-between gap-3">
+                                    <Text className="text-[12px] font-extrabold text-[#111827]">
+                                        {isPersona ? roleplay.name : "Apprenant"}
+                                    </Text>
+                                    <Text className="text-[11px] font-bold text-[#9CA3AF]">{message.time}</Text>
                                 </Box>
-                            );
-                        })
-                    )}
-                </Box>
+                                <Text className="mt-1 text-[13px] font-medium leading-6 text-[#4B5563]">{message.text}</Text>
+                            </Box>
+                        );
+                    })
+                )}
             </Box>
         </Section>
     );
@@ -617,7 +444,6 @@ function DiscourseAndTranscript({ evaluation, roleplay }: { evaluation: Evaluati
 
 export function RoleplaySessionReportPrintPage({
     evaluation,
-    progress,
     roleplay,
     session,
 }: RoleplaySessionReportPrintPageProps) {
@@ -645,10 +471,8 @@ export function RoleplaySessionReportPrintPage({
                 </Box>
                 <Synthesis evaluation={evaluation} />
                 <PlanProgress evaluation={evaluation} />
-                <ProgressSummary progress={progress} />
                 <StepAnalysis evaluation={evaluation} />
-                <ProgressSteps progress={progress} />
-                <DiscourseAndTranscript evaluation={evaluation} roleplay={roleplay} />
+                <Transcript evaluation={evaluation} roleplay={roleplay} />
             </Box>
         </Box>
     );

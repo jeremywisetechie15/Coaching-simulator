@@ -51,6 +51,7 @@ export default async function Page({ searchParams }: PageProps) {
             backHref={scenarioId ? ROLEPLAY_ROUTES.app.detail(scenarioId) : ROLEPLAY_ROUTES.app.collection}
             profileValues={toProfileFormValues(profile)}
             sessions={sessions}
+            showRoleplayFilter={!scenarioId}
         />
     );
 }

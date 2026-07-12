@@ -4,10 +4,13 @@ import { PUBLISHED_CONTENT_STATUS } from '@/features/content/domain';
 import {
     getRoleplaySessionEvaluationDecision,
     MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
+    ROLEPLAY_NOTATION_FOLLOWUP_TABS,
     ROLEPLAY_NOTATION_SOURCE,
     ROLEPLAY_NOTATION_STATUS,
+    ROLEPLAY_NOTATION_TABS,
     type RoleplayNotationCriterionRef,
     type RoleplayNotationScoreResult,
+    type RoleplayNotationTab,
 } from '@/features/roleplays/domain';
 import {
     buildRoleplayScorecardNotationContext,
@@ -45,10 +48,7 @@ async function getAuthenticatedUserId() {
     }
 }
 
-// Les 4 tabs de notation
-const NOTATION_TABS = ['synthese', 'methodo', 'discours', 'transcription'] as const;
-type NotationTab = typeof NOTATION_TABS[number];
-const PARALLEL_NOTATION_TABS = ['synthese', 'discours', 'transcription'] as const;
+type NotationTab = RoleplayNotationTab;
 
 // Types pour le calcul de score global
 type MethodoStepKey = string;
@@ -364,7 +364,6 @@ function buildMethodoError(error?: string): NotationPayload["methodo"] {
 function buildTabError(tab: Exclude<NotationTab, "methodo">, error?: string): Record<string, unknown> {
     const ongletByTab: Record<Exclude<NotationTab, "methodo">, string> = {
         synthese: "SyntheseGlobale",
-        discours: "AnalyseDiscours",
         transcription: "Transcription",
     };
 
@@ -414,7 +413,6 @@ function promptIdsFromMethod(method: Record<string, unknown>): Partial<Record<No
     const mappings: Array<[NotationTab, string]> = [
         ["synthese", "prompt_synthese_id"],
         ["methodo", "prompt_methodo_id"],
-        ["discours", "prompt_discours_id"],
         ["transcription", "prompt_transcription_id"],
     ];
 
@@ -436,7 +434,7 @@ async function loadNotationMethodConfig(
     if (notationMethodId) {
         const { data, error } = await supabase
             .from("notation_methods")
-            .select("id, code, version, is_active, prompt_synthese_id, prompt_methodo_id, prompt_discours_id, prompt_transcription_id")
+            .select("id, code, version, is_active, prompt_synthese_id, prompt_methodo_id, prompt_transcription_id")
             .eq("id", notationMethodId)
             .eq("is_active", true)
             .eq("status", PUBLISHED_CONTENT_STATUS)
@@ -452,7 +450,7 @@ async function loadNotationMethodConfig(
     if (!method) {
         const { data, error } = await supabase
             .from("notation_methods")
-            .select("id, code, version, is_active, prompt_synthese_id, prompt_methodo_id, prompt_discours_id, prompt_transcription_id")
+            .select("id, code, version, is_active, prompt_synthese_id, prompt_methodo_id, prompt_transcription_id")
             .eq("is_default", true)
             .eq("is_active", true)
             .eq("status", PUBLISHED_CONTENT_STATUS)
@@ -517,7 +515,7 @@ async function loadNotationPrompts(
     config: NotationMethodConfig
 ): Promise<Map<NotationTab, string>> {
     const promptsMap = new Map<NotationTab, string>();
-    const idEntries = NOTATION_TABS
+    const idEntries = ROLEPLAY_NOTATION_TABS
         .map(tab => ({ tab, id: config.promptIds[tab] }))
         .filter((entry): entry is { tab: NotationTab; id: string } => Boolean(entry.id));
 
@@ -543,7 +541,7 @@ async function loadNotationPrompts(
         }
     }
 
-    const missingTabs = NOTATION_TABS.filter(tab => !promptsMap.has(tab));
+    const missingTabs = ROLEPLAY_NOTATION_TABS.filter(tab => !promptsMap.has(tab));
 
     if (missingTabs.length > 0) {
         const { data, error } = await supabase
@@ -560,7 +558,7 @@ async function loadNotationPrompts(
             if (typeof row.title !== "string" || typeof row.prompt !== "string") continue;
 
             const tab = row.title.replace("notation.", "") as NotationTab;
-            if (NOTATION_TABS.includes(tab)) {
+            if (ROLEPLAY_NOTATION_TABS.includes(tab)) {
                 promptsMap.set(tab, row.prompt);
             }
         }
@@ -586,7 +584,7 @@ async function loadNotationOutputSchemas(
         .eq("is_active", true)
         .eq("status", PUBLISHED_CONTENT_STATUS)
         .eq("notation_source", ROLEPLAY_NOTATION_SOURCE.legacyPdf)
-        .in("tab", NOTATION_TABS);
+        .in("tab", ROLEPLAY_NOTATION_TABS);
 
     if (error) {
         console.warn("⚠️ Schémas JSON de notation indisponibles, fallback prompt-only:", error.message);
@@ -597,7 +595,7 @@ async function loadNotationOutputSchemas(
         const tab = row.tab;
         const schema = row.schema_json;
 
-        if (!NOTATION_TABS.includes(tab as NotationTab) || !schema || typeof schema !== "object" || Array.isArray(schema)) {
+        if (!ROLEPLAY_NOTATION_TABS.includes(tab as NotationTab) || !schema || typeof schema !== "object" || Array.isArray(schema)) {
             continue;
         }
 
@@ -911,7 +909,7 @@ async function runScorecardNotation(
     context: RoleplayScorecardNotationContext,
 ) {
     const promptsMap = await loadScorecardNotationPrompts(supabase);
-    const missingPrompts = NOTATION_TABS.filter((tab) => !promptsMap.has(tab));
+    const missingPrompts = ROLEPLAY_NOTATION_TABS.filter((tab) => !promptsMap.has(tab));
 
     if (missingPrompts.length > 0) {
         throw new Error(`Prompts scorecard manquants: ${missingPrompts.map((tab) => `notation.scorecard.${tab}`).join(", ")}`);
@@ -943,7 +941,7 @@ async function runScorecardNotation(
     notation.score_global = buildScoreGlobalFromScorecard(scoreResult);
 
     const followupResults = await Promise.all(
-        PARALLEL_NOTATION_TABS.map(async (tab) => {
+        ROLEPLAY_NOTATION_FOLLOWUP_TABS.map(async (tab) => {
             const prompt = promptsMap.get(tab);
             if (!prompt) return { tab, result: null, error: `Prompt ${tab} manquant.` };
 
@@ -978,7 +976,7 @@ async function runScorecardNotation(
 // =============================================
 // POST /api/notation
 // Body: { session_id } ou { scenario_id } ou { persona_id }
-// Génère les 4 notations et les sauvegarde
+// Génère les sorties actives de notation et les sauvegarde.
 // =============================================
 export async function POST(req: Request) {
     try {
@@ -1218,7 +1216,7 @@ export async function POST(req: Request) {
 
         // 4. RÉCUPÉRER LES PROMPTS DE LA MÉTHODE, AVEC FALLBACK notation.*
         const promptsMap = await loadNotationPrompts(supabase, notationConfig);
-        const missingPrompts = NOTATION_TABS.filter(tab => !promptsMap.has(tab));
+        const missingPrompts = ROLEPLAY_NOTATION_TABS.filter(tab => !promptsMap.has(tab));
 
         if (missingPrompts.length > 0) {
             await updateSessionNotationStatus(supabase, effectiveSessionId, {
@@ -1234,11 +1232,11 @@ export async function POST(req: Request) {
             );
         }
 
-        console.log("📊 Loaded prompts:", NOTATION_TABS.filter(tab => promptsMap.has(tab)));
+        console.log("📊 Loaded prompts:", ROLEPLAY_NOTATION_TABS.filter(tab => promptsMap.has(tab)));
 
         // 4b. RÉCUPÉRER LES SCHÉMAS JSON STRUCTURÉS DE LA MÉTHODE, SI DISPONIBLES
         const outputSchemasMap = await loadNotationOutputSchemas(supabase, notationConfig);
-        console.log("📊 Loaded output schemas:", NOTATION_TABS.filter(tab => outputSchemasMap.has(tab)));
+        console.log("📊 Loaded output schemas:", ROLEPLAY_NOTATION_TABS.filter(tab => outputSchemasMap.has(tab)));
 
         // 5. APPELER OPENAI POUR CHAQUE TAB (en parallèle)
         const callOpenAI = async (tab: NotationTab): Promise<{ tab: NotationTab; result: Record<string, unknown> | null; error?: string }> => {
@@ -1335,8 +1333,8 @@ Analyse cet appel et réponds uniquement avec un JSON valide.`
         };
 
         // Lancer les onglets plus légers en parallèle, puis methodo seul.
-        console.log("📊 Calling OpenAI for synthese, discours and transcription in parallel...");
-        const parallelResults = await Promise.all(PARALLEL_NOTATION_TABS.map(tab => callOpenAI(tab)));
+        console.log("📊 Calling OpenAI for synthese and transcription in parallel...");
+        const parallelResults = await Promise.all(ROLEPLAY_NOTATION_FOLLOWUP_TABS.map(tab => callOpenAI(tab)));
 
         console.log("📊 Calling OpenAI for methodo alone...");
         const methodoResult = await callOpenAI("methodo");
@@ -1348,7 +1346,7 @@ Analyse cet appel et réponds uniquement avec un JSON valide.`
         const notation: NotationPayload = {};
         const errors: string[] = [];
 
-        for (const tab of NOTATION_TABS) {
+        for (const tab of ROLEPLAY_NOTATION_TABS) {
             const tabResult = resultsByTab.get(tab);
             const error = tabResult?.error;
 

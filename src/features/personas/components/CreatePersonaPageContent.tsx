@@ -3,9 +3,10 @@
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ContextualBackLink } from "@/features/app-shell/components";
-import { AlertMessage, SingleSelectField } from "@/lib/ui/molecules";
+import { AlertMessage, ImageUploadField, SingleSelectField } from "@/lib/ui/molecules";
+import { CONTENT_UPLOAD_PURPOSES } from "@/lib/uploads/content-upload";
 import { Box, CardSurface, FieldLabel, InlineIcon, SelectInput, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -14,6 +15,7 @@ import {
     EMPTY_PERSONA_EDITOR_VALUES,
     getPersonaAvatarPublicUrl,
     getPersonaInitials,
+    isPersonaAvatarStoragePath,
     type PersonaEditorValues,
     type PersonaListItem,
 } from "@/features/personas/domain/persona-list";
@@ -36,10 +38,18 @@ interface ApiErrorPayload {
     persona?: PersonaListItem;
 }
 
-async function savePersona(personaId: string | undefined, values: PersonaEditorValues) {
+async function savePersona(personaId: string | undefined, values: PersonaEditorValues, avatarFile: File | null) {
+    const body = avatarFile ? new FormData() : JSON.stringify(values);
+    const headers = avatarFile ? undefined : { "Content-Type": "application/json" };
+
+    if (body instanceof FormData && avatarFile) {
+        body.append("payload", JSON.stringify(values));
+        body.append("avatarFile", avatarFile);
+    }
+
     const response = await fetch(personaId ? `/api/personas/${personaId}` : "/api/personas", {
-        body: JSON.stringify(values),
-        headers: { "Content-Type": "application/json" },
+        body,
+        headers,
         method: personaId ? "PATCH" : "POST",
     });
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
@@ -95,11 +105,14 @@ export function CreatePersonaPageContent({
     const router = useRouter();
     const queryClient = useQueryClient();
     const [form, setForm] = useState<PersonaEditorValues>(initialValues);
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [localAvatarPreviewUrl, setLocalAvatarPreviewUrl] = useState<string | null>(null);
+    const avatarObjectUrlRef = useRef<string | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
     const isEditing = Boolean(personaId);
-    const avatarPreviewUrl = getPersonaAvatarPublicUrl(form.avatarUrl);
+    const avatarPreviewUrl = localAvatarPreviewUrl ?? getPersonaAvatarPublicUrl(form.avatarUrl);
     const mutation = useMutation({
-        mutationFn: (values: PersonaEditorValues) => savePersona(personaId, values),
+        mutationFn: (values: PersonaEditorValues) => savePersona(personaId, values, avatarFile),
         onError: (error) => {
             setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer le persona.");
         },
@@ -122,6 +135,35 @@ export function CreatePersonaPageContent({
             router.refresh();
         },
     });
+
+    useEffect(() => () => {
+        if (avatarObjectUrlRef.current) {
+            URL.revokeObjectURL(avatarObjectUrlRef.current);
+        }
+    }, []);
+
+    function clearLocalAvatarPreview() {
+        if (avatarObjectUrlRef.current) {
+            URL.revokeObjectURL(avatarObjectUrlRef.current);
+            avatarObjectUrlRef.current = null;
+        }
+        setLocalAvatarPreviewUrl(null);
+    }
+
+    function selectAvatarFile(file: File) {
+        clearLocalAvatarPreview();
+        const previewUrl = URL.createObjectURL(file);
+        avatarObjectUrlRef.current = previewUrl;
+        setLocalAvatarPreviewUrl(previewUrl);
+        setAvatarFile(file);
+        patch("avatarUrl", "");
+    }
+
+    function selectAvatarValue(value: string) {
+        clearLocalAvatarPreview();
+        setAvatarFile(null);
+        patch("avatarUrl", value);
+    }
 
     function patch<K extends keyof PersonaEditorValues>(key: K, value: PersonaEditorValues[K]) {
         setForm((previous) => ({ ...previous, [key]: value }));
@@ -209,7 +251,7 @@ export function CreatePersonaPageContent({
                                         placeholder="https://..."
                                         hasLeadingIcon={false}
                                         value={form.avatarUrl}
-                                        onChange={(event) => patch("avatarUrl", event.target.value)}
+                                        onChange={(event) => selectAvatarValue(event.target.value)}
                                     />
                                 </Field>
                             </Box>
@@ -223,7 +265,7 @@ export function CreatePersonaPageContent({
                                     key={avatar.id}
                                     aria-label={avatar.alt}
                                     aria-pressed={form.avatarUrl === avatar.src}
-                                    onClick={() => patch("avatarUrl", avatar.src)}
+                                    onClick={() => selectAvatarValue(avatar.src)}
                                     type="button"
                                     className={cn(
                                         "relative aspect-square overflow-hidden rounded-xl border-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0]/40",
@@ -241,6 +283,25 @@ export function CreatePersonaPageContent({
                                 </button>
                             ))}
                         </Box>
+                    </FormSection>
+
+                    <FormSection title="Importer une image depuis mon ordinateur">
+                        <ImageUploadField
+                            disabled={mutation.isPending}
+                            file={avatarFile}
+                            helpText="Image JPG, PNG ou WebP, 10 Mo maximum."
+                            inputId="persona-avatar-file"
+                            label="Image de l'avatar"
+                            onError={setFormError}
+                            onFileSelected={selectAvatarFile}
+                            onClear={() => {
+                                clearLocalAvatarPreview();
+                                setAvatarFile(null);
+                                patch("avatarUrl", "");
+                            }}
+                            storedPath={isPersonaAvatarStoragePath(form.avatarUrl) ? form.avatarUrl : ""}
+                            uploadPurpose={CONTENT_UPLOAD_PURPOSES.personaAvatar}
+                        />
                     </FormSection>
 
                     <FormSection title="Informations professionnelles">

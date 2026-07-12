@@ -53,6 +53,34 @@ export interface TranscriptMessage {
     text: string;
 }
 
+export type EvaluationKeyMomentImpactType =
+    | "moment_cle_negatif"
+    | "moment_cle_positif"
+    | "opportunite_manquee"
+    | "moment_sensible";
+
+export interface EvaluationKeyMoment {
+    clientPerception: string;
+    competencies: string[];
+    description: string;
+    id: string;
+    impact: string;
+    impactOnObjective: string;
+    impactType: EvaluationKeyMomentImpactType;
+    number: number;
+    reason: string;
+    recommendedResponse: string;
+    role: string;
+    stepLabel: string;
+    time: string;
+    title: string;
+    transcript: Array<{
+        speaker: string;
+        text: string;
+        time: string;
+    }>;
+}
+
 export interface Evaluation {
     personaAvis: string;
     coachAppreciation: string;
@@ -73,6 +101,7 @@ export interface Evaluation {
     };
     steps: EvaluationStep[];
     discourse: DiscourseMetric[];
+    momentsCles: EvaluationKeyMoment[];
     transcript: TranscriptMessage[];
 }
 
@@ -82,11 +111,88 @@ export const stepStatusStyles: Record<StepStatus, { bg: string; text: string }> 
     "À maintenir": { bg: "#F0FDF4", text: "#16A34A" },
 };
 
+/** Données temporaires de prévisualisation, remplacées ensuite par synthese.moments_cles. */
+export const demoEvaluationKeyMoments: EvaluationKeyMoment[] = [
+    {
+        clientPerception:
+            "Je comprends immédiatement le cadre de l'échange et je suis disposé à poursuivre la conversation.",
+        competencies: [],
+        description: "Ouverture claire et orientée vers l'interlocuteur.",
+        id: "demo-key-moment-1",
+        impact: "Cadre posé, attention obtenue",
+        impactOnObjective: "L'interlocuteur accepte de poursuivre l'échange.",
+        impactType: "moment_cle_positif",
+        number: 1,
+        reason:
+            "Ce passage installe un cadre clair et donne au persona une raison concrète d'accorder du temps à l'échange.",
+        recommendedResponse:
+            "Conserver une ouverture concise qui précise l'objectif et la valeur attendue pour l'interlocuteur.",
+        role: "Apprenant",
+        stepLabel: "Étape 1 : Ouvrir et cadrer l'échange",
+        time: "00:18",
+        title: "Clarification immédiate de l'objectif de l'échange",
+        transcript: [{
+            speaker: "Apprenant",
+            text: "Je vous propose un échange très court pour vérifier si ce sujet correspond à vos priorités actuelles.",
+            time: "00:18",
+        }],
+    },
+    {
+        clientPerception:
+            "Je me sens écouté et je constate que mon besoin est compris sans être déformé.",
+        competencies: [],
+        description: "Reformulation fidèle du besoin exprimé.",
+        id: "demo-key-moment-2",
+        impact: "Besoin clarifié, confiance renforcée",
+        impactOnObjective: "Le besoin est validé avant la proposition d'une réponse.",
+        impactType: "moment_cle_positif",
+        number: 2,
+        reason:
+            "La reformulation valide la compréhension du besoin et réduit le risque de proposer une réponse trop générique.",
+        recommendedResponse:
+            "Maintenir cette reformulation, puis demander une validation explicite avant de poursuivre.",
+        role: "Apprenant",
+        stepLabel: "Étape 2 : Explorer et comprendre",
+        time: "01:42",
+        title: "Reformulation précise du besoin exprimé",
+        transcript: [{
+            speaker: "Apprenant",
+            text: "Si je reformule, votre priorité est d'obtenir un résultat concret sans alourdir le fonctionnement actuel de vos équipes.",
+            time: "01:42",
+        }],
+    },
+    {
+        clientPerception:
+            "La suite est claire et je sais exactement ce qui va se passer après notre échange.",
+        competencies: [],
+        description: "Conclusion avec une prochaine étape explicite.",
+        id: "demo-key-moment-3",
+        impact: "Prochaine étape claire, engagement sécurisé",
+        impactOnObjective: "L'échange aboutit à un engagement concret.",
+        impactType: "moment_cle_positif",
+        number: 3,
+        reason:
+            "La validation d'une action concrète transforme l'échange en engagement et évite une conclusion imprécise.",
+        recommendedResponse:
+            "Confirmer l'objectif, le format et le délai de la prochaine étape avant de terminer.",
+        role: "Apprenant",
+        stepLabel: "Étape 4 : Conclure et engager",
+        time: "03:05",
+        title: "Validation d'une prochaine étape concrète",
+        transcript: [{
+            speaker: "Apprenant",
+            text: "Je vous envoie la synthèse aujourd'hui et nous validons ensemble les deux points prioritaires lors de notre prochain échange.",
+            time: "03:05",
+        }],
+    },
+];
+
 export const evaluation: Evaluation = {
     personaAvis:
         "J'ai ressenti une prise de contact professionnelle et respectueuse de mon temps. Après un début un peu large, la discussion a rapidement été orientée sur mes priorités (poste client, BFR) et la proposition de valeur s'est clarifiée. Je me suis senti écouté et le dialogue était centré sur mes besoins réels. La confirmation du rendez-vous était efficace et rassurante, ce qui m'a donné confiance pour accepter l'échange.",
     coachAppreciation:
         "L'appel démontre une maîtrise de la relation, une écoute active et une forte orientation client. Après une ouverture perfectible, l'échange bascule sur une vraie co-construction, la gestion des objections est saine et l'engagement obtenu est sécurisé et clair. Professionnalisme, réactivité et structuration générale ressortent nettement.",
+    momentsCles: demoEvaluationKeyMoments,
     pointsPositifs: [
         "Le rendez-vous a été sécurisé rapidement avec validation du format, du créneau précis et de l'adresse mail.",
         "L'objection de 'présentation générique' a été traitée par une posture d'écoute et de recentrage sur les besoins du prospect.",

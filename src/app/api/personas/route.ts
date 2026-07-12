@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { savePersonaDto } from "@/features/personas/dto/save-persona.dto";
-import { createPersona, listPersonas } from "@/features/personas/server";
+import {
+    createPersona,
+    listPersonas,
+    parseSavePersonaRequest,
+} from "@/features/personas/server";
 import { jsonError } from "@/lib/server/http";
 
 export const dynamic = "force-dynamic";
@@ -17,8 +20,8 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
     try {
-        const input = savePersonaDto.parse(await request.json());
-        const persona = await createPersona(input);
+        const { avatarFile, input } = await parseSavePersonaRequest(request);
+        const persona = await createPersona(input, avatarFile);
 
         return NextResponse.json({ persona }, { status: 201 });
     } catch (error) {

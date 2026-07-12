@@ -8,13 +8,14 @@ import {
     extractNotationScore,
     isRoleplaySessionEligibleForEvaluation,
     mapNotationToEvaluation,
+    MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
     type EvaluationSessionResults,
     type NotationTranscriptMessage,
 } from "@/features/roleplays/domain";
 import { NotFoundError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchRoleplayDetail } from "./roleplay-query";
-import { formatRoleplayDuration } from "./roleplay.mapper";
+import { formatRoleplayDate, formatRoleplayDuration, formatRoleplayTime } from "./roleplay.mapper";
 
 interface SessionRow {
     created_at: string | null;
@@ -22,6 +23,7 @@ interface SessionRow {
     id: string;
     notation_json: unknown;
     scenario_id: string | null;
+    user_id: string | null;
 }
 
 interface RoleplaySessionEvaluation {
@@ -68,14 +70,21 @@ interface NamedRow {
     name?: string | null;
 }
 
-function formatSessionDate(value: string | null) {
-    if (!value) return "Date inconnue";
+async function fetchSessionAttemptNumber(supabase: SupabaseClient, session: SessionRow) {
+    if (!session.created_at || !session.scenario_id || !session.user_id) return 1;
 
-    return new Intl.DateTimeFormat("fr-FR", {
-        day: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-    }).format(new Date(value));
+    const { count, error } = await supabase
+        .from("sessions")
+        .select("id", { count: "exact", head: true })
+        .eq("scenario_id", session.scenario_id)
+        .eq("user_id", session.user_id)
+        .eq("status", "completed")
+        .gte("duration_seconds", MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS)
+        .lte("created_at", session.created_at);
+
+    if (error) throw error;
+
+    return Math.max(count ?? 1, 1);
 }
 
 function toNumber(value: number | string | null | undefined) {
@@ -197,7 +206,7 @@ export async function getRoleplaySessionEvaluation(sessionId: string, userId?: s
 
     let query = supabase
         .from("sessions")
-        .select("id, scenario_id, created_at, duration_seconds, notation_json")
+        .select("id, scenario_id, user_id, created_at, duration_seconds, notation_json")
         .eq("id", sessionId);
 
     if (userId) {
@@ -214,7 +223,7 @@ export async function getRoleplaySessionEvaluation(sessionId: string, userId?: s
         throw new NotFoundError("Session de roleplay introuvable.");
     }
 
-    const [roleplayDetail, messagesResult, sessionResults] = await Promise.all([
+    const [roleplayDetail, messagesResult, sessionResults, attemptNumber] = await Promise.all([
         fetchRoleplayDetail(supabase, session.scenario_id, userId),
         supabase
             .from("messages")
@@ -223,6 +232,7 @@ export async function getRoleplaySessionEvaluation(sessionId: string, userId?: s
             .order("timestamp", { ascending: true })
             .returns<NotationTranscriptMessage[]>(),
         fetchEvaluationSessionResults(supabase, session.id),
+        fetchSessionAttemptNumber(supabase, session),
     ]);
 
     if (messagesResult.error) throw messagesResult.error;
@@ -239,11 +249,13 @@ export async function getRoleplaySessionEvaluation(sessionId: string, userId?: s
         evaluation,
         roleplay,
         session: {
-            date: formatSessionDate(session.created_at),
+            attemptNumber,
+            date: formatRoleplayDate(session.created_at),
             duration: formatRoleplayDuration(session.duration_seconds),
             id: session.id,
             roleplayId: roleplay.id,
             score,
+            time: formatRoleplayTime(session.created_at),
         },
     };
 }

@@ -3,10 +3,12 @@ import type { Method, MethodStep } from "@/features/methods/data/methods";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
+import type { TranscriptMessage } from "@/features/roleplays/data/evaluation";
 import { RoleplayStepCoachPageContent, type StepCoachVariant } from "./RoleplayStepCoachPageContent";
 
 interface RoleplayStepCoachPageProps {
     coachSessionId: string;
+    initialTranscript?: TranscriptMessage[];
     method: Method;
     profileValues: ProfileFormValues;
     referenceSessionId?: string;
@@ -18,6 +20,7 @@ interface RoleplayStepCoachPageProps {
 
 export function RoleplayStepCoachPage({
     coachSessionId,
+    initialTranscript,
     profileValues,
     roleplay,
     method,
@@ -38,6 +41,7 @@ export function RoleplayStepCoachPage({
         >
             <RoleplayStepCoachPageContent
                 coachSessionId={coachSessionId}
+                initialTranscript={initialTranscript}
                 roleplay={roleplay}
                 method={method}
                 referenceSessionId={referenceSessionId}

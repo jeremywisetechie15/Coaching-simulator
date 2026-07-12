@@ -84,6 +84,18 @@ export function getPersonaAvatarPublicUrl(avatarPath: string | null | undefined)
     return `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/public/${PERSONA_AVATAR_BUCKET}/${encodedPath}`;
 }
 
+export function isPersonaAvatarStoragePath(
+    avatarPath: string | null | undefined,
+): avatarPath is string {
+    const normalizedPath = avatarPath?.trim();
+
+    if (!normalizedPath || /^https?:\/\//i.test(normalizedPath) || normalizedPath.startsWith("/")) {
+        return false;
+    }
+
+    return true;
+}
+
 export function getPersonaInitials(name: string) {
     const parts = name.trim().split(/\s+/).filter(Boolean);
 

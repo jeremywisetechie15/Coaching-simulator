@@ -56,7 +56,7 @@ export function getContextualBackLabel(href: string) {
 
     if (segments[0] === "roleplays") {
         if (segments[1] === "history") {
-            if (segments[2]) return "Retour à la session";
+            if (segments[2]) return "Retour à l'évaluation";
             return searchParams.has("scenario_id")
                 ? "Retour à l'historique du scénario"
                 : "Retour à l'historique des sessions";

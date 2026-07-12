@@ -6,6 +6,7 @@ const baseEvaluation: Evaluation = {
     axesAmelioration: [],
     coachAppreciation: "",
     discourse: [],
+    momentsCles: [],
     personaAvis: "",
     planEtape: { number: 1, text: "", title: "" },
     pointsPositifs: [],

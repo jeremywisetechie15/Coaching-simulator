@@ -33,6 +33,7 @@ export type ContentUploadResourceType = (typeof CONTENT_UPLOAD_RESOURCE_TYPES)[n
 export const CONTENT_UPLOAD_PURPOSES = {
     contentAsset: "content_asset",
     methodDocument: "method_document",
+    personaAvatar: "persona_avatar",
     quizAttachment: "quiz_attachment",
     scenarioResource: "scenario_resource",
     sessionBackground: "session_background",
@@ -107,7 +108,10 @@ export interface ContentUploadFileLike {
 export function getContentUploadAccept(purpose: ContentUploadPurpose = CONTENT_UPLOAD_PURPOSES.contentAsset) {
     if (purpose === CONTENT_UPLOAD_PURPOSES.methodDocument) return DOCUMENT_UPLOAD_ACCEPT;
     if (purpose === CONTENT_UPLOAD_PURPOSES.quizAttachment) return QUIZ_ATTACHMENT_UPLOAD_ACCEPT;
-    if (purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground) return IMAGE_UPLOAD_ACCEPT;
+    if (
+        purpose === CONTENT_UPLOAD_PURPOSES.personaAvatar ||
+        purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground
+    ) return IMAGE_UPLOAD_ACCEPT;
 
     return CONTENT_UPLOAD_ACCEPT;
 }
@@ -145,11 +149,18 @@ export function validateContentUploadFile(
         return "Le fond de session accepte uniquement une image JPG, PNG ou WebP.";
     }
 
+    if (purpose === CONTENT_UPLOAD_PURPOSES.personaAvatar && mimeConfig.resourceType !== "image") {
+        return "L'avatar du persona accepte uniquement une image JPG, PNG ou WebP.";
+    }
+
     if (file.size <= 0) {
         return "Le fichier est vide.";
     }
 
-    const maxSizeBytes = purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground
+    const isLimitedImage =
+        purpose === CONTENT_UPLOAD_PURPOSES.personaAvatar ||
+        purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground;
+    const maxSizeBytes = isLimitedImage
         ? MAX_SESSION_BACKGROUND_UPLOAD_SIZE_BYTES
         : (purpose === CONTENT_UPLOAD_PURPOSES.quizAttachment || purpose === CONTENT_UPLOAD_PURPOSES.scenarioResource) &&
             mimeConfig.resourceType === "video"
@@ -157,8 +168,10 @@ export function validateContentUploadFile(
             : MAX_CONTENT_UPLOAD_SIZE_BYTES;
 
     if (file.size > maxSizeBytes) {
-        return purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground
-            ? "L'image de fond ne doit pas dépasser 10 Mo."
+        return isLimitedImage
+            ? purpose === CONTENT_UPLOAD_PURPOSES.personaAvatar
+                ? "L'avatar du persona ne doit pas dépasser 10 Mo."
+                : "L'image de fond ne doit pas dépasser 10 Mo."
             : mimeConfig.resourceType === "video" && maxSizeBytes === MAX_VIDEO_UPLOAD_SIZE_BYTES
             ? "La vidéo ne doit pas dépasser 250 Mo."
             : "Le fichier ne doit pas dépasser 25 Mo.";
