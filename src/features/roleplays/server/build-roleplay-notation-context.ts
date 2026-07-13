@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { RoleplayNotationCriterionRef } from "@/features/roleplays/domain";
+import { getRoleplayScorecardDefinition } from "./get-roleplay-scorecard-definition";
 
 interface MessageRow {
     content: string | null;
@@ -50,48 +51,6 @@ interface MethodStepRow {
     summary?: string | null;
     title?: string | null;
     verbatims?: string[] | null;
-}
-
-interface ScorecardRow {
-    description?: string | null;
-    id: string;
-    method_id: string;
-    name?: string | null;
-}
-
-interface ScorecardStepRow {
-    id: string;
-    method_step_id: string | null;
-    name?: string | null;
-    scorecard_id: string;
-    step_order: number;
-}
-
-interface ScorecardCriterionRow {
-    ai_instruction?: string | null;
-    criterion_key?: string | null;
-    criterion_order: number;
-    dimension: string;
-    dimension_item_id?: string | null;
-    expected_evidence?: string | null;
-    id: string;
-    max_points?: number | null;
-    scorecard_step_id: string;
-    skill_id: string;
-    verbatim?: string | null;
-}
-
-interface SkillRow {
-    description?: string | null;
-    id: string;
-    name?: string | null;
-}
-
-interface DimensionItemRow {
-    dimension: string;
-    id: string;
-    label?: string | null;
-    skill_id: string;
 }
 
 export interface RoleplayScorecardNotationContext {
@@ -167,14 +126,6 @@ function cleanText(value: string | null | undefined) {
     return value?.trim() ?? "";
 }
 
-function normalizeDimension(value: string): RoleplayNotationCriterionRef["dimension"] {
-    if (value === "savoir" || value === "savoir_faire" || value === "savoir_etre") {
-        return value;
-    }
-
-    return "savoir_faire";
-}
-
 function buildTranscript(messages: MessageRow[]) {
     return messages
         .map((message) => {
@@ -231,8 +182,7 @@ export async function buildRoleplayScorecardNotationContext(
     const [
         { data: method, error: methodError },
         { data: methodSteps, error: methodStepsError },
-        { data: scorecard, error: scorecardError },
-        { data: scorecardSteps, error: scorecardStepsError },
+        scorecard,
     ] = await Promise.all([
         supabase
             .from("methods")
@@ -245,123 +195,63 @@ export async function buildRoleplayScorecardNotationContext(
             .eq("method_id", scenario.method_id)
             .order("step_order", { ascending: true })
             .returns<MethodStepRow[]>(),
-        supabase
-            .from("scorecards")
-            .select("id, name, description, method_id")
-            .eq("id", scenario.scorecard_id)
-            .maybeSingle<ScorecardRow>(),
-        supabase
-            .from("scorecard_steps")
-            .select("id, scorecard_id, method_step_id, step_order, name")
-            .eq("scorecard_id", scenario.scorecard_id)
-            .order("step_order", { ascending: true })
-            .returns<ScorecardStepRow[]>(),
+        getRoleplayScorecardDefinition(supabase, scenario.scorecard_id ?? null),
     ]);
 
     if (methodError) throw methodError;
     if (methodStepsError) throw methodStepsError;
-    if (scorecardError) throw scorecardError;
-    if (scorecardStepsError) throw scorecardStepsError;
     if (!method || !scorecard) return null;
 
-    const steps = scorecardSteps ?? [];
-    if (steps.length === 0) return null;
-
-    const { data: criteria, error: criteriaError } = await supabase
-        .from("scorecard_criteria")
-        .select("id, scorecard_step_id, criterion_order, criterion_key, expected_evidence, skill_id, dimension, dimension_item_id, max_points, ai_instruction, verbatim")
-        .in("scorecard_step_id", steps.map((step) => step.id))
-        .order("criterion_order", { ascending: true })
-        .returns<ScorecardCriterionRow[]>();
-
-    if (criteriaError) throw criteriaError;
-    if (!criteria || criteria.length === 0) return null;
-
-    const skillIds = Array.from(new Set(criteria.map((criterion) => criterion.skill_id).filter(Boolean)));
-    const dimensionItemIds = Array.from(
-        new Set(criteria.map((criterion) => criterion.dimension_item_id).filter((id): id is string => Boolean(id))),
-    );
-
-    const [{ data: skills, error: skillsError }, { data: dimensionItems, error: dimensionItemsError }] = await Promise.all([
-        skillIds.length > 0
-            ? supabase
-                .from("skills")
-                .select("id, name, description")
-                .in("id", skillIds)
-                .returns<SkillRow[]>()
-            : Promise.resolve({ data: [] as SkillRow[], error: null }),
-        dimensionItemIds.length > 0
-            ? supabase
-                .from("skill_dimension_items")
-                .select("id, skill_id, dimension, label")
-                .in("id", dimensionItemIds)
-                .returns<DimensionItemRow[]>()
-            : Promise.resolve({ data: [] as DimensionItemRow[], error: null }),
-    ]);
-
-    if (skillsError) throw skillsError;
-    if (dimensionItemsError) throw dimensionItemsError;
-
-    const methodStepsById = new Map((methodSteps ?? []).map((step) => [step.id, step]));
-    const skillsById = new Map((skills ?? []).map((skill) => [skill.id, skill]));
-    const dimensionItemsById = new Map((dimensionItems ?? []).map((item) => [item.id, item]));
-    const criteriaByStepId = new Map<string, ScorecardCriterionRow[]>();
-
-    for (const criterion of criteria) {
-        const current = criteriaByStepId.get(criterion.scorecard_step_id) ?? [];
-        current.push(criterion);
-        criteriaByStepId.set(criterion.scorecard_step_id, current);
+    if (scorecard.steps.length === 0 || scorecard.steps.every((step) => step.criteria.length === 0)) {
+        return null;
     }
 
+    const methodStepsById = new Map((methodSteps ?? []).map((step) => [step.id, step]));
     const criterionRefs: RoleplayNotationCriterionRef[] = [];
     let refIndex = 1;
 
-    const scorecardContextSteps = steps.map((step) => {
-        const methodStep = step.method_step_id ? methodStepsById.get(step.method_step_id) : null;
-        const title = cleanText(step.name) || cleanText(methodStep?.title) || `Étape ${step.step_order}`;
-        const stepCriteria = (criteriaByStepId.get(step.id) ?? []).map((criterion) => {
+    const scorecardContextSteps = scorecard.steps.map((step) => {
+        const methodStep = step.methodStepId ? methodStepsById.get(step.methodStepId) : null;
+        const title = cleanText(step.title) || cleanText(methodStep?.title) || `Étape ${step.order}`;
+        const stepCriteria = step.criteria.map((criterion) => {
             const ref = `C${refIndex++}`;
-            const skill = skillsById.get(criterion.skill_id);
-            const dimensionItem = criterion.dimension_item_id ? dimensionItemsById.get(criterion.dimension_item_id) : null;
-            const dimension = normalizeDimension(criterion.dimension);
-            const maxPoints = Math.max(1, Number(criterion.max_points) || 1);
 
             criterionRefs.push({
-                criterionKey: cleanText(criterion.criterion_key),
-                dimension,
-                dimensionItemId: criterion.dimension_item_id ?? null,
-                dimensionItemLabel: cleanText(dimensionItem?.label) || null,
-                expectedEvidence: cleanText(criterion.expected_evidence),
-                maxPoints,
-                methodStepId: step.method_step_id ?? null,
+                criterionKey: criterion.criterionKey,
+                dimension: criterion.dimension,
+                dimensionItemId: criterion.dimensionItemId,
+                dimensionItemLabel: criterion.dimensionItemLabel,
+                expectedEvidence: criterion.expectedEvidence,
+                maxPoints: criterion.maxPoints,
+                methodStepId: step.methodStepId,
                 ref,
                 scorecardCriterionId: criterion.id,
                 scorecardStepId: step.id,
-                skillId: criterion.skill_id,
-                skillName: cleanText(skill?.name) || criterion.skill_id,
-                stepOrder: step.step_order,
+                skillId: criterion.skillId,
+                skillName: criterion.skillName,
+                stepOrder: step.order,
                 stepTitle: title,
-                verbatim: cleanText(criterion.verbatim),
+                verbatim: criterion.verbatim,
             });
 
             return {
-                aiInstruction: cleanText(criterion.ai_instruction),
-                criterionKey: cleanText(criterion.criterion_key),
-                dimension,
-                dimensionItemLabel: cleanText(dimensionItem?.label) || null,
-                expectedEvidence: cleanText(criterion.expected_evidence),
-                maxPoints,
+                aiInstruction: criterion.aiInstruction,
+                criterionKey: criterion.criterionKey,
+                dimension: criterion.dimension,
+                dimensionItemLabel: criterion.dimensionItemLabel,
+                expectedEvidence: criterion.expectedEvidence,
+                maxPoints: criterion.maxPoints,
                 ref,
-                skillName: cleanText(skill?.name) || criterion.skill_id,
-                verbatim: cleanText(criterion.verbatim),
+                skillName: criterion.skillName,
+                verbatim: criterion.verbatim,
             };
         });
 
         return {
             criteria: stepCriteria,
             id: step.id,
-            methodStepId: step.method_step_id ?? null,
-            order: step.step_order,
+            methodStepId: step.methodStepId,
+            order: step.order,
             title,
         };
     });

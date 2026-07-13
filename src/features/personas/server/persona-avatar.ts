@@ -1,81 +1,38 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { PERSONA_AVATAR_BUCKET } from "@/features/personas/domain/persona-list";
+import { CONTENT_UPLOAD_PURPOSES } from "@/lib/uploads/content-upload";
 import {
-    PERSONA_AVATAR_BUCKET,
-    isPersonaAvatarStoragePath,
-} from "@/features/personas/domain/persona-list";
-import { AppError } from "@/lib/server/errors";
-import {
-    CONTENT_UPLOAD_PURPOSES,
-    sanitizeUploadFileName,
-    validateContentUploadFile,
-} from "@/lib/uploads/content-upload";
-import { fileToStorageUploadBody } from "@/lib/uploads/storage-upload-body";
+    copyEntityAvatar,
+    isOwnedEntityAvatarPath,
+    removeEntityAvatar,
+    uploadEntityAvatar,
+} from "@/lib/uploads/entity-avatar-storage";
 
-function normalizePersonaAvatarPath(path: string) {
-    return path.startsWith(`${PERSONA_AVATAR_BUCKET}/`)
-        ? path.slice(PERSONA_AVATAR_BUCKET.length + 1)
-        : path;
-}
+const PERSONA_AVATAR_STORAGE = {
+    bucket: PERSONA_AVATAR_BUCKET,
+    invalidFileCode: "PERSONA_AVATAR_INVALID",
+    purpose: CONTENT_UPLOAD_PURPOSES.personaAvatar,
+} as const;
 
-export async function copyPersonaAvatar(
+export function copyPersonaAvatar(
     supabase: SupabaseClient,
     sourcePath: string | null | undefined,
     targetPersonaId: string,
 ) {
-    if (!sourcePath || !isPersonaAvatarStoragePath(sourcePath)) {
-        return sourcePath ?? null;
-    }
-
-    const normalizedSourcePath = normalizePersonaAvatarPath(sourcePath);
-    const sourceFileName = normalizedSourcePath.split("/").at(-1) ?? "avatar";
-    const targetPath = `${targetPersonaId}/${crypto.randomUUID()}-${sourceFileName}`;
-    const { error } = await supabase.storage
-        .from(PERSONA_AVATAR_BUCKET)
-        .copy(normalizedSourcePath, targetPath);
-
-    if (error) throw error;
-    return targetPath;
+    return copyEntityAvatar(supabase, PERSONA_AVATAR_STORAGE, sourcePath, targetPersonaId);
 }
 
 export function isOwnedPersonaAvatarPath(path: string | null | undefined, personaId: string) {
-    if (!path || !isPersonaAvatarStoragePath(path)) return false;
-
-    return normalizePersonaAvatarPath(path.trim()).startsWith(`${personaId}/`);
+    return isOwnedEntityAvatarPath(PERSONA_AVATAR_STORAGE, path, personaId);
 }
 
-export async function uploadPersonaAvatar(
-    supabase: SupabaseClient,
-    personaId: string,
-    file: File,
-) {
-    const validationMessage = validateContentUploadFile(
-        file,
-        CONTENT_UPLOAD_PURPOSES.personaAvatar,
-    );
-    if (validationMessage) {
-        throw new AppError(validationMessage, 400, "PERSONA_AVATAR_INVALID");
-    }
-
-    const path = `${personaId}/${crypto.randomUUID()}-${sanitizeUploadFileName(file.name, file.type)}`;
-    const { error } = await supabase.storage
-        .from(PERSONA_AVATAR_BUCKET)
-        .upload(path, await fileToStorageUploadBody(file), {
-            contentType: file.type,
-            upsert: false,
-        });
-
-    if (error) throw error;
-
-    return path;
+export function uploadPersonaAvatar(supabase: SupabaseClient, personaId: string, file: File) {
+    return uploadEntityAvatar(supabase, PERSONA_AVATAR_STORAGE, personaId, file);
 }
 
-export async function removePersonaAvatar(
+export function removePersonaAvatar(
     supabase: SupabaseClient,
     path: string | null | undefined,
 ) {
-    if (!path) return;
-
-    const normalizedPath = normalizePersonaAvatarPath(path);
-    const { error } = await supabase.storage.from(PERSONA_AVATAR_BUCKET).remove([normalizedPath]);
-    if (error) throw error;
+    return removeEntityAvatar(supabase, PERSONA_AVATAR_STORAGE, path);
 }

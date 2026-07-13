@@ -2,6 +2,7 @@ import type { ContentStatus } from "@/features/content/domain";
 import type { SaveCoachDto } from "@/features/coaches/dto/save-coach.dto";
 
 interface CoachInsertContext {
+    avatarUrl: string | null;
     backgroundImagePath: string | null;
     createdBy: string;
     id: string;
@@ -11,7 +12,7 @@ interface CoachInsertContext {
 
 export function createCoachInsert(input: SaveCoachDto, context: CoachInsertContext) {
     return {
-        avatar_url: input.avatarSrc || null,
+        avatar_url: context.avatarUrl,
         background_image_path: context.backgroundImagePath,
         certifications: input.certifications || null,
         coaching_style: input.coachingStyle || null,

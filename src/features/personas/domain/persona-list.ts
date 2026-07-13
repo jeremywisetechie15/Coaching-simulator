@@ -7,6 +7,10 @@ import {
     PERSONA_DISC_PROFILE,
     type PersonaDiscProfile,
 } from "./persona-profile";
+import {
+    getStorageAvatarPublicUrl,
+    isStorageAvatarPath,
+} from "@/lib/uploads/avatar-path";
 
 export interface PersonaListItem {
     avatarUrl: string | null;
@@ -74,40 +78,13 @@ export const EMPTY_PERSONA_EDITOR_VALUES: PersonaEditorValues = {
 };
 
 export function getPersonaAvatarPublicUrl(avatarPath: string | null | undefined) {
-    const normalizedPath = avatarPath?.trim();
-
-    if (!normalizedPath) {
-        return null;
-    }
-
-    if (/^https?:\/\//i.test(normalizedPath)) {
-        return normalizedPath;
-    }
-
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-
-    if (!supabaseUrl) {
-        return null;
-    }
-
-    const pathWithoutBucket = normalizedPath.startsWith(`${PERSONA_AVATAR_BUCKET}/`)
-        ? normalizedPath.slice(PERSONA_AVATAR_BUCKET.length + 1)
-        : normalizedPath;
-    const encodedPath = pathWithoutBucket.split("/").map(encodeURIComponent).join("/");
-
-    return `${supabaseUrl.replace(/\/$/, "")}/storage/v1/object/public/${PERSONA_AVATAR_BUCKET}/${encodedPath}`;
+    return getStorageAvatarPublicUrl(avatarPath, PERSONA_AVATAR_BUCKET);
 }
 
 export function isPersonaAvatarStoragePath(
     avatarPath: string | null | undefined,
 ): boolean {
-    const normalizedPath = avatarPath?.trim();
-
-    if (!normalizedPath || /^https?:\/\//i.test(normalizedPath) || normalizedPath.startsWith("/")) {
-        return false;
-    }
-
-    return true;
+    return isStorageAvatarPath(avatarPath);
 }
 
 export function getPersonaInitials(name: string) {

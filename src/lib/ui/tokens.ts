@@ -93,7 +93,7 @@ export const uiTokens = {
         fillBase: "absolute inset-y-0 left-0 rounded-full",
         track: "relative h-1.5 overflow-hidden rounded-full bg-[#E5E7EB]",
     },
-    personaAvatar: {
+    avatarSource: {
         controls: "min-w-0 space-y-4",
         gallery: "grid grid-cols-3 gap-3 sm:grid-cols-6",
         galleryImage: "absolute inset-0 bg-cover bg-center",

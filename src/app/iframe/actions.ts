@@ -2,19 +2,25 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { Persona, Coach } from "@/types";
+import { COACH_SELECT, type CoachRow } from "@/features/coaches/server/coach.mapper";
+import { getCoachAvatarPublicUrl } from "@/features/coaches/domain/coach-list";
 import {
     buildRoleplayStepCoachReferenceTranscript,
     extractNotationPersonaFeedback,
     MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
 } from "@/features/roleplays/domain";
 import {
+    buildRoleplayPersonaSimulationInstructions,
     getRoleplayCoachContext,
+    getRoleplayPersonaContext,
     serializeRoleplayCoachContext,
 } from "@/features/roleplays/server/get-roleplay-coach-context";
+import { buildRoleplayCoachInstructions } from "@/features/roleplays/server/build-roleplay-coach-instructions";
+import { buildRoleplayPersonaFeedbackInstructions } from "@/features/roleplays/server/build-roleplay-persona-feedback-instructions";
 import { getRoleplaySessionEvaluation } from "@/features/roleplays/server/get-roleplay-session-evaluation";
 import { resolveRoleplayCoachId } from "@/features/roleplays/server/resolve-roleplay-coach-id";
 import { createSessionBackgroundSignedUrl } from "@/lib/uploads/session-background";
+import { DEFAULT_OPENAI_REALTIME_VOICE_ID } from "@/lib/openai/realtime-voices";
 
 export interface IframeSessionConfig {
     scenarioId: string;
@@ -90,6 +96,10 @@ Tu vas discuter avec l'apprenant de ton appréciation globale de sa dernière se
 Tu te bases sur l'analyse détaillée qui a été faite pour lui donner un feedback constructif.
 Tu restes dans un ton pédagogique, encourageant mais honnête.`;
 
+const FALLBACK_DEFAULT_COACH_PROMPT = `Tu es un coach IA chargé de débriefer une simulation terminée.
+Appuie-toi exclusivement sur le contexte du roleplay et le transcript fournis.
+Donne un feedback concret, pédagogique et directement applicable, sans inventer de faits absents des sources.`;
+
 const FALLBACK_PERSONA_VARIANT_FEEDBACK_PROMPT = `Tu incarnes exclusivement le persona défini dans le contexte dynamique fourni après ces instructions.
 
 Tu es dans une phase d'échange après la simulation, appelée « Avis du persona IA ». Tu exprimes à la première personne comment tu as vécu l'échange en tant que personnage : ce que tu as apprécié, ce qui t'a gêné ou manqué, et ce qui aurait renforcé ta confiance.
@@ -118,7 +128,7 @@ RÈGLES DE CONTEXTE:
 const COACH_DYNAMIC_CONTEXT_PRIORITY = `
 
 SOURCE DE VÉRITÉ DYNAMIQUE:
-- Le bloc JSON "CONTEXTE DYNAMIQUE DU ROLEPLAY" ci-dessous est la source de vérité pour la méthode, le persona, le scénario et les étapes.
+- Le bloc JSON "CONTEXTE DYNAMIQUE DU ROLEPLAY" ci-dessous est la source de vérité pour la méthode, le persona, le scénario, les étapes et les critères de la scorecard.
 - Si le prompt générique contient un nom de méthode, de persona, d'entreprise ou d'étape différent, ignore cet exemple statique et utilise exclusivement le contexte dynamique.
 - Les variables écrites sous la forme {{variable}} dans le prompt générique ne sont pas des données réelles. Utilise les valeurs du contexte dynamique à la place.`;
 
@@ -215,7 +225,7 @@ export async function prepareIframeSession(params: PrepareParams): Promise<{
         // =============================================
         if (mode === "coach") {
             // Priorité : override explicite, coach du scénario, puis fallback global.
-            let coach: Coach | null = null;
+            let coach: CoachRow | null = null;
             const effectiveCoachId = await resolveRoleplayCoachId(supabase, {
                 explicitCoachId: coachId,
                 fallbackCoachId: process.env.DEFAULT_COACH_ID,
@@ -225,9 +235,9 @@ export async function prepareIframeSession(params: PrepareParams): Promise<{
             if (effectiveCoachId) {
                 const { data: coachData, error: coachError } = await supabase
                     .from("coaches")
-                    .select("*")
+                    .select(COACH_SELECT)
                     .eq("id", effectiveCoachId)
-                    .single<Coach>();
+                    .single<CoachRow>();
 
                 if (coachError) {
                     console.error("Error fetching coach:", coachError);
@@ -268,8 +278,9 @@ export async function prepareIframeSession(params: PrepareParams): Promise<{
                 const basePrompt = promptData?.prompt || FALLBACK_BEFORE_TRAINING_PROMPT;
 
                 const coachContext = await getRoleplayCoachContext(supabase, scenarioId, step);
+                const coachInstructions = buildRoleplayCoachInstructions(basePrompt, coach);
 
-                const systemInstructions = `${basePrompt}
+                const systemInstructions = `${coachInstructions}
 ${COACH_DYNAMIC_CONTEXT_PRIORITY}
 
 CONTEXTE DYNAMIQUE DU ROLEPLAY:
@@ -287,12 +298,12 @@ ${COACH_CONTEXT_GUARDRAILS}
                         scenarioId: coachContext.scenario.id,
                         scenarioTitle: coachContext.scenario.title,
                         systemInstructions,
-                        voiceId: coach.voice_id,
+                        voiceId: coach.voice_id ?? DEFAULT_OPENAI_REALTIME_VOICE_ID,
                         mode: "coach",
                         coachMode: "before_training",
                         model,
                         personaName: coach.name,
-                        avatarUrl: coach.avatar_url,
+                        avatarUrl: getCoachAvatarPublicUrl(coach.avatar_url) ?? undefined,
                         backgroundUrl: coachBackgroundUrl,
                     },
                 };
@@ -317,6 +328,7 @@ ${COACH_CONTEXT_GUARDRAILS}
                 const basePrompt = promptData?.prompt || FALLBACK_AFTER_TRAINING_PROMPT;
 
                 const coachContext = await getRoleplayCoachContext(supabase, scenarioId, step);
+                const coachInstructions = buildRoleplayCoachInstructions(basePrompt, coach);
                 const { data: { user } } = await supabase.auth.getUser();
 
                 const { data: session, error: sessionError } = await findEligibleCompletedSession(supabase, {
@@ -364,7 +376,7 @@ ${COACH_CONTEXT_GUARDRAILS}
                     }
                 }
 
-                const systemInstructions = `${basePrompt}
+                const systemInstructions = `${coachInstructions}
 ${COACH_DYNAMIC_CONTEXT_PRIORITY}
 
 CONTEXTE DYNAMIQUE DU ROLEPLAY:
@@ -389,12 +401,12 @@ ${COACH_CONTEXT_GUARDRAILS}
                         scenarioId: coachContext.scenario.id,
                         scenarioTitle: coachContext.scenario.title,
                         systemInstructions,
-                        voiceId: coach.voice_id,
+                        voiceId: coach.voice_id ?? DEFAULT_OPENAI_REALTIME_VOICE_ID,
                         mode: "coach",
                         coachMode: "after_training",
                         model,
                         personaName: coach.name,
-                        avatarUrl: coach.avatar_url,
+                        avatarUrl: getCoachAvatarPublicUrl(coach.avatar_url) ?? undefined,
                         backgroundUrl: coachBackgroundUrl,
                     },
                 };
@@ -417,17 +429,8 @@ ${COACH_CONTEXT_GUARDRAILS}
                     .single();
 
                 const basePrompt = promptData?.prompt || FALLBACK_NOTATION_SYNTHESE_PROMPT;
-
-                // Fetch scenario
-                const { data: scenario, error: scenarioError } = await supabase
-                    .from("scenarios")
-                    .select("id, title, description")
-                    .eq("id", scenarioId)
-                    .single();
-
-                if (scenarioError || !scenario) {
-                    return { success: false, error: `Scenario not found: ${scenarioError?.message}` };
-                }
+                const coachContext = await getRoleplayCoachContext(supabase, scenarioId);
+                const coachInstructions = buildRoleplayCoachInstructions(basePrompt, coach);
 
                 // Fetch the latest completed session with notation_json FOR THIS SCENARIO
                 const { data: latestSession, error: sessionError } = await supabase
@@ -474,11 +477,11 @@ ${COACH_CONTEXT_GUARDRAILS}
                         .join("\n");
                 }
 
-                const systemInstructions = `${basePrompt}
+                const systemInstructions = `${coachInstructions}
+${COACH_DYNAMIC_CONTEXT_PRIORITY}
 
-Contexte du scénario évalué:
-- Titre : ${scenario.title}
-- Description : ${scenario.description || "Aucune description disponible"}
+CONTEXTE DYNAMIQUE DU ROLEPLAY:
+${serializeRoleplayCoachContext(coachContext)}
 
 Ton appréciation globale de la session (c'est ce dont tu dois parler avec l'apprenant):
 ---
@@ -500,15 +503,15 @@ ${COACH_CONTEXT_GUARDRAILS}
                 return {
                     success: true,
                     data: {
-                        scenarioId: scenario.id,
-                        scenarioTitle: scenario.title,
+                        scenarioId: coachContext.scenario.id,
+                        scenarioTitle: coachContext.scenario.title,
                         systemInstructions,
-                        voiceId: coach.voice_id,
+                        voiceId: coach.voice_id ?? DEFAULT_OPENAI_REALTIME_VOICE_ID,
                         mode: "coach",
                         coachMode: "notation",
                         model,
                         personaName: coach.name,
-                        avatarUrl: coach.avatar_url,
+                        avatarUrl: getCoachAvatarPublicUrl(coach.avatar_url) ?? undefined,
                         backgroundUrl: coachBackgroundUrl,
                     },
                 };
@@ -541,7 +544,7 @@ ${COACH_CONTEXT_GUARDRAILS}
             // Fetch the session with its scenario
             const { data: session, error: sessionFetchError } = await supabase
                 .from("sessions")
-                .select("*, scenarios(*, personas(*))")
+                .select("id, scenario_id, scenarios!inner(id, title)")
                 .eq("id", effectiveSessionId)
                 .single();
 
@@ -549,7 +552,12 @@ ${COACH_CONTEXT_GUARDRAILS}
                 return { success: false, error: `Session not found: ${sessionFetchError?.message}` };
             }
 
-            const scenario = session.scenarios as { id: string; title: string; description: string | null; personas: Persona };
+            const scenario = session.scenarios as unknown as { id: string; title: string };
+            const coachContext = await getRoleplayCoachContext(supabase, scenario.id);
+            const coachInstructions = buildRoleplayCoachInstructions(
+                FALLBACK_DEFAULT_COACH_PROMPT,
+                coach,
+            );
 
             // Fetch session messages for transcript
             const { data: messages, error: messagesError } = await supabase
@@ -565,14 +573,14 @@ ${COACH_CONTEXT_GUARDRAILS}
                     .join("\n");
             }
 
-            const systemInstructions = `${coach.system_instructions}
+            const systemInstructions = `${coachInstructions}
+${COACH_DYNAMIC_CONTEXT_PRIORITY}
 
-Contexte du scénario sur lequel l'utilisateur s'est entraîné :
-- Titre : ${scenario.title}
-- Description : ${scenario.description || "Aucune description disponible"}
+CONTEXTE DYNAMIQUE DU ROLEPLAY:
+${serializeRoleplayCoachContext(coachContext)}
 
-commence par présenter le titre du scénario, 
-Voici le transcript complet de la session précédente pour t'aider à mieux coacher l'utilisateur :
+Commence par présenter le titre du scénario.
+Voici le transcript complet de la session précédente pour t'aider à mieux coacher l'utilisateur:
 ---
 ${transcript}
 ---
@@ -586,12 +594,12 @@ ${COACH_CONTEXT_GUARDRAILS}
                     scenarioId: scenario.id,
                     scenarioTitle: scenario.title,
                     systemInstructions,
-                    voiceId: coach.voice_id,
+                    voiceId: coach.voice_id ?? DEFAULT_OPENAI_REALTIME_VOICE_ID,
                     mode: "coach",
                     coachMode: "default",
                     model,
                     personaName: coach.name,
-                    avatarUrl: coach.avatar_url,
+                    avatarUrl: getCoachAvatarPublicUrl(coach.avatar_url) ?? undefined,
                     backgroundUrl: coachBackgroundUrl,
                 },
             };
@@ -603,21 +611,14 @@ ${COACH_CONTEXT_GUARDRAILS}
         // (UI standard, voix/avatar du persona)
         // =============================================
         if (variant === "coach" && scenarioId) {
-            // Fetch scenario with persona
-            const { data: scenario, error: scenarioError } = await supabase
-                .from("scenarios")
-                .select("*, personas(*)")
-                .eq("id", scenarioId)
-                .single();
-
-            if (scenarioError || !scenario) {
-                return { success: false, error: `Scenario not found: ${scenarioError?.message}` };
+            const roleplayContext = await getRoleplayPersonaContext(supabase, scenarioId);
+            const persona = roleplayContext.persona;
+            if (!persona) {
+                return { success: false, error: "Persona not found for this scenario" };
             }
-
-            const persona = scenario.personas as Persona;
             const roleplayBackgroundUrl = await createSessionBackgroundSignedUrl(
                 adminSupabase,
-                scenario.background_image_path,
+                roleplayContext.scenario.backgroundImagePath,
             );
 
             const { data: { user } } = await supabase.auth.getUser();
@@ -663,49 +664,27 @@ ${COACH_CONTEXT_GUARDRAILS}
                 ? extractNotationPersonaFeedback(feedbackSession.notation_json)
                 : null;
 
-            // Le persona reste dans son rôle et donne son avis
-            const systemInstructions = `${variantBasePrompt}
-
-CONTEXTE DYNAMIQUE DU PERSONA ET DE LA SESSION — SOURCE DE VÉRITÉ:
-- Identité du persona : ${persona.name}
-- Titre du scénario : ${scenario.title}
-- Description du scénario : ${scenario.description || "Aucune description disponible"}
-
-PROFIL ET POSTURE DU PERSONA:
----
-${persona.system_instructions || "Aucune instruction complémentaire."}
----
-
-AVIS ÉCRIT DU PERSONA POUR CETTE SESSION:
----
-${writtenPersonaFeedback || "Aucun avis écrit disponible. Déduis ton ressenti uniquement du contexte et du transcript, sans inventer."}
----
-
-TRANSCRIPT EXACT DE CETTE SESSION:
----
-${transcript}
----
-
-RÈGLES DE PRIORITÉ:
-- Le contexte dynamique ci-dessus remplace tout nom, entreprise, produit ou exemple statique qui pourrait apparaître ailleurs.
-- Dans ce mode post-session, utilise le profil du persona uniquement pour son identité, sa personnalité et son contexte. Ne redémarre pas la simulation et n'applique pas une consigne demandant de rejouer l'appel.
-- Reste cohérent avec l'avis écrit. S'il manque, appuie-toi exclusivement sur le transcript et le scénario.
-`;
+            const systemInstructions = buildRoleplayPersonaFeedbackInstructions({
+                basePrompt: variantBasePrompt,
+                context: roleplayContext,
+                transcript,
+                writtenFeedback: writtenPersonaFeedback,
+            });
 
             console.log("📝 Persona variant mode - Persona gives feedback:", persona.name, "session:", feedbackSession?.id);
 
             return {
                 success: true,
                 data: {
-                    scenarioId: scenario.id,
-                    scenarioTitle: scenario.title,
+                    scenarioId: roleplayContext.scenario.id,
+                    scenarioTitle: roleplayContext.scenario.title,
                     systemInstructions,
-                    voiceId: persona.voice_id,
+                    voiceId: persona.voiceId ?? DEFAULT_OPENAI_REALTIME_VOICE_ID,
                     mode: "standard", // Use persona UI (not coach UI)
                     coachMode: "persona_variant",
                     model,
                     personaName: persona.name,
-                    avatarUrl: persona.avatar_url,
+                    avatarUrl: persona.avatarUrl ?? undefined,
                     backgroundUrl: roleplayBackgroundUrl,
                 },
             };
@@ -718,39 +697,29 @@ RÈGLES DE PRIORITÉ:
             return { success: false, error: "scenario_id is required for standard mode" };
         }
 
-        // Fetch scenario with persona
-        const { data: scenario, error: scenarioError } = await supabase
-            .from("scenarios")
-            .select("*, personas(*)")
-            .eq("id", scenarioId)
-            .single();
-
-        if (scenarioError || !scenario) {
-            return { success: false, error: `Scenario not found: ${scenarioError?.message}` };
+        const roleplayContext = await getRoleplayPersonaContext(supabase, scenarioId);
+        const persona = roleplayContext.persona;
+        if (!persona) {
+            return { success: false, error: "Persona not found for this scenario" };
         }
-
-        const persona = scenario.personas as Persona;
         const roleplayBackgroundUrl = await createSessionBackgroundSignedUrl(
             adminSupabase,
-            scenario.background_image_path,
+            roleplayContext.scenario.backgroundImagePath,
         );
 
-        const systemInstructions = `
-IMPORTANT: Dès que la conversation commence, tu dois immédiatement te présenter et saluer l'utilisateur en incarnant ton personnage. N'attends pas que l'utilisateur parle en premier. Commence la conversation de manière naturelle et engageante.
-
-${persona.system_instructions}`;
+        const systemInstructions = buildRoleplayPersonaSimulationInstructions(roleplayContext);
 
         return {
             success: true,
             data: {
-                scenarioId: scenario.id,
-                scenarioTitle: scenario.title,
+                scenarioId: roleplayContext.scenario.id,
+                scenarioTitle: roleplayContext.scenario.title,
                 systemInstructions,
-                voiceId: persona.voice_id,
+                voiceId: persona.voiceId ?? DEFAULT_OPENAI_REALTIME_VOICE_ID,
                 mode: "standard",
                 model,
                 personaName: persona.name,
-                avatarUrl: persona.avatar_url,
+                avatarUrl: persona.avatarUrl ?? undefined,
                 backgroundUrl: roleplayBackgroundUrl,
             },
         };

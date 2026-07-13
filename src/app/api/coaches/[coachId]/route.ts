@@ -27,8 +27,8 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
     try {
         await requireAdmin();
         const { coachId } = await params;
-        const { backgroundFile, input } = await parseSaveCoachRequest(request);
-        const coach = await updateCoach(coachId, input, backgroundFile);
+        const { avatarFile, backgroundFile, input } = await parseSaveCoachRequest(request);
+        const coach = await updateCoach(coachId, input, { avatarFile, backgroundFile });
 
         return NextResponse.json({ coach });
     } catch (error) {

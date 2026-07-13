@@ -19,8 +19,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
     try {
         await requireAdmin();
-        const { backgroundFile, input } = await parseSaveCoachRequest(request);
-        const coach = await createCoach(input, backgroundFile);
+        const { avatarFile, backgroundFile, input } = await parseSaveCoachRequest(request);
+        const coach = await createCoach(input, { avatarFile, backgroundFile });
 
         return NextResponse.json({ coach }, { status: 201 });
     } catch (error) {

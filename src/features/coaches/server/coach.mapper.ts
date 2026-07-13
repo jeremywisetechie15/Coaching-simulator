@@ -1,4 +1,9 @@
-import type { CoachDetail, CoachEditorValues, CoachListItem } from "@/features/coaches/domain/coach-list";
+import {
+    getCoachAvatarPublicUrl,
+    type CoachDetail,
+    type CoachEditorValues,
+    type CoachListItem,
+} from "@/features/coaches/domain/coach-list";
 import {
     COACH_DISC_PROFILE,
     COACH_DISC_PROFILES,
@@ -66,7 +71,7 @@ export function mapCoachRowToListItem(row: CoachRow): CoachListItem {
     const voice = getOpenAIRealtimeVoice(row.voice_id);
 
     return {
-        avatarSrc: row.avatar_url,
+        avatarSrc: getCoachAvatarPublicUrl(row.avatar_url),
         backgroundImagePath: row.background_image_path ?? null,
         certifications: row.certifications ?? "",
         coachingStyle: normalizeCoachingStyle(row.coaching_style),
@@ -105,6 +110,7 @@ export function mapCoachRowToDetail(row: CoachRow): CoachDetail {
 
     return {
         ...mapCoachRowToEditorValues(row),
+        avatarSrc: getCoachAvatarPublicUrl(row.avatar_url) ?? "",
         createdAt: row.created_at,
         id: row.id,
         status: normalizeContentStatus(row.status, CONTENT_STATUS.published),

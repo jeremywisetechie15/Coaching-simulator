@@ -1,5 +1,6 @@
 import type { ContentDomain, ContentStatus } from "@/features/content/domain";
 import { DEFAULT_COACH_VOICE_ID, type VoiceId } from "@/lib/openai/realtime-voices";
+import { getStorageAvatarPublicUrl, isStorageAvatarPath } from "@/lib/uploads/avatar-path";
 import {
     COACH_DISC_PROFILE,
     COACHING_STYLE,
@@ -58,6 +59,16 @@ export const EMPTY_COACH_EDITOR_VALUES: CoachEditorValues = {
     systemInstructions: "",
     voiceId: DEFAULT_COACH_VOICE_ID,
 };
+
+export const COACH_AVATAR_BUCKET = "coaches-avatars";
+
+export function getCoachAvatarPublicUrl(avatarPath: string | null | undefined) {
+    return getStorageAvatarPublicUrl(avatarPath, COACH_AVATAR_BUCKET);
+}
+
+export function isCoachAvatarStoragePath(avatarPath: string | null | undefined) {
+    return isStorageAvatarPath(avatarPath);
+}
 
 export function getCoachInitials(name: string) {
     const parts = name.trim().split(/\s+/).filter(Boolean);

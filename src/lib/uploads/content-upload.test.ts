@@ -82,6 +82,21 @@ describe("content upload domain", () => {
         ).toBe("L'avatar du persona ne doit pas dépasser 10 Mo.");
     });
 
+    it("uses the shared image rules for coach avatars", () => {
+        expect(
+            validateContentUploadFile(
+                { name: "coach.webp", size: 2 * 1024 * 1024, type: "image/webp" },
+                CONTENT_UPLOAD_PURPOSES.coachAvatar,
+            ),
+        ).toBeNull();
+        expect(
+            validateContentUploadFile(
+                { name: "coach.pdf", size: 1024, type: "application/pdf" },
+                CONTENT_UPLOAD_PURPOSES.coachAvatar,
+            ),
+        ).toBe("L'avatar du coach accepte uniquement une image JPG, PNG ou WebP.");
+    });
+
     it("rejects unsupported or oversized files", () => {
         expect(
             validateContentUploadFile({

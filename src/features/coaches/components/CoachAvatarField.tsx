@@ -1,53 +1,53 @@
 "use client";
 
 import {
-    getPersonaAvatarPublicUrl,
-    isPersonaAvatarStoragePath,
-} from "@/features/personas/domain/persona-list";
-import { personaAvatarOptions } from "@/features/personas/data/persona-creation";
+    getCoachAvatarPublicUrl,
+    isCoachAvatarStoragePath,
+} from "@/features/coaches/domain/coach-list";
+import { coachAvatarOptions } from "@/features/coaches/data/coachOptions";
 import { CONTENT_UPLOAD_PURPOSES } from "@/lib/uploads/content-upload";
 import { AvatarSourceField } from "@/lib/ui/molecules";
 
-interface PersonaAvatarFieldProps {
+interface CoachAvatarFieldProps {
     avatarFile: File | null;
     avatarUrl: string;
+    coachName: string;
     disabled?: boolean;
     onAvatarFileChange: (file: File | null) => void;
     onAvatarUrlChange: (value: string) => void;
     onError?: (message: string) => void;
-    personaName: string;
 }
 
-const libraryOptions = personaAvatarOptions.map((avatar) => ({
+const libraryOptions = coachAvatarOptions.map((avatar) => ({
     id: avatar.id,
-    label: avatar.alt,
+    label: avatar.name,
     src: avatar.src,
 }));
 
-export function PersonaAvatarField({
+export function CoachAvatarField({
     avatarFile,
     avatarUrl,
+    coachName,
     disabled,
     onAvatarFileChange,
     onAvatarUrlChange,
     onError,
-    personaName,
-}: PersonaAvatarFieldProps) {
+}: CoachAvatarFieldProps) {
     return (
         <AvatarSourceField
             avatarFile={avatarFile}
             avatarUrl={avatarUrl}
             disabled={disabled}
-            displayName={personaName}
-            entityLabel="persona"
-            inputIdPrefix="persona-avatar"
-            isStoredPath={isPersonaAvatarStoragePath}
+            displayName={coachName}
+            entityLabel="coach"
+            inputIdPrefix="coach-avatar"
+            isStoredPath={isCoachAvatarStoragePath}
             libraryOptions={libraryOptions}
             onAvatarFileChange={onAvatarFileChange}
             onAvatarUrlChange={onAvatarUrlChange}
             onError={onError}
-            resolvePreviewUrl={getPersonaAvatarPublicUrl}
-            uploadPurpose={CONTENT_UPLOAD_PURPOSES.personaAvatar}
+            resolvePreviewUrl={getCoachAvatarPublicUrl}
+            uploadPurpose={CONTENT_UPLOAD_PURPOSES.coachAvatar}
         />
     );
 }

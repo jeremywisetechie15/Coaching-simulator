@@ -13,6 +13,7 @@ describe("createCoachInsert", () => {
         });
 
         expect(createCoachInsert(input, {
+            avatarUrl: input.avatarSrc || null,
             backgroundImagePath: "coaches/coach-copy/background.webp",
             createdBy: "admin-1",
             id: "coach-copy",

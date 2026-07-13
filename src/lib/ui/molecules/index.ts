@@ -1,5 +1,6 @@
 export * from "./AlertMessage";
 export * from "./AnalysisStepRow";
+export * from "./AvatarSourceField";
 export * from "./CardActionMenu";
 export * from "./DateRangeFilter";
 export * from "./EditableTextListField";

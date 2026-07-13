@@ -31,6 +31,7 @@ export const CONTENT_UPLOAD_RESOURCE_TYPES = ["document", "video", "audio", "ima
 export type ContentUploadResourceType = (typeof CONTENT_UPLOAD_RESOURCE_TYPES)[number];
 
 export const CONTENT_UPLOAD_PURPOSES = {
+    coachAvatar: "coach_avatar",
     contentAsset: "content_asset",
     methodDocument: "method_document",
     personaAvatar: "persona_avatar",
@@ -40,6 +41,11 @@ export const CONTENT_UPLOAD_PURPOSES = {
 } as const;
 
 export type ContentUploadPurpose = (typeof CONTENT_UPLOAD_PURPOSES)[keyof typeof CONTENT_UPLOAD_PURPOSES];
+
+const AVATAR_UPLOAD_PURPOSES: readonly ContentUploadPurpose[] = [
+    CONTENT_UPLOAD_PURPOSES.coachAvatar,
+    CONTENT_UPLOAD_PURPOSES.personaAvatar,
+];
 
 interface MimeConfig {
     extension: string;
@@ -109,7 +115,7 @@ export function getContentUploadAccept(purpose: ContentUploadPurpose = CONTENT_U
     if (purpose === CONTENT_UPLOAD_PURPOSES.methodDocument) return DOCUMENT_UPLOAD_ACCEPT;
     if (purpose === CONTENT_UPLOAD_PURPOSES.quizAttachment) return QUIZ_ATTACHMENT_UPLOAD_ACCEPT;
     if (
-        purpose === CONTENT_UPLOAD_PURPOSES.personaAvatar ||
+        AVATAR_UPLOAD_PURPOSES.includes(purpose) ||
         purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground
     ) return IMAGE_UPLOAD_ACCEPT;
 
@@ -149,8 +155,10 @@ export function validateContentUploadFile(
         return "Le fond de session accepte uniquement une image JPG, PNG ou WebP.";
     }
 
-    if (purpose === CONTENT_UPLOAD_PURPOSES.personaAvatar && mimeConfig.resourceType !== "image") {
-        return "L'avatar du persona accepte uniquement une image JPG, PNG ou WebP.";
+    if (AVATAR_UPLOAD_PURPOSES.includes(purpose) && mimeConfig.resourceType !== "image") {
+        return purpose === CONTENT_UPLOAD_PURPOSES.coachAvatar
+            ? "L'avatar du coach accepte uniquement une image JPG, PNG ou WebP."
+            : "L'avatar du persona accepte uniquement une image JPG, PNG ou WebP.";
     }
 
     if (file.size <= 0) {
@@ -158,7 +166,7 @@ export function validateContentUploadFile(
     }
 
     const isLimitedImage =
-        purpose === CONTENT_UPLOAD_PURPOSES.personaAvatar ||
+        AVATAR_UPLOAD_PURPOSES.includes(purpose) ||
         purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground;
     const maxSizeBytes = isLimitedImage
         ? MAX_SESSION_BACKGROUND_UPLOAD_SIZE_BYTES
@@ -169,8 +177,10 @@ export function validateContentUploadFile(
 
     if (file.size > maxSizeBytes) {
         return isLimitedImage
-            ? purpose === CONTENT_UPLOAD_PURPOSES.personaAvatar
-                ? "L'avatar du persona ne doit pas dépasser 10 Mo."
+            ? AVATAR_UPLOAD_PURPOSES.includes(purpose)
+                ? purpose === CONTENT_UPLOAD_PURPOSES.coachAvatar
+                    ? "L'avatar du coach ne doit pas dépasser 10 Mo."
+                    : "L'avatar du persona ne doit pas dépasser 10 Mo."
                 : "L'image de fond ne doit pas dépasser 10 Mo."
             : mimeConfig.resourceType === "video" && maxSizeBytes === MAX_VIDEO_UPLOAD_SIZE_BYTES
             ? "La vidéo ne doit pas dépasser 250 Mo."

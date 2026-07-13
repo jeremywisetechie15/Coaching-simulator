@@ -11,6 +11,11 @@ import {
     SESSION_BACKGROUND_OWNER,
 } from "@/lib/uploads/session-background";
 import { createCoachInsert } from "./coach.persistence";
+import {
+    copyCoachAvatar,
+    isOwnedCoachAvatarPath,
+    removeCoachAvatar,
+} from "./coach-avatar";
 import { COACH_SELECT, mapCoachRowToListItem, type CoachRow } from "./coach.mapper";
 import { getCoachById } from "./get-coach-by-id";
 
@@ -39,14 +44,30 @@ export async function duplicateCoach(coachId: string): Promise<CoachListItem> {
         duplicateId,
         source.backgroundImagePath,
     );
+    let duplicatedAvatarPath: string | null = null;
+
+    try {
+        duplicatedAvatarPath = await copyCoachAvatar(
+            adminSupabase,
+            source.avatarSrc,
+            duplicateId,
+        );
+    } catch (error) {
+        if (duplicatedBackgroundPath) {
+            await removeSessionBackground(adminSupabase, duplicatedBackgroundPath).catch(() => undefined);
+        }
+        throw error;
+    }
     const input = {
         ...baseInput,
+        avatarSrc: duplicatedAvatarPath ?? "",
         backgroundImagePath: duplicatedBackgroundPath ?? "",
     };
 
     const { data, error } = await adminSupabase
         .from("coaches")
         .insert(createCoachInsert(input, {
+            avatarUrl: duplicatedAvatarPath,
             backgroundImagePath: duplicatedBackgroundPath,
             createdBy: context.userId,
             id: duplicateId,
@@ -59,6 +80,9 @@ export async function duplicateCoach(coachId: string): Promise<CoachListItem> {
     if (error) {
         if (duplicatedBackgroundPath) {
             await removeSessionBackground(adminSupabase, duplicatedBackgroundPath).catch(() => undefined);
+        }
+        if (isOwnedCoachAvatarPath(duplicatedAvatarPath, duplicateId)) {
+            await removeCoachAvatar(adminSupabase, duplicatedAvatarPath).catch(() => undefined);
         }
         throw error;
     }

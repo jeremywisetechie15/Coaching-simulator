@@ -3,6 +3,7 @@ import { saveCoachDto, type SaveCoachDto } from "@/features/coaches/dto/save-coa
 import { AppError } from "@/lib/server/errors";
 
 export interface ParsedSaveCoachRequest {
+    avatarFile: File | null;
     backgroundFile: File | null;
     input: SaveCoachDto;
 }
@@ -23,13 +24,19 @@ export async function parseSaveCoachRequest(request: NextRequest): Promise<Parse
     const contentType = request.headers.get("content-type")?.toLowerCase() ?? "";
 
     if (!contentType.includes("multipart/form-data")) {
-        return { backgroundFile: null, input: saveCoachDto.parse(await request.json()) };
+        return {
+            avatarFile: null,
+            backgroundFile: null,
+            input: saveCoachDto.parse(await request.json()),
+        };
     }
 
     const formData = await request.formData();
+    const avatarEntry = formData.get("avatarFile");
     const backgroundEntry = formData.get("backgroundFile");
 
     return {
+        avatarFile: avatarEntry instanceof File ? avatarEntry : null,
         backgroundFile: backgroundEntry instanceof File ? backgroundEntry : null,
         input: saveCoachDto.parse(parsePayload(formData.get("payload"))),
     };

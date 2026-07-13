@@ -13,13 +13,12 @@ import { cn } from "@/lib/ui/utils/cn";
 import { OPENAI_REALTIME_VOICES } from "@/lib/openai/realtime-voices";
 import {
     EMPTY_COACH_EDITOR_VALUES,
-    getCoachInitials,
     type CoachEditorValues,
     type CoachListItem,
 } from "@/features/coaches/domain/coach-list";
 import { COACH_DISC_PROFILE_OPTIONS, COACHING_STYLE_OPTIONS } from "@/features/coaches/domain/coach-profile";
-import { coachAvatarOptions } from "@/features/coaches/data/coachOptions";
 import { CONTENT_DOMAINS } from "@/features/content/domain";
+import { CoachAvatarField } from "./CoachAvatarField";
 
 interface CreateCoachPageContentProps {
     coachId?: string;
@@ -34,13 +33,20 @@ interface ApiErrorPayload {
     issues?: Array<{ message: string }>;
 }
 
-async function saveCoach(coachId: string | undefined, values: CoachEditorValues, backgroundFile: File | null) {
-    const body = backgroundFile ? new FormData() : JSON.stringify(values);
-    const headers = backgroundFile ? undefined : { "Content-Type": "application/json" };
+async function saveCoach(
+    coachId: string | undefined,
+    values: CoachEditorValues,
+    avatarFile: File | null,
+    backgroundFile: File | null,
+) {
+    const hasFile = Boolean(avatarFile || backgroundFile);
+    const body = hasFile ? new FormData() : JSON.stringify(values);
+    const headers = hasFile ? undefined : { "Content-Type": "application/json" };
 
-    if (body instanceof FormData && backgroundFile) {
+    if (body instanceof FormData) {
         body.append("payload", JSON.stringify(values));
-        body.append("backgroundFile", backgroundFile);
+        if (avatarFile) body.append("avatarFile", avatarFile);
+        if (backgroundFile) body.append("backgroundFile", backgroundFile);
     }
 
     const response = await fetch(coachId ? `/api/coaches/${coachId}` : "/api/coaches", {
@@ -103,11 +109,17 @@ export function CreateCoachPageContent({
     const router = useRouter();
     const queryClient = useQueryClient();
     const [form, setForm] = useState<CoachEditorValues>(initialValues);
+    const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
     const isEditing = Boolean(coachId);
     const mutation = useMutation({
-        mutationFn: (values: CoachEditorValues) => saveCoach(coachId, values, backgroundFile),
+        mutationFn: (values: CoachEditorValues) => saveCoach(
+            coachId,
+            values,
+            avatarFile,
+            backgroundFile,
+        ),
         onError: (error) => {
             setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer le coach IA.");
         },
@@ -158,73 +170,30 @@ export function CreateCoachPageContent({
                 </Box>}
 
                 <CardSurface className={cn(uiTokens.surface.formCard, "space-y-7")}>
-                    <FormSection title="Identité du coach">
-                        <Box className="flex flex-col gap-5 md:flex-row md:items-start">
-                            <Box className="flex h-[100px] w-[100px] shrink-0 items-center justify-center overflow-hidden rounded-full border-[3px] border-[#E7EAFF] bg-[#F1F2F6]">
-                                {form.avatarSrc ? (
-                                    <Box
-                                        aria-label={form.name || "Avatar du coach"}
-                                        role="img"
-                                        className="h-full w-full bg-cover bg-center"
-                                        style={{ backgroundImage: `url(${form.avatarSrc})` }}
-                                    />
-                                ) : (
-                                    <Text className="text-[22px] font-extrabold text-[#5140F0]">
-                                        {getCoachInitials(form.name)}
-                                    </Text>
-                                )}
-                            </Box>
-                            <Box className="grid w-full gap-4 sm:grid-cols-2">
-                                <Field required label="Nom du coach" htmlFor="coach-name">
-                                    <TextInput
-                                        density="sm"
-                                        id="coach-name"
-                                        placeholder="Ex : Pierre Laurent"
-                                        hasLeadingIcon={false}
-                                        required
-                                        value={form.name}
-                                        onChange={(event) => patch("name", event.target.value)}
-                                    />
-                                </Field>
-                                <Field label="URL image de l'avatar" htmlFor="coach-avatar">
-                                    <TextInput
-                                        density="sm"
-                                        id="coach-avatar"
-                                        placeholder="https://... ou /coaches/avatar.png"
-                                        hasLeadingIcon={false}
-                                        value={form.avatarSrc}
-                                        onChange={(event) => patch("avatarSrc", event.target.value)}
-                                    />
-                                </Field>
-                            </Box>
-                        </Box>
+                    <FormSection title="Avatar du coach">
+                        <CoachAvatarField
+                            avatarFile={avatarFile}
+                            avatarUrl={form.avatarSrc}
+                            coachName={form.name}
+                            disabled={mutation.isPending}
+                            onAvatarFileChange={setAvatarFile}
+                            onAvatarUrlChange={(value) => patch("avatarSrc", value)}
+                            onError={setFormError}
+                        />
                     </FormSection>
 
-                    <FormSection title="Avatars proposés">
-                        <Box className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-                            {coachAvatarOptions.map((avatar) => (
-                                <button
-                                    key={avatar.id}
-                                    aria-label={avatar.name}
-                                    aria-pressed={form.avatarSrc === avatar.src}
-                                    onClick={() => patch("avatarSrc", avatar.src)}
-                                    type="button"
-                                    className={cn(
-                                        "relative mx-auto aspect-square w-full max-w-[150px] overflow-hidden rounded-[16px] border-2 transition focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0]/40",
-                                        form.avatarSrc === avatar.src
-                                            ? "border-[#5140F0] shadow-[0_8px_18px_rgba(81,64,240,0.20)]"
-                                            : "border-transparent hover:border-[#E5E7EB]",
-                                    )}
-                                >
-                                    <Box
-                                        aria-label={avatar.name}
-                                        role="img"
-                                        className="absolute inset-0 bg-cover bg-center"
-                                        style={{ backgroundImage: `url(${avatar.src})` }}
-                                    />
-                                </button>
-                            ))}
-                        </Box>
+                    <FormSection title="Identité du coach">
+                        <Field required label="Nom du coach" htmlFor="coach-name">
+                            <TextInput
+                                density="sm"
+                                id="coach-name"
+                                placeholder="Ex : Pierre Laurent"
+                                hasLeadingIcon={false}
+                                required
+                                value={form.name}
+                                onChange={(event) => patch("name", event.target.value)}
+                            />
+                        </Field>
                     </FormSection>
 
                     <FormSection title="Décor des sessions de coaching">
