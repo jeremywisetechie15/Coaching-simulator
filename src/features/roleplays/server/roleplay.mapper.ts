@@ -19,6 +19,7 @@ import {
     type RoleplayResource,
     type RoleplayStats,
 } from "@/features/roleplays/domain";
+import { getPersonaAvatarPublicUrl } from "@/features/personas/domain/persona-list";
 
 export interface RoleplayRow {
     assigned_user_id?: string | null;
@@ -163,7 +164,7 @@ export function mapRoleplayRowToListItem(row: RoleplayRow, quizCount = 0, attemp
         name: row.persona_name ?? row.title,
         organizationId: row.organization_id ?? null,
         organizationName: row.organization_name ?? null,
-        personaAvatarUrl: row.persona_avatar_url ?? null,
+        personaAvatarUrl: getPersonaAvatarPublicUrl(row.persona_avatar_url),
         personaId: row.persona_id,
         quizCount,
         role: row.persona_role ?? "",
