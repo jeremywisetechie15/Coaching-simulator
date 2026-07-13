@@ -3,6 +3,7 @@ import type { RoleplayNotationCriterionRef } from "@/features/roleplays/domain";
 import {
     buildScoreGlobalFromScorecard,
     calculateScorecardNotationResult,
+    validateScorecardMethodoResult,
 } from "./scorecard-notation-scoring";
 
 const refs: RoleplayNotationCriterionRef[] = [
@@ -20,6 +21,7 @@ const refs: RoleplayNotationCriterionRef[] = [
         skillId: "decouverte-besoin",
         skillName: "Découverte du besoin",
         stepOrder: 1,
+        stepRef: "S1",
         stepTitle: "Découvrir",
         verbatim: "Quel est votre enjeu prioritaire ?",
     },
@@ -37,6 +39,7 @@ const refs: RoleplayNotationCriterionRef[] = [
         skillId: "reformulation",
         skillName: "Reformulation",
         stepOrder: 1,
+        stepRef: "S1",
         stepTitle: "Découvrir",
         verbatim: "Si je comprends bien...",
     },
@@ -54,6 +57,7 @@ const refs: RoleplayNotationCriterionRef[] = [
         skillId: "conclusion",
         skillName: "Conclusion",
         stepOrder: 2,
+        stepRef: "S2",
         stepTitle: "Confirmer",
         verbatim: "Je vous propose de bloquer un créneau.",
     },
@@ -195,5 +199,32 @@ describe("scorecard notation scoring", () => {
                 },
             ],
         });
+    });
+
+    it("accepts one complete and nuanced result per criterion", () => {
+        expect(validateScorecardMethodoResult({
+            criteres: [
+                { ref: "C1", points_obtenus: 3.2, points_max: 4 },
+                { ref: "C2", points_obtenus: 4.2, points_max: 6 },
+                { ref: "C3", points_obtenus: 3.35, points_max: 5 },
+            ],
+        }, refs)).toEqual([]);
+    });
+
+    it("rejects missing, duplicate, unknown and out-of-range criterion results", () => {
+        const errors = validateScorecardMethodoResult({
+            criteres: [
+                { ref: "C1", points_obtenus: 5, points_max: 4 },
+                { ref: "C1", points_obtenus: 4, points_max: 4 },
+                { ref: "C999", points_obtenus: 1, points_max: 1 },
+                { ref: "C3", points_obtenus: 2.5, points_max: 4 },
+            ],
+        }, refs);
+
+        expect(errors).toContain("Reference de critere dupliquee: C1.");
+        expect(errors).toContain("Reference de critere inconnue: C999.");
+        expect(errors).toContain("Resultat manquant pour C2.");
+        expect(errors).toContain("points_max invalide pour C3: attendu 5.");
+        expect(errors).toContain("points_obtenus hors limites pour C1.");
     });
 });

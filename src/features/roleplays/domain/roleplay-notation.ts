@@ -31,6 +31,15 @@ export function shouldReuseCompletedRoleplayNotation({
     return !forceRegeneration && hasNotation && notationStatus === ROLEPLAY_NOTATION_STATUS.completed;
 }
 
+export interface RoleplayNotationStepRef {
+    code: string;
+    methodStepId: string | null;
+    order: number;
+    ref: string;
+    scorecardStepId: string;
+    title: string;
+}
+
 export interface RoleplayNotationCriterionRef {
     criterionKey: string;
     dimension: "savoir" | "savoir_faire" | "savoir_etre";
@@ -45,6 +54,7 @@ export interface RoleplayNotationCriterionRef {
     skillId: string;
     skillName: string;
     stepOrder: number;
+    stepRef: string;
     stepTitle: string;
     verbatim: string;
 }

@@ -46,12 +46,15 @@ import {
 import type { Evaluation, EvaluationCriterion, EvaluationStep } from "@/features/roleplays/data/evaluation";
 import {
     buildEvaluationScoreDetails,
+    getRoleplayNotationApiErrorMessage,
+    ROLEPLAY_NOTATION_FEEDBACK_MESSAGES,
     ROLEPLAY_PDF_TEMPLATES,
     ROLEPLAY_ROUTES,
     scoreLevel,
     type RoleplayPdfTemplate,
 } from "@/features/roleplays/domain";
 import { ROLEPLAY_ANALYSIS_STEPS, ROLEPLAY_PDF_EXPORT_STEPS } from "@/features/roleplays/data/session-analysis";
+import { notify } from "@/lib/ui/feedback/toast";
 import { SimulationView } from "./SimulationView";
 import { EvaluationKeyMomentsSection } from "./EvaluationKeyMomentsSection";
 import { RoleplayGuidanceTabsPanel } from "./RoleplayGuidanceTabsPanel";
@@ -210,22 +213,26 @@ export function EvaluationPageContent({
             const payload: unknown = await response.json().catch(() => null);
 
             if (payload && typeof payload === "object" && "skipped" in payload && payload.skipped === true) {
-                throw new Error("Cette session ne peut pas être notée.");
+                throw new Error(ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.ineligible);
             }
 
             if (!response.ok) {
-                const errorMessage =
-                    payload && typeof payload === "object" && "error" in payload
-                        ? String(payload.error)
-                        : "Impossible de relancer la notation de cette session.";
-                throw new Error(errorMessage);
+                throw new Error(getRoleplayNotationApiErrorMessage(
+                    payload,
+                    ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.regenerationError,
+                ));
             }
 
             setNotationRefreshStep(null);
+            notify.success(ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.regenerationSuccess);
             router.refresh();
         } catch (error) {
             setNotationRefreshStep(null);
-            window.alert(error instanceof Error ? error.message : "Impossible de relancer la notation de cette session.");
+            notify.error(
+                error instanceof Error
+                    ? error.message
+                    : ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.regenerationError,
+            );
         }
     };
 

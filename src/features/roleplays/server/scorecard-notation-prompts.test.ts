@@ -6,8 +6,8 @@ describe("scorecard notation prompt titles", () => {
         expect(SCORECARD_NOTATION_PROMPT_TITLES).toEqual({
             methodo: "notation.scorecard.methodo",
             synthese: "notation.scorecard.synthese",
-            transcription: "notation.scorecard.transcription",
         });
+        expect(SCORECARD_NOTATION_PROMPT_TITLES).not.toHaveProperty("transcription");
         expect(SCORECARD_NOTATION_PROMPT_TITLES).not.toHaveProperty("discours");
     });
 });

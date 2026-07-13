@@ -1,64 +1,30 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { RoleplayNotationCriterionRef } from "@/features/roleplays/domain";
-import { getRoleplayScorecardDefinition } from "./get-roleplay-scorecard-definition";
+import {
+    buildRoleplayNotationTranscript,
+    buildRoleplayNotationTranscriptText,
+    type RoleplayNotationCriterionRef,
+    type RoleplayNotationMessage,
+    type RoleplayNotationStepRef,
+    type RoleplayNotationTranscriptPayload,
+} from "@/features/roleplays/domain";
+import { getRoleplayRuntimeContext } from "./get-roleplay-coach-context";
 
-interface MessageRow {
-    content: string | null;
-    role: string | null;
-    timestamp: string | null;
-}
-
-interface SessionScenarioRow {
+interface SessionRow {
     created_at: string | null;
     duration_seconds: number | null;
     id: string;
     scenario_id: string | null;
-    scenarios: {
-        coaching_steps?: string | null;
-        context?: string | null;
-        description?: string | null;
-        difficulty_level?: string | null;
-        id: string;
-        method_id?: string | null;
-        objective?: string | null;
-        obstacles?: string | null;
-        scorecard_id?: string | null;
-        title?: string | null;
-    } | null;
     user_id: string | null;
-}
-
-interface MethodRow {
-    challenges?: string[] | null;
-    code?: string | null;
-    description?: string | null;
-    id: string;
-    name?: string | null;
-    objectives?: string[] | null;
-    version?: string | null;
-}
-
-interface MethodStepRow {
-    best_practices?: string[] | null;
-    code?: string | null;
-    id: string;
-    objectives?: string[] | null;
-    pitfalls?: string[] | null;
-    posture?: string[] | null;
-    short_title?: string | null;
-    step_key?: string | null;
-    step_order: number;
-    summary?: string | null;
-    title?: string | null;
-    verbatims?: string[] | null;
 }
 
 export interface RoleplayScorecardNotationContext {
     criterionRefs: RoleplayNotationCriterionRef[];
     method: {
+        category: string;
         challenges: string[];
         code: string;
         description: string;
+        domain: string;
         id: string;
         name: string;
         objectives: string[];
@@ -71,24 +37,50 @@ export interface RoleplayScorecardNotationContext {
             pitfalls: string[];
             posture: string[];
             summary: string;
+            takeaway: string;
             title: string;
             verbatims: string[];
+            weight: number | null;
         }>;
         version: string;
     };
+    persona: {
+        age: number | null;
+        annualRevenue: string;
+        childrenCount: number | null;
+        company: string;
+        companyDescription: string;
+        diploma: string;
+        discProfile: string;
+        employeeCount: number | null;
+        industry: string;
+        maritalStatus: string;
+        name: string;
+        nationality: string;
+        netIncomeBeforeTax: string;
+        residenceCountry: string;
+        role: string;
+        systemInstructions: string;
+    } | null;
     scenario: {
+        category: string;
         coachingSteps: string;
         context: string;
         description: string;
         difficulty: string;
+        discProfile: string;
+        domain: string;
         id: string;
         objective: string;
         obstacles: string;
         title: string;
     };
     scorecard: {
+        category: string;
         description: string;
+        domain: string;
         id: string;
+        level: string;
         name: string;
         steps: Array<{
             criteria: Array<{
@@ -105,6 +97,7 @@ export interface RoleplayScorecardNotationContext {
             id: string;
             methodStepId: string | null;
             order: number;
+            stepRef: string;
             title: string;
         }>;
     };
@@ -115,185 +108,154 @@ export interface RoleplayScorecardNotationContext {
         scenarioId: string;
         userId: string | null;
     };
+    stepRefs: RoleplayNotationStepRef[];
     transcript: string;
+    transcription: RoleplayNotationTranscriptPayload;
 }
 
-function cleanArray(value: string[] | null | undefined) {
-    return Array.isArray(value) ? value.filter((item) => item.trim().length > 0) : [];
-}
+function buildPersonaContext(
+    persona: Awaited<ReturnType<typeof getRoleplayRuntimeContext>>["persona"],
+): RoleplayScorecardNotationContext["persona"] {
+    if (!persona) return null;
 
-function cleanText(value: string | null | undefined) {
-    return value?.trim() ?? "";
-}
-
-function buildTranscript(messages: MessageRow[]) {
-    return messages
-        .map((message) => {
-            const timestamp = message.timestamp ? new Date(message.timestamp) : null;
-            const time = timestamp && !Number.isNaN(timestamp.getTime())
-                ? timestamp.toLocaleTimeString("fr-FR", {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                    second: "2-digit",
-                })
-                : "--:--:--";
-            const role = message.role === "user" ? "Utilisateur" : "Persona";
-            return `[${time}] ${role}: ${message.content ?? ""}`;
-        })
-        .join("\n");
+    return {
+        age: persona.age,
+        annualRevenue: persona.annualRevenue,
+        childrenCount: persona.childrenCount,
+        company: persona.company,
+        companyDescription: persona.companyDescription,
+        diploma: persona.diploma,
+        discProfile: persona.discProfile,
+        employeeCount: persona.employeeCount,
+        industry: persona.industry,
+        maritalStatus: persona.maritalStatus,
+        name: persona.name,
+        nationality: persona.nationality,
+        netIncomeBeforeTax: persona.netIncomeBeforeTax,
+        residenceCountry: persona.residenceCountry,
+        role: persona.role,
+        systemInstructions: persona.systemInstructions,
+    };
 }
 
 export async function buildRoleplayScorecardNotationContext(
     supabase: SupabaseClient,
     sessionId: string,
-    messages: MessageRow[],
+    messages: RoleplayNotationMessage[],
 ): Promise<RoleplayScorecardNotationContext | null> {
     const { data: session, error: sessionError } = await supabase
         .from("sessions")
-        .select(`
-            id,
-            user_id,
-            scenario_id,
-            duration_seconds,
-            created_at,
-            scenarios!inner(
-                id,
-                title,
-                description,
-                method_id,
-                scorecard_id,
-                context,
-                objective,
-                obstacles,
-                difficulty_level,
-                coaching_steps
-            )
-        `)
+        .select("id, user_id, scenario_id, duration_seconds, created_at")
         .eq("id", sessionId)
-        .maybeSingle<SessionScenarioRow>();
+        .maybeSingle<SessionRow>();
 
     if (sessionError) throw sessionError;
-    if (!session?.scenario_id || !session.scenarios?.scorecard_id || !session.scenarios.method_id) {
-        return null;
+    if (!session?.scenario_id) return null;
+
+    const runtime = await getRoleplayRuntimeContext(supabase, session.scenario_id);
+    if (!runtime.method || !runtime.scorecard) return null;
+    if (runtime.scorecard.methodId !== runtime.method.id) {
+        throw new Error("La scorecard du roleplay n'est pas liee a la methode selectionnee.");
+    }
+    if (runtime.scorecard.steps.length === 0 || runtime.scorecard.steps.every((step) => step.criteria.length === 0)) {
+        throw new Error("La scorecard du roleplay ne contient aucun critere evaluable.");
     }
 
-    const scenario = session.scenarios;
-
-    const [
-        { data: method, error: methodError },
-        { data: methodSteps, error: methodStepsError },
-        scorecard,
-    ] = await Promise.all([
-        supabase
-            .from("methods")
-            .select("id, code, name, version, description, objectives, challenges")
-            .eq("id", scenario.method_id)
-            .maybeSingle<MethodRow>(),
-        supabase
-            .from("method_steps")
-            .select("id, step_order, step_key, code, title, short_title, summary, objectives, best_practices, pitfalls, posture, verbatims")
-            .eq("method_id", scenario.method_id)
-            .order("step_order", { ascending: true })
-            .returns<MethodStepRow[]>(),
-        getRoleplayScorecardDefinition(supabase, scenario.scorecard_id ?? null),
-    ]);
-
-    if (methodError) throw methodError;
-    if (methodStepsError) throw methodStepsError;
-    if (!method || !scorecard) return null;
-
-    if (scorecard.steps.length === 0 || scorecard.steps.every((step) => step.criteria.length === 0)) {
-        return null;
-    }
-
-    const methodStepsById = new Map((methodSteps ?? []).map((step) => [step.id, step]));
-    const criterionRefs: RoleplayNotationCriterionRef[] = [];
-    let refIndex = 1;
-
-    const scorecardContextSteps = scorecard.steps.map((step) => {
-        const methodStep = step.methodStepId ? methodStepsById.get(step.methodStepId) : null;
-        const title = cleanText(step.title) || cleanText(methodStep?.title) || `Étape ${step.order}`;
-        const stepCriteria = step.criteria.map((criterion) => {
-            const ref = `C${refIndex++}`;
-
-            criterionRefs.push({
-                criterionKey: criterion.criterionKey,
-                dimension: criterion.dimension,
-                dimensionItemId: criterion.dimensionItemId,
-                dimensionItemLabel: criterion.dimensionItemLabel,
-                expectedEvidence: criterion.expectedEvidence,
-                maxPoints: criterion.maxPoints,
-                methodStepId: step.methodStepId,
-                ref,
-                scorecardCriterionId: criterion.id,
-                scorecardStepId: step.id,
-                skillId: criterion.skillId,
-                skillName: criterion.skillName,
-                stepOrder: step.order,
-                stepTitle: title,
-                verbatim: criterion.verbatim,
-            });
-
-            return {
-                aiInstruction: criterion.aiInstruction,
-                criterionKey: criterion.criterionKey,
-                dimension: criterion.dimension,
-                dimensionItemLabel: criterion.dimensionItemLabel,
-                expectedEvidence: criterion.expectedEvidence,
-                maxPoints: criterion.maxPoints,
-                ref,
-                skillName: criterion.skillName,
-                verbatim: criterion.verbatim,
-            };
-        });
+    const methodStepsById = new Map(runtime.methodSteps.map((step) => [step.id, step]));
+    const methodStepsByOrder = new Map(runtime.methodSteps.map((step) => [step.order, step]));
+    const stepRefs: RoleplayNotationStepRef[] = runtime.scorecard.steps.map((step, index) => {
+        const methodStep = (step.methodStepId ? methodStepsById.get(step.methodStepId) : null)
+            ?? methodStepsByOrder.get(step.order);
+        const ref = `S${index + 1}`;
 
         return {
-            criteria: stepCriteria,
+            code: methodStep?.code || ref,
+            methodStepId: step.methodStepId,
+            order: step.order,
+            ref,
+            scorecardStepId: step.id,
+            title: step.title || methodStep?.title || `Etape ${step.order}`,
+        };
+    });
+    const stepRefsByScorecardStepId = new Map(stepRefs.map((step) => [step.scorecardStepId, step]));
+    const criterionRefs: RoleplayNotationCriterionRef[] = [];
+    let criterionRefIndex = 1;
+
+    const scorecardSteps = runtime.scorecard.steps.map((step) => {
+        const stepRef = stepRefsByScorecardStepId.get(step.id);
+        if (!stepRef) throw new Error(`Reference interne absente pour l'etape ${step.id}.`);
+
+        return {
+            criteria: step.criteria.map((criterion) => {
+                const ref = `C${criterionRefIndex++}`;
+                criterionRefs.push({
+                    criterionKey: criterion.criterionKey,
+                    dimension: criterion.dimension,
+                    dimensionItemId: criterion.dimensionItemId,
+                    dimensionItemLabel: criterion.dimensionItemLabel,
+                    expectedEvidence: criterion.expectedEvidence,
+                    maxPoints: criterion.maxPoints,
+                    methodStepId: step.methodStepId,
+                    ref,
+                    scorecardCriterionId: criterion.id,
+                    scorecardStepId: step.id,
+                    skillId: criterion.skillId,
+                    skillName: criterion.skillName,
+                    stepOrder: step.order,
+                    stepRef: stepRef.ref,
+                    stepTitle: stepRef.title,
+                    verbatim: criterion.verbatim,
+                });
+
+                return {
+                    aiInstruction: criterion.aiInstruction,
+                    criterionKey: criterion.criterionKey,
+                    dimension: criterion.dimension,
+                    dimensionItemLabel: criterion.dimensionItemLabel,
+                    expectedEvidence: criterion.expectedEvidence,
+                    maxPoints: criterion.maxPoints,
+                    ref,
+                    skillName: criterion.skillName,
+                    verbatim: criterion.verbatim,
+                };
+            }),
             id: step.id,
             methodStepId: step.methodStepId,
             order: step.order,
-            title,
+            stepRef: stepRef.ref,
+            title: stepRef.title,
         };
     });
+    const transcription = buildRoleplayNotationTranscript(messages);
 
     return {
         criterionRefs,
         method: {
-            challenges: cleanArray(method.challenges),
-            code: cleanText(method.code),
-            description: cleanText(method.description),
-            id: method.id,
-            name: cleanText(method.name) || cleanText(method.code) || "Méthode",
-            objectives: cleanArray(method.objectives),
-            steps: (methodSteps ?? []).map((step) => ({
-                bestPractices: cleanArray(step.best_practices),
-                code: cleanText(step.code),
-                id: step.id,
-                objectives: cleanArray(step.objectives),
-                order: step.step_order,
-                pitfalls: cleanArray(step.pitfalls),
-                posture: cleanArray(step.posture),
-                summary: cleanText(step.summary),
-                title: cleanText(step.title) || cleanText(step.short_title) || `Étape ${step.step_order}`,
-                verbatims: cleanArray(step.verbatims),
-            })),
-            version: cleanText(method.version),
+            ...runtime.method,
+            steps: runtime.methodSteps,
         },
+        persona: buildPersonaContext(runtime.persona),
         scenario: {
-            coachingSteps: cleanText(scenario.coaching_steps),
-            context: cleanText(scenario.context),
-            description: cleanText(scenario.description),
-            difficulty: cleanText(scenario.difficulty_level),
-            id: scenario.id,
-            objective: cleanText(scenario.objective),
-            obstacles: cleanText(scenario.obstacles),
-            title: cleanText(scenario.title) || "Simulation",
+            category: runtime.scenario.category,
+            coachingSteps: runtime.scenario.coachingSteps,
+            context: runtime.scenario.context,
+            description: runtime.scenario.description,
+            difficulty: runtime.scenario.difficulty,
+            discProfile: runtime.scenario.discProfile,
+            domain: runtime.scenario.domain,
+            id: runtime.scenario.id,
+            objective: runtime.scenario.objective,
+            obstacles: runtime.scenario.obstacles,
+            title: runtime.scenario.title,
         },
         scorecard: {
-            description: cleanText(scorecard.description),
-            id: scorecard.id,
-            name: cleanText(scorecard.name) || "Scorecard",
-            steps: scorecardContextSteps,
+            category: runtime.scorecard.category,
+            description: runtime.scorecard.description,
+            domain: runtime.scorecard.domain,
+            id: runtime.scorecard.id,
+            level: runtime.scorecard.level,
+            name: runtime.scorecard.name,
+            steps: scorecardSteps,
         },
         session: {
             completedAt: session.created_at ?? new Date().toISOString(),
@@ -302,6 +264,8 @@ export async function buildRoleplayScorecardNotationContext(
             scenarioId: session.scenario_id,
             userId: session.user_id,
         },
-        transcript: buildTranscript(messages),
+        stepRefs,
+        transcript: buildRoleplayNotationTranscriptText(transcription),
+        transcription,
     };
 }

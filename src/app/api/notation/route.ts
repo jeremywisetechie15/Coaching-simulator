@@ -11,17 +11,24 @@ import {
     ROLEPLAY_NOTATION_TABS,
     isForcedRoleplayNotationRegeneration,
     shouldReuseCompletedRoleplayNotation,
+    ROLEPLAY_NOTATION_FEEDBACK_MESSAGES,
     type RoleplayNotationCriterionRef,
     type RoleplayNotationScoreResult,
+    type RoleplayNotationSource,
     type RoleplayNotationTab,
 } from '@/features/roleplays/domain';
 import {
+    SCORECARD_NOTATION_TABS,
+    buildScorecardMethodoInput,
+    buildScorecardSynthesisInput,
     buildRoleplayScorecardNotationContext,
     buildScoreGlobalFromScorecard,
     calculateLegacyMethodoStepScore,
     calculateScorecardNotationResult,
     loadScorecardNotationPrompts,
+    normalizeScorecardNotationSynthesis,
     persistRoleplayScorecardNotationResults,
+    validateScorecardMethodoResult,
     type RoleplayScorecardNotationContext,
 } from '@/features/roleplays/server';
 import { createClient as createServerSupabaseClient } from '@/lib/supabase/server';
@@ -123,8 +130,6 @@ type OpenAIJsonSchemaFormat = {
     strict: boolean;
     schema: Record<string, unknown>;
 };
-
-const SCORECARD_METHODO_SCHEMA_TAB = "methodo";
 
 const SCORECARD_METHODO_OUTPUT_SCHEMA: OpenAIJsonSchemaFormat = {
     type: "json_schema",
@@ -578,17 +583,20 @@ function sanitizeSchemaName(name: string, fallback: string) {
 
 async function loadNotationOutputSchemas(
     supabase: SupabaseClient,
-    config: NotationMethodConfig
+    config: NotationMethodConfig,
+    notationSource: RoleplayNotationSource = ROLEPLAY_NOTATION_SOURCE.legacyPdf,
+    tabs: readonly NotationTab[] = ROLEPLAY_NOTATION_TABS,
 ): Promise<Map<NotationTab, OpenAIJsonSchemaFormat>> {
     const schemasMap = new Map<NotationTab, OpenAIJsonSchemaFormat>();
+    const tabSet = new Set<NotationTab>(tabs);
 
     const { data, error } = await supabase
         .from("notation_output_schemas")
         .select("tab, name, schema_json, is_active")
         .eq("is_active", true)
         .eq("status", PUBLISHED_CONTENT_STATUS)
-        .eq("notation_source", ROLEPLAY_NOTATION_SOURCE.legacyPdf)
-        .in("tab", ROLEPLAY_NOTATION_TABS);
+        .eq("notation_source", notationSource)
+        .in("tab", [...tabs]);
 
     if (error) {
         console.warn("⚠️ Schémas JSON de notation indisponibles, fallback prompt-only:", error.message);
@@ -599,7 +607,7 @@ async function loadNotationOutputSchemas(
         const tab = row.tab;
         const schema = row.schema_json;
 
-        if (!ROLEPLAY_NOTATION_TABS.includes(tab as NotationTab) || !schema || typeof schema !== "object" || Array.isArray(schema)) {
+        if (!tabSet.has(tab as NotationTab) || !schema || typeof schema !== "object" || Array.isArray(schema)) {
             continue;
         }
 
@@ -620,39 +628,6 @@ async function loadNotationOutputSchemas(
     }
 
     return schemasMap;
-}
-
-async function loadScorecardMethodoOutputSchema(supabase: SupabaseClient): Promise<OpenAIJsonSchemaFormat> {
-    const { data, error } = await supabase
-        .from("notation_output_schemas")
-        .select("name, schema_json")
-        .eq("tab", SCORECARD_METHODO_SCHEMA_TAB)
-        .eq("name", SCORECARD_METHODO_OUTPUT_SCHEMA.name)
-        .eq("notation_source", ROLEPLAY_NOTATION_SOURCE.scorecard)
-        .eq("is_active", true)
-        .eq("status", PUBLISHED_CONTENT_STATUS)
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-    if (error) {
-        console.warn("⚠️ Schéma JSON scorecard indisponible, fallback code:", error.message);
-        return SCORECARD_METHODO_OUTPUT_SCHEMA;
-    }
-
-    const schema = data?.schema_json;
-    if (!schema || typeof schema !== "object" || Array.isArray(schema)) {
-        return SCORECARD_METHODO_OUTPUT_SCHEMA;
-    }
-
-    const name = typeof data.name === "string" ? data.name : SCORECARD_METHODO_OUTPUT_SCHEMA.name;
-
-    return {
-        type: "json_schema",
-        name: sanitizeSchemaName(name, SCORECARD_METHODO_OUTPUT_SCHEMA.name),
-        strict: true,
-        schema: schema as Record<string, unknown>,
-    };
 }
 
 function filenameFromPath(path: string) {
@@ -792,80 +767,6 @@ async function callOpenAIJson(
     }
 }
 
-function criterionRefToPrompt(ref: RoleplayNotationCriterionRef) {
-    return {
-        ref: ref.ref,
-        etape: ref.stepTitle,
-        critere: ref.criterionKey,
-        competence: ref.skillName,
-        dimension: ref.dimension,
-        item_dimension: ref.dimensionItemLabel,
-        preuve_attendue: ref.expectedEvidence,
-        verbatim_conformes: ref.verbatim,
-        points_max: ref.maxPoints,
-    };
-}
-
-function buildScorecardMethodoInput(context: RoleplayScorecardNotationContext) {
-    return `CONTEXTE DU SCENARIO:
-${JSON.stringify(context.scenario, null, 2)}
-
-METHODE:
-${JSON.stringify(context.method, null, 2)}
-
-SCORECARD:
-${JSON.stringify(context.scorecard, null, 2)}
-
-REFERENCES CRITERES A UTILISER STRICTEMENT:
-${JSON.stringify(context.criterionRefs.map(criterionRefToPrompt), null, 2)}
-
-REGLES:
-- Retourne uniquement un JSON valide.
-- N'invente aucun critere.
-- Ne renomme aucune ref.
-- Retourne un objet avec onglet = "AnalyseMethodologique" et une liste plate criteres.
-- Pour chaque ref fournie, retourne exactement un resultat avec ref, points_obtenus, points_max, preuve, commentaire et conseil.
-- Les points_obtenus doivent etre entre 0 et points_max.
-- La preuve, le commentaire et le conseil doivent etre renseignes en texte. Si le score est 0, explique brievement l'absence de preuve utilisateur observee.
-- Pour le champ preuve, utilise uniquement la TRANSCRIPTION ci-dessous.
-- Pour le champ preuve, cite uniquement des paroles de l'Utilisateur / Apprenant. N'utilise pas les paroles du Persona comme preuve de reussite de l'apprenant.
-- Pour le champ preuve, cite si possible un extrait exact, sans reformulation. Si aucun extrait utilisateur ne prouve le critere, retourne "Aucune preuve utilisateur observee".
-- Si un timecode ou un horodatage est present dans la transcription, prefixe la preuve avec ce timecode et le locuteur, par exemple "12:54:48 Utilisateur: ...".
-- La transcription peut contenir des erreurs de reconnaissance vocale, notamment sur les noms et prenoms du persona lorsque l'utilisateur les prononce. Ne penalise pas l'utilisateur uniquement pour une orthographe, traduction ou transcription approximative du nom/prenom du persona si l'intention est claire.
-
-TRANSCRIPTION:
----
-${context.transcript}
----`;
-}
-
-function buildScorecardFollowupInput(
-    context: RoleplayScorecardNotationContext,
-    notation: NotationPayload,
-    tab: Exclude<NotationTab, "methodo">,
-) {
-    return `CONTEXTE DU SCENARIO:
-${JSON.stringify(context.scenario, null, 2)}
-
-METHODE:
-${JSON.stringify(context.method, null, 2)}
-
-RESULTAT METHODOLOGIQUE DE REFERENCE:
-${JSON.stringify({ score_global: notation.score_global, methodo: notation.methodo }, null, 2)}
-
-ONGLET A PRODUIRE: ${tab}
-
-REGLES:
-- Retourne uniquement un JSON valide.
-- Reste coherent avec le score global et l'analyse methodologique deja calculee.
-- Ne modifie aucun score.
-
-TRANSCRIPTION:
----
-${context.transcript}
----`;
-}
-
 function buildScorecardMethodoPayload(
     rawMethodo: Record<string, unknown> | null,
     scoreResult: RoleplayNotationScoreResult,
@@ -913,16 +814,25 @@ async function runScorecardNotation(
     context: RoleplayScorecardNotationContext,
 ) {
     const promptsMap = await loadScorecardNotationPrompts(supabase);
-    const missingPrompts = ROLEPLAY_NOTATION_TABS.filter((tab) => !promptsMap.has(tab));
+    const missingPrompts = SCORECARD_NOTATION_TABS.filter((tab) => !promptsMap.has(tab));
 
     if (missingPrompts.length > 0) {
         throw new Error(`Prompts scorecard manquants: ${missingPrompts.map((tab) => `notation.scorecard.${tab}`).join(", ")}`);
     }
 
-    const outputSchemasMap = await loadNotationOutputSchemas(supabase, SCORECARD_NOTATION_CONFIG);
-    const scorecardMethodoOutputSchema = await loadScorecardMethodoOutputSchema(supabase);
+    const outputSchemasMap = await loadNotationOutputSchemas(
+        supabase,
+        SCORECARD_NOTATION_CONFIG,
+        ROLEPLAY_NOTATION_SOURCE.scorecard,
+        SCORECARD_NOTATION_TABS,
+    );
+    const scorecardMethodoOutputSchema = outputSchemasMap.get("methodo") ?? SCORECARD_METHODO_OUTPUT_SCHEMA;
+    const scorecardSynthesisOutputSchema = outputSchemasMap.get("synthese");
+    if (!scorecardSynthesisOutputSchema) {
+        throw new Error("Schema JSON scorecard synthese manquant.");
+    }
+
     const notation: NotationPayload = {};
-    const errors: string[] = [];
 
     const methodoPrompt = promptsMap.get("methodo");
     if (!methodoPrompt) {
@@ -940,38 +850,43 @@ async function runScorecardNotation(
         throw new Error(methodoResult.error || "Réponse methodo scorecard absente.");
     }
 
+    const methodoValidationErrors = validateScorecardMethodoResult(methodoResult.result, context.criterionRefs);
+    if (methodoValidationErrors.length > 0) {
+        throw new Error(`Réponse methodo scorecard invalide: ${methodoValidationErrors.join(" ")}`);
+    }
+
     const scoreResult = calculateScorecardNotationResult(methodoResult.result, context.criterionRefs);
     notation.methodo = buildScorecardMethodoPayload(methodoResult.result, scoreResult, context.criterionRefs);
     notation.score_global = buildScoreGlobalFromScorecard(scoreResult);
 
-    const followupResults = await Promise.all(
-        ROLEPLAY_NOTATION_FOLLOWUP_TABS.map(async (tab) => {
-            const prompt = promptsMap.get(tab);
-            if (!prompt) return { tab, result: null, error: `Prompt ${tab} manquant.` };
-
-            const response = await callOpenAIJson(
-                tab,
-                prompt,
-                buildScorecardFollowupInput(context, notation, tab),
-                outputSchemasMap.get(tab),
-            );
-
-            return { tab, ...response };
-        }),
-    );
-
-    for (const tabResult of followupResults) {
-        if (tabResult.result) {
-            notation[tabResult.tab] = tabResult.result;
-        } else {
-            const tabError = tabResult.error || `Réponse ${tabResult.tab} absente, invalide ou incomplète.`;
-            errors.push(`${tabResult.tab}: ${tabError}`);
-            notation[tabResult.tab] = buildTabError(tabResult.tab, tabError);
-        }
+    const synthesisPrompt = promptsMap.get("synthese");
+    if (!synthesisPrompt) {
+        throw new Error("Prompt scorecard synthese manquant.");
     }
 
+    const synthesisResult = await callOpenAIJson(
+        "synthese",
+        synthesisPrompt,
+        buildScorecardSynthesisInput(context, notation),
+        scorecardSynthesisOutputSchema,
+    );
+    if (!synthesisResult.result) {
+        throw new Error(synthesisResult.error || "Réponse synthese scorecard absente.");
+    }
+
+    const normalizedSynthesis = normalizeScorecardNotationSynthesis(
+        synthesisResult.result,
+        context.stepRefs,
+    );
+    if (!normalizedSynthesis.result) {
+        throw new Error(`Réponse synthese scorecard invalide: ${normalizedSynthesis.errors.join(" ")}`);
+    }
+
+    notation.synthese = normalizedSynthesis.result;
+    notation.transcription = { ...context.transcription };
+
     return {
-        errors,
+        errors: [] as string[],
         notation,
         scoreResult,
     };
@@ -1219,7 +1134,10 @@ export async function POST(req: Request) {
                 });
 
                 return setCorsHeaders(
-                    NextResponse.json({ error: "Erreur notation scorecard", details: errorMessage }, { status: 500 })
+                    NextResponse.json({
+                        error: ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.scorecardServerError,
+                        details: errorMessage,
+                    }, { status: 500 })
                 );
             }
         }

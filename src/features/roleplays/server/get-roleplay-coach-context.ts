@@ -17,6 +17,7 @@ SOURCE DE VÉRITÉ DYNAMIQUE:
 interface ScenarioRow {
     background_image_path: string | null;
     category: string | null;
+    coaching_steps: string | null;
     context: string | null;
     description: string | null;
     difficulty_level: string | null;
@@ -53,9 +54,11 @@ interface PersonaRow {
 }
 
 interface MethodRow {
+    category: string | null;
     challenges: string[] | null;
     code: string | null;
     description: string | null;
+    domain: string | null;
     id: string;
     name: string;
     objectives: string[] | null;
@@ -94,9 +97,11 @@ export interface RoleplayCoachMethodStepContext {
 
 export interface RoleplayRuntimeContext {
     method: {
+        category: string;
         challenges: string[];
         code: string;
         description: string;
+        domain: string;
         id: string;
         name: string;
         objectives: string[];
@@ -126,6 +131,7 @@ export interface RoleplayRuntimeContext {
     scenario: {
         backgroundImagePath: string | null;
         category: string;
+        coachingSteps: string;
         context: string;
         description: string;
         difficulty: string;
@@ -174,7 +180,7 @@ async function getMethod(supabase: SupabaseClient, methodId: string | null) {
 
     const { data, error } = await supabase
         .from("methods")
-        .select("id, code, name, version, description, objectives, challenges")
+        .select("id, code, name, version, description, domain, category, objectives, challenges")
         .eq("id", methodId)
         .maybeSingle<MethodRow>();
 
@@ -222,7 +228,7 @@ async function getPersona(supabase: SupabaseClient, personaId: string | null) {
 async function getScenario(supabase: SupabaseClient, scenarioId: string) {
     const { data, error } = await supabase
         .from("scenarios")
-        .select("id, title, description, context, objective, obstacles, difficulty_level, domain, category, disc_profile, method_id, persona_id, scorecard_id, background_image_path")
+        .select("id, title, description, context, objective, obstacles, difficulty_level, domain, category, disc_profile, coaching_steps, method_id, persona_id, scorecard_id, background_image_path")
         .eq("id", scenarioId)
         .maybeSingle<ScenarioRow>();
 
@@ -260,6 +266,7 @@ function mapScenario(scenario: ScenarioRow): RoleplayRuntimeContext["scenario"] 
     return {
         backgroundImagePath: scenario.background_image_path,
         category: text(scenario.category),
+        coachingSteps: text(scenario.coaching_steps),
         context: text(scenario.context),
         description: text(scenario.description),
         difficulty: text(scenario.difficulty_level),
@@ -318,9 +325,11 @@ export async function getRoleplayRuntimeContext(
 
     return {
         method: method ? {
+            category: text(method.category),
             challenges: list(method.challenges),
             code: text(method.code),
             description: text(method.description),
+            domain: text(method.domain),
             id: method.id,
             name: method.name,
             objectives: list(method.objectives),
@@ -359,6 +368,7 @@ function serializePersonaBusinessContext(persona: NonNullable<RoleplayRuntimeCon
 function serializeScenarioBusinessContext(scenario: RoleplayRuntimeContext["scenario"]) {
     return {
         category: scenario.category,
+        coachingSteps: scenario.coachingSteps,
         context: scenario.context,
         description: scenario.description,
         difficulty: scenario.difficulty,

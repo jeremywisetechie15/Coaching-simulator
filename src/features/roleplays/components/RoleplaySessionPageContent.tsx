@@ -32,11 +32,14 @@ import { AnalysisLoaderDialog } from "@/lib/ui/organisms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 import {
+    getRoleplayNotationApiErrorMessage,
     isRoleplaySessionLifecycleEvent,
+    ROLEPLAY_NOTATION_FEEDBACK_MESSAGES,
     ROLEPLAY_ROUTES,
     ROLEPLAY_SESSION_LIFECYCLE_STATUS,
     type RoleplaySessionLifecycleStatus,
 } from "@/features/roleplays/domain";
+import { notify } from "@/lib/ui/feedback/toast";
 import { RoleplayDocumentsModal } from "./RoleplayDocumentsModal";
 import { roleplayChipIcons } from "./roleplayChipIcons";
 
@@ -103,15 +106,19 @@ export function RoleplaySessionPageContent({ roleplay }: { roleplay: RoleplayIte
 
             if (event.data.status === ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationCompleted) {
                 setSessionFeedback(null);
+                notify.success(ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.generationSuccess);
                 return;
             }
 
             if (event.data.status === ROLEPLAY_SESSION_LIFECYCLE_STATUS.skipped) {
-                setSessionFeedback("Cette session est sauvegardée, mais elle est trop courte pour être évaluée.");
+                setSessionFeedback(ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.ineligible);
+                notify.warning(ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.ineligible);
                 return;
             }
 
-            setSessionFeedback(event.data.error || "Impossible de finaliser cette session.");
+            const errorMessage = event.data.error || ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.generationError;
+            setSessionFeedback(errorMessage);
+            notify.error(errorMessage);
         }
 
         window.addEventListener("message", receiveSessionLifecycle);
@@ -154,7 +161,8 @@ export function RoleplaySessionPageContent({ roleplay }: { roleplay: RoleplayIte
             if (skipped) {
                 setAnalysisStep(null);
                 setSessionLifecycleStatus(ROLEPLAY_SESSION_LIFECYCLE_STATUS.skipped);
-                setSessionFeedback("Cette session est sauvegardée, mais elle est trop courte pour être évaluée.");
+                setSessionFeedback(ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.ineligible);
+                notify.warning(ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.ineligible);
                 return;
             }
 
@@ -164,16 +172,13 @@ export function RoleplaySessionPageContent({ roleplay }: { roleplay: RoleplayIte
                     : "";
 
             if (!response.ok || !sessionId) {
-                const errorMessage =
-                    payload && typeof payload === "object" && "error" in payload
-                        ? String(payload.error)
-                        : "Impossible de générer l'évaluation complète.";
-                throw new Error(errorMessage);
+                throw new Error(getRoleplayNotationApiErrorMessage(payload));
             }
 
             setAnalysisStep(null);
             setCompletedSessionId(sessionId);
             setSessionLifecycleStatus(ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationCompleted);
+            notify.success(ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.generationSuccess);
             router.push(
                 withReturnTo(
                     ROLEPLAY_ROUTES.app.sessionHistoryDetail(sessionId),
@@ -184,7 +189,11 @@ export function RoleplaySessionPageContent({ roleplay }: { roleplay: RoleplayIte
             console.error("Erreur pendant l'évaluation complète:", error);
             setAnalysisStep(null);
             setSessionLifecycleStatus(ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationFailed);
-            setSessionFeedback(error instanceof Error ? error.message : "Impossible de générer l'évaluation complète.");
+            const errorMessage = error instanceof Error
+                ? error.message
+                : ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.generationError;
+            setSessionFeedback(errorMessage);
+            notify.error(errorMessage);
         }
     };
 

@@ -16,6 +16,10 @@ import {
     ROLEPLAY_SESSION_LIFECYCLE_STATUS,
     type RoleplaySessionLifecycleEvent,
 } from "@/features/roleplays/domain/roleplay-session-lifecycle";
+import {
+    getRoleplayNotationApiErrorMessage,
+    ROLEPLAY_NOTATION_FEEDBACK_MESSAGES,
+} from "@/features/roleplays/domain/roleplay-notation-feedback";
 
 type SessionStatus = "loading" | "ready" | "connecting" | "connected" | "error" | "ended";
 
@@ -679,14 +683,14 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                             session_id: savedSessionId,
                         }),
                     });
+                    const notationPayload: unknown = await notationResponse.json().catch(() => null);
 
                     if (!notationResponse.ok) {
-                        const notationError = await notationResponse.text();
-                        throw new Error(notationError || "Impossible de générer l'évaluation.");
+                        throw new Error(getRoleplayNotationApiErrorMessage(notationPayload));
                     }
 
-                    const notationResult = await notationResponse.json();
-                    console.log("✅ Notation saved:", notationResult.notation?.note_globale);
+                    const notationResult = notationPayload as { notation?: { note_globale?: unknown } } | null;
+                    console.log("✅ Notation saved:", notationResult?.notation?.note_globale);
                     notifyParentOfSessionLifecycle({
                         error: null,
                         evaluationEligible: true,
@@ -697,7 +701,9 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                 } catch (notationError) {
                     console.error("❌ Error calling notation API:", notationError);
                     notifyParentOfSessionLifecycle({
-                        error: notationError instanceof Error ? notationError.message : "Impossible de générer l'évaluation.",
+                        error: notationError instanceof Error
+                            ? notationError.message
+                            : ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.generationError,
                         evaluationEligible: true,
                         scenarioId: config.scenarioId,
                         sessionId: savedSessionId,

@@ -24,9 +24,11 @@ const selectedStep = {
 
 const context: RoleplayCoachContext = {
     method: {
+        category: "Vente",
         challenges: ["Structurer la découverte"],
         code: "TEST",
         description: "Méthode de test",
+        domain: "Commercial",
         id: "method-1",
         name: "Méthode dynamique",
         objectives: ["Mener un entretien consultatif"],
@@ -56,6 +58,7 @@ const context: RoleplayCoachContext = {
     scenario: {
         backgroundImagePath: "roleplays/scenario-1/background.webp",
         category: "Découverte",
+        coachingSteps: "Faire reformuler l'apprenant.",
         context: "Premier échange",
         description: "Comprendre les priorités du prospect",
         difficulty: "Moyen",

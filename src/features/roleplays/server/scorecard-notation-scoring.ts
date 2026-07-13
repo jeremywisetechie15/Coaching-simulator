@@ -135,6 +135,55 @@ function extractPoints(criterion: JsonRecord, criterionMaxPoints: number) {
     return null;
 }
 
+export function validateScorecardMethodoResult(
+    methodoResult: JsonRecord | null,
+    criterionRefs: RoleplayNotationCriterionRef[],
+) {
+    const errors: string[] = [];
+    const expectedByRef = new Map(criterionRefs.map((criterion) => [criterion.ref, criterion]));
+    const seenRefs = new Set<string>();
+
+    for (const criterion of getAllCriterionRecords(methodoResult)) {
+        const ref = extractRef(criterion);
+        if (!ref) {
+            errors.push("Un resultat de critere ne contient aucune ref.");
+            continue;
+        }
+
+        const expected = expectedByRef.get(ref);
+        if (!expected) {
+            errors.push(`Reference de critere inconnue: ${ref}.`);
+            continue;
+        }
+        if (seenRefs.has(ref)) {
+            errors.push(`Reference de critere dupliquee: ${ref}.`);
+            continue;
+        }
+        seenRefs.add(ref);
+
+        const points = extractPoints(criterion, expected.maxPoints);
+        const returnedMax = asNumber(criterion.points_max) ?? asNumber(criterion.score_max);
+        if (points === null) {
+            errors.push(`Points absents pour ${ref}.`);
+            continue;
+        }
+        if (returnedMax === null || Math.abs(returnedMax - expected.maxPoints) > 0.001) {
+            errors.push(`points_max invalide pour ${ref}: attendu ${expected.maxPoints}.`);
+        }
+        if (points < 0 || points > expected.maxPoints) {
+            errors.push(`points_obtenus hors limites pour ${ref}.`);
+            continue;
+        }
+
+    }
+
+    for (const ref of expectedByRef.keys()) {
+        if (!seenRefs.has(ref)) errors.push(`Resultat manquant pour ${ref}.`);
+    }
+
+    return errors;
+}
+
 function extractText(criterion: JsonRecord, keys: string[]) {
     for (const key of keys) {
         const value = stringifyTextValue(criterion[key]);

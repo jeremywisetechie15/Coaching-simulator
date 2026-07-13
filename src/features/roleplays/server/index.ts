@@ -18,5 +18,7 @@ export * from "./roleplay-query";
 export * from "./save-roleplay-request";
 export * from "./save-roleplay-coach-notes";
 export * from "./scorecard-notation-prompts";
+export * from "./scorecard-notation-inputs";
 export * from "./scorecard-notation-scoring";
+export * from "./scorecard-notation-synthesis";
 export * from "./update-roleplay";

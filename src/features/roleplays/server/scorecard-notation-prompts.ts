@@ -1,14 +1,14 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { PUBLISHED_CONTENT_STATUS } from "@/features/content/domain";
-import type { RoleplayNotationTab } from "@/features/roleplays/domain/roleplay-notation-tabs";
 
-export const SCORECARD_NOTATION_PROMPT_TITLES: Record<RoleplayNotationTab, string> = {
+export const SCORECARD_NOTATION_TABS = ["methodo", "synthese"] as const;
+
+export type ScorecardNotationPromptTab = (typeof SCORECARD_NOTATION_TABS)[number];
+
+export const SCORECARD_NOTATION_PROMPT_TITLES: Record<ScorecardNotationPromptTab, string> = {
     methodo: "notation.scorecard.methodo",
     synthese: "notation.scorecard.synthese",
-    transcription: "notation.scorecard.transcription",
 };
-
-export type ScorecardNotationPromptTab = keyof typeof SCORECARD_NOTATION_PROMPT_TITLES;
 
 export async function loadScorecardNotationPrompts(supabase: SupabaseClient) {
     const entries = Object.entries(SCORECARD_NOTATION_PROMPT_TITLES) as Array<
