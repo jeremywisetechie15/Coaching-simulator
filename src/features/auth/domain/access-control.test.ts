@@ -5,6 +5,7 @@ import {
     canManageAppResource,
     canViewAppNavigationResource,
     isPlatformAdmin,
+    isSuspendedUserContext,
 } from "./access-control";
 
 describe("access-control", () => {
@@ -18,11 +19,13 @@ describe("access-control", () => {
         expect(isPlatformAdmin(undefined)).toBe(false);
     });
 
-    it("restricts users and organizations navigation to platform admins", () => {
+    it("restricts users, organizations and permissions navigation to platform admins", () => {
         expect(canViewAppNavigationResource("admin", APP_NAVIGATION_RESOURCE.users)).toBe(true);
         expect(canViewAppNavigationResource("admin", APP_NAVIGATION_RESOURCE.organizations)).toBe(true);
+        expect(canViewAppNavigationResource("admin", APP_NAVIGATION_RESOURCE.permissions)).toBe(true);
         expect(canViewAppNavigationResource("user", APP_NAVIGATION_RESOURCE.users)).toBe(false);
         expect(canViewAppNavigationResource("user", APP_NAVIGATION_RESOURCE.organizations)).toBe(false);
+        expect(canViewAppNavigationResource("user", APP_NAVIGATION_RESOURCE.permissions)).toBe(false);
     });
 
     it("keeps learner navigation resources visible to regular users", () => {
@@ -44,5 +47,30 @@ describe("access-control", () => {
         expect(canAccessAppRoute("admin", APP_NAVIGATION_RESOURCE.users)).toBe(true);
         expect(canAccessAppRoute("user", APP_NAVIGATION_RESOURCE.users)).toBe(false);
         expect(canAccessAppRoute("user", APP_NAVIGATION_RESOURCE.roleplays)).toBe(true);
+    });
+
+    it("identifies suspended organization users without blocking platform admins", () => {
+        const suspendedMembership = {
+            organizationId: "org-1",
+            role: "member" as const,
+            status: "suspended" as const,
+        };
+
+        expect(isSuspendedUserContext({
+            activeOrganizationId: null,
+            activeOrganizationRole: null,
+            email: "learner@example.com",
+            memberships: [suspendedMembership],
+            platformRole: "user",
+            userId: "learner-1",
+        })).toBe(true);
+        expect(isSuspendedUserContext({
+            activeOrganizationId: null,
+            activeOrganizationRole: null,
+            email: "admin@example.com",
+            memberships: [suspendedMembership],
+            platformRole: "admin",
+            userId: "admin-1",
+        })).toBe(false);
     });
 });

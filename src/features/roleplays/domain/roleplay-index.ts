@@ -1,5 +1,9 @@
 export const ROLEPLAY_INDEX_RECENT_SESSION_LIMIT = 6;
 export const ROLEPLAY_INDEX_BEST_SESSION_COUNT = 3;
+export const ROLEPLAY_INDEX_DESCRIPTION =
+    `Moyenne des ${ROLEPLAY_INDEX_BEST_SESSION_COUNT} meilleurs scores parmi les ` +
+    `${ROLEPLAY_INDEX_RECENT_SESSION_LIMIT} dernières simulations éligibles. ` +
+    `Avec moins de ${ROLEPLAY_INDEX_BEST_SESSION_COUNT} simulations, toutes les simulations disponibles sont retenues.`;
 
 export type RoleplayIndexTrend = "up" | "down" | "stable" | "unavailable";
 

@@ -1,4 +1,8 @@
 import { AppShell } from "@/features/app-shell/components";
+import {
+    APP_NAVIGATION_RESOURCE,
+    canManageAppResource,
+} from "@/features/auth/domain/access-control";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import type { Evaluation } from "@/features/roleplays/data/evaluation";
@@ -14,6 +18,8 @@ interface EvaluationPageProps {
 }
 
 export function EvaluationPage({ evaluation, profileValues, roleplay, session }: EvaluationPageProps) {
+    const canManage = canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.roleplays);
+
     return (
         <AppShell
             activePrimaryItem="Roleplays"
@@ -24,7 +30,12 @@ export function EvaluationPage({ evaluation, profileValues, roleplay, session }:
             email={profileValues.email}
             searchPlaceholder="Rechercher..."
         >
-            <EvaluationPageContent evaluation={evaluation} roleplay={roleplay} session={session} />
+            <EvaluationPageContent
+                canManage={canManage}
+                evaluation={evaluation}
+                roleplay={roleplay}
+                session={session}
+            />
         </AppShell>
     );
 }

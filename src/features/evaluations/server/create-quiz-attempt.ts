@@ -1,38 +1,17 @@
 import type { QuizAttemptSession } from "@/features/evaluations/domain";
 import { requireAuth } from "@/features/auth/server";
-import { AppError, NotFoundError } from "@/lib/server/errors";
+import { AppError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { fetchQuizAttemptDetail, QUIZ_ATTEMPT_SELECT } from "./quiz-attempt-query";
 import type { QuizAttemptRow } from "./quiz-attempt.mapper";
-
-interface QuizAttemptQuizRow {
-    id: string;
-    is_active?: boolean | null;
-    max_attempts?: number | null;
-    status?: string | null;
-}
-
-async function getQuizForAttempt(quizId: string) {
-    const supabase = createAdminClient();
-    const { data, error } = await supabase
-        .from("quizzes")
-        .select("id, max_attempts, status, is_active")
-        .eq("id", quizId)
-        .maybeSingle<QuizAttemptQuizRow>();
-
-    if (error) throw error;
-
-    if (!data || data.is_active === false || data.status === "archived") {
-        throw new NotFoundError("Quiz introuvable.");
-    }
-
-    return data;
-}
+import { getAccessibleQuizForAttempt } from "./quiz-attempt-access";
 
 export async function createQuizAttempt(quizId: string): Promise<QuizAttemptSession> {
     const context = await requireAuth();
+    const authenticatedSupabase = await createClient();
     const adminSupabase = createAdminClient();
-    const quiz = await getQuizForAttempt(quizId);
+    const quiz = await getAccessibleQuizForAttempt(authenticatedSupabase, quizId);
     const maxAttempts = quiz.max_attempts ?? 1;
 
     const { data: inProgressAttempt, error: inProgressError } = await adminSupabase

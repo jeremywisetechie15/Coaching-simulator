@@ -1,24 +1,39 @@
-import { ArrowLeft, Check, Pencil, Trash2, X } from "lucide-react";
+import { ArrowLeft, Check, Pencil, Power, Trash2, X } from "lucide-react";
 import { ContextualBackLink } from "@/features/app-shell/components";
+import {
+    ORGANIZATION_REMOVAL_ACTION,
+    type OrganizationRemovalAction,
+} from "@/features/organizations/domain/organization-deletion";
+import type { OrganizationStatus } from "@/features/organizations/domain/organization-list";
 import { Box, Button, InlineIcon, Text } from "@/lib/ui/atoms";
 
 interface OrganizationDetailHeaderProps {
     isEditing?: boolean;
     isSubmitting?: boolean;
     name: string;
+    organizationStatus: OrganizationStatus;
     onCancelEdit?: () => void;
+    onRemove?: () => void;
     onEdit?: () => void;
     onSave?: () => void;
+    removalAction: OrganizationRemovalAction;
 }
 
 export function OrganizationDetailHeader({
     isEditing = false,
     isSubmitting = false,
     name,
+    organizationStatus,
     onCancelEdit,
+    onRemove,
     onEdit,
     onSave,
+    removalAction,
 }: OrganizationDetailHeaderProps) {
+    const isDeactivation = removalAction === ORGANIZATION_REMOVAL_ACTION.deactivate;
+    const isAlreadyDeactivated = isDeactivation && organizationStatus === "suspended";
+    const RemovalIcon = isDeactivation ? Power : Trash2;
+
     return (
         <Box className="mb-8 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
             <Box className="flex items-center gap-7">
@@ -63,13 +78,16 @@ export function OrganizationDetailHeader({
                         Modifier
                     </Button>
                 )}
-                <Button
-                    disabled={isEditing}
-                    className="flex h-10 items-center gap-3 rounded-lg bg-[#DC2027] px-5 text-[14px] font-bold text-white shadow-[0_12px_24px_rgba(220,32,39,0.18)] transition hover:bg-[#C91C22] disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                    <InlineIcon icon={Trash2} className="h-5 w-5" />
-                    Supprimer
-                </Button>
+                {!isAlreadyDeactivated && (
+                    <Button
+                        disabled={isEditing}
+                        onClick={onRemove}
+                        className="flex h-10 items-center gap-3 rounded-lg bg-[#DC2027] px-5 text-[14px] font-bold text-white shadow-[0_12px_24px_rgba(220,32,39,0.18)] transition hover:bg-[#C91C22] disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                        <InlineIcon icon={RemovalIcon} className="h-5 w-5" />
+                        {isDeactivation ? "Désactiver" : "Supprimer"}
+                    </Button>
+                )}
             </Box>
         </Box>
     );

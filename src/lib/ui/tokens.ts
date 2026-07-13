@@ -121,7 +121,7 @@ export const uiTokens = {
         dangerIconButton:
             "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#9CA3AF] transition hover:bg-[#FEF2F2] hover:text-[#DC2626]",
         dangerButton:
-            "flex h-11 items-center justify-center rounded-xl bg-[#DC2626] px-6 text-[14px] font-bold text-white transition hover:bg-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-70",
+            "flex h-11 items-center justify-center gap-2 rounded-xl bg-[#DC2626] px-6 text-[14px] font-bold text-white transition hover:bg-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-70",
         iconButton:
             "flex h-7 w-7 items-center justify-center rounded-lg border border-[#E5E7EB] bg-white text-[#374151] transition hover:border-[#D5D7DE] hover:text-[#5140F0]",
         iconButtonGhost:
@@ -590,8 +590,8 @@ export const uiTokens = {
     },
     tooltip: {
         bubble:
-            "pointer-events-none absolute bottom-full left-0 z-50 mb-2 hidden max-w-[320px] rounded-lg border border-[#E5E7EB] bg-[#111827] px-2.5 py-1.5 text-left text-[12px] font-semibold leading-4 text-white shadow-[0_14px_30px_rgba(17,24,39,0.18)] group-hover/tooltip:block group-focus-within/tooltip:block",
-        root: "group/tooltip relative inline-flex min-w-0",
+            "pointer-events-none fixed z-[100] w-max max-w-[min(320px,calc(100vw-16px))] rounded-lg border border-[#E5E7EB] bg-[#111827] px-2.5 py-1.5 text-left text-[12px] font-semibold leading-4 text-white shadow-[0_14px_30px_rgba(17,24,39,0.18)]",
+        root: "relative inline-flex min-w-0",
     },
     upload: {
         dropButton: "border border-dashed",

@@ -19,8 +19,8 @@ describe("buildUserStatistics", () => {
                 {
                     assignedAt: "1 janvier 2026",
                     id: "roleplay-1",
+                    index: 65,
                     persona: "Persona",
-                    score: 80,
                     sessions: 2,
                     status: "completed",
                     title: "Roleplay",

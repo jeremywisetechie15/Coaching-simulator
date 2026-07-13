@@ -4,6 +4,7 @@ import type {
     OrganizationEvaluationRow,
     OrganizationRoleplayRow,
 } from "@/features/organizations/domain/organization-detail";
+import type { OrganizationRemovalAction } from "@/features/organizations/domain/organization-deletion";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import { OrganizationDetailContent } from "./OrganizationDetailContent";
@@ -13,6 +14,7 @@ interface OrganizationDetailPageProps {
     evaluations?: OrganizationEvaluationRow[];
     organization: OrganizationDetail;
     profileValues: ProfileFormValues;
+    removalAction: OrganizationRemovalAction;
     roleplays?: OrganizationRoleplayRow[];
 }
 
@@ -21,6 +23,7 @@ export function OrganizationDetailPage({
     evaluations = [],
     organization,
     profileValues,
+    removalAction,
     roleplays = [],
 }: OrganizationDetailPageProps) {
     return (
@@ -36,6 +39,7 @@ export function OrganizationDetailPage({
                 evaluations={evaluations}
                 initialIsEditing={initialIsEditing}
                 organization={organization}
+                removalAction={removalAction}
                 roleplays={roleplays}
             />
         </AppShell>

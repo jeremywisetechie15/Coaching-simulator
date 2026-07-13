@@ -1,4 +1,6 @@
 import { PLATFORM_ROLE, type PlatformRole } from "@/features/users/domain/users";
+import { ORGANIZATION_MEMBER_STATUS } from "@/features/organizations/domain/organization-member";
+import type { UserContext } from "./user-context";
 
 export const APP_NAVIGATION_RESOURCE = {
     coaches: "coaches",
@@ -6,6 +8,7 @@ export const APP_NAVIGATION_RESOURCE = {
     evaluations: "evaluations",
     methods: "methods",
     organizations: "organizations",
+    permissions: "permissions",
     personas: "personas",
     roleplays: "roleplays",
     scorecards: "scorecards",
@@ -18,6 +21,7 @@ export type AppNavigationResource =
 
 const ADMIN_ONLY_APP_NAVIGATION_RESOURCES = new Set<AppNavigationResource>([
     APP_NAVIGATION_RESOURCE.organizations,
+    APP_NAVIGATION_RESOURCE.permissions,
     APP_NAVIGATION_RESOURCE.users,
 ]);
 
@@ -26,6 +30,7 @@ const ADMIN_MANAGED_APP_RESOURCES = new Set<AppNavigationResource>([
     APP_NAVIGATION_RESOURCE.evaluations,
     APP_NAVIGATION_RESOURCE.methods,
     APP_NAVIGATION_RESOURCE.organizations,
+    APP_NAVIGATION_RESOURCE.permissions,
     APP_NAVIGATION_RESOURCE.personas,
     APP_NAVIGATION_RESOURCE.roleplays,
     APP_NAVIGATION_RESOURCE.scorecards,
@@ -35,6 +40,19 @@ const ADMIN_MANAGED_APP_RESOURCES = new Set<AppNavigationResource>([
 
 export function isPlatformAdmin(platformRole: PlatformRole | null | undefined): boolean {
     return platformRole === PLATFORM_ROLE.admin;
+}
+
+export function isSuspendedUserContext(context: UserContext) {
+    if (isPlatformAdmin(context.platformRole)) return false;
+
+    const hasActiveMembership = context.memberships.some(
+        (membership) => membership.status === ORGANIZATION_MEMBER_STATUS.active,
+    );
+    const hasSuspendedMembership = context.memberships.some(
+        (membership) => membership.status === ORGANIZATION_MEMBER_STATUS.suspended,
+    );
+
+    return !hasActiveMembership && hasSuspendedMembership;
 }
 
 export function canViewAppNavigationResource(

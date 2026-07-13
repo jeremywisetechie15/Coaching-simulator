@@ -15,6 +15,22 @@ export const ROLEPLAY_NOTATION_STATUS = {
 
 export type RoleplayNotationStatus = (typeof ROLEPLAY_NOTATION_STATUS)[keyof typeof ROLEPLAY_NOTATION_STATUS];
 
+export function isForcedRoleplayNotationRegeneration(value: unknown): value is true {
+    return value === true;
+}
+
+export function shouldReuseCompletedRoleplayNotation({
+    forceRegeneration,
+    hasNotation,
+    notationStatus,
+}: {
+    forceRegeneration: boolean;
+    hasNotation: boolean;
+    notationStatus: string | null;
+}) {
+    return !forceRegeneration && hasNotation && notationStatus === ROLEPLAY_NOTATION_STATUS.completed;
+}
+
 export interface RoleplayNotationCriterionRef {
     criterionKey: string;
     dimension: "savoir" | "savoir_faire" | "savoir_etre";

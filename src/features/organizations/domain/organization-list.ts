@@ -9,7 +9,7 @@ export type OrganizationStatus = (typeof ORGANIZATION_STATUSES)[number];
 
 export const ORGANIZATION_STATUS_LABELS: Record<OrganizationStatus, string> = {
     [ORGANIZATION_STATUS.active]: "Actif",
-    [ORGANIZATION_STATUS.suspended]: "Suspendu",
+    [ORGANIZATION_STATUS.suspended]: "Désactivé",
 };
 
 export const organizationStatusOptions = ORGANIZATION_STATUSES.map((status) => ({

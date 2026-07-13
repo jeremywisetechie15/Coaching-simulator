@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCurrentAppHref } from "@/features/app-shell/components";
 import { withSearchParam, withoutSearchParam } from "@/features/app-shell/domain";
+import { DeleteContentConfirmationModal } from "@/features/content/components";
 import { Box, CardSurface } from "@/lib/ui/atoms";
+import { notify } from "@/lib/ui/feedback/toast";
 import {
     type CreateOrganizationFieldErrors,
     type CreateOrganizationFormValues,
@@ -14,6 +16,10 @@ import type {
     OrganizationEvaluationRow,
     OrganizationRoleplayRow,
 } from "@/features/organizations/domain/organization-detail";
+import {
+    ORGANIZATION_REMOVAL_ACTION,
+    type OrganizationRemovalAction,
+} from "@/features/organizations/domain/organization-deletion";
 import type { OrganizationStatus } from "@/features/organizations/domain/organization-list";
 import { OrganizationDetailEvaluations } from "./OrganizationDetailEvaluations";
 import { OrganizationDetailGroups } from "./OrganizationDetailGroups";
@@ -31,6 +37,7 @@ interface OrganizationDetailContentProps {
     evaluations?: OrganizationEvaluationRow[];
     initialIsEditing?: boolean;
     organization: OrganizationDetail;
+    removalAction: OrganizationRemovalAction;
     roleplays?: OrganizationRoleplayRow[];
 }
 
@@ -40,6 +47,7 @@ interface ApiValidationIssue {
 }
 
 interface ApiErrorPayload {
+    action?: OrganizationRemovalAction;
     code?: string;
     error?: string;
     issues?: ApiValidationIssue[];
@@ -85,6 +93,7 @@ export function OrganizationDetailContent({
     evaluations = [],
     initialIsEditing = false,
     organization,
+    removalAction,
     roleplays = [],
 }: OrganizationDetailContentProps) {
     const router = useRouter();
@@ -96,6 +105,9 @@ export function OrganizationDetailContent({
     });
     const [currentOrganization, setCurrentOrganization] = useState(organization);
     const [isEditing, setIsEditing] = useState(initialIsEditing);
+    const [isRemovalOpen, setIsRemovalOpen] = useState(false);
+    const [isRemoving, setIsRemoving] = useState(false);
+    const [removalError, setRemovalError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [fieldErrors, setFieldErrors] = useState<CreateOrganizationFieldErrors>({});
     const [formError, setFormError] = useState<string | null>(null);
@@ -192,6 +204,57 @@ export function OrganizationDetailContent({
         }
     };
 
+    const openRemovalDialog = () => {
+        setRemovalError(null);
+        setIsRemovalOpen(true);
+    };
+
+    const closeRemovalDialog = () => {
+        if (isRemoving) return;
+        setRemovalError(null);
+        setIsRemovalOpen(false);
+    };
+
+    const confirmRemoveOrganization = async () => {
+        if (isRemoving) return;
+
+        setIsRemoving(true);
+        setRemovalError(null);
+
+        try {
+            const response = await fetch(`/api/organizations/${currentOrganization.id}`, {
+                method: "DELETE",
+            });
+            const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+
+            if (!response.ok) {
+                setRemovalError(payload?.error ?? "Impossible de retirer l'organisation.");
+                return;
+            }
+
+            if (payload?.action === ORGANIZATION_REMOVAL_ACTION.deactivate) {
+                setCurrentOrganization((current) => ({
+                    ...current,
+                    status: "suspended",
+                }));
+                setIsRemovalOpen(false);
+                notify.success("Organisation désactivée");
+                router.refresh();
+                return;
+            }
+
+            notify.success("Organisation supprimée");
+            router.push("/organizations");
+            router.refresh();
+        } catch {
+            setRemovalError("Impossible de retirer l'organisation.");
+        } finally {
+            setIsRemoving(false);
+        }
+    };
+
+    const isDeactivation = removalAction === ORGANIZATION_REMOVAL_ACTION.deactivate;
+
     return (
         <Box as="main" className="px-5 pb-12 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1260px]">
@@ -199,9 +262,12 @@ export function OrganizationDetailContent({
                     isEditing={isEditing}
                     isSubmitting={isSubmitting}
                     name={currentOrganization.name}
+                    organizationStatus={currentOrganization.status}
                     onCancelEdit={cancelEditing}
                     onEdit={startEditing}
+                    onRemove={openRemovalDialog}
                     onSave={saveOrganization}
+                    removalAction={removalAction}
                 />
 
                 <CardSurface className="overflow-hidden rounded-[14px] border border-[#E1E4EB] shadow-none">
@@ -227,6 +293,30 @@ export function OrganizationDetailContent({
                     {activeTab === "roleplays" && <OrganizationDetailRoleplays roleplays={roleplays} />}
                     {activeTab === "evaluations" && <OrganizationDetailEvaluations evaluations={evaluations} />}
                 </CardSurface>
+
+                {isRemovalOpen && (
+                    <DeleteContentConfirmationModal
+                        busy={isRemoving}
+                        busyLabel={isDeactivation ? "Désactivation..." : "Suppression..."}
+                        confirmLabel={isDeactivation ? "Désactiver" : "Supprimer"}
+                        description={
+                            isDeactivation
+                                ? `Confirmez la désactivation de ${currentOrganization.name}.`
+                                : `Confirmez la suppression de ${currentOrganization.name}.`
+                        }
+                        entityLabel="l'organisation"
+                        error={removalError}
+                        name={currentOrganization.name}
+                        onCancel={closeRemovalDialog}
+                        onConfirm={() => void confirmRemoveOrganization()}
+                        title={isDeactivation ? "Désactiver l'organisation" : "Supprimer l'organisation"}
+                        warning={
+                            isDeactivation
+                                ? "L'organisation possède des données à conserver. Elle sera désactivée sans supprimer ses membres, ses contenus ni son historique."
+                                : "Cette organisation ne possède aucune donnée à conserver. Sa suppression définitive retirera également ses groupes et ses rattachements."
+                        }
+                    />
+                )}
             </Box>
         </Box>
     );

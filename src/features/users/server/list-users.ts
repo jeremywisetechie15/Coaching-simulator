@@ -253,11 +253,16 @@ export async function listUsers(): Promise<UserListItem[]> {
                 group: (groupNamesByUserId.get(userId) ?? []).join(", "),
                 id: userId,
                 initials: getInitials(name, email),
+                isSuspended: memberships.some(
+                    (membership) => membership.status === ORGANIZATION_MEMBER_STATUS.suspended,
+                ),
                 joinedAt: formatLongDate(authUser?.created_at),
                 lastActiveAt: formatDateTime(authUser?.last_sign_in_at),
                 name,
                 organization: getOrganizationLabel(profile, memberships, organizationsById),
                 phone: authUser?.phone ?? "",
+                platformRole:
+                    profile?.platform_role === PLATFORM_ROLE.admin ? PLATFORM_ROLE.admin : PLATFORM_ROLE.user,
                 progress: 0,
                 role: getUserRole(profile, memberships),
                 roleplays: [],

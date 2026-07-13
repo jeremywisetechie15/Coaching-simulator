@@ -18,4 +18,24 @@ describe("DeleteContentConfirmationModal", () => {
         expect(html).toContain("Sophie Martin");
         expect(html).toContain("roleplay publié");
     });
+
+    it("supports a deactivation confirmation without duplicating the modal", () => {
+        const html = renderToStaticMarkup(
+            <DeleteContentConfirmationModal
+                busy={false}
+                confirmLabel="Désactiver"
+                description="Confirmez la désactivation."
+                entityLabel="l'organisation"
+                name="MaiaCoach"
+                onCancel={() => undefined}
+                onConfirm={() => undefined}
+                title="Désactiver l'organisation"
+                warning="Les données seront conservées."
+            />,
+        );
+
+        expect(html).toContain("Désactiver l&#x27;organisation");
+        expect(html).toContain("Les données seront conservées.");
+        expect(html).toContain("Désactiver");
+    });
 });

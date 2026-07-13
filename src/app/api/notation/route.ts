@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { requireAdmin } from '@/features/auth/server';
 import { PUBLISHED_CONTENT_STATUS } from '@/features/content/domain';
 import {
     getRoleplaySessionEvaluationDecision,
@@ -8,6 +9,8 @@ import {
     ROLEPLAY_NOTATION_SOURCE,
     ROLEPLAY_NOTATION_STATUS,
     ROLEPLAY_NOTATION_TABS,
+    isForcedRoleplayNotationRegeneration,
+    shouldReuseCompletedRoleplayNotation,
     type RoleplayNotationCriterionRef,
     type RoleplayNotationScoreResult,
     type RoleplayNotationTab,
@@ -22,6 +25,7 @@ import {
     type RoleplayScorecardNotationContext,
 } from '@/features/roleplays/server';
 import { createClient as createServerSupabaseClient } from '@/lib/supabase/server';
+import { AppError } from '@/lib/server/errors';
 
 // --- HEADERS CORS ---
 function setCorsHeaders(response: NextResponse) {
@@ -981,7 +985,23 @@ async function runScorecardNotation(
 export async function POST(req: Request) {
     try {
         const body = await req.json();
-        const { session_id, scenario_id, persona_id } = body;
+        const { force_regenerate, session_id, scenario_id, persona_id } = body;
+        const forceRegeneration = isForcedRoleplayNotationRegeneration(force_regenerate);
+
+        if (forceRegeneration) {
+            try {
+                await requireAdmin();
+            } catch (error) {
+                if (error instanceof AppError) {
+                    return setCorsHeaders(NextResponse.json(
+                        { code: error.code, error: error.message },
+                        { status: error.status },
+                    ));
+                }
+
+                throw error;
+            }
+        }
 
         if (!session_id && !scenario_id && !persona_id) {
             return setCorsHeaders(
@@ -1006,6 +1026,8 @@ export async function POST(req: Request) {
         let effectiveSessionId = session_id;
         let effectiveScenarioId: string | null = scenario_id || null;
         let effectiveSessionDurationSeconds: number | null = null;
+        let existingNotationJson: Record<string, unknown> | null = null;
+        let existingNotationStatus: string | null = null;
         let notationMethodId: string | null = null;
         let scenarioTitle = "";
         let scenarioDescription = "";
@@ -1014,7 +1036,7 @@ export async function POST(req: Request) {
             // Cas: scenario_id/persona_id fourni, on cherche la dernière session correspondante
             let latestSessionQuery = supabase
                 .from('sessions')
-                .select('id, scenario_id, duration_seconds, scenarios!inner(title, description, persona_id, notation_method_id)')
+                .select('id, scenario_id, duration_seconds, notation_json, notation_status, scenarios!inner(title, description, persona_id, notation_method_id)')
                 .eq('status', 'completed')
                 .order('created_at', { ascending: false })
                 .limit(1);
@@ -1041,6 +1063,8 @@ export async function POST(req: Request) {
             effectiveSessionId = latestSession.id;
             effectiveScenarioId = latestSession.scenario_id || scenario_id || null;
             effectiveSessionDurationSeconds = latestSession.duration_seconds;
+            existingNotationJson = latestSession.notation_json as Record<string, unknown> | null;
+            existingNotationStatus = latestSession.notation_status;
             const scenario = latestSession.scenarios as unknown as {
                 title: string;
                 description: string | null;
@@ -1053,7 +1077,7 @@ export async function POST(req: Request) {
             // Cas: session_id fourni, on récupère le scénario
             const { data: sessionData, error: sessionError } = await supabase
                 .from('sessions')
-                .select('scenario_id, duration_seconds, scenarios(title, description, notation_method_id)')
+                .select('scenario_id, duration_seconds, notation_json, notation_status, scenarios(title, description, notation_method_id)')
                 .eq('id', effectiveSessionId)
                 .single();
 
@@ -1065,6 +1089,8 @@ export async function POST(req: Request) {
 
             effectiveScenarioId = sessionData.scenario_id || scenario_id || null;
             effectiveSessionDurationSeconds = sessionData.duration_seconds;
+            existingNotationJson = sessionData.notation_json as Record<string, unknown> | null;
+            existingNotationStatus = sessionData.notation_status;
             const scenario = sessionData.scenarios as unknown as {
                 title: string;
                 description: string | null;
@@ -1084,6 +1110,21 @@ export async function POST(req: Request) {
             return setCorsHeaders(
                 NextResponse.json({ error: "Session introuvable pour la notation" }, { status: 404 })
             );
+        }
+
+        if (shouldReuseCompletedRoleplayNotation({
+            forceRegeneration,
+            hasNotation: Boolean(existingNotationJson),
+            notationStatus: existingNotationStatus,
+        }) && existingNotationJson) {
+            return setCorsHeaders(NextResponse.json({
+                errors: undefined,
+                notation: existingNotationJson,
+                reused: true,
+                session_id: effectiveSessionId,
+                success: true,
+                tabs_processed: Object.keys(existingNotationJson),
+            }));
         }
 
         const evaluationDecision = getRoleplaySessionEvaluationDecision(effectiveSessionDurationSeconds);

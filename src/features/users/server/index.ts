@@ -4,3 +4,5 @@ export * from "./list-user-statistics";
 export * from "./list-user-skills";
 export * from "./list-users";
 export * from "./user-groups.persistence";
+export * from "./update-user-status";
+export * from "./update-user";

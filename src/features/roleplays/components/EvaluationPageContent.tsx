@@ -123,12 +123,18 @@ const TABS = ["Synthèse globale", "Analyse méthodologique", "Transcription"] a
 type TabName = (typeof TABS)[number];
 
 interface EvaluationPageContentProps {
+    canManage?: boolean;
     evaluation?: Evaluation;
     roleplay: RoleplayItem;
     session: RoleplaySession;
 }
 
-export function EvaluationPageContent({ evaluation, roleplay, session }: EvaluationPageContentProps) {
+export function EvaluationPageContent({
+    canManage = false,
+    evaluation,
+    roleplay,
+    session,
+}: EvaluationPageContentProps) {
     const router = useRouter();
     const [activeTab, setActiveTab] = useState<TabName>("Synthèse globale");
     const [actionMenuOpen, setActionMenuOpen] = useState(false);
@@ -199,7 +205,7 @@ export function EvaluationPageContent({ evaluation, roleplay, session }: Evaluat
             const response = await fetch("/api/notation", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ session_id: session.id }),
+                body: JSON.stringify({ force_regenerate: true, session_id: session.id }),
             });
             const payload: unknown = await response.json().catch(() => null);
 
@@ -315,26 +321,28 @@ export function EvaluationPageContent({ evaluation, roleplay, session }: Evaluat
                             <InlineIcon icon={Download} className="h-4 w-4" />
                             Exporter PDF
                         </Button>
-                        <Box className="relative">
-                            <Button
-                                aria-expanded={actionMenuOpen}
-                                aria-label="Plus d'options"
-                                onClick={() => setActionMenuOpen((open) => !open)}
-                                className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-[#374151] transition hover:border-[#D5D7DE]"
-                            >
-                                <InlineIcon icon={MoreVertical} className="h-5 w-5" />
-                            </Button>
-                            {actionMenuOpen && (
-                                <CardActionMenu>
-                                    <CardActionMenuButton
-                                        disabled={notationRefreshing}
-                                        icon={RefreshCw}
-                                        label={notationRefreshing ? "Relance..." : "Relancer notation"}
-                                        onClick={refreshNotation}
-                                    />
-                                </CardActionMenu>
-                            )}
-                        </Box>
+                        {canManage && (
+                            <Box className="relative">
+                                <Button
+                                    aria-expanded={actionMenuOpen}
+                                    aria-label="Plus d'options"
+                                    onClick={() => setActionMenuOpen((open) => !open)}
+                                    className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white text-[#374151] transition hover:border-[#D5D7DE]"
+                                >
+                                    <InlineIcon icon={MoreVertical} className="h-5 w-5" />
+                                </Button>
+                                {actionMenuOpen && (
+                                    <CardActionMenu>
+                                        <CardActionMenuButton
+                                            disabled={notationRefreshing}
+                                            icon={RefreshCw}
+                                            label={notationRefreshing ? "Relance..." : "Relancer notation"}
+                                            onClick={refreshNotation}
+                                        />
+                                    </CardActionMenu>
+                                )}
+                            </Box>
+                        )}
                     </Box>
                 </Box>
 

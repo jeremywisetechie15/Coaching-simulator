@@ -1,3 +1,5 @@
+import { ORGANIZATION_STATUS, type OrganizationStatus } from "./organization-list";
+
 export const ORGANIZATION_MEMBER_ROLE = {
     manager: "manager",
     member: "member",
@@ -57,4 +59,18 @@ export function isOrganizationMemberStatus(value: unknown): value is Organizatio
 
 export function isActiveOrganizationMember(status: OrganizationMemberStatus) {
     return status === ORGANIZATION_MEMBER_STATUS.active;
+}
+
+export function getEffectiveOrganizationMemberStatus(
+    memberStatus: OrganizationMemberStatus,
+    organizationStatus: OrganizationStatus,
+): OrganizationMemberStatus {
+    if (
+        memberStatus === ORGANIZATION_MEMBER_STATUS.active &&
+        organizationStatus === ORGANIZATION_STATUS.suspended
+    ) {
+        return ORGANIZATION_MEMBER_STATUS.suspended;
+    }
+
+    return memberStatus;
 }

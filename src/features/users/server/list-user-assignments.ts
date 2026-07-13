@@ -1,6 +1,9 @@
 import { requireAdmin } from "@/features/auth/server";
 import { getQuizTypeLabel, type QuizType } from "@/features/evaluations/domain";
-import { MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS } from "@/features/roleplays/domain";
+import {
+    calculateRoleplayIndex,
+    MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
+} from "@/features/roleplays/domain";
 import type {
     UserAssignedQuiz,
     UserAssignedRoleplay,
@@ -98,6 +101,17 @@ function getStatus(statuses: string[]): UserAssignmentStatus {
 
 function getQuizType(value: string | null): QuizType {
     return value === "self_assessment" ? "self_assessment" : "knowledge";
+}
+
+export function calculateAssignedRoleplayIndex(
+    sessions: Array<{ completedAt: string | null; score: number | null }>,
+) {
+    const scoresByRecency = sessions
+        .filter((session): session is { completedAt: string | null; score: number } => session.score !== null)
+        .sort((first, second) => (second.completedAt ?? "").localeCompare(first.completedAt ?? ""))
+        .map((session) => session.score);
+
+    return calculateRoleplayIndex(scoresByRecency).score;
 }
 
 async function getUserTargetContext(userId: string): Promise<UserTargetContext> {
@@ -276,15 +290,18 @@ export async function listUserAssignedRoleplays(userId: string): Promise<UserAss
 
     return rows.map((scenario) => {
         const sessions = sessionsByScenarioId.get(scenario.id) ?? [];
-        const scores = sessions
-            .map((session) => scoresBySessionId.get(session.id) ?? extractAssignmentScore(session.notation_json))
-            .filter((score): score is number => score !== null);
+        const index = calculateAssignedRoleplayIndex(
+            sessions.map((session) => ({
+                completedAt: session.created_at,
+                score: scoresBySessionId.get(session.id) ?? extractAssignmentScore(session.notation_json),
+            })),
+        );
 
         return {
             assignedAt: formatLongDate(scenario.created_at),
             id: scenario.id,
+            index,
             persona: scenario.persona_id ? personaNamesById.get(scenario.persona_id) ?? "Persona" : "Persona",
-            score: scores.length > 0 ? Math.max(...scores) : null,
             sessions: sessions.length,
             status: getStatus(sessions.map((session) => session.status ?? "")),
             title: scenario.title,

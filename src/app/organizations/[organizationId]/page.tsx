@@ -11,9 +11,11 @@ import type {
     OrganizationEvaluationRow,
     OrganizationRoleplayRow,
 } from "@/features/organizations/domain/organization-detail";
+import type { OrganizationRemovalAction } from "@/features/organizations/domain/organization-deletion";
 import type { OrganizationListItem } from "@/features/organizations/domain/organization-list";
 import {
     getOrganizationDetail,
+    getOrganizationRemovalPlan,
     listOrganizationEvaluations,
     listOrganizationRoleplays,
 } from "@/features/organizations/server";
@@ -38,6 +40,7 @@ export default async function Page({ params, searchParams }: PageProps) {
     let profile;
     let evaluations: OrganizationEvaluationRow[] = [];
     let organization: OrganizationDetail | null = null;
+    let removalAction: OrganizationRemovalAction | null = null;
     let roleplays: OrganizationRoleplayRow[] = [];
     let accessDenied = false;
 
@@ -68,10 +71,11 @@ export default async function Page({ params, searchParams }: PageProps) {
     }
 
     try {
-        [organization, roleplays, evaluations] = await Promise.all([
+        [organization, roleplays, evaluations, removalAction] = await Promise.all([
             getOrganizationDetail(organizationId),
             listOrganizationRoleplays(organizationId),
             listOrganizationEvaluations(organizationId),
+            getOrganizationRemovalPlan(organizationId),
         ]);
     } catch (error) {
         if (!(error instanceof ForbiddenError)) {
@@ -81,13 +85,14 @@ export default async function Page({ params, searchParams }: PageProps) {
         accessDenied = true;
     }
 
-    if (organization) {
+    if (organization && removalAction) {
         return (
             <OrganizationDetailPage
                 initialIsEditing={edit === "1" || edit === "true"}
                 evaluations={evaluations}
                 organization={organization}
                 profileValues={profileValues}
+                removalAction={removalAction}
                 roleplays={roleplays}
             />
         );

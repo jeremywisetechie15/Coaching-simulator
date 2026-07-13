@@ -87,8 +87,8 @@ export type UserAssignmentStatus = "not_started" | "in_progress" | "completed";
 export interface UserAssignedRoleplay {
     assignedAt: string;
     id: string;
+    index: number | null;
     persona: string;
-    score: number | null;
     sessions: number;
     status: UserAssignmentStatus;
     title: string;
@@ -174,11 +174,13 @@ export interface UserListItem {
     group: string;
     id: string;
     initials: string;
+    isSuspended: boolean;
     joinedAt: string;
     lastActiveAt: string;
     name: string;
     organization: string;
     phone: string;
+    platformRole: PlatformRole;
     progress: number;
     role: UserRole;
     status: UserStatus;

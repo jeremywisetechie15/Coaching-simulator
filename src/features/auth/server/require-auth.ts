@@ -1,5 +1,5 @@
 import { ForbiddenError, UnauthorizedError } from "@/lib/server/errors";
-import { isPlatformAdmin } from "@/features/auth/domain/access-control";
+import { isPlatformAdmin, isSuspendedUserContext } from "@/features/auth/domain/access-control";
 import { getCurrentUserContext } from "./get-current-user-context";
 
 export async function requireAuth() {
@@ -7,6 +7,10 @@ export async function requireAuth() {
 
     if (!context) {
         throw new UnauthorizedError();
+    }
+
+    if (isSuspendedUserContext(context)) {
+        throw new ForbiddenError("Compte suspendu.");
     }
 
     return context;

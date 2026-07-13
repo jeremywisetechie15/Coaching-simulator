@@ -11,11 +11,13 @@ import {
     ChevronRight,
     Clock3,
     Eye,
+    Info,
     Pencil,
     Plus,
     Target,
     TrendingUp,
     Trash2,
+    UserCheck,
     UsersRound,
     UserX,
     X,
@@ -30,10 +32,15 @@ import {
     SelectInput,
     Text,
     TextInput,
+    Tooltip,
 } from "@/lib/ui/atoms";
 import { GroupedTableSectionHeader } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
+import { notify } from "@/lib/ui/feedback/toast";
+import { ROLEPLAY_INDEX_DESCRIPTION } from "@/features/roleplays/domain";
 import {
+    getAvailableUserStatusAction,
+    getEditableUserRoleOptions,
     getUserRoleLabel,
     getUserStatusLabel,
     type PlatformRole,
@@ -44,11 +51,14 @@ import {
     type UserRole,
     type UserSkillProgress,
     type UserStatistics,
-    USER_ROLE_OPTIONS,
     type UserStatus,
-} from "@/features/users/domain/users";
+    USER_STATUS_ACTION,
+    USER_STATUS_ACTION_LABELS,
+    type UserStatusAction,
+} from "@/features/users/domain";
 import type { UserAssignedGroup, UserAvailableGroup, UserGroupsResult } from "@/features/users/domain/user-groups";
 import { AddUserGroupDialog, RemoveUserGroupDialog } from "./UserGroupDialogs";
+import { UserStatusDialog } from "./UserStatusDialog";
 
 type UserDetailTab = "profile" | "groups" | "roleplays" | "evaluations" | "statistics" | "skills";
 
@@ -65,16 +75,9 @@ interface UserDetailPageProps {
 }
 
 interface DetailFormValues {
-    city: string;
-    email: string;
     firstName: string;
-    group: string;
     lastName: string;
-    organization: string;
-    phone: string;
     role: UserRole;
-    status: UserStatus;
-    username: string;
 }
 
 const tabs: Array<{ id: UserDetailTab; label: string }> = [
@@ -114,10 +117,6 @@ function splitName(name: string) {
     };
 }
 
-function getInitials(firstName: string, lastName: string) {
-    return `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
-}
-
 function getUsernameFromEmail(email: string) {
     return email.split("@")[0] ?? email;
 }
@@ -126,16 +125,9 @@ function getFormValuesFromUser(user: UserListItem): DetailFormValues {
     const { firstName, lastName } = splitName(user.name);
 
     return {
-        city: user.city,
-        email: user.email,
         firstName,
-        group: user.group,
         lastName,
-        organization: user.organization,
-        phone: user.phone,
         role: user.role,
-        status: user.status,
-        username: getUsernameFromEmail(user.email),
     };
 }
 
@@ -208,9 +200,9 @@ function QuizTypePill({ label }: { label: string }) {
     );
 }
 
-function ScoreBadge({ score }: { score: number | null }) {
+function ScoreBadge({ emptyLabel = "—", score }: { emptyLabel?: string; score: number | null }) {
     if (score === null) {
-        return <Text className="text-[15px] font-semibold text-[#9AA2B2]">—</Text>;
+        return <Text className="text-[15px] font-semibold text-[#9AA2B2]">{emptyLabel}</Text>;
     }
 
     const isStrong = score >= 80;
@@ -254,15 +246,17 @@ function PasswordBlock() {
 }
 
 function DetailInput({
+    disabled = false,
     id,
     label,
     onChange,
     type = "text",
     value,
 }: {
+    disabled?: boolean;
     id: string;
     label: string;
-    onChange: (value: string) => void;
+    onChange?: (value: string) => void;
     type?: "email" | "text";
     value: string;
 }) {
@@ -272,12 +266,17 @@ function DetailInput({
                 {label}
             </FieldLabel>
             <TextInput
+                disabled={disabled}
                 id={id}
                 hasLeadingIcon={false}
-                onChange={(event) => onChange(event.target.value)}
+                onChange={(event) => onChange?.(event.target.value)}
                 type={type}
                 value={value}
-                className="h-10 rounded-[8px] border border-[#D6DAE3] bg-white text-[14px] font-semibold text-[#4F5868] shadow-none"
+                className={
+                    disabled
+                        ? `${uiTokens.form.controlReadonly} !h-10 !cursor-not-allowed`
+                        : "h-10 rounded-[8px] border border-[#D6DAE3] bg-white text-[14px] font-semibold text-[#4F5868] shadow-none"
+                }
             />
         </Box>
     );
@@ -340,6 +339,8 @@ function ProfileTab({
     quizCount: number;
     roleplayCount: number;
 }) {
+    const roleOptions = getEditableUserRoleOptions(currentUser.platformRole);
+
     return (
         <Box className="px-6 pb-7 pt-7 md:px-7">
             <Text as="h2" className="text-[20px] font-extrabold tracking-[-0.02em] text-[#171B2A]">
@@ -369,24 +370,24 @@ function ProfileTab({
                                 value={draft.lastName}
                             />
                             <DetailInput
+                                disabled
                                 id="detail-email"
                                 label="Email"
-                                onChange={(value) => onDraftChange("email", value)}
                                 type="email"
-                                value={draft.email}
+                                value={currentUser.email}
                             />
-                            <InfoBlock label="Entreprise" value={draft.organization} />
+                            <InfoBlock label="Entreprise" value={currentUser.organization} />
                             <DetailSelect
                                 id="detail-role"
                                 label="Rôle"
                                 onChange={(value) => onDraftChange("role", value)}
-                                options={USER_ROLE_OPTIONS}
+                                options={roleOptions}
                                 value={draft.role}
                             />
                             <Box>
                                 <Text className="text-[15px] font-extrabold leading-6 text-[#171B2A]">Statut</Text>
                                 <Box className="mt-2">
-                                    <StatusBadge status={draft.status} />
+                                    <StatusBadge status={currentUser.status} />
                                 </Box>
                             </Box>
                         </>
@@ -444,16 +445,7 @@ function ProfileTab({
                     Identifiants de connexion
                 </Text>
                 <Box className="mt-5 grid gap-7 lg:grid-cols-2">
-                    {isEditing ? (
-                        <DetailInput
-                            id="detail-username"
-                            label="Nom d'utilisateur"
-                            onChange={(value) => onDraftChange("username", value)}
-                            value={draft.username}
-                        />
-                    ) : (
-                        <InfoBlock label="Nom d'utilisateur" value={getUsernameFromEmail(currentUser.email)} />
-                    )}
+                    <InfoBlock label="Nom d'utilisateur" value={getUsernameFromEmail(currentUser.email)} />
                     <PasswordBlock />
                 </Box>
             </Box>
@@ -652,7 +644,7 @@ function RoleplaysTab({
                     <PersonaPill label={roleplay.persona} />
                 </Box>
                 <Box as="td" className="px-7 py-[17px]">
-                    <ScoreBadge score={roleplay.score} />
+                    <ScoreBadge emptyLabel="N/A" score={roleplay.index} />
                 </Box>
                 <Box as="td" className="px-7 py-[17px]">
                     <Text className="text-[15px] font-semibold text-[#4F5868]">
@@ -677,13 +669,29 @@ function RoleplaysTab({
                     <Box as="table" className="w-full min-w-[1000px] border-collapse">
                         <Box as="thead">
                             <Box as="tr" className="h-[48px] border-b border-[#E3E6EE] bg-[#F7F8FA]">
-                                {["Roleplay", "Persona", "Score", "Sessions", "Date d'assignation"].map((column) => (
+                                {["Roleplay", "Persona", "INDEX", "Sessions", "Date d'assignation"].map((column) => (
                                     <Box
                                         as="th"
                                         key={column}
                                         className="px-7 text-left text-[12px] font-extrabold uppercase tracking-[0.12em] text-[#737B8E]"
                                     >
-                                        {column}
+                                        {column === "INDEX" ? (
+                                            <Box className="inline-flex items-center gap-1.5">
+                                                {column}
+                                                <Tooltip
+                                                    className="normal-case tracking-normal"
+                                                    content={ROLEPLAY_INDEX_DESCRIPTION}
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        aria-label="Afficher la règle de calcul de l'INDEX"
+                                                        className="inline-flex h-5 w-5 items-center justify-center rounded-full"
+                                                    >
+                                                        <InlineIcon icon={Info} className="h-3.5 w-3.5" />
+                                                    </button>
+                                                </Tooltip>
+                                            </Box>
+                                        ) : column}
                                     </Box>
                                 ))}
                             </Box>
@@ -1247,9 +1255,18 @@ export function UserDetailPage({
     const [assignedRoleplays] = useState<UserAssignedRoleplay[]>(initialRoleplays);
     const [assignedQuizzes] = useState<UserAssignedQuiz[]>(initialQuizzes);
     const [isEditing, setIsEditing] = useState(initialMode === "edit");
+    const [isSaving, setIsSaving] = useState(false);
     const [draft, setDraft] = useState<DetailFormValues>(() => getFormValuesFromUser(user));
+    const [pendingStatusAction, setPendingStatusAction] = useState<UserStatusAction | null>(null);
+    const [statusActionError, setStatusActionError] = useState<string | null>(null);
+    const [isStatusActionPending, setIsStatusActionPending] = useState(false);
 
     const pageTitle = useMemo(() => "Détail de l'utilisateur", []);
+    const availableStatusAction = getAvailableUserStatusAction({
+        isSuspended: currentUser.isSuspended,
+        status: currentUser.status,
+        targetPlatformRole: currentUser.platformRole,
+    });
 
     useEffect(() => {
         if (initialMode === "edit") {
@@ -1318,32 +1335,86 @@ export function UserDetailPage({
         setIsEditing(false);
     };
 
-    const saveEditing = () => {
-        const firstName = draft.firstName.trim();
-        const lastName = draft.lastName.trim();
-        const name = `${firstName} ${lastName}`.trim() || currentUser.name;
+    const saveEditing = async () => {
+        if (isSaving) return;
 
-        setCurrentUser((current) => ({
-            ...current,
-            city: draft.city,
-            email: draft.email,
-            group: draft.group,
-            initials: getInitials(firstName, lastName) || current.initials,
-            name,
-            organization: draft.organization,
-            phone: draft.phone,
-            role: draft.role,
-            status: draft.status,
-        }));
-        setIsEditing(false);
+        setIsSaving(true);
+
+        try {
+            const response = await fetch(`/api/users/${currentUser.id}`, {
+                body: JSON.stringify(draft),
+                headers: { "Content-Type": "application/json" },
+                method: "PATCH",
+            });
+            const payload = (await response.json().catch(() => null)) as
+                | { error?: string; issues?: ApiValidationIssue[]; user?: UserListItem }
+                | null;
+
+            if (!response.ok || !payload?.user) {
+                notify.error(getApiErrorMessage(payload, "Impossible de modifier l'utilisateur."));
+                return;
+            }
+
+            setCurrentUser(payload.user);
+            setDraft(getFormValuesFromUser(payload.user));
+            setIsEditing(false);
+            notify.success("Utilisateur modifié");
+        } catch {
+            notify.error("Impossible de modifier l'utilisateur.");
+        } finally {
+            setIsSaving(false);
+        }
     };
 
-    const suspendUser = () => {
-        setCurrentUser((current) => ({
-            ...current,
-            status: "inactive",
-        }));
-        setIsEditing(false);
+    const requestStatusChange = () => {
+        if (!availableStatusAction) return;
+        setStatusActionError(null);
+        setPendingStatusAction(availableStatusAction);
+    };
+
+    const closeStatusDialog = () => {
+        if (isStatusActionPending) return;
+        setPendingStatusAction(null);
+        setStatusActionError(null);
+    };
+
+    const confirmStatusChange = async () => {
+        if (!pendingStatusAction || isStatusActionPending) return;
+
+        setIsStatusActionPending(true);
+        setStatusActionError(null);
+
+        try {
+            const response = await fetch(`/api/users/${currentUser.id}/status`, {
+                body: JSON.stringify({ action: pendingStatusAction }),
+                headers: { "Content-Type": "application/json" },
+                method: "PATCH",
+            });
+            const payload = (await response.json().catch(() => null)) as
+                | { error?: string; isSuspended?: boolean; status?: UserStatus }
+                | null;
+
+            if (!response.ok || !payload?.status || typeof payload.isSuspended !== "boolean") {
+                setStatusActionError(getApiErrorMessage(payload, "Impossible de modifier le statut de l'utilisateur."));
+                return;
+            }
+
+            setCurrentUser((current) => ({
+                ...current,
+                isSuspended: payload.isSuspended!,
+                status: payload.status!,
+            }));
+            notify.success(
+                pendingStatusAction === USER_STATUS_ACTION.suspend
+                    ? "Utilisateur suspendu"
+                    : "Utilisateur réactivé",
+            );
+            setPendingStatusAction(null);
+        } catch {
+            setStatusActionError("Impossible de modifier le statut de l'utilisateur.");
+        } finally {
+            setIsStatusActionPending(false);
+        }
     };
 
     const openAddGroupDialog = () => {
@@ -1469,17 +1540,19 @@ export function UserDetailPage({
                             <Box className="flex flex-wrap gap-4">
                                 <Button
                                     onClick={cancelEditing}
+                                    disabled={isSaving}
                                     className="flex h-[42px] items-center justify-center gap-2.5 rounded-[10px] border border-[#DADDE4] bg-white px-5 text-[15px] font-extrabold text-[#111827] transition hover:bg-[#F7F8FB]"
                                 >
                                     <InlineIcon icon={X} className="h-5 w-5" />
                                     Annuler
                                 </Button>
                                 <Button
-                                    onClick={saveEditing}
+                                    onClick={() => void saveEditing()}
+                                    disabled={isSaving}
                                     className="flex h-[42px] items-center justify-center gap-2.5 rounded-[10px] bg-[#5140F0] px-5 text-[15px] font-extrabold text-white shadow-[0_12px_24px_rgba(81,64,240,0.22)] transition hover:bg-[#4635E7]"
                                 >
                                     <InlineIcon icon={Check} className="h-5 w-5" />
-                                    Sauvegarder
+                                    {isSaving ? "Enregistrement..." : "Sauvegarder"}
                                 </Button>
                             </Box>
                         ) : (
@@ -1491,13 +1564,26 @@ export function UserDetailPage({
                                     <InlineIcon icon={Pencil} className="h-5 w-5" />
                                     Modifier
                                 </Button>
-                                <Button
-                                    onClick={suspendUser}
-                                    className="flex h-[42px] items-center justify-center gap-3 rounded-[10px] bg-[#F00613] px-5 text-[15px] font-extrabold text-white shadow-[0_12px_24px_rgba(240,6,19,0.18)] transition hover:bg-[#D90510]"
-                                >
-                                    <InlineIcon icon={UserX} className="h-5 w-5" />
-                                    Suspendre
-                                </Button>
+                                {availableStatusAction && (
+                                    <Button
+                                        onClick={requestStatusChange}
+                                        className={
+                                            availableStatusAction === USER_STATUS_ACTION.suspend
+                                                ? uiTokens.action.dangerButton
+                                                : `flex h-11 items-center justify-center gap-2 rounded-xl px-6 text-[14px] font-bold transition ${uiTokens.action.successButton}`
+                                        }
+                                    >
+                                        <InlineIcon
+                                            icon={
+                                                availableStatusAction === USER_STATUS_ACTION.suspend
+                                                    ? UserX
+                                                    : UserCheck
+                                            }
+                                            className="h-5 w-5"
+                                        />
+                                        {USER_STATUS_ACTION_LABELS[availableStatusAction]}
+                                    </Button>
+                                )}
                             </Box>
                         )}
                     </Box>
@@ -1578,6 +1664,17 @@ export function UserDetailPage({
                     isSubmitting={isGroupActionPending}
                     onClose={closeRemoveGroupDialog}
                     onConfirm={confirmRemoveGroup}
+                />
+            )}
+
+            {pendingStatusAction && (
+                <UserStatusDialog
+                    action={pendingStatusAction}
+                    error={statusActionError}
+                    isSubmitting={isStatusActionPending}
+                    onClose={closeStatusDialog}
+                    onConfirm={confirmStatusChange}
+                    userName={currentUser.name}
                 />
             )}
         </AppShell>
