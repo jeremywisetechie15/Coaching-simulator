@@ -22,6 +22,7 @@ export async function replaceQuizChildren(
     input: SaveQuizDto,
     uploadFilesByClientId: QuizUploadFilesByClientId = new Map(),
     uploadedObjects: UploadedQuizStorageObject[] = [],
+    ownerUserId: string | null = null,
 ) {
     const { error: deleteError } = await supabase
         .from("quiz_steps")
@@ -89,6 +90,7 @@ export async function replaceQuizChildren(
         questionIdsByStepIdAndOrder,
         uploadFilesByClientId,
         uploadedObjects,
+        ownerUserId,
     );
     const attachmentRowsToInsert = createAttachmentRows(
         materializedInput,
@@ -125,6 +127,7 @@ async function materializeQuizAttachments(
     questionIdsByStepIdAndOrder: Map<string, string>,
     uploadFilesByClientId: QuizUploadFilesByClientId,
     uploadedObjects: UploadedQuizStorageObject[],
+    ownerUserId: string | null,
 ): Promise<SaveQuizDto> {
     if (uploadFilesByClientId.size === 0) {
         return input;
@@ -156,6 +159,7 @@ async function materializeQuizAttachments(
                         attachment,
                         uploadFilesByClientId,
                         uploadedObjects,
+                        ownerUserId,
                     ),
                 );
             }

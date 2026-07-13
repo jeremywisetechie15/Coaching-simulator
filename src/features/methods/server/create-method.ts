@@ -72,6 +72,7 @@ export async function createMethod(
             stepIdsByOrder,
             uploadFilesByClientId,
             uploadedObjects,
+            context.userId,
         );
         const resourceRowsToInsert = createResourceRows(methodRow.id, materializedInput, stepIdsByOrder);
         let resourceRows: MethodResourceRow[] = [];

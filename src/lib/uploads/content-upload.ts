@@ -40,6 +40,22 @@ export const CONTENT_UPLOAD_PURPOSES = {
     sessionBackground: "session_background",
 } as const;
 
+export const DIRECT_CONTENT_UPLOAD_PURPOSES = [
+    CONTENT_UPLOAD_PURPOSES.contentAsset,
+    CONTENT_UPLOAD_PURPOSES.methodDocument,
+    CONTENT_UPLOAD_PURPOSES.quizAttachment,
+    CONTENT_UPLOAD_PURPOSES.scenarioResource,
+] as const;
+
+export type DirectContentUploadPurpose = (typeof DIRECT_CONTENT_UPLOAD_PURPOSES)[number];
+
+export const DIRECT_CONTENT_UPLOAD_BUCKET_BY_PURPOSE = {
+    [CONTENT_UPLOAD_PURPOSES.contentAsset]: CONTENT_UPLOAD_BUCKET,
+    [CONTENT_UPLOAD_PURPOSES.methodDocument]: CONTENT_UPLOAD_BUCKET,
+    [CONTENT_UPLOAD_PURPOSES.quizAttachment]: QUIZ_UPLOAD_BUCKET,
+    [CONTENT_UPLOAD_PURPOSES.scenarioResource]: SCENARIO_RESOURCE_UPLOAD_BUCKET,
+} as const satisfies Record<DirectContentUploadPurpose, string>;
+
 export type ContentUploadPurpose = (typeof CONTENT_UPLOAD_PURPOSES)[keyof typeof CONTENT_UPLOAD_PURPOSES];
 
 const AVATAR_UPLOAD_PURPOSES: readonly ContentUploadPurpose[] = [
@@ -122,6 +138,23 @@ export function getContentUploadAccept(purpose: ContentUploadPurpose = CONTENT_U
     return CONTENT_UPLOAD_ACCEPT;
 }
 
+export function getContentUploadLimitLabel(
+    purpose: ContentUploadPurpose = CONTENT_UPLOAD_PURPOSES.contentAsset,
+) {
+    if (
+        AVATAR_UPLOAD_PURPOSES.includes(purpose) ||
+        purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground
+    ) {
+        return "Images JPG, PNG ou WebP : 10 Mo maximum.";
+    }
+
+    if (purpose === CONTENT_UPLOAD_PURPOSES.methodDocument) {
+        return "Documents : 25 Mo maximum.";
+    }
+
+    return "Vidéos : 250 Mo maximum. Autres fichiers : 25 Mo maximum.";
+}
+
 export function getContentUploadMimeConfig(mimeType: string) {
     return CONTENT_UPLOAD_MIME_TYPES[mimeType as keyof typeof CONTENT_UPLOAD_MIME_TYPES] ?? null;
 }
@@ -170,7 +203,7 @@ export function validateContentUploadFile(
         purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground;
     const maxSizeBytes = isLimitedImage
         ? MAX_SESSION_BACKGROUND_UPLOAD_SIZE_BYTES
-        : (purpose === CONTENT_UPLOAD_PURPOSES.quizAttachment || purpose === CONTENT_UPLOAD_PURPOSES.scenarioResource) &&
+        : DIRECT_CONTENT_UPLOAD_PURPOSES.includes(purpose as DirectContentUploadPurpose) &&
             mimeConfig.resourceType === "video"
             ? MAX_VIDEO_UPLOAD_SIZE_BYTES
             : MAX_CONTENT_UPLOAD_SIZE_BYTES;

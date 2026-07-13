@@ -4,10 +4,12 @@ import type { SaveQuizDto } from "@/features/evaluations/dto/save-quiz.dto";
 import {
     CONTENT_UPLOAD_PURPOSES,
     QUIZ_UPLOAD_BUCKET,
+    getStoragePathFileName,
     inferContentUploadResourceType,
     sanitizeUploadFileName,
     validateContentUploadFile,
 } from "@/lib/uploads/content-upload";
+import { materializeDirectUpload } from "@/lib/uploads/direct-upload.server";
 import { fileToStorageUploadBody } from "@/lib/uploads/storage-upload-body";
 import { AppError } from "@/lib/server/errors";
 
@@ -32,11 +34,9 @@ function buildQuizAttachmentUploadPath(
     quizId: string,
     questionId: string,
     attachmentId: string,
-    file: File,
+    fileName: string,
 ) {
-    const sanitizedFileName = sanitizeUploadFileName(file.name, file.type);
-
-    return ["quizzes", quizId, "questions", questionId, "attachments", attachmentId, sanitizedFileName].join("/");
+    return ["quizzes", quizId, "questions", questionId, "attachments", attachmentId, fileName].join("/");
 }
 
 async function uploadQuizAttachmentFile(
@@ -64,24 +64,52 @@ export async function materializeQuizAttachmentUpload(
     attachment: QuizAttachmentInput,
     uploadFilesByClientId: QuizUploadFilesByClientId,
     uploadedObjects: UploadedQuizStorageObject[],
+    ownerUserId: string | null = null,
 ): Promise<QuizAttachmentInput> {
     if (!attachment.clientFileId) {
         return attachment;
     }
 
-    const file = uploadFilesByClientId.get(attachment.clientFileId);
-    if (!file) {
-        throw new AppError("Le fichier sélectionné est manquant.", 400, "QUIZ_UPLOAD_FILE_MISSING");
-    }
-
-    const validationMessage = validateContentUploadFile(file, CONTENT_UPLOAD_PURPOSES.quizAttachment);
-    if (validationMessage) {
-        throw new AppError(validationMessage, 400, "INVALID_QUIZ_UPLOAD_FILE");
-    }
-
     const attachmentId = attachment.id ?? randomUUID();
-    const path = buildQuizAttachmentUploadPath(quizId, questionId, attachmentId, file);
-    await uploadQuizAttachmentFile(supabase, file, path);
+    const file = uploadFilesByClientId.get(attachment.clientFileId);
+    let fileName: string;
+    let attachmentType = attachment.type;
+
+    if (file) {
+        const validationMessage = validateContentUploadFile(file, CONTENT_UPLOAD_PURPOSES.quizAttachment);
+        if (validationMessage) {
+            throw new AppError(validationMessage, 400, "INVALID_QUIZ_UPLOAD_FILE");
+        }
+
+        fileName = sanitizeUploadFileName(file.name, file.type);
+        attachmentType = inferQuizAttachmentType(file.type);
+    } else {
+        if (!ownerUserId || !attachment.storageBucket || !attachment.storagePath) {
+            throw new AppError("Le fichier sélectionné est manquant.", 400, "QUIZ_UPLOAD_FILE_MISSING");
+        }
+
+        fileName = getStoragePathFileName(attachment.storagePath);
+    }
+
+    const path = buildQuizAttachmentUploadPath(quizId, questionId, attachmentId, fileName);
+    if (file) {
+        await uploadQuizAttachmentFile(supabase, file, path);
+    } else {
+        if (!ownerUserId) {
+            throw new AppError("Propriétaire de l'upload manquant.", 400, "QUIZ_UPLOAD_OWNER_MISSING");
+        }
+        await materializeDirectUpload({
+            destinationPath: path,
+            expectedPurpose: CONTENT_UPLOAD_PURPOSES.quizAttachment,
+            reference: {
+                bucket: attachment.storageBucket,
+                path: attachment.storagePath,
+                purpose: CONTENT_UPLOAD_PURPOSES.quizAttachment,
+            },
+            supabase,
+            userId: ownerUserId,
+        });
+    }
     uploadedObjects.push({ bucket: QUIZ_UPLOAD_BUCKET, path });
 
     return {
@@ -89,10 +117,10 @@ export async function materializeQuizAttachmentUpload(
         clientFileId: "",
         externalUrl: "",
         id: attachmentId,
-        label: attachment.label || file.name,
+        label: attachment.label || file?.name || fileName,
         storageBucket: QUIZ_UPLOAD_BUCKET,
         storagePath: path,
-        type: inferQuizAttachmentType(file.type),
+        type: attachmentType,
     };
 }
 

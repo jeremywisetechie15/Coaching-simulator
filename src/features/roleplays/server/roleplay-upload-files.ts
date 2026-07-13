@@ -4,10 +4,12 @@ import type { SaveRoleplayDto } from "@/features/roleplays/dto";
 import {
     CONTENT_UPLOAD_PURPOSES,
     SCENARIO_RESOURCE_UPLOAD_BUCKET,
+    getStoragePathFileName,
     inferContentUploadResourceType,
     sanitizeUploadFileName,
     validateContentUploadFile,
 } from "@/lib/uploads/content-upload";
+import { materializeDirectUpload } from "@/lib/uploads/direct-upload.server";
 import { fileToStorageUploadBody } from "@/lib/uploads/storage-upload-body";
 import { AppError } from "@/lib/server/errors";
 
@@ -23,11 +25,9 @@ type RoleplayResourceInput = SaveRoleplayDto["resources"][number];
 function buildScenarioResourceUploadPath(
     scenarioId: string,
     resourceId: string,
-    file: File,
+    fileName: string,
 ) {
-    const sanitizedFileName = sanitizeUploadFileName(file.name, file.type);
-
-    return ["scenarios", scenarioId, "resources", resourceId, sanitizedFileName].join("/");
+    return ["scenarios", scenarioId, "resources", resourceId, fileName].join("/");
 }
 
 async function uploadScenarioResourceFile(
@@ -54,24 +54,52 @@ async function materializeScenarioResourceUpload(
     resource: RoleplayResourceInput,
     uploadFilesByClientId: RoleplayUploadFilesByClientId,
     uploadedObjects: UploadedRoleplayStorageObject[],
+    ownerUserId: string | null,
 ): Promise<RoleplayResourceInput> {
     if (!resource.clientFileId) {
         return resource;
     }
 
-    const file = uploadFilesByClientId.get(resource.clientFileId);
-    if (!file) {
-        throw new AppError("Le fichier sélectionné est manquant.", 400, "ROLEPLAY_UPLOAD_FILE_MISSING");
-    }
-
-    const validationMessage = validateContentUploadFile(file, CONTENT_UPLOAD_PURPOSES.scenarioResource);
-    if (validationMessage) {
-        throw new AppError(validationMessage, 400, "INVALID_ROLEPLAY_UPLOAD_FILE");
-    }
-
     const resourceId = resource.id ?? randomUUID();
-    const path = buildScenarioResourceUploadPath(scenarioId, resourceId, file);
-    await uploadScenarioResourceFile(supabase, file, path);
+    const file = uploadFilesByClientId.get(resource.clientFileId);
+    let fileName: string;
+    let resourceType = resource.resourceType;
+
+    if (file) {
+        const validationMessage = validateContentUploadFile(file, CONTENT_UPLOAD_PURPOSES.scenarioResource);
+        if (validationMessage) {
+            throw new AppError(validationMessage, 400, "INVALID_ROLEPLAY_UPLOAD_FILE");
+        }
+
+        fileName = sanitizeUploadFileName(file.name, file.type);
+        resourceType = inferContentUploadResourceType(file.type);
+    } else {
+        if (!ownerUserId || !resource.storageBucket || !resource.storagePath) {
+            throw new AppError("Le fichier sélectionné est manquant.", 400, "ROLEPLAY_UPLOAD_FILE_MISSING");
+        }
+
+        fileName = getStoragePathFileName(resource.storagePath);
+    }
+
+    const path = buildScenarioResourceUploadPath(scenarioId, resourceId, fileName);
+    if (file) {
+        await uploadScenarioResourceFile(supabase, file, path);
+    } else {
+        if (!ownerUserId) {
+            throw new AppError("Propriétaire de l'upload manquant.", 400, "ROLEPLAY_UPLOAD_OWNER_MISSING");
+        }
+        await materializeDirectUpload({
+            destinationPath: path,
+            expectedPurpose: CONTENT_UPLOAD_PURPOSES.scenarioResource,
+            reference: {
+                bucket: resource.storageBucket,
+                path: resource.storagePath,
+                purpose: CONTENT_UPLOAD_PURPOSES.scenarioResource,
+            },
+            supabase,
+            userId: ownerUserId,
+        });
+    }
     uploadedObjects.push({ bucket: SCENARIO_RESOURCE_UPLOAD_BUCKET, path });
 
     return {
@@ -79,8 +107,8 @@ async function materializeScenarioResourceUpload(
         clientFileId: "",
         externalUrl: "",
         id: resourceId,
-        label: resource.label || file.name,
-        resourceType: inferContentUploadResourceType(file.type),
+        label: resource.label || file?.name || fileName,
+        resourceType,
         storageBucket: SCENARIO_RESOURCE_UPLOAD_BUCKET,
         storagePath: path,
     };
@@ -92,8 +120,9 @@ export async function materializeScenarioResourceUploads(
     input: SaveRoleplayDto,
     uploadFilesByClientId: RoleplayUploadFilesByClientId,
     uploadedObjects: UploadedRoleplayStorageObject[],
+    ownerUserId: string | null = null,
 ): Promise<SaveRoleplayDto> {
-    if (uploadFilesByClientId.size === 0) {
+    if (uploadFilesByClientId.size === 0 && !input.resources.some((resource) => resource.clientFileId)) {
         return input;
     }
 
@@ -107,6 +136,7 @@ export async function materializeScenarioResourceUploads(
                 resource,
                 uploadFilesByClientId,
                 uploadedObjects,
+                ownerUserId,
             ),
         );
     }

@@ -2,6 +2,7 @@
 
 import {
     CONTENT_UPLOAD_PURPOSES,
+    getContentUploadLimitLabel,
     getStoragePathFileName,
     type ContentUploadPurpose,
 } from "@/lib/uploads/content-upload";
@@ -13,7 +14,7 @@ import { FileUploadField } from "./FileUploadField";
 interface ImageUploadFieldProps {
     disabled?: boolean;
     file: File | null;
-    helpText: string;
+    helpText?: string;
     inputId: string;
     label: string;
     onClear: () => void;
@@ -50,7 +51,7 @@ export function ImageUploadField({
                 {optional && <span className={uiTokens.text.muted}>(optionnel)</span>}
             </FieldLabel>
             <Text className={cn("mb-2 text-[12px] font-medium", uiTokens.text.muted)}>
-                {helpText}
+                {helpText ?? getContentUploadLimitLabel(uploadPurpose)}
             </Text>
             <FileUploadField
                 disabled={disabled}
@@ -59,6 +60,7 @@ export function ImageUploadField({
                 onClear={onClear}
                 onError={onError}
                 onFileSelected={onFileSelected}
+                showLimitHint={false}
                 uploadPurpose={uploadPurpose}
             />
         </Box>

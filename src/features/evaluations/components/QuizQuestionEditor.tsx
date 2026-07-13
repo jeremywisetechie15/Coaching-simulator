@@ -46,6 +46,7 @@ interface QuizQuestionEditorProps {
     removable: boolean;
     skillOptions: SkillOption[];
     stepCompetenceIds: string[];
+    uploadProgressByClientFileId?: Readonly<Record<string, number>>;
 }
 
 const quizAttachmentTypeOptions = QUIZ_ATTACHMENT_TYPES.map((type) => ({
@@ -72,6 +73,7 @@ export function QuizQuestionEditor({
     removable,
     skillOptions,
     stepCompetenceIds,
+    uploadProgressByClientFileId,
 }: QuizQuestionEditorProps) {
     const questionCompetenceOptions = skillOptions
         .filter((skill) => stepCompetenceIds.includes(skill.id))
@@ -357,6 +359,7 @@ export function QuizQuestionEditor({
                                             <FileUploadField
                                                 inputId={`quiz-question-${question.id}-attachment-${attachment.id}`}
                                                 file={attachmentUploadPreview(attachment)}
+                                                uploadProgress={uploadProgressByClientFileId?.[attachment.clientFileId]}
                                                 uploadPurpose={CONTENT_UPLOAD_PURPOSES.quizAttachment}
                                                 onFileSelected={(file) => onAttachmentFileSelected(attachment.id, file)}
                                                 onClear={() => onAttachmentUploadClear(attachment.id)}

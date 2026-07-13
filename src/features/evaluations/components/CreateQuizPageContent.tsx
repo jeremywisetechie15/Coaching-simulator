@@ -31,6 +31,9 @@ import {
 } from "@/features/evaluations/domain";
 import type { SaveQuizInput } from "@/features/evaluations/dto";
 import type { SkillOption } from "@/features/skills/domain/skills";
+import { CONTENT_UPLOAD_PURPOSES } from "@/lib/uploads/content-upload";
+import type { PendingDirectUpload } from "@/lib/uploads/direct-upload";
+import { submitWithDirectUploads } from "@/lib/uploads/direct-upload.client";
 import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import { AlertMessage, SearchableMultiSelectField, SingleSelectField, type SearchableOption } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
@@ -70,30 +73,16 @@ interface CreateQuizPageContentProps {
     userOptions: QuizUserOption[];
 }
 
-interface QuizUploadFile {
-    clientFileId: string;
-    file: File;
-}
+type QuizUploadFile = PendingDirectUpload;
 
 function createClientFileId(prefix: string) {
     return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 }
 
-async function saveQuiz(quizId: string | undefined, values: SaveQuizInput, uploadFiles: QuizUploadFile[]) {
-    const hasFiles = uploadFiles.length > 0;
-    const body = hasFiles ? new FormData() : JSON.stringify(values);
-    const headers = hasFiles ? undefined : { "Content-Type": "application/json" };
-
-    if (body instanceof FormData) {
-        body.append("payload", JSON.stringify(values));
-        uploadFiles.forEach(({ clientFileId, file }) => {
-            body.append(`file:${clientFileId}`, file);
-        });
-    }
-
+async function saveQuiz(quizId: string | undefined, values: SaveQuizInput) {
     const response = await fetch(quizId ? `/api/quizzes/${quizId}` : "/api/quizzes", {
-        body,
-        headers,
+        body: JSON.stringify(values),
+        headers: { "Content-Type": "application/json" },
         method: quizId ? "PATCH" : "POST",
     });
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
@@ -127,6 +116,7 @@ export function CreateQuizPageContent({
     );
     const [formError, setFormError] = useState<string | null>(null);
     const [savingStatus, setSavingStatus] = useState<ContentStatus | null>(null);
+    const [uploadProgressByClientFileId, setUploadProgressByClientFileId] = useState<Record<string, number>>({});
     const [tagDraft, setTagDraft] = useState("");
     const competenceOptions: SearchableOption[] = useMemo(
         () =>
@@ -401,7 +391,11 @@ export function CreateQuizPageContent({
             step.questions.flatMap((question) =>
                 question.attachments.flatMap((attachment) =>
                     attachment.file && attachment.clientFileId
-                        ? [{ clientFileId: attachment.clientFileId, file: attachment.file }]
+                        ? [{
+                              clientFileId: attachment.clientFileId,
+                              file: attachment.file,
+                              purpose: CONTENT_UPLOAD_PURPOSES.quizAttachment,
+                          }]
                         : [],
                 ),
             ),
@@ -413,9 +407,16 @@ export function CreateQuizPageContent({
 
         setFormError(null);
         setSavingStatus(status);
+        setUploadProgressByClientFileId({});
 
         try {
-            const savedQuiz = await saveQuiz(initialQuiz?.id, toSaveQuizInput(form, status), collectUploadFiles());
+            const savedQuiz = await submitWithDirectUploads({
+                onProgress: (clientFileId, percentage) =>
+                    setUploadProgressByClientFileId((current) => ({ ...current, [clientFileId]: percentage })),
+                payload: toSaveQuizInput(form, status),
+                save: (payload) => saveQuiz(initialQuiz?.id, payload),
+                uploads: collectUploadFiles(),
+            });
             router.push(
                 buildPostSaveHref(`/evaluations/${savedQuiz.id}`, contextualReturnHref, isEditing),
             );
@@ -424,6 +425,7 @@ export function CreateQuizPageContent({
             setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer le quiz.");
         } finally {
             setSavingStatus(null);
+            setUploadProgressByClientFileId({});
         }
     }
 
@@ -850,6 +852,7 @@ export function CreateQuizPageContent({
                                                                 key={question.id}
                                                                 question={question}
                                                                 questionIndex={questionIndex}
+                                                                uploadProgressByClientFileId={uploadProgressByClientFileId}
                                                                 removable={step.questions.length > 1}
                                                                 skillOptions={skillOptions}
                                                                 stepCompetenceIds={step.competenceIds}

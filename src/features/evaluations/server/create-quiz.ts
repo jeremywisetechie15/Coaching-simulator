@@ -33,7 +33,14 @@ export async function createQuiz(
         }
 
         createdQuizId = quizRow.id;
-        await replaceQuizChildren(adminSupabase, quizRow.id, input, uploadFilesByClientId, uploadedObjects);
+        await replaceQuizChildren(
+            adminSupabase,
+            quizRow.id,
+            input,
+            uploadFilesByClientId,
+            uploadedObjects,
+            context.userId,
+        );
 
         return fetchQuizDetail(adminSupabase, quizRow.id);
     } catch (error) {

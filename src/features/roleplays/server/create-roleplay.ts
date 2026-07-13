@@ -104,7 +104,14 @@ export async function createRoleplay(
 
             if (backgroundUpdateError) throw backgroundUpdateError;
         }
-        await saveRoleplayChildren(adminSupabase, data.id, input, uploadFilesByClientId, uploadedObjects);
+        await saveRoleplayChildren(
+            adminSupabase,
+            data.id,
+            input,
+            uploadFilesByClientId,
+            uploadedObjects,
+            context.userId,
+        );
 
         return fetchRoleplayDetail(adminSupabase, data.id);
     } catch (error) {

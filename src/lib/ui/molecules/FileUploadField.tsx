@@ -7,9 +7,10 @@ import type { ContentUploadPurpose } from "@/lib/uploads/content-upload";
 import {
     formatUploadFileSize,
     getContentUploadAccept,
+    getContentUploadLimitLabel,
     validateContentUploadFile,
 } from "@/lib/uploads/content-upload";
-import { Box, Button, InlineIcon, Text } from "@/lib/ui/atoms";
+import { Box, Button, InlineIcon, Spinner, Text } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
@@ -26,6 +27,8 @@ interface FileUploadFieldProps {
     onClear?: () => void;
     onError?: (message: string) => void;
     onFileSelected: (file: File) => void;
+    showLimitHint?: boolean;
+    uploadProgress?: number | null;
     uploadPurpose?: ContentUploadPurpose;
 }
 
@@ -37,11 +40,17 @@ export function FileUploadField({
     onClear,
     onError,
     onFileSelected,
+    showLimitHint = true,
+    uploadProgress,
     uploadPurpose,
 }: FileUploadFieldProps) {
     const inputRef = useRef<HTMLInputElement>(null);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const sizeLabel = formatUploadFileSize(file?.sizeBytes);
+    const normalizedProgress = typeof uploadProgress === "number"
+        ? Math.max(0, Math.min(100, uploadProgress))
+        : null;
+    const isUploading = normalizedProgress !== null && normalizedProgress < 100;
 
     function clearNativeInput() {
         if (inputRef.current) {
@@ -87,9 +96,9 @@ export function FileUploadField({
 
             {file ? (
                 <Box className={cn("flex min-h-11 items-center justify-between gap-3", uiTokens.upload.fileRow)}>
-                    <Box className="flex min-w-0 items-center gap-2.5">
+                    <Box className="flex min-w-0 flex-1 items-center gap-2.5">
                         <InlineIcon icon={FileText} className={cn("h-4 w-4 shrink-0", uiTokens.text.primary)} />
-                        <Box className="min-w-0">
+                        <Box className="min-w-0 flex-1">
                             <Text className={cn("truncate text-[13px] font-bold", uiTokens.text.heading)}>
                                 {file.fileName}
                             </Text>
@@ -98,10 +107,27 @@ export function FileUploadField({
                                     {sizeLabel}
                                 </Text>
                             )}
+                            {normalizedProgress !== null && (
+                                <Box className="mt-1.5 flex items-center gap-2">
+                                    <Box className={cn("min-w-20 flex-1", uiTokens.progress.track)}>
+                                        <Box
+                                            className={uiTokens.progress.fill}
+                                            style={{ width: `${normalizedProgress}%` }}
+                                        />
+                                    </Box>
+                                    <Text className={cn("text-[11px] font-bold", uiTokens.text.primary)}>
+                                        {normalizedProgress}%
+                                    </Text>
+                                </Box>
+                            )}
                         </Box>
                     </Box>
                     <Box className="flex shrink-0 items-center gap-1.5">
-                        <InlineIcon icon={CheckCircle2} className={cn("h-4 w-4", uiTokens.text.success)} />
+                        {isUploading ? (
+                            <Spinner className={cn("h-4 w-4", uiTokens.text.primary)} />
+                        ) : (
+                            <InlineIcon icon={CheckCircle2} className={cn("h-4 w-4", uiTokens.text.success)} />
+                        )}
                         {onClear && (
                             <Button
                                 aria-label="Retirer le fichier"
@@ -127,6 +153,12 @@ export function FileUploadField({
                     <InlineIcon icon={Upload} className="h-4 w-4" />
                     Choisir un fichier
                 </Button>
+            )}
+
+            {showLimitHint && (
+                <Text className={cn("text-[12px] font-medium", uiTokens.text.muted)}>
+                    {getContentUploadLimitLabel(uploadPurpose)}
+                </Text>
             )}
 
             {uploadError && (

@@ -26,7 +26,6 @@ export function SessionBackgroundUploadField({
         <ImageUploadField
             disabled={disabled}
             file={file}
-            helpText="Image JPG, PNG ou WebP, 10 Mo maximum."
             inputId={inputId}
             label="Image de fond de la session"
             onClear={onClear}

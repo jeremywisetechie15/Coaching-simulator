@@ -175,6 +175,7 @@ export async function saveRoleplayChildren(
     input: SaveRoleplayDto,
     uploadFilesByClientId: RoleplayUploadFilesByClientId = new Map(),
     uploadedObjects: UploadedRoleplayStorageObject[] = [],
+    ownerUserId: string | null = null,
 ) {
     const materializedInput = await materializeScenarioResourceUploads(
         supabase,
@@ -182,6 +183,7 @@ export async function saveRoleplayChildren(
         input,
         uploadFilesByClientId,
         uploadedObjects,
+        ownerUserId,
     );
 
     await saveScenarioQuizzes(supabase, scenarioId, materializedInput);

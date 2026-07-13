@@ -32,6 +32,8 @@ import {
     inferContentUploadResourceType,
     getStoragePathFileName,
 } from "@/lib/uploads/content-upload";
+import { submitWithDirectUploads } from "@/lib/uploads/direct-upload.client";
+import type { PendingDirectUpload } from "@/lib/uploads/direct-upload";
 import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import {
     AlertMessage,
@@ -118,10 +120,7 @@ interface ApiErrorPayload {
     method?: MethodDetail;
 }
 
-interface MethodUploadFile {
-    clientFileId: string;
-    file: File;
-}
+type MethodUploadFile = PendingDirectUpload;
 
 interface CreateMethodPageContentProps {
     embedded?: boolean;
@@ -138,22 +137,10 @@ function createClientFileId(prefix: string) {
 async function saveMethod(
     methodId: string | undefined,
     values: SaveMethodInput,
-    uploadFiles: MethodUploadFile[],
 ) {
-    const hasFiles = uploadFiles.length > 0;
-    const body = hasFiles ? new FormData() : JSON.stringify(values);
-    const headers = hasFiles ? undefined : { "Content-Type": "application/json" };
-
-    if (body instanceof FormData) {
-        body.append("payload", JSON.stringify(values));
-        uploadFiles.forEach(({ clientFileId, file }) => {
-            body.append(`file:${clientFileId}`, file);
-        });
-    }
-
     const response = await fetch(methodId ? `/api/methods/${methodId}` : "/api/methods", {
-        body,
-        headers,
+        body: JSON.stringify(values),
+        headers: { "Content-Type": "application/json" },
         method: methodId ? "PATCH" : "POST",
     });
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
@@ -449,6 +436,7 @@ export function CreateMethodPageContent({
     );
     const [formError, setFormError] = useState<string | null>(null);
     const [savingStatus, setSavingStatus] = useState<ContentStatus | null>(null);
+    const [uploadProgressByClientFileId, setUploadProgressByClientFileId] = useState<Record<string, number>>({});
 
     const canSubmit =
         name.trim().length > 0 &&
@@ -642,12 +630,20 @@ export function CreateMethodPageContent({
         return [
             ...methodResources.flatMap((resource) =>
                 resource.file && resource.clientFileId
-                    ? [{ clientFileId: resource.clientFileId, file: resource.file }]
+                    ? [{
+                          clientFileId: resource.clientFileId,
+                          file: resource.file,
+                          purpose: CONTENT_UPLOAD_PURPOSES.methodDocument,
+                      }]
                     : [],
             ),
             ...steps.flatMap((step) =>
                 step.videoFile && step.videoClientFileId
-                    ? [{ clientFileId: step.videoClientFileId, file: step.videoFile }]
+                    ? [{
+                          clientFileId: step.videoClientFileId,
+                          file: step.videoFile,
+                          purpose: CONTENT_UPLOAD_PURPOSES.contentAsset,
+                      }]
                     : [],
             ),
         ];
@@ -658,9 +654,16 @@ export function CreateMethodPageContent({
 
         setFormError(null);
         setSavingStatus(status);
+        setUploadProgressByClientFileId({});
 
         try {
-            const savedMethod = await saveMethod(initialMethod?.id, buildPayload(status), collectUploadFiles());
+            const savedMethod = await submitWithDirectUploads({
+                onProgress: (clientFileId, percentage) =>
+                    setUploadProgressByClientFileId((current) => ({ ...current, [clientFileId]: percentage })),
+                payload: buildPayload(status),
+                save: (payload) => saveMethod(initialMethod?.id, payload),
+                uploads: collectUploadFiles(),
+            });
             if (onSaved) {
                 onSaved(savedMethod);
                 return;
@@ -674,6 +677,7 @@ export function CreateMethodPageContent({
             setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer la méthode.");
         } finally {
             setSavingStatus(null);
+            setUploadProgressByClientFileId({});
         }
     }
 
@@ -835,6 +839,7 @@ export function CreateMethodPageContent({
                                                 <FileUploadField
                                                     inputId={`method-resource-upload-${resourceIndex}`}
                                                     file={uploadedFilePreview(resource)}
+                                                    uploadProgress={uploadProgressByClientFileId[resource.clientFileId]}
                                                     uploadPurpose={CONTENT_UPLOAD_PURPOSES.methodDocument}
                                                     onFileSelected={(file) =>
                                                         updateMethodResourceFromUpload(resourceIndex, file)
@@ -1085,6 +1090,7 @@ export function CreateMethodPageContent({
                                                 <FileUploadField
                                                     inputId={`method-step-learning-upload-${stepIndex}`}
                                                     file={stepLearningUploadPreview(step)}
+                                                    uploadProgress={uploadProgressByClientFileId[step.videoClientFileId]}
                                                     onFileSelected={(file) =>
                                                         updateStepLearningFromUpload(stepIndex, file)
                                                     }

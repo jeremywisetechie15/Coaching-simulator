@@ -25,7 +25,7 @@ export async function updateRoleplay(
     uploadFilesByClientId: RoleplayUploadFilesByClientId = new Map(),
     backgroundFile: File | null = null,
 ): Promise<RoleplayDetail> {
-    await requireAdmin();
+    const context = await requireAdmin();
     await assertScorecardMatchesMethod(input);
     await assertRoleplayQuizzesMatchMethod(input);
 
@@ -67,7 +67,14 @@ export async function updateRoleplay(
 
         if (error) throw error;
 
-        await saveRoleplayChildren(adminSupabase, roleplayId, resolvedInput, uploadFilesByClientId, uploadedObjects);
+        await saveRoleplayChildren(
+            adminSupabase,
+            roleplayId,
+            resolvedInput,
+            uploadFilesByClientId,
+            uploadedObjects,
+            context.userId,
+        );
 
         const roleplay = await fetchRoleplayDetail(adminSupabase, roleplayId);
 

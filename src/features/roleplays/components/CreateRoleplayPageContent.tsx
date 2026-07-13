@@ -48,6 +48,8 @@ import {
     getStoragePathFileName,
     inferContentUploadResourceType,
 } from "@/lib/uploads/content-upload";
+import type { PendingDirectUpload } from "@/lib/uploads/direct-upload";
+import { submitWithDirectUploads } from "@/lib/uploads/direct-upload.client";
 import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextInput } from "@/lib/ui/atoms";
 import {
     AlertMessage,
@@ -72,10 +74,7 @@ interface RoleplayApiPayload {
     roleplay?: { id: string };
 }
 
-interface RoleplayUploadFile {
-    clientFileId: string;
-    file: File;
-}
+type RoleplayUploadFile = PendingDirectUpload;
 
 interface RoleplayResourceFormItem {
     clientFileId: string;
@@ -460,18 +459,14 @@ const textareaClasses =
 async function saveRoleplay(
     roleplayId: string | undefined,
     values: SaveRoleplayInput,
-    uploadFiles: RoleplayUploadFile[],
     backgroundFile: File | null,
 ) {
-    const hasFiles = uploadFiles.length > 0 || Boolean(backgroundFile);
+    const hasFiles = Boolean(backgroundFile);
     const body = hasFiles ? new FormData() : JSON.stringify(values);
     const headers = hasFiles ? undefined : { "Content-Type": "application/json" };
 
     if (body instanceof FormData) {
         body.append("payload", JSON.stringify(values));
-        uploadFiles.forEach(({ clientFileId, file }) => {
-            body.append(`file:${clientFileId}`, file);
-        });
         if (backgroundFile) body.append("backgroundFile", backgroundFile);
     }
 
@@ -600,6 +595,7 @@ export function CreateRoleplayPageContent({
     const [openEntityEditor, setOpenEntityEditor] = useState<EntityEditor | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
     const [saving, setSaving] = useState(false);
+    const [uploadProgressByClientFileId, setUploadProgressByClientFileId] = useState<Record<string, number>>({});
 
     const personaSelectOptions = useMemo(
         () =>
@@ -743,7 +739,11 @@ export function CreateRoleplayPageContent({
     function collectUploadFiles(): RoleplayUploadFile[] {
         return resources.flatMap((resource) =>
             resource.file && resource.clientFileId
-                ? [{ clientFileId: resource.clientFileId, file: resource.file }]
+                ? [{
+                      clientFileId: resource.clientFileId,
+                      file: resource.file,
+                      purpose: CONTENT_UPLOAD_PURPOSES.scenarioResource,
+                  }]
                 : [],
         );
     }
@@ -853,8 +853,15 @@ export function CreateRoleplayPageContent({
 
         setFormError(null);
         setSaving(true);
+        setUploadProgressByClientFileId({});
         try {
-            const saved = await saveRoleplay(roleplayId, toSaveInput(), collectUploadFiles(), backgroundFile);
+            const saved = await submitWithDirectUploads({
+                onProgress: (clientFileId, percentage) =>
+                    setUploadProgressByClientFileId((current) => ({ ...current, [clientFileId]: percentage })),
+                payload: toSaveInput(),
+                save: (payload) => saveRoleplay(roleplayId, payload, backgroundFile),
+                uploads: collectUploadFiles(),
+            });
             router.push(
                 buildPostSaveHref(
                     ROLEPLAY_ROUTES.app.detail(saved.id),
@@ -867,6 +874,7 @@ export function CreateRoleplayPageContent({
             setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer le roleplay.");
         } finally {
             setSaving(false);
+            setUploadProgressByClientFileId({});
         }
     }
 
@@ -1170,6 +1178,7 @@ export function CreateRoleplayPageContent({
                                                     <FileUploadField
                                                         inputId={`roleplay-resource-upload-${resourceIndex}`}
                                                         file={uploadedResourcePreview(resource)}
+                                                        uploadProgress={uploadProgressByClientFileId[resource.clientFileId]}
                                                         uploadPurpose={CONTENT_UPLOAD_PURPOSES.scenarioResource}
                                                         onFileSelected={(file) => updateResourceFromUpload(resourceIndex, file)}
                                                         onClear={() => clearResourceUpload(resourceIndex)}

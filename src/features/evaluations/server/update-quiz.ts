@@ -18,7 +18,7 @@ export async function updateQuiz(
     input: SaveQuizDto,
     uploadFilesByClientId: QuizUploadFilesByClientId = new Map(),
 ): Promise<QuizDetail> {
-    await requireAdmin();
+    const context = await requireAdmin();
     const adminSupabase = createAdminClient();
     const uploadedObjects: UploadedQuizStorageObject[] = [];
 
@@ -48,7 +48,14 @@ export async function updateQuiz(
     }
 
     try {
-        await replaceQuizChildren(adminSupabase, quizId, input, uploadFilesByClientId, uploadedObjects);
+        await replaceQuizChildren(
+            adminSupabase,
+            quizId,
+            input,
+            uploadFilesByClientId,
+            uploadedObjects,
+            context.userId,
+        );
     } catch (error) {
         if (uploadedObjects.length > 0) {
             await cleanupUploadedQuizStorageObjects(adminSupabase, uploadedObjects);

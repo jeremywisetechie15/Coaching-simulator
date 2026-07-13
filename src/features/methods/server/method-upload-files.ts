@@ -4,10 +4,12 @@ import type { SaveMethodDto } from "@/features/methods/dto/save-method.dto";
 import {
     CONTENT_UPLOAD_BUCKET,
     CONTENT_UPLOAD_PURPOSES,
+    getStoragePathFileName,
     inferContentUploadResourceType,
     sanitizeUploadFileName,
     validateContentUploadFile,
 } from "@/lib/uploads/content-upload";
+import { materializeDirectUpload } from "@/lib/uploads/direct-upload.server";
 import { fileToStorageUploadBody } from "@/lib/uploads/storage-upload-body";
 import { AppError } from "@/lib/server/errors";
 
@@ -23,13 +25,12 @@ type MethodResourceInput = SaveMethodDto["resources"][number];
 function buildMethodResourceUploadPath(
     methodId: string,
     resourceId: string,
-    file: File,
+    fileName: string,
     stepId: string | null,
 ) {
-    const sanitizedFileName = sanitizeUploadFileName(file.name, file.type);
     const parts = stepId
-        ? ["methods", methodId, "steps", stepId, "resources", resourceId, sanitizedFileName]
-        : ["methods", methodId, "resources", resourceId, sanitizedFileName];
+        ? ["methods", methodId, "steps", stepId, "resources", resourceId, fileName]
+        : ["methods", methodId, "resources", resourceId, fileName];
 
     return parts.join("/");
 }
@@ -59,27 +60,55 @@ async function materializeResourceUpload(
     stepId: string | null,
     uploadFilesByClientId: MethodUploadFilesByClientId,
     uploadedObjects: UploadedStorageObject[],
+    ownerUserId: string | null,
 ): Promise<MethodResourceInput> {
     if (!resource.clientFileId) {
         return resource;
     }
 
-    const file = uploadFilesByClientId.get(resource.clientFileId);
-    if (!file) {
-        throw new AppError("Le fichier sélectionné est manquant.", 400, "METHOD_UPLOAD_FILE_MISSING");
-    }
-
     const uploadPurpose = stepId
         ? CONTENT_UPLOAD_PURPOSES.contentAsset
         : CONTENT_UPLOAD_PURPOSES.methodDocument;
-    const validationMessage = validateContentUploadFile(file, uploadPurpose);
-    if (validationMessage) {
-        throw new AppError(validationMessage, 400, "INVALID_METHOD_UPLOAD_FILE");
+    const resourceId = resource.id ?? randomUUID();
+    const file = uploadFilesByClientId.get(resource.clientFileId);
+    let fileName: string;
+    let resourceType = resource.resourceType;
+
+    if (file) {
+        const validationMessage = validateContentUploadFile(file, uploadPurpose);
+        if (validationMessage) {
+            throw new AppError(validationMessage, 400, "INVALID_METHOD_UPLOAD_FILE");
+        }
+
+        fileName = sanitizeUploadFileName(file.name, file.type);
+        resourceType = stepId ? inferContentUploadResourceType(file.type) : "document";
+    } else {
+        if (!ownerUserId || !resource.storageBucket || !resource.storagePath) {
+            throw new AppError("Le fichier sélectionné est manquant.", 400, "METHOD_UPLOAD_FILE_MISSING");
+        }
+
+        fileName = getStoragePathFileName(resource.storagePath);
     }
 
-    const resourceId = resource.id ?? randomUUID();
-    const path = buildMethodResourceUploadPath(methodId, resourceId, file, stepId);
-    await uploadMethodResourceFile(supabase, file, path);
+    const path = buildMethodResourceUploadPath(methodId, resourceId, fileName, stepId);
+    if (file) {
+        await uploadMethodResourceFile(supabase, file, path);
+    } else {
+        if (!ownerUserId) {
+            throw new AppError("Propriétaire de l'upload manquant.", 400, "METHOD_UPLOAD_OWNER_MISSING");
+        }
+        await materializeDirectUpload({
+            destinationPath: path,
+            expectedPurpose: uploadPurpose,
+            reference: {
+                bucket: resource.storageBucket,
+                path: resource.storagePath,
+                purpose: uploadPurpose,
+            },
+            supabase,
+            userId: ownerUserId,
+        });
+    }
     uploadedObjects.push({ bucket: CONTENT_UPLOAD_BUCKET, path });
 
     return {
@@ -87,8 +116,8 @@ async function materializeResourceUpload(
         clientFileId: "",
         externalUrl: "",
         id: resourceId,
-        label: resource.label || file.name,
-        resourceType: stepId ? inferContentUploadResourceType(file.type) : "document",
+        label: resource.label || file?.name || fileName,
+        resourceType,
         storageBucket: CONTENT_UPLOAD_BUCKET,
         storagePath: path,
     };
@@ -101,8 +130,14 @@ export async function materializeMethodResourceUploads(
     stepIdsByOrder: Map<number, string>,
     uploadFilesByClientId: MethodUploadFilesByClientId,
     uploadedObjects: UploadedStorageObject[],
+    ownerUserId: string | null = null,
 ): Promise<SaveMethodDto> {
-    if (uploadFilesByClientId.size === 0) {
+    const hasPendingDirectUpload = [
+        ...input.resources,
+        ...input.steps.flatMap((step) => step.resources),
+    ].some((resource) => Boolean(resource.clientFileId));
+
+    if (uploadFilesByClientId.size === 0 && !hasPendingDirectUpload) {
         return input;
     }
 
@@ -116,6 +151,7 @@ export async function materializeMethodResourceUploads(
                 null,
                 uploadFilesByClientId,
                 uploadedObjects,
+                ownerUserId,
             ),
         );
     }
@@ -134,6 +170,7 @@ export async function materializeMethodResourceUploads(
                     stepId,
                     uploadFilesByClientId,
                     uploadedObjects,
+                    ownerUserId,
                 ),
             );
         }

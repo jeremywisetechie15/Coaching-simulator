@@ -165,7 +165,6 @@ export function AvatarSourceField({
                     <ImageUploadField
                         disabled={disabled}
                         file={avatarFile}
-                        helpText="Image JPG, PNG ou WebP, 10 Mo maximum."
                         inputId={`${inputIdPrefix}-file`}
                         label="Image depuis votre ordinateur"
                         onClear={clearAvatar}

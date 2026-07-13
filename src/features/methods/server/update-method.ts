@@ -179,6 +179,7 @@ export async function updateMethod(
             stepIdsByOrder,
             uploadFilesByClientId,
             uploadedObjects,
+            context.userId,
         );
     } catch (error) {
         if (uploadedObjects.length > 0) {

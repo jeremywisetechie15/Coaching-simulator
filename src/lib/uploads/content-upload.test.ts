@@ -8,6 +8,7 @@ import {
     SESSION_BACKGROUND_UPLOAD_BUCKET,
     formatUploadFileSize,
     inferContentUploadResourceType,
+    getContentUploadLimitLabel,
     sanitizeUploadFileName,
     validateContentUploadFile,
 } from "./content-upload";
@@ -109,10 +110,18 @@ describe("content upload domain", () => {
         expect(
             validateContentUploadFile({
                 name: "video.mp4",
-                size: 26 * 1024 * 1024,
+                size: MAX_VIDEO_UPLOAD_SIZE_BYTES,
                 type: "video/mp4",
             }),
-        ).toBe("Le fichier ne doit pas dépasser 25 Mo.");
+        ).toBeNull();
+
+        expect(
+            validateContentUploadFile({
+                name: "video.mp4",
+                size: MAX_VIDEO_UPLOAD_SIZE_BYTES + 1,
+                type: "video/mp4",
+            }),
+        ).toBe("La vidéo ne doit pas dépasser 250 Mo.");
 
         expect(
             validateContentUploadFile(
@@ -175,5 +184,17 @@ describe("content upload domain", () => {
         expect(sanitizeUploadFileName("évaluation commerciale", "text/plain")).toBe("evaluation-commerciale.txt");
         expect(formatUploadFileSize(1536)).toBe("2 Ko");
         expect(formatUploadFileSize(2.5 * 1024 * 1024)).toBe("2.5 Mo");
+    });
+
+    it("exposes upload limits from the same validation SSOT", () => {
+        expect(getContentUploadLimitLabel()).toBe(
+            "Vidéos : 250 Mo maximum. Autres fichiers : 25 Mo maximum.",
+        );
+        expect(getContentUploadLimitLabel(CONTENT_UPLOAD_PURPOSES.methodDocument)).toBe(
+            "Documents : 25 Mo maximum.",
+        );
+        expect(getContentUploadLimitLabel(CONTENT_UPLOAD_PURPOSES.personaAvatar)).toBe(
+            "Images JPG, PNG ou WebP : 10 Mo maximum.",
+        );
     });
 });
