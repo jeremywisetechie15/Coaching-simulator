@@ -1,40 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { SaveScorecardDto } from "@/features/scorecards/dto";
-import { AppError } from "@/lib/server/errors";
 import type { ScorecardStepRow } from "./scorecard.mapper";
 import {
     createScorecardCriterionRows,
     createScorecardStepRows,
     SCORECARD_STEP_SELECT,
 } from "./scorecard.persistence";
-
-async function assertMethodStepsBelongToMethod(supabase: SupabaseClient, input: SaveScorecardDto) {
-    const methodStepIds = Array.from(new Set(input.steps.map((step) => step.methodStepId)));
-    if (methodStepIds.length === 0) {
-        return;
-    }
-
-    const { data, error } = await supabase
-        .from("method_steps")
-        .select("id")
-        .eq("method_id", input.methodId)
-        .in("id", methodStepIds);
-
-    if (error) {
-        throw error;
-    }
-
-    const validMethodStepIds = new Set((data ?? []).map((row: { id?: string | null }) => row.id).filter(Boolean));
-    const invalidStepId = methodStepIds.find((methodStepId) => !validMethodStepIds.has(methodStepId));
-
-    if (invalidStepId) {
-        throw new AppError(
-            "Une étape ne correspond pas à la méthode sélectionnée.",
-            400,
-            "SCORECARD_METHOD_STEP_MISMATCH",
-        );
-    }
-}
+import { assertMethodStepsBelongToMethod } from "./scorecard-method-steps.validation";
 
 export async function replaceScorecardChildren(
     supabase: SupabaseClient,

@@ -3,6 +3,11 @@
 import { useEffect, useState } from "react";
 import { Box } from "@/lib/ui/atoms";
 import { AlertMessage } from "@/lib/ui/molecules";
+import {
+    createFormSubmitError,
+    notifyFormSubmitError,
+    notifyFormSubmitSuccess,
+} from "@/lib/ui/feedback/form-submit-feedback";
 import type { ProfileEditableField, ProfileFormValues } from "@/features/profile/domain/profile";
 import { ProfileDetailsCard } from "./ProfileDetailsCard";
 import { ProfilePageHeader } from "./ProfilePageHeader";
@@ -66,7 +71,10 @@ export function ProfilePageContent({ initialProfileValues }: ProfilePageContentP
 
                 if (!uploadResponse.ok) {
                     const payload = await uploadResponse.json().catch(() => null);
-                    throw new Error(payload?.error ?? "Impossible d'envoyer l'avatar.");
+                    throw createFormSubmitError(
+                        payload?.error ?? "Impossible d'envoyer l'avatar.",
+                        uploadResponse.status,
+                    );
                 }
 
                 const payload = await uploadResponse.json();
@@ -90,7 +98,10 @@ export function ProfilePageContent({ initialProfileValues }: ProfilePageContentP
 
             if (!response.ok) {
                 const payload = await response.json().catch(() => null);
-                throw new Error(payload?.error ?? "Impossible de sauvegarder le profil.");
+                throw createFormSubmitError(
+                    payload?.error ?? "Impossible de sauvegarder le profil.",
+                    response.status,
+                );
             }
 
             const payload = await response.json();
@@ -109,8 +120,9 @@ export function ProfilePageContent({ initialProfileValues }: ProfilePageContentP
             setAvatarFile(null);
             setAvatarPreviewUrl(null);
             setIsEditing(false);
+            notifyFormSubmitSuccess();
         } catch (error) {
-            setSaveError(error instanceof Error ? error.message : "Impossible de sauvegarder le profil.");
+            setSaveError(notifyFormSubmitError(error, "Impossible de sauvegarder le profil."));
         } finally {
             setIsSaving(false);
         }

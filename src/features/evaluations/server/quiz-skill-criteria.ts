@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { QUIZ_EVALUATED_DIMENSION } from "@/features/evaluations/domain";
 
 interface QuizAttemptSkillRow {
     completed_at: string | null;
@@ -79,12 +80,6 @@ function uniqueValues(values: Array<string | null | undefined>) {
     return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
 }
 
-function normalizeDimension(value: string | null | undefined) {
-    if (value === "savoir_faire" || value === "savoir-faire") return "savoir_faire";
-    if (value === "savoir_etre" || value === "savoir-être") return "savoir_etre";
-    return "savoir";
-}
-
 function questionPoints(value: number | string | null | undefined) {
     const parsed = Number(value);
     return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
@@ -105,7 +100,11 @@ export function buildQuizSkillCriteria({
 }: BuildQuizSkillCriteriaInput): QuizSkillCriterion[] {
     const stepById = new Map(steps.map((step) => [step.id, step]));
     const questionsByQuizId = groupBy(
-        questions.filter((question) => question.competence_id || question.dimension_item_id),
+        questions.filter(
+            (question) =>
+                question.dimension === QUIZ_EVALUATED_DIMENSION &&
+                (question.competence_id || question.dimension_item_id),
+        ),
         (question) => stepById.get(question.step_id)?.quiz_id ?? "",
     );
     const choicesByQuestionId = groupBy(choices, (choice) => choice.question_id);
@@ -133,7 +132,7 @@ export function buildQuizSkillCriteria({
 
             return [{
                 createdAt: attempt.completed_at ?? attempt.created_at,
-                dimension: normalizeDimension(question.dimension),
+                dimension: QUIZ_EVALUATED_DIMENSION,
                 dimensionItemId: question.dimension_item_id,
                 methodStepId: step?.method_step_id ?? null,
                 pointsAwarded: earnedPoints,
@@ -188,6 +187,7 @@ export async function fetchCompletedQuizSkillCriteria(
         .from("quiz_questions")
         .select("id, step_id, competence_id, dimension, dimension_item_id, points")
         .in("step_id", stepIds)
+        .eq("dimension", QUIZ_EVALUATED_DIMENSION)
         .returns<QuizQuestionSkillRow[]>();
 
     if (questionsError) throw questionsError;

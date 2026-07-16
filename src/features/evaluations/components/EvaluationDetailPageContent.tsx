@@ -70,8 +70,14 @@ export function EvaluationDetailPageContent({ canManage = false, quiz, skillOpti
     const hasCompletedAttempt = attemptSession?.attempt?.status === "completed";
     const hasInProgressAttempt = attemptSession?.attempt?.status === "in_progress";
     const attemptsUsed = attemptSession?.attemptsUsed ?? 0;
-    const maxAttempts = attemptSession?.maxAttempts ?? quiz.maxAttempts;
+    const maxAttempts = attemptSession ? attemptSession.maxAttempts : quiz.maxAttempts;
     const canRetry = attemptSession?.canStartNewAttempt ?? true;
+    const maxAttemptsLabel =
+        maxAttempts === null
+            ? "Tentatives illimitées"
+            : `${maxAttempts} tentative${maxAttempts > 1 ? "s" : ""}`;
+    const retryAttemptsLabel =
+        maxAttempts === null ? "tentatives illimitées" : `${attemptsUsed}/${maxAttempts} tentatives`;
 
     const stats = [
         {
@@ -81,7 +87,7 @@ export function EvaluationDetailPageContent({ canManage = false, quiz, skillOpti
         },
         { icon: Clock, value: `${quiz.durationMinutes} minutes`, suffix: " environ" },
         { icon: Star, value: `${competenceCount} compétence${competenceCount > 1 ? "s" : ""}`, suffix: "" },
-        { icon: RefreshCw, value: `${quiz.maxAttempts} tentative${quiz.maxAttempts > 1 ? "s" : ""}`, suffix: "" },
+        { icon: RefreshCw, value: maxAttemptsLabel, suffix: "" },
         { icon: Gauge, value: `Seuil recommandé : ${threshold}%`, suffix: "" },
     ];
 
@@ -220,7 +226,7 @@ export function EvaluationDetailPageContent({ canManage = false, quiz, skillOpti
                                     )}
                                 >
                                     <InlineIcon icon={RefreshCw} className="h-5 w-5" />
-                                    Retenter le quiz ({attemptsUsed}/{maxAttempts} tentatives)
+                                    Retenter le quiz ({retryAttemptsLabel})
                                 </ContextualLink>
                             )}
                         </Box>

@@ -125,6 +125,7 @@ export const saveQuizDto = z
             .number()
             .int("Le nombre de tentatives doit être un nombre entier.")
             .min(1, "Le nombre de tentatives doit être supérieur à 0.")
+            .nullable()
             .optional()
             .default(3),
         methodId: z.string().uuid("La méthode associée est invalide.").nullable().optional().default(null),
@@ -156,7 +157,14 @@ export const saveQuizDto = z
             });
         }
 
-        if (quiz.scope === "organization" && !quiz.organizationId) {
+        if (quiz.status !== "published") {
+            return;
+        }
+
+        if (
+            (quiz.scope === "organization" || quiz.scope === "group")
+            && !quiz.organizationId
+        ) {
             ctx.addIssue({
                 code: "custom",
                 message: "Un quiz privé organisation doit être lié à une organisation.",
@@ -178,10 +186,6 @@ export const saveQuizDto = z
                 message: "Un quiz privé utilisateur doit être lié à un utilisateur.",
                 path: ["assignedUserId"],
             });
-        }
-
-        if (quiz.status !== "published") {
-            return;
         }
 
         if (!quiz.description.trim()) {

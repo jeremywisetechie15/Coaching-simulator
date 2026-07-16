@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { CONTENT_STATUS } from "@/features/content/domain";
-import type { QuizMethodOption } from "@/features/evaluations/domain";
+import type { QuizDetail, QuizMethodOption } from "@/features/evaluations/domain";
 import {
+    DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE,
     createQuizStepsFromMethod,
-    getDefaultQuestionDimensionForSkill,
     inferQuizAttachmentType,
     normalizeChoicesForQuestionType,
+    quizToFormState,
     toSaveQuizInput,
     type QuizChoiceFormState,
     type QuizFormState,
@@ -23,8 +24,57 @@ function methodWithSteps(steps: QuizMethodOption["steps"]): QuizMethodOption {
     return {
         id: "11111111-1111-4111-8111-111111111111",
         name: "Méthode DAGO",
-        shortName: "DAGO",
         steps,
+    };
+}
+
+function quizDetail(maxAttempts: number | null): QuizDetail {
+    return {
+        assignedUserId: null,
+        category: "",
+        createdAt: null,
+        description: "Quiz",
+        domain: "",
+        durationMinutes: 30,
+        groupId: null,
+        id: "quiz-1",
+        isActive: true,
+        kind: "contextual",
+        maxAttempts,
+        methodId: null,
+        methodName: null,
+        organizationId: null,
+        participation: "optional",
+        questionCount: 0,
+        scope: "public",
+        status: "draft",
+        steps: [],
+        tags: [],
+        title: "Quiz",
+        type: "knowledge",
+        updatedAt: null,
+        validationThreshold: null,
+    };
+}
+
+function quizForm(maxAttempts: string | null): QuizFormState {
+    return {
+        assignedUserId: "",
+        category: null,
+        description: "",
+        domain: null,
+        durationMinutes: "30",
+        groupId: "",
+        maxAttempts,
+        methodId: null,
+        organizationId: null,
+        participation: "optional",
+        quizType: "knowledge",
+        scope: "public",
+        steps: [],
+        tags: [],
+        title: "Quiz",
+        validationThreshold: "",
     };
 }
 
@@ -112,39 +162,44 @@ describe("createQuizStepsFromMethod", () => {
     });
 });
 
-describe("getDefaultQuestionDimensionForSkill", () => {
-    it("uses the first active dimension available on the selected skill", () => {
-        const result = getDefaultQuestionDimensionForSkill({
-            dimensionItems: [
-                {
-                    dimension: "savoir",
-                    id: "inactive-savoir",
-                    isActive: false,
-                    label: "Inactive",
-                    order: 1,
-                    skillId: "skill-1",
-                },
-                {
-                    dimension: "savoir_faire",
-                    id: "active-savoir-faire",
-                    isActive: true,
-                    label: "Formuler une réponse",
-                    order: 1,
-                    skillId: "skill-1",
-                },
-            ],
-        });
+describe("quizToFormState", () => {
+    it("uses the default attempt limit for a new quiz", () => {
+        const form = quizToFormState(undefined, [], []);
 
-        expect(result).toBe("savoir_faire");
+        expect(form.maxAttempts).toBe(
+            DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE,
+        );
+        expect(form.scope).toBe("public");
+        expect(form.organizationId).toBeNull();
+        expect(form.groupId).toBe("");
+        expect(form.assignedUserId).toBe("");
     });
 
-    it("falls back to savoir when the skill has no active dimension item", () => {
-        expect(getDefaultQuestionDimensionForSkill({ dimensionItems: [] })).toBe("savoir");
-        expect(getDefaultQuestionDimensionForSkill(null)).toBe("savoir");
+    it("preserves unlimited attempts when editing a quiz", () => {
+        expect(quizToFormState(quizDetail(null), [], []).maxAttempts).toBeNull();
+    });
+
+    it("maps a finite attempt limit to an editable text value", () => {
+        expect(quizToFormState(quizDetail(5), [], []).maxAttempts).toBe("5");
     });
 });
 
 describe("toSaveQuizInput", () => {
+    it("maps unlimited attempts to null", () => {
+        expect(toSaveQuizInput(quizForm(null), CONTENT_STATUS.draft).maxAttempts).toBeNull();
+    });
+
+    it("maps a finite attempt limit to an integer", () => {
+        expect(toSaveQuizInput(quizForm("5"), CONTENT_STATUS.draft).maxAttempts).toBe(5);
+    });
+
+    it("keeps an edited title in the save payload", () => {
+        const form = quizForm("3");
+        form.title = "Nouveau titre du quiz";
+
+        expect(toSaveQuizInput(form, CONTENT_STATUS.draft).title).toBe("Nouveau titre du quiz");
+    });
+
     it("keeps the selected DB dimension item id in quiz questions", () => {
         const dimensionItemId = "55555555-5555-4555-8555-555555555555";
         const form: QuizFormState = {

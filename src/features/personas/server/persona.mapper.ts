@@ -100,6 +100,7 @@ export function mapPersonaRowToEditorValues(row: PersonaRow): PersonaEditorValue
         netIncomeBeforeTax: row.net_income_before_tax ?? "",
         residenceCountry: row.residence_country ?? "",
         role: row.role ?? "",
+        status: normalizeContentStatus(row.status, CONTENT_STATUS.published),
         systemInstructions: row.system_instructions,
         voiceId,
     };

@@ -1,26 +1,22 @@
 import { requireAdmin } from "@/features/auth/server";
-import { CONTENT_STATUS } from "@/features/content/domain";
-import { ConflictError, NotFoundError } from "@/lib/server/errors";
+import { CONTENT_STATUS, type ContentStatus } from "@/features/content/domain";
+import { assertContentStatusTransition } from "@/features/content/server";
+import { NotFoundError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export async function archiveScorecard(scorecardId: string) {
     await requireAdmin();
     const adminSupabase = createAdminClient();
+    const { data: existing, error: existingError } = await adminSupabase
+        .from("scorecards")
+        .select("status")
+        .eq("id", scorecardId)
+        .maybeSingle<{ status: ContentStatus }>();
 
-    const { data: linkedRoleplay, error: linkedRoleplayError } = await adminSupabase
-        .from("scenarios")
-        .select("id")
-        .eq("scorecard_id", scorecardId)
-        .limit(1)
-        .maybeSingle<{ id: string }>();
+    if (existingError) throw existingError;
+    if (!existing) throw new NotFoundError("Scorecard introuvable.");
 
-    if (linkedRoleplayError) {
-        throw linkedRoleplayError;
-    }
-
-    if (linkedRoleplay) {
-        throw new ConflictError("Impossible de supprimer cette scorecard : elle est déjà associée à un roleplay.");
-    }
+    assertContentStatusTransition(existing.status, CONTENT_STATUS.archived);
 
     const { data, error } = await adminSupabase
         .from("scorecards")
@@ -33,11 +29,6 @@ export async function archiveScorecard(scorecardId: string) {
         .select("id")
         .maybeSingle<{ id: string }>();
 
-    if (error) {
-        throw error;
-    }
-
-    if (!data) {
-        throw new NotFoundError("Scorecard introuvable.");
-    }
+    if (error) throw error;
+    if (!data) throw new NotFoundError("Scorecard introuvable.");
 }

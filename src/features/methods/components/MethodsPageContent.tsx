@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, BookOpen, Copy, Edit3, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { Archive, ArrowLeft, BookOpen, Copy, Edit3, MoreHorizontal, Plus } from "lucide-react";
 import {
     ContextualBackLink,
     ContextualLink,
@@ -10,6 +10,7 @@ import {
 } from "@/features/app-shell/components";
 import { withReturnTo } from "@/features/app-shell/domain";
 import { CONTENT_STATUS_LABELS } from "@/features/content/domain";
+import { ArchiveContentConfirmationModal } from "@/features/content/components";
 import { getMethodScopeLabel, METHOD_ROUTES, type MethodListItem } from "@/features/methods/domain/method";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { CardActionMenu, CardActionMenuButton, CardActionMenuLink } from "@/lib/ui/molecules";
@@ -40,7 +41,7 @@ async function archiveMethodRequest(methodId: string) {
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
 
     if (!response.ok) {
-        throw new Error(payload?.error || "Impossible de supprimer la méthode.");
+        throw new Error(payload?.error || "Impossible d'archiver la méthode.");
     }
 }
 
@@ -49,6 +50,7 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
     const currentHref = useCurrentAppHref();
     const [busyMethodId, setBusyMethodId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
+    const [methodToArchive, setMethodToArchive] = useState<MethodListItem | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
     async function handleDuplicate(methodId: string) {
@@ -74,8 +76,9 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
             await archiveMethodRequest(methodId);
             router.refresh();
             setOpenMenuId(null);
+            setMethodToArchive(null);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Impossible de supprimer la méthode.");
+            setError(err instanceof Error ? err.message : "Impossible d'archiver la méthode.");
         } finally {
             setBusyMethodId(null);
         }
@@ -114,7 +117,7 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
                     )}
                 </Box>
 
-                {error && (
+                {error && !methodToArchive && (
                     <CardSurface className="mb-5 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 shadow-none">
                         <Text className={cn("text-[13px] font-semibold", uiTokens.text.danger)}>{error}</Text>
                     </CardSurface>
@@ -151,9 +154,13 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
                                             <CardActionMenuButton
                                                 danger
                                                 disabled={busyMethodId === method.id}
-                                                icon={Trash2}
-                                                label={ENTITY_ACTION_LABELS.delete}
-                                                onClick={() => void handleArchive(method.id)}
+                                                icon={Archive}
+                                                label={ENTITY_ACTION_LABELS.archive}
+                                                onClick={() => {
+                                                    setError(null);
+                                                    setOpenMenuId(null);
+                                                    setMethodToArchive(method);
+                                                }}
                                             />
                                         </CardActionMenu>
                                     )}
@@ -193,6 +200,20 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
                         <InlineIcon icon={BookOpen} className="mx-auto mb-5 h-12 w-12 text-[#C9CED8]" />
                         <Text className="text-[16px] font-extrabold text-[#111827]">Aucune méthode trouvée</Text>
                     </CardSurface>
+                )}
+
+                {methodToArchive && (
+                    <ArchiveContentConfirmationModal
+                        busy={busyMethodId === methodToArchive.id}
+                        entityLabel="la méthode"
+                        error={error}
+                        name={methodToArchive.name}
+                        onCancel={() => {
+                            setError(null);
+                            setMethodToArchive(null);
+                        }}
+                        onConfirm={() => void handleArchive(methodToArchive.id)}
+                    />
                 )}
             </Box>
         </Box>

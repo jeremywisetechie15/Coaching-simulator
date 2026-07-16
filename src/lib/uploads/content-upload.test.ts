@@ -14,6 +14,7 @@ import {
     hasPdfFileSignature,
     inferContentUploadResourceType,
     getContentUploadLimitLabel,
+    getContentUploadSizeErrorMessage,
     sanitizeUploadFileName,
     validateContentUploadFile,
 } from "./content-upload";
@@ -192,7 +193,9 @@ describe("content upload domain", () => {
                 size: MAX_VIDEO_UPLOAD_SIZE_BYTES + 1,
                 type: "video/mp4",
             }),
-        ).toBe("La vidéo ne doit pas dépasser 250 Mo.");
+        ).toBe(
+            "La vidéo dépasse 50 Mo, la limite actuelle. Compressez-la ou utilisez une URL YouTube/Vimeo.",
+        );
 
         expect(
             validateContentUploadFile(
@@ -247,7 +250,18 @@ describe("content upload domain", () => {
                 },
                 CONTENT_UPLOAD_PURPOSES.quizAttachment,
             ),
-        ).toBe("La vidéo ne doit pas dépasser 250 Mo.");
+        ).toBe(
+            "La vidéo dépasse 50 Mo, la limite actuelle. Compressez-la ou utilisez une URL YouTube/Vimeo.",
+        );
+
+        expect(
+            getContentUploadSizeErrorMessage(
+                { type: "video/mp4" },
+                CONTENT_UPLOAD_PURPOSES.contentAsset,
+            ),
+        ).toBe(
+            "La vidéo dépasse 50 Mo, la limite actuelle. Compressez-la ou utilisez une URL YouTube/Vimeo.",
+        );
     });
 
     it("normalizes file names and sizes for display", () => {
@@ -259,7 +273,7 @@ describe("content upload domain", () => {
 
     it("exposes upload limits from the same validation SSOT", () => {
         expect(getContentUploadLimitLabel()).toBe(
-            "Vidéos : 250 Mo maximum. Autres fichiers : 25 Mo maximum.",
+            "Vidéos : 50 Mo maximum. Autres fichiers : 25 Mo maximum.",
         );
         expect(getContentUploadLimitLabel(CONTENT_UPLOAD_PURPOSES.methodDocument)).toBe(
             "Documents : 25 Mo maximum.",

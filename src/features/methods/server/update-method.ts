@@ -1,7 +1,8 @@
+import { randomUUID } from "node:crypto";
 import { requireAdmin } from "@/features/auth/server";
 import type { MethodDetail } from "@/features/methods/domain/method";
 import type { SaveMethodDto } from "@/features/methods/dto/save-method.dto";
-import { NotFoundError } from "@/lib/server/errors";
+import { mapDatabaseError, NotFoundError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
     mapMethodRowsToDetail,
@@ -9,9 +10,7 @@ import {
     type MethodRow,
     type MethodStepRow,
 } from "./method.mapper";
-import { syncMethodNotationFiles } from "./method-notation-files";
 import { withMethodOrganizationNames } from "./method-organization-names";
-import { syncMethodQuizAssociation } from "./method-quiz-association";
 import { cleanupStaleMethodResourceFiles } from "./method-resource-cleanup";
 import {
     createMethodUpdate,
@@ -28,6 +27,7 @@ import {
     type MethodUploadFilesByClientId,
     type UploadedStorageObject,
 } from "./method-upload-files";
+import { assertMethodLifecycle } from "./assert-method-lifecycle";
 
 type StepMutationRow = ReturnType<typeof createStepRows>[number];
 type ResourceMutationRow = ReturnType<typeof createResourceRows>[number] & { id?: string };
@@ -61,9 +61,9 @@ export async function updateMethod(
 
     const { data: existingMethod, error: existingError } = await adminSupabase
         .from("methods")
-        .select("id")
+        .select("id, status")
         .eq("id", methodId)
-        .maybeSingle<{ id: string }>();
+        .maybeSingle<{ id: string; status: SaveMethodDto["status"] }>();
 
     if (existingError) {
         throw existingError;
@@ -72,6 +72,8 @@ export async function updateMethod(
     if (!existingMethod) {
         throw new NotFoundError("Méthode introuvable.");
     }
+
+    await assertMethodLifecycle(adminSupabase, normalizedInput, existingMethod.status);
 
     const { data: currentSteps, error: currentStepsError } = await adminSupabase
         .from("method_steps")
@@ -91,23 +93,8 @@ export async function updateMethod(
             .filter((step): step is MethodStepRow & { step_key: string } => Boolean(step.step_key))
             .map((step) => [step.step_key, step]),
     );
-
-    const { data: methodRow, error: methodError } = await adminSupabase
-        .from("methods")
-        .update(createMethodUpdate(normalizedInput))
-        .eq("id", methodId)
-        .select(METHOD_SELECT)
-        .single<MethodRow>();
-
-    if (methodError) {
-        throw methodError;
-    }
-
-    const savedSteps: MethodStepRow[] = [];
-    const retainedStepIds = new Set<string>();
     const stepRowsToSave = createStepRows(methodId, normalizedInput);
-
-    for (const [index, stepRow] of stepRowsToSave.entries()) {
+    const finalStepRows = stepRowsToSave.map((stepRow, index) => {
         const existingStep = findExistingStep(
             stepRow,
             normalizedInput.steps[index],
@@ -116,58 +103,16 @@ export async function updateMethod(
             existingStepsByOrder,
         );
 
-        if (existingStep) {
-            const { data, error } = await adminSupabase
-                .from("method_steps")
-                .update({
-                    ...stepRow,
-                    code: stepRow.code ?? existingStep.code ?? null,
-                    weight: existingStep.weight ?? stepRow.weight,
-                })
-                .eq("id", existingStep.id)
-                .select(METHOD_STEP_SELECT)
-                .single<MethodStepRow>();
-
-            if (error) {
-                throw error;
-            }
-
-            retainedStepIds.add(existingStep.id);
-            savedSteps.push(data);
-            continue;
-        }
-
-        const { data, error } = await adminSupabase
-            .from("method_steps")
-            .insert(stepRow)
-            .select(METHOD_STEP_SELECT)
-            .single<MethodStepRow>();
-
-        if (error) {
-            throw error;
-        }
-
-        retainedStepIds.add(data.id);
-        savedSteps.push(data);
-    }
-
-    const stepIdsToDelete = existingSteps
-        .filter((step) => !retainedStepIds.has(step.id))
-        .map((step) => step.id);
-
-    if (stepIdsToDelete.length > 0) {
-        const { error } = await adminSupabase
-            .from("method_steps")
-            .delete()
-            .in("id", stepIdsToDelete);
-
-        if (error) {
-            throw error;
-        }
-    }
-
-    const sortedSavedSteps = savedSteps.slice().sort((a, b) => a.step_order - b.step_order);
-    const stepIdsByOrder = new Map(sortedSavedSteps.map((step) => [step.step_order, step.id]));
+        return {
+            ...stepRow,
+            aliases: existingStep?.aliases ?? [],
+            code: stepRow.code ?? existingStep?.code ?? null,
+            id: existingStep?.id ?? randomUUID(),
+            notation_step_id: existingStep?.notation_step_id ?? null,
+            weight: existingStep?.weight ?? stepRow.weight,
+        };
+    });
+    const stepIdsByOrder = new Map(finalStepRows.map((step) => [step.step_order, step.id]));
     const uploadedObjects: UploadedStorageObject[] = [];
     let materializedInput: SaveMethodDto;
 
@@ -202,71 +147,49 @@ export async function updateMethod(
     const existingResources = (currentResources ?? []) as MethodResourceRow[];
     const existingResourcesById = new Map(existingResources.map((resource) => [resource.id, resource]));
     const resourceRowsToSave = createResourceRows(methodId, materializedInput, stepIdsByOrder) as ResourceMutationRow[];
-    let resourceRows: MethodResourceRow[] = [];
-    const retainedResourceIds = new Set<string>();
-
-    for (const resourceRow of resourceRowsToSave) {
+    const finalResourceRows = resourceRowsToSave.map((resourceRow) => {
         const existingResource = resourceRow.id ? existingResourcesById.get(resourceRow.id) : undefined;
+        return {
+            ...resourceRow,
+            duration_seconds: existingResource?.duration_seconds ?? null,
+            id: existingResource?.id ?? resourceRow.id ?? randomUUID(),
+            notation_file_id: existingResource?.notation_file_id ?? null,
+        };
+    });
 
-        if (existingResource) {
-            const resourceUpdate = { ...resourceRow, notation_file_id: null };
-            delete resourceUpdate.id;
-            const { data, error } = await adminSupabase
-                .from("method_resources")
-                .update(resourceUpdate)
-                .eq("id", existingResource.id)
-                .select(METHOD_RESOURCE_SELECT)
-                .single<MethodResourceRow>();
-
-            if (error) {
-                throw error;
-            }
-
-            retainedResourceIds.add(existingResource.id);
-            resourceRows.push(data);
-            continue;
+    try {
+        const { error } = await adminSupabase.rpc("admin_update_method_aggregate", {
+            p_method: createMethodUpdate(materializedInput),
+            p_method_id: methodId,
+            p_quiz_id: materializedInput.quizId,
+            p_resources: finalResourceRows,
+            p_steps: finalStepRows,
+        });
+        if (error) throw mapDatabaseError(error);
+    } catch (error) {
+        if (uploadedObjects.length > 0) {
+            await cleanupUploadedStorageObjects(adminSupabase, uploadedObjects);
         }
-
-        const { data, error } = await adminSupabase
-            .from("method_resources")
-            .insert(resourceRow)
-            .select(METHOD_RESOURCE_SELECT)
-            .single<MethodResourceRow>();
-
-        if (error) {
-            throw error;
-        }
-
-        retainedResourceIds.add(data.id);
-        resourceRows.push(data);
+        throw error;
     }
 
-    const resourceIdsToDelete = existingResources
-        .filter((resource) => !retainedResourceIds.has(resource.id))
-        .map((resource) => resource.id);
+    const [methodResult, stepsResult, resourcesResult] = await Promise.all([
+        adminSupabase.from("methods").select(METHOD_SELECT).eq("id", methodId).single<MethodRow>(),
+        adminSupabase.from("method_steps").select(METHOD_STEP_SELECT).eq("method_id", methodId)
+            .order("step_order", { ascending: true }),
+        adminSupabase.from("method_resources").select(METHOD_RESOURCE_SELECT).eq("method_id", methodId)
+            .order("sort_order", { ascending: true }),
+    ]);
+    if (methodResult.error) throw methodResult.error;
+    if (stepsResult.error) throw stepsResult.error;
+    if (resourcesResult.error) throw resourcesResult.error;
 
-    if (resourceIdsToDelete.length > 0) {
-        const { error } = await adminSupabase
-            .from("method_resources")
-            .delete()
-            .in("id", resourceIdsToDelete);
+    const savedSteps = (stepsResult.data ?? []) as MethodStepRow[];
+    const resourceRows = (resourcesResult.data ?? []) as MethodResourceRow[];
+    await cleanupStaleMethodResourceFiles(adminSupabase, existingResources, resourceRows).catch((cleanupError) => {
+        console.error("Unable to remove previous method resource files:", cleanupError);
+    });
+    const [methodWithOrganizationName] = await withMethodOrganizationNames([methodResult.data]);
 
-        if (error) {
-            throw error;
-        }
-    }
-
-    resourceRows = resourceRows.slice().sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
-
-    if (resourceRows.length > 0) {
-        const synced = await syncMethodNotationFiles(adminSupabase, methodRow, resourceRows);
-        resourceRows = synced.resources;
-    }
-
-    await cleanupStaleMethodResourceFiles(adminSupabase, existingResources, resourceRows);
-    await syncMethodQuizAssociation(adminSupabase, methodId, normalizedInput.quizId);
-
-    const [methodWithOrganizationName] = await withMethodOrganizationNames([methodRow]);
-
-    return mapMethodRowsToDetail(methodWithOrganizationName, sortedSavedSteps, resourceRows);
+    return mapMethodRowsToDetail(methodWithOrganizationName, savedSteps, resourceRows);
 }

@@ -5,6 +5,7 @@ import {
     QUIZ_ATTACHMENT_TYPES,
     QUIZ_DIMENSION_LABELS,
     QUIZ_DIMENSIONS,
+    QUIZ_EVALUATED_DIMENSION,
     QUIZ_QUESTION_TYPE_LABELS,
     QUIZ_QUESTION_TYPES,
     type QuizAttachmentType,
@@ -20,7 +21,6 @@ import { cn } from "@/lib/ui/utils/cn";
 import {
     attachmentTypeLabels,
     attachmentDeliveryOptions,
-    getDefaultQuestionDimensionForSkill,
     type QuizAttachmentDeliveryType,
     type QuizAttachmentFormState,
     type QuizChoiceFormState,
@@ -92,15 +92,12 @@ export function QuizQuestionEditor({
         value: item.id,
     }));
     const dimensionItemValue = question.dimensionItemId ?? question.dimensionItem;
-    const isDimensionLocked = Boolean(question.competenceId);
     const canAddAttachment = question.attachments.length === 0;
 
     function handleCompetenceChange(skillId: string) {
-        const nextSkill = skillOptions.find((skill) => skill.id === skillId);
-
         onPatch({
             competenceId: skillId,
-            dimension: getDefaultQuestionDimensionForSkill(nextSkill),
+            dimension: QUIZ_EVALUATED_DIMENSION,
             dimensionItem: null,
             dimensionItemId: null,
         });
@@ -222,7 +219,7 @@ export function QuizQuestionEditor({
                                 }))}
                                 value={question.dimension}
                                 placeholder="Dimension"
-                                disabled={isDimensionLocked}
+                                disabled
                                 onChange={(value) =>
                                     onPatch({
                                         dimension: value as QuizDimension,

@@ -100,6 +100,7 @@ export function mapCoachRowToEditorValues(row: CoachRow): CoachEditorValues {
         discProfile: normalizeCoachDiscProfile(row.disc_profile),
         expertiseDomain: normalizeExpertiseDomain(row.expertise_domain),
         name: row.name,
+        status: normalizeContentStatus(row.status, CONTENT_STATUS.published),
         systemInstructions: row.system_instructions,
         voiceId,
     };

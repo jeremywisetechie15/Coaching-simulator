@@ -45,12 +45,7 @@ export function DeleteContentConfirmationModal({
                 <Box className={cn("flex gap-3 rounded-xl border p-4", uiTokens.tone.warning.soft)}>
                     <InlineIcon icon={AlertTriangle} className="mt-0.5 h-5 w-5 shrink-0" />
                     <Text className="text-[13px] font-semibold leading-6">
-                        {warning ?? (
-                            <>
-                                Cette action retire {entityLabel} des listes. Elle est bloquée si {entityLabel} est déjà
-                                associé à un roleplay publié.
-                            </>
-                        )}
+                        {warning ?? "Cette action est définitive."}
                     </Text>
                 </Box>
 

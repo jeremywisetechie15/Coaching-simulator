@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { archiveQuiz, getQuizById, parseSaveQuizRequest, updateQuiz } from "@/features/evaluations/server";
+import {
+    archiveQuiz,
+    getQuizById,
+    parseSaveQuizRequest,
+    revalidateQuizConsumers,
+    updateQuiz,
+} from "@/features/evaluations/server";
 import { jsonError } from "@/lib/server/http";
 
 export const dynamic = "force-dynamic";
@@ -24,6 +30,7 @@ export async function PATCH(request: NextRequest, context: QuizRouteContext) {
         const { quizId } = await context.params;
         const { input, uploadFilesByClientId } = await parseSaveQuizRequest(request);
         const quiz = await updateQuiz(quizId, input, uploadFilesByClientId);
+        revalidateQuizConsumers();
 
         return NextResponse.json({ quiz });
     } catch (error) {
@@ -35,6 +42,7 @@ export async function DELETE(_request: NextRequest, context: QuizRouteContext) {
     try {
         const { quizId } = await context.params;
         await archiveQuiz(quizId);
+        revalidateQuizConsumers();
 
         return NextResponse.json({ ok: true });
     } catch (error) {

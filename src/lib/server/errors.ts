@@ -33,3 +33,24 @@ export class NotFoundError extends AppError {
         super(message, 404, "NOT_FOUND");
     }
 }
+
+interface DatabaseErrorLike {
+    code?: string;
+    message?: string;
+}
+
+const CONTENT_LIFECYCLE_DATABASE_ERROR_PREFIX = "CONTENT_LIFECYCLE_CONFLICT:";
+
+export function mapDatabaseError(error: unknown): unknown {
+    const databaseError = error as DatabaseErrorLike;
+    if (
+        databaseError?.code === "P0001"
+        && databaseError.message?.startsWith(CONTENT_LIFECYCLE_DATABASE_ERROR_PREFIX)
+    ) {
+        return new ConflictError(
+            databaseError.message.slice(CONTENT_LIFECYCLE_DATABASE_ERROR_PREFIX.length).trim(),
+        );
+    }
+
+    return error;
+}

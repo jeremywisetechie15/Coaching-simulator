@@ -6,7 +6,7 @@ export const SCORECARD_SELECT =
     "id, name, description, domain, category, level, method_id, visibility_scope, organization_id, status, is_active, created_at";
 
 export const SCORECARD_STEP_SELECT =
-    "id, scorecard_id, method_step_id, step_order, name";
+    "id, scorecard_id, method_step_id, step_order, name, weight_percent";
 
 export const SCORECARD_CRITERION_SELECT =
     "id, scorecard_step_id, criterion_order, criterion_key, expected_evidence, skill_id, dimension, dimension_item_id, max_points, ai_instruction, verbatim";
@@ -55,6 +55,7 @@ export function createScorecardStepRows(scorecardId: string, input: SaveScorecar
         name: step.name,
         scorecard_id: scorecardId,
         step_order: step.order || index + 1,
+        weight_percent: step.weightPercent,
     }));
 }
 
@@ -98,6 +99,7 @@ interface DuplicateScorecardStepSource {
     name: string;
     scorecard_id?: string | null;
     step_order: number;
+    weight_percent: number | string;
 }
 
 interface DuplicateScorecardCriterionSource {
@@ -148,6 +150,7 @@ export function createDuplicateScorecardStepRows(
         name: step.name,
         scorecard_id: scorecardId,
         step_order: step.step_order,
+        weight_percent: Number(step.weight_percent),
     }));
 }
 

@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { CONTENT_STATUSES } from "@/features/content/domain";
 import {
+    DEFAULT_METHOD_STEP_ICON,
     METHOD_RESOURCE_TYPES,
     METHOD_SCOPES,
     METHOD_STEP_ICONS,
@@ -48,7 +49,7 @@ const stepDto = z.object({
     bestPractices: textArrayDto,
     code: z.string().trim().max(20, "Le code de l'étape est trop long.").optional().default(""),
     id: z.string().uuid("L'étape est invalide.").optional(),
-    icon: z.enum(METHOD_STEP_ICONS).optional().default("phone"),
+    icon: z.enum(METHOD_STEP_ICONS).optional().default(DEFAULT_METHOD_STEP_ICON),
     objectives: textArrayDto,
     pitfalls: textArrayDto,
     posture: textArrayDto,

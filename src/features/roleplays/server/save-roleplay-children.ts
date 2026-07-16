@@ -12,7 +12,7 @@ import {
     type UploadedRoleplayStorageObject,
 } from "./roleplay-upload-files";
 
-interface ScenarioResourceRow {
+export interface ScenarioResourceRow {
     bucket: string | null;
     external_url: string | null;
     id: string;
@@ -68,7 +68,7 @@ async function saveScenarioQuizzes(
     }
 }
 
-async function cleanupStaleScenarioResourceFiles(
+export async function cleanupStaleScenarioResourceFiles(
     supabase: SupabaseClient,
     existingResources: ScenarioResourceRow[],
     savedResources: ScenarioResourceRow[],

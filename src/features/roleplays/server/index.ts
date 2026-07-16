@@ -1,4 +1,5 @@
 export * from "./archive-roleplay";
+export * from "./assert-roleplay-lifecycle";
 export * from "./build-roleplay-notation-context";
 export * from "./create-roleplay";
 export * from "./duplicate-roleplay";

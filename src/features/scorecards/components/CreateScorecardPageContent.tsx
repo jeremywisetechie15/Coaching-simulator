@@ -12,10 +12,16 @@ import {
 } from "@/features/content/domain";
 import { CONTENT_DOMAINS } from "@/features/content/domain";
 import type { SaveScorecardInput } from "@/features/scorecards/dto";
+import { getMethodSelectionLabel, toMethodSelectOption } from "@/features/methods/domain/method";
 import {
     SCORECARD_CRITERION_DIMENSION_LABELS,
     SCORECARD_CRITERION_DIMENSIONS,
     SCORECARD_ROUTES,
+    getScorecardStepWeightTotal,
+    isCompleteScorecardStepWeighting,
+    isScorecardStepWeight,
+    SCORECARD_STEP_WEIGHT_MIN_PERCENT,
+    SCORECARD_STEP_WEIGHT_TOTAL_PERCENT,
     SCORECARD_VISIBILITY,
     SCORECARD_VISIBILITY_DESCRIPTIONS,
     SCORECARD_VISIBILITY_LABELS,
@@ -28,6 +34,11 @@ import {
 } from "@/features/scorecards/domain";
 import type { SkillOption } from "@/features/skills/domain/skills";
 import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
+import {
+    createFormSubmitApiError,
+    notifyFormSubmitError,
+    notifyFormSubmitSuccess,
+} from "@/lib/ui/feedback/form-submit-feedback";
 import { AlertMessage, SingleSelectField, type SingleSelectOption } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -36,6 +47,7 @@ import {
     emptyCriterion,
     emptyScorecardFormState,
     integerFromText,
+    numberFromText,
     scorecardDetailToFormState,
     stepsFromMethod,
     toSaveScorecardInput,
@@ -84,8 +96,11 @@ async function saveScorecard(values: SaveScorecardInput, scorecardId?: string) {
     const payload = (await response.json().catch(() => null)) as ScorecardApiPayload | null;
 
     if (!response.ok) {
-        const validationMessage = payload?.issues?.map((issue) => issue.message).join(" ");
-        throw new Error(validationMessage || payload?.error || "Impossible d'enregistrer la scorecard.");
+        throw createFormSubmitApiError(
+            payload,
+            response.status,
+            "Impossible d'enregistrer la scorecard.",
+        );
     }
 
     if (!payload?.scorecard) {
@@ -111,10 +126,7 @@ export function CreateScorecardPageContent({
     const [importingMethod, setImportingMethod] = useState(false);
     const [savingStatus, setSavingStatus] = useState<ContentStatus | null>(null);
 
-    const methodSelectOptions = methodOptions.map((method) => ({
-        label: method.shortName,
-        value: method.id,
-    }));
+    const methodSelectOptions = methodOptions.map(toMethodSelectOption);
     const competenceOptions: SingleSelectOption[] = skillOptions.map((skill) => ({
         label: skill.name,
         value: skill.id,
@@ -123,12 +135,20 @@ export function CreateScorecardPageContent({
         label: organization.name,
         value: organization.id,
     }));
-    const selectedMethodLabel = methodOptions.find((method) => method.id === form.methodId)?.shortName ?? null;
+    const selectedMethod = methodOptions.find((method) => method.id === form.methodId);
+    const selectedMethodLabel = selectedMethod ? getMethodSelectionLabel(selectedMethod) : null;
 
     const totalCriteria = useMemo(
         () => form.steps.reduce((total, step) => total + step.criteria.length, 0),
         [form.steps],
     );
+    const stepWeights = useMemo(
+        () => form.steps.map((step) => numberFromText(step.weightPercent, 0)),
+        [form.steps],
+    );
+    const totalWeight = useMemo(() => getScorecardStepWeightTotal(stepWeights), [stepWeights]);
+    const hasValidStepWeights = stepWeights.every(isScorecardStepWeight);
+    const hasCompleteStepWeighting = isCompleteScorecardStepWeighting(stepWeights);
 
     const isPrivate = form.visibility === SCORECARD_VISIBILITY.private;
     const scopeTargetReady = !isPrivate || Boolean(form.organizationId);
@@ -146,14 +166,19 @@ export function CreateScorecardPageContent({
                     integerFromText(criterion.maxPoints, 0) > 0,
             ),
     );
-    const canSubmit = form.name.trim().length > 0 && Boolean(form.methodId) && scopeTargetReady;
-    const canPublish = canSubmit && form.steps.length > 0 && totalCriteria > 0 && criteriaComplete;
+    const canSubmit =
+        form.name.trim().length > 0 &&
+        Boolean(form.methodId) &&
+        scopeTargetReady &&
+        hasValidStepWeights;
+    const canPublish =
+        canSubmit &&
+        form.steps.length > 0 &&
+        totalCriteria > 0 &&
+        criteriaComplete &&
+        hasCompleteStepWeighting;
     const isSaving = savingStatus !== null;
-    const primarySaveStatus =
-        isEditing && initialScorecard?.status === CONTENT_STATUS.published
-            ? CONTENT_STATUS.published
-            : CONTENT_STATUS.draft;
-    const canPrimarySave = primarySaveStatus === CONTENT_STATUS.published ? canPublish : canSubmit;
+    const isDraft = !initialScorecard || initialScorecard.status === CONTENT_STATUS.draft;
 
     function patch<K extends keyof ScorecardFormState>(key: K, value: ScorecardFormState[K]) {
         setForm((current) => ({ ...current, [key]: value }));
@@ -252,10 +277,11 @@ export function CreateScorecardPageContent({
 
         try {
             const saved = await saveScorecard(toSaveScorecardInput(form, status), scorecardId);
+            notifyFormSubmitSuccess();
             router.push(isEditing ? SCORECARD_ROUTES.app.detail(saved.id) : SCORECARD_ROUTES.app.collection);
             router.refresh();
         } catch (error) {
-            setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer la scorecard.");
+            setFormError(notifyFormSubmitError(error, "Impossible d'enregistrer la scorecard."));
         } finally {
             setSavingStatus(null);
         }
@@ -400,13 +426,28 @@ export function CreateScorecardPageContent({
 
                         <Box className={uiTokens.surface.divider} />
 
-                        <Box className="flex items-center justify-between gap-4">
+                        <Box className="flex flex-wrap items-center justify-between gap-4">
                             <SectionHeading title="Étapes et critères observables" />
                             {form.steps.length > 0 && (
-                                <Text className={cn("text-[13px] font-semibold", uiTokens.text.muted)}>
-                                    {form.steps.length} étape{form.steps.length > 1 ? "s" : ""} importée
-                                    {form.steps.length > 1 ? "s" : ""}
-                                </Text>
+                                <Box className="flex flex-wrap items-center justify-end gap-2">
+                                    <Text className={cn("text-[13px] font-semibold", uiTokens.text.muted)}>
+                                        {form.steps.length} étape{form.steps.length > 1 ? "s" : ""} importée
+                                        {form.steps.length > 1 ? "s" : ""}
+                                    </Text>
+                                    <Text
+                                        className={cn(
+                                            "inline-flex items-center rounded-lg border px-2.5 py-1 text-[12px] font-bold",
+                                            hasCompleteStepWeighting
+                                                ? uiTokens.tone.success.soft
+                                                : uiTokens.tone.warning.soft,
+                                        )}
+                                    >
+                                        Pondération : {totalWeight}%
+                                        {!hasCompleteStepWeighting
+                                            ? ` · ${SCORECARD_STEP_WEIGHT_TOTAL_PERCENT}% requis`
+                                            : ""}
+                                    </Text>
+                                </Box>
                             )}
                         </Box>
 
@@ -420,11 +461,34 @@ export function CreateScorecardPageContent({
                             <Box className="mt-6 space-y-4">
                                 {form.steps.map((step, stepIndex) => (
                                     <CardSurface key={step.id} className={uiTokens.surface.stepCard}>
-                                        <Box className="flex items-center gap-3">
+                                        <Box className="flex flex-wrap items-center gap-3">
                                             <Box className={uiTokens.badge.stepNumber}>{stepIndex + 1}</Box>
-                                            <Text className={cn("flex-1 text-[15px] font-bold", uiTokens.text.heading)}>
+                                            <Text className={cn("min-w-[180px] flex-1 text-[15px] font-bold", uiTokens.text.heading)}>
                                                 {step.name}
                                             </Text>
+                                            <Box className="flex shrink-0 items-center gap-1.5">
+                                                <FieldLabel className={uiTokens.form.subLabel}>Poids</FieldLabel>
+                                                <TextInput
+                                                    aria-label={`Poids de l'étape ${stepIndex + 1}`}
+                                                    type="number"
+                                                    min={SCORECARD_STEP_WEIGHT_MIN_PERCENT}
+                                                    max={SCORECARD_STEP_WEIGHT_TOTAL_PERCENT}
+                                                    step={SCORECARD_STEP_WEIGHT_MIN_PERCENT}
+                                                    value={step.weightPercent}
+                                                    onChange={(event) =>
+                                                        updateStep(step.id, (current) => ({
+                                                            ...current,
+                                                            weightPercent: event.target.value,
+                                                        }))
+                                                    }
+                                                    hasLeadingIcon={false}
+                                                    density="sm"
+                                                    className={cn(uiTokens.form.controlWhite, "w-[76px]")}
+                                                />
+                                                <Text className={cn("text-[13px] font-semibold", uiTokens.text.muted)}>
+                                                    %
+                                                </Text>
+                                            </Box>
                                             <Text className={cn("text-[12px] font-semibold", uiTokens.text.muted)}>
                                                 {step.criteria.length} critère{step.criteria.length > 1 ? "s" : ""}
                                             </Text>
@@ -483,17 +547,17 @@ export function CreateScorecardPageContent({
                     </CardSurface>
 
                     <Box className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-                        <Button
-                            disabled={!canPrimarySave || isSaving}
-                            onClick={() => void handleSave(primarySaveStatus)}
-                            className={cn(uiTokens.action.secondaryButton, "disabled:cursor-not-allowed disabled:opacity-60")}
-                        >
-                            {savingStatus === primarySaveStatus
-                                ? "Enregistrement..."
-                                : isEditing
-                                  ? "Enregistrer les modifications"
-                                  : "Enregistrer en brouillon"}
-                        </Button>
+                        {isDraft && (
+                            <Button
+                                disabled={!canSubmit || isSaving}
+                                onClick={() => void handleSave(CONTENT_STATUS.draft)}
+                                className={cn(uiTokens.action.secondaryButton, "disabled:cursor-not-allowed disabled:opacity-60")}
+                            >
+                                {savingStatus === CONTENT_STATUS.draft
+                                    ? "Enregistrement..."
+                                    : "Enregistrer en brouillon"}
+                            </Button>
+                        )}
                         <Button
                             disabled={!canPublish || isSaving}
                             onClick={() => void handleSave(CONTENT_STATUS.published)}
@@ -505,10 +569,10 @@ export function CreateScorecardPageContent({
                             )}
                         >
                             {savingStatus === CONTENT_STATUS.published
-                                ? "Publication..."
-                                : isEditing
-                                  ? "Publier les modifications"
-                                  : "Publier la scorecard"}
+                                ? "Enregistrement..."
+                                : isDraft
+                                  ? "Publier la scorecard"
+                                  : "Enregistrer les modifications"}
                         </Button>
                     </Box>
                 </Box>

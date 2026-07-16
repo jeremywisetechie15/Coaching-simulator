@@ -20,6 +20,7 @@ import {
     QUIZ_PARTICIPATIONS,
     QUIZ_TYPE_LABELS,
     QUIZ_TYPES,
+    hasActiveQuizKnowledgeItem,
     type QuizDetail,
     type QuizGroupOption,
     type QuizMethodOption,
@@ -30,16 +31,29 @@ import {
     type QuizUserOption,
 } from "@/features/evaluations/domain";
 import type { SaveQuizInput } from "@/features/evaluations/dto";
+import { getMethodSelectionLabel, toMethodSelectOption } from "@/features/methods/domain/method";
 import type { SkillOption } from "@/features/skills/domain/skills";
 import { CONTENT_UPLOAD_PURPOSES } from "@/lib/uploads/content-upload";
 import type { PendingDirectUpload } from "@/lib/uploads/direct-upload";
 import { submitWithDirectUploads } from "@/lib/uploads/direct-upload.client";
 import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
-import { AlertMessage, SearchableMultiSelectField, SingleSelectField, type SearchableOption } from "@/lib/ui/molecules";
+import {
+    createFormSubmitApiError,
+    notifyFormSubmitError,
+    notifyFormSubmitSuccess,
+} from "@/lib/ui/feedback/form-submit-feedback";
+import {
+    AlertMessage,
+    SearchableMultiSelectField,
+    SegmentedControl,
+    SingleSelectField,
+    type SearchableOption,
+} from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 import { QuizQuestionEditor } from "./QuizQuestionEditor";
 import {
+    DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE,
     createQuizStepsFromMethod,
     domainOptions,
     emptyAttachment,
@@ -75,6 +89,11 @@ interface CreateQuizPageContentProps {
 
 type QuizUploadFile = PendingDirectUpload;
 
+const attemptLimitOptions = [
+    { label: "Limitées", value: "limited" },
+    { label: "Illimitées", value: "unlimited" },
+] as const;
+
 function createClientFileId(prefix: string) {
     return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
 }
@@ -88,8 +107,11 @@ async function saveQuiz(quizId: string | undefined, values: SaveQuizInput) {
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
 
     if (!response.ok) {
-        const validationMessage = payload?.issues?.map((issue) => issue.message).join(" ");
-        throw new Error(validationMessage || payload?.error || "Impossible d'enregistrer le quiz.");
+        throw createFormSubmitApiError(
+            payload,
+            response.status,
+            "Impossible d'enregistrer le quiz.",
+        );
     }
 
     if (!payload?.quiz) {
@@ -109,6 +131,7 @@ export function CreateQuizPageContent({
 }: CreateQuizPageContentProps) {
     const router = useRouter();
     const isEditing = Boolean(initialQuiz);
+    const isDraft = !initialQuiz || initialQuiz.status === CONTENT_STATUS.draft;
     const returnHref = initialQuiz ? `/evaluations/${initialQuiz.id}` : "/evaluations";
     const contextualReturnHref = useContextualReturnHref(returnHref);
     const [form, setForm] = useState<QuizFormState>(() =>
@@ -118,22 +141,23 @@ export function CreateQuizPageContent({
     const [savingStatus, setSavingStatus] = useState<ContentStatus | null>(null);
     const [uploadProgressByClientFileId, setUploadProgressByClientFileId] = useState<Record<string, number>>({});
     const [tagDraft, setTagDraft] = useState("");
+    const quizSkillOptions = useMemo(
+        () => skillOptions.filter(hasActiveQuizKnowledgeItem),
+        [skillOptions],
+    );
     const competenceOptions: SearchableOption[] = useMemo(
         () =>
-            skillOptions.map((skill) => ({
+            quizSkillOptions.map((skill) => ({
                 group: skill.domain || "Compétences",
                 label: skill.name,
                 value: skill.id,
             })),
-        [skillOptions],
+        [quizSkillOptions],
     );
 
     const methodSelectOptions = [
         { label: "Aucune", value: "" },
-        ...methodOptions.map((method) => ({
-            label: `${method.shortName} - ${method.name}`,
-            value: method.id,
-        })),
+        ...methodOptions.map(toMethodSelectOption),
     ];
     const selectedMethod = methodOptions.find((method) => method.id === form.methodId) ?? null;
     const methodGeneratedStepCount = form.steps.filter((step) => step.methodStepId !== null).length;
@@ -165,11 +189,12 @@ export function CreateQuizPageContent({
     const scopeTargetReady =
         form.scope === "public" ||
         (form.scope === "organization" && Boolean(form.organizationId)) ||
-        (form.scope === "group" && Boolean(form.groupId.trim())) ||
+        (form.scope === "group" && Boolean(form.organizationId) && Boolean(form.groupId.trim())) ||
         (form.scope === "user" && Boolean(form.assignedUserId.trim()));
-    const canSubmit = form.title.trim().length > 0 && scopeTargetReady;
+    const canSaveDraft = form.title.trim().length > 0;
     const canPublish =
-        canSubmit &&
+        canSaveDraft &&
+        scopeTargetReady &&
         form.description.trim().length > 0 &&
         form.steps.length > 0 &&
         totalQuestions > 0;
@@ -403,7 +428,7 @@ export function CreateQuizPageContent({
     }
 
     async function handleSave(status: ContentStatus) {
-        if (isSaving || (status === CONTENT_STATUS.published ? !canPublish : !canSubmit)) return;
+        if (isSaving || (status === CONTENT_STATUS.published ? !canPublish : !canSaveDraft)) return;
 
         setFormError(null);
         setSavingStatus(status);
@@ -417,12 +442,13 @@ export function CreateQuizPageContent({
                 save: (payload) => saveQuiz(initialQuiz?.id, payload),
                 uploads: collectUploadFiles(),
             });
+            notifyFormSubmitSuccess();
             router.push(
                 buildPostSaveHref(`/evaluations/${savedQuiz.id}`, contextualReturnHref, isEditing),
             );
             router.refresh();
         } catch (error) {
-            setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer le quiz.");
+            setFormError(notifyFormSubmitError(error, "Impossible d'enregistrer le quiz."));
         } finally {
             setSavingStatus(null);
             setUploadProgressByClientFileId({});
@@ -553,15 +579,37 @@ export function CreateQuizPageContent({
                                 />
                             </Box>
                             <Box>
-                                <FieldLabel className={uiTokens.form.label}>Tentatives max</FieldLabel>
-                                <TextInput
-                                    type="number"
-                                    min={1}
-                                    value={form.maxAttempts}
-                                    onChange={(event) => patch("maxAttempts", event.target.value)}
-                                    placeholder="3"
-                                    hasLeadingIcon={false}
+                                <FieldLabel className={uiTokens.form.label}>Nombre de tentatives</FieldLabel>
+                                <SegmentedControl
+                                    ariaLabel="Limite du nombre de tentatives"
+                                    options={attemptLimitOptions}
+                                    value={form.maxAttempts === null ? "unlimited" : "limited"}
+                                    onChange={(value) =>
+                                        patch(
+                                            "maxAttempts",
+                                            value === "unlimited"
+                                                ? null
+                                                : form.maxAttempts ?? DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE,
+                                        )
+                                    }
                                 />
+                                {form.maxAttempts === null ? (
+                                    <Text className={cn("mt-2 text-[13px] font-medium", uiTokens.text.muted)}>
+                                        L’apprenant pourra recommencer ce quiz autant de fois qu’il le souhaite.
+                                    </Text>
+                                ) : (
+                                    <Box className="mt-3">
+                                        <FieldLabel required className={uiTokens.form.label}>Maximum autorisé</FieldLabel>
+                                        <TextInput
+                                            type="number"
+                                            min={1}
+                                            value={form.maxAttempts}
+                                            onChange={(event) => patch("maxAttempts", event.target.value)}
+                                            placeholder={DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE}
+                                            hasLeadingIcon={false}
+                                        />
+                                    </Box>
+                                )}
                             </Box>
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Tags</FieldLabel>
@@ -644,7 +692,12 @@ export function CreateQuizPageContent({
                                 {isPrivate && (
                                     <Box className="mt-3 space-y-4">
                                         <Box>
-                                            <FieldLabel required className={uiTokens.form.label}>Organisation</FieldLabel>
+                                            <FieldLabel required={!isDraft} className={uiTokens.form.label}>Organisation</FieldLabel>
+                                            {isDraft && (
+                                                <Text className={cn("mb-2 text-[12px] font-medium", uiTokens.text.muted)}>
+                                                    Facultatif en brouillon, requis pour publier.
+                                                </Text>
+                                            )}
                                             <SingleSelectField
                                                 options={organizationSelectOptions}
                                                 value={form.organizationId}
@@ -738,7 +791,7 @@ export function CreateQuizPageContent({
                                                 <Box className="flex-1 space-y-1.5">
                                                     {isFromMethod && (
                                                         <Text className={cn("text-[12px] font-bold", uiTokens.text.primary)}>
-                                                            Étape {stepIndex + 1} · {selectedMethod?.shortName}
+                                                            Étape {stepIndex + 1} · {selectedMethod ? getMethodSelectionLabel(selectedMethod) : ""}
                                                         </Text>
                                                     )}
                                                     <TextInput
@@ -854,7 +907,7 @@ export function CreateQuizPageContent({
                                                                 questionIndex={questionIndex}
                                                                 uploadProgressByClientFileId={uploadProgressByClientFileId}
                                                                 removable={step.questions.length > 1}
-                                                                skillOptions={skillOptions}
+                                                                skillOptions={quizSkillOptions}
                                                                 stepCompetenceIds={step.competenceIds}
                                                                 onRemove={() => removeQuestion(step.id, question.id)}
                                                                 onPatch={(patchQuestion) =>
@@ -953,13 +1006,17 @@ export function CreateQuizPageContent({
                     </CardSurface>
 
                     <Box className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-                        <Button
-                            disabled={!canSubmit || isSaving}
-                            onClick={() => void handleSave(CONTENT_STATUS.draft)}
-                            className={cn(uiTokens.action.secondaryButton, "disabled:cursor-not-allowed disabled:opacity-60")}
-                        >
-                            {savingStatus === CONTENT_STATUS.draft ? "Enregistrement..." : "Enregistrer en brouillon"}
-                        </Button>
+                        {isDraft && (
+                            <Button
+                                disabled={!canSaveDraft || isSaving}
+                                onClick={() => void handleSave(CONTENT_STATUS.draft)}
+                                className={cn(uiTokens.action.secondaryButton, "disabled:cursor-not-allowed disabled:opacity-60")}
+                            >
+                                {savingStatus === CONTENT_STATUS.draft
+                                    ? "Enregistrement..."
+                                    : "Enregistrer en brouillon"}
+                            </Button>
+                        )}
                         <Button
                             disabled={!canPublish || isSaving}
                             onClick={() => void handleSave(CONTENT_STATUS.published)}
@@ -970,7 +1027,11 @@ export function CreateQuizPageContent({
                                     : uiTokens.action.primaryButtonDisabled,
                             )}
                         >
-                            {savingStatus === CONTENT_STATUS.published ? "Publication..." : "Publier le quiz"}
+                            {savingStatus === CONTENT_STATUS.published
+                                ? "Enregistrement..."
+                                : isDraft
+                                  ? "Publier le quiz"
+                                  : "Enregistrer les modifications"}
                         </Button>
                     </Box>
                 </Box>

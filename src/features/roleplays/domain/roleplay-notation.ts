@@ -38,6 +38,7 @@ export interface RoleplayNotationStepRef {
     ref: string;
     scorecardStepId: string;
     title: string;
+    weightPercent: number;
 }
 
 export interface RoleplayNotationCriterionRef {
@@ -79,6 +80,7 @@ export interface RoleplayNotationStepResult {
     scorecardStepId: string;
     stepOrder: number;
     title: string;
+    weightPercent: number;
 }
 
 export interface RoleplayNotationScoreResult {

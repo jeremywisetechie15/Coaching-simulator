@@ -1,2 +1,2 @@
-export * from "./assert-not-used-by-published-roleplay";
+export * from "./content-lifecycle";
 export * from "./resolve-duplicate-name";

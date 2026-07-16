@@ -1,6 +1,13 @@
 import { z } from "zod";
 import { CONTENT_STATUSES } from "@/features/content/domain";
-import { SCORECARD_CRITERION_DIMENSIONS, SCORECARD_VISIBILITIES } from "@/features/scorecards/domain";
+import {
+    getScorecardStepWeightTotal,
+    roundScorecardPercent,
+    SCORECARD_CRITERION_DIMENSIONS,
+    SCORECARD_STEP_WEIGHT_MIN_PERCENT,
+    SCORECARD_STEP_WEIGHT_TOTAL_PERCENT,
+    SCORECARD_VISIBILITIES,
+} from "@/features/scorecards/domain";
 
 const optionalTextDto = (max: number, message: string) =>
     z.string().trim().max(max, message).optional().default("");
@@ -47,6 +54,20 @@ const stepDto = z
             .min(1, "L'ordre de l'étape doit être supérieur à 0.")
             .optional()
             .default(1),
+        weightPercent: z
+            .number()
+            .min(
+                SCORECARD_STEP_WEIGHT_MIN_PERCENT,
+                "Le poids de chaque étape doit être supérieur à 0%.",
+            )
+            .max(
+                SCORECARD_STEP_WEIGHT_TOTAL_PERCENT,
+                "Le poids d'une étape ne peut pas dépasser 100%.",
+            )
+            .refine(
+                (value) => roundScorecardPercent(value) === value,
+                "Le poids d'une étape est limité à deux décimales.",
+            ),
     })
     .strict();
 
@@ -143,6 +164,18 @@ export const saveScorecardDto = z
             ctx.addIssue({
                 code: "custom",
                 message: "Une scorecard publiée doit contenir au moins une étape.",
+                path: ["steps"],
+            });
+        }
+
+        if (
+            scorecard.steps.length > 0 &&
+            getScorecardStepWeightTotal(scorecard.steps.map((step) => step.weightPercent)) !==
+                SCORECARD_STEP_WEIGHT_TOTAL_PERCENT
+        ) {
+            ctx.addIssue({
+                code: "custom",
+                message: "La pondération des étapes doit totaliser 100%.",
                 path: ["steps"],
             });
         }

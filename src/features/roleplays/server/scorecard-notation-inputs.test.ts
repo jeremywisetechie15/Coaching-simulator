@@ -101,6 +101,7 @@ const context = {
             order: 1,
             stepRef: "S1",
             title: "Découvrir",
+            weightPercent: 100,
         }],
     },
     session: {
@@ -117,6 +118,7 @@ const context = {
         ref: "S1",
         scorecardStepId: "scorecard-step-1",
         title: "Découvrir",
+        weightPercent: 100,
     }],
     transcript: "[M1] [12:00:00] Utilisateur: Quel est votre enjeu ?",
     transcription: {
@@ -138,6 +140,7 @@ describe("scorecard notation inputs", () => {
         expect(input).toContain('"category": "Prospection"');
         expect(input).toContain('"domain": "Commercial"');
         expect(input).toContain('"etape_ref": "S1"');
+        expect(input).toContain('"weightPercent": 100');
         expect(input).toContain('"ref": "C1"');
         expect(input).toContain("points_obtenus peut etre nuance");
         expect(input).toContain("[M1] [12:00:00] Utilisateur");

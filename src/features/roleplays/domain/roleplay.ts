@@ -9,6 +9,7 @@ import {
     type DiscProfile,
 } from "@/features/content/domain";
 import type { QuizKind, QuizParticipation, QuizType } from "@/features/evaluations/domain";
+import type { MethodSelectionOption } from "@/features/methods/domain/method";
 import type { RoleplayIndexSession, RoleplayIndexTrend } from "./roleplay-index";
 
 export const ROLEPLAY_DIFFICULTIES = ["Facile", "Moyen", "Difficile"] as const;
@@ -40,11 +41,7 @@ export interface RoleplayCoachOption {
     name: string;
 }
 
-export interface RoleplayMethodOption {
-    id: string;
-    name: string;
-    shortName: string;
-}
+export type RoleplayMethodOption = MethodSelectionOption;
 
 export interface RoleplayQuizOption {
     id: string;
@@ -116,6 +113,7 @@ export interface RoleplayListItem {
     assignedUserName: string | null;
     attemptCount: number;
     category: string;
+    coachAvatarUrl: string | null;
     coachId: string | null;
     coachName: string | null;
     backgroundImagePath: string | null;

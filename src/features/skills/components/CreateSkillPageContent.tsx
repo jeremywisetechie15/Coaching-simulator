@@ -16,6 +16,11 @@ import { ContentTargetScopeField, type ContentTargetScopeValue } from "@/feature
 import type { SaveSkillInput } from "@/features/skills/dto";
 import type { SkillCategory, SkillDetail } from "@/features/skills/domain/skills";
 import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text } from "@/lib/ui/atoms";
+import {
+    createFormSubmitApiError,
+    notifyFormSubmitError,
+    notifyFormSubmitSuccess,
+} from "@/lib/ui/feedback/form-submit-feedback";
 import { AlertMessage } from "@/lib/ui/molecules";
 import {
     skillDomainOptions,
@@ -58,8 +63,11 @@ async function saveSkill(skillId: string | undefined, values: SaveSkillInput) {
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
 
     if (!response.ok) {
-        const validationMessage = payload?.issues?.map((issue) => issue.message).join(" ");
-        throw new Error(validationMessage || payload?.error || "Impossible d'enregistrer la compétence.");
+        throw createFormSubmitApiError(
+            payload,
+            response.status,
+            "Impossible d'enregistrer la compétence.",
+        );
     }
 
     if (!payload?.skill) {
@@ -321,6 +329,7 @@ export function CreateSkillPageContent({
 }: CreateSkillPageContentProps) {
     const router = useRouter();
     const isEditing = Boolean(initialSkill);
+    const isDraft = !initialSkill || initialSkill.status === CONTENT_STATUS.draft;
     const [name, setName] = useState(initialSkill?.name ?? "");
     const [description, setDescription] = useState(initialSkill?.description ?? "");
     const [functions, setFunctions] = useState<string[]>(initialSkill?.functions ?? []);
@@ -398,10 +407,11 @@ export function CreateSkillPageContent({
 
         try {
             await saveSkill(initialSkill?.id, buildPayload(status));
+            notifyFormSubmitSuccess();
             router.push("/skills");
             router.refresh();
         } catch (error) {
-            setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer la compétence.");
+            setFormError(notifyFormSubmitError(error, "Impossible d'enregistrer la compétence."));
         } finally {
             setSavingStatus(null);
         }
@@ -544,13 +554,17 @@ export function CreateSkillPageContent({
                     <Box className="my-8 h-px bg-[#ECEEF3]" />
 
                     <Box className="flex justify-end gap-3">
-                        <Button
-                            disabled={!canSubmit || isSaving}
-                            onClick={() => void handleSave(CONTENT_STATUS.draft)}
-                            className="flex h-11 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-6 text-[14px] font-semibold text-[#374151] transition hover:border-[#D5D7DE]"
-                        >
-                            {savingStatus === CONTENT_STATUS.draft ? "Enregistrement..." : "Enregistrer en brouillon"}
-                        </Button>
+                        {isDraft && (
+                            <Button
+                                disabled={!canSubmit || isSaving}
+                                onClick={() => void handleSave(CONTENT_STATUS.draft)}
+                                className="flex h-11 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-6 text-[14px] font-semibold text-[#374151] transition hover:border-[#D5D7DE]"
+                            >
+                                {savingStatus === CONTENT_STATUS.draft
+                                    ? "Enregistrement..."
+                                    : "Enregistrer en brouillon"}
+                            </Button>
+                        )}
                         <Button
                             disabled={!canSubmit || isSaving}
                             onClick={() => void handleSave(CONTENT_STATUS.published)}
@@ -561,10 +575,10 @@ export function CreateSkillPageContent({
                             }`}
                         >
                             {savingStatus === CONTENT_STATUS.published
-                                ? "Publication..."
-                                : isEditing
-                                    ? "Mettre à jour"
-                                    : "Publier la compétence"}
+                                ? "Enregistrement..."
+                                : isDraft
+                                    ? "Publier la compétence"
+                                    : "Mettre à jour"}
                         </Button>
                     </Box>
                 </CardSurface>

@@ -1,5 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { getQuizDimensionDiagnostic, getQuizResumeQuestionIndex, scoreQuizAnswers } from "./quiz";
+import {
+    getQuizAttemptsRemaining,
+    getQuizDimensionDiagnostic,
+    getQuizResumeQuestionIndex,
+    hasActiveQuizKnowledgeItem,
+    hasReachedQuizAttemptLimit,
+    normalizeQuizMaxAttempts,
+    scoreQuizAnswers,
+} from "./quiz";
+
+describe("quiz attempt limits", () => {
+    it("uses the default for an omitted limit and preserves unlimited attempts", () => {
+        expect(normalizeQuizMaxAttempts(undefined)).toBe(3);
+        expect(normalizeQuizMaxAttempts(null)).toBeNull();
+    });
+
+    it("calculates the remaining finite attempts and preserves unlimited attempts", () => {
+        expect(getQuizAttemptsRemaining(3, 1)).toBe(2);
+        expect(getQuizAttemptsRemaining(3, 4)).toBe(0);
+        expect(getQuizAttemptsRemaining(null, 100)).toBeNull();
+    });
+
+    it("only reports a reached limit for finite attempts", () => {
+        expect(hasReachedQuizAttemptLimit(3, 2)).toBe(false);
+        expect(hasReachedQuizAttemptLimit(3, 3)).toBe(true);
+        expect(hasReachedQuizAttemptLimit(3, 4)).toBe(true);
+        expect(hasReachedQuizAttemptLimit(null, 100)).toBe(false);
+    });
+});
 
 describe("scoreQuizAnswers", () => {
     it("scores QCU and QCM questions with exact-match answers", () => {
@@ -50,7 +78,7 @@ describe("scoreQuizAnswers", () => {
                                     { id: "choice-5", isCorrect: false, label: "C", order: 3 },
                                 ],
                                 competenceId: "gestion-objections",
-                                dimension: "savoir_faire",
+                                dimension: "savoir",
                                 dimensionItem: "Application",
                                 dimensionItemId: null,
                                 explanation: "",
@@ -149,6 +177,23 @@ describe("scoreQuizAnswers", () => {
 
         expect(result.score).toBe(75);
         expect(result.passed).toBe(true);
+    });
+});
+
+describe("hasActiveQuizKnowledgeItem", () => {
+    it("only exposes skills with an active savoir item", () => {
+        expect(hasActiveQuizKnowledgeItem({
+            dimensionItems: [
+                { dimension: "savoir", isActive: true },
+                { dimension: "savoir_faire", isActive: true },
+            ],
+        })).toBe(true);
+        expect(hasActiveQuizKnowledgeItem({
+            dimensionItems: [
+                { dimension: "savoir", isActive: false },
+                { dimension: "savoir_faire", isActive: true },
+            ],
+        })).toBe(false);
     });
 });
 

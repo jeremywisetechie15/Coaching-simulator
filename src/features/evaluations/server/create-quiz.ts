@@ -11,6 +11,7 @@ import {
     type QuizUploadFilesByClientId,
     type UploadedQuizStorageObject,
 } from "./quiz-upload-files";
+import { assertQuizLifecycle } from "./assert-quiz-lifecycle";
 
 export async function createQuiz(
     input: SaveQuizDto,
@@ -20,6 +21,8 @@ export async function createQuiz(
     const adminSupabase = createAdminClient();
     let createdQuizId: string | null = null;
     const uploadedObjects: UploadedQuizStorageObject[] = [];
+
+    await assertQuizLifecycle(adminSupabase, input);
 
     try {
         const { data: quizRow, error: quizError } = await adminSupabase

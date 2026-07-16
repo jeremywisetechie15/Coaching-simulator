@@ -1,4 +1,5 @@
 import { requireAuth } from "@/features/auth/server";
+import { CONTENT_STATUS } from "@/features/content/domain";
 import type { MethodListItem } from "@/features/methods/domain/method";
 import { createClient } from "@/lib/supabase/server";
 import { mapMethodRowToListItem, type MethodRow } from "./method.mapper";
@@ -11,6 +12,7 @@ export async function listMethods(): Promise<MethodListItem[]> {
     const { data: methodRows, error } = await supabase
         .from("methods")
         .select(METHOD_SELECT)
+        .neq("status", CONTENT_STATUS.archived)
         .order("created_at", { ascending: false });
 
     if (error) {

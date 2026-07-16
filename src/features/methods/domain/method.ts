@@ -80,6 +80,16 @@ export interface MethodMastery {
     trend: MethodMasteryTrend;
 }
 
+export function getMethodMasteryLabel(
+    hasAssociatedQuiz: boolean,
+    mastery: Pick<MethodMastery, "scorePercent"> | null,
+) {
+    if (!hasAssociatedQuiz) return "Aucun quiz associé";
+    if (!mastery) return "Non testée";
+
+    return `${Math.round(mastery.scorePercent)}%`;
+}
+
 export function calculateMethodMasteryTrend(latestScore: number, previousScore: number | null) {
     if (previousScore === null) {
         return { delta: null, trend: METHOD_MASTERY_TREND.initial } as const;
@@ -98,9 +108,76 @@ export interface MethodOrganizationOption {
     name: string;
 }
 
-export const METHOD_STEP_ICONS = ["phone", "message", "shield", "check"] as const;
+export interface MethodSelectionOption {
+    id: string;
+    name: string;
+}
 
-export type MethodStepIcon = (typeof METHOD_STEP_ICONS)[number];
+/** All method selectors display the canonical method name, never its code. */
+export function getMethodSelectionLabel(method: Pick<MethodSelectionOption, "name">) {
+    return method.name;
+}
+
+export function toMethodSelectOption(method: MethodSelectionOption) {
+    return {
+        label: getMethodSelectionLabel(method),
+        value: method.id,
+    };
+}
+
+/**
+ * Canonical catalogue for method-step icons.
+ *
+ * Persistence, validation and every method-step icon picker derive from these
+ * stable values so a label is never used as an API identifier.
+ */
+export const METHOD_STEP_ICON_LABELS = {
+    phone: "Téléphone",
+    message: "Message",
+    ear: "Écoute",
+    question: "Questions",
+    presentation: "Présentation",
+    handshake: "Accord",
+    users: "Collaboration",
+    search: "Découverte",
+    target: "Objectif",
+    compass: "Orientation",
+    lightbulb: "Idée",
+    brain: "Réflexion",
+    pen: "Préparation",
+    plan: "Plan d’action",
+    calendar: "Planification",
+    clock: "Gestion du temps",
+    send: "Suivi",
+    repeat: "Relance",
+    flag: "Jalon",
+    briefcase: "Enjeu métier",
+    euro: "Budget",
+    scale: "Décision",
+    puzzle: "Solution",
+    shield: "Bouclier",
+    check: "Coche",
+    gauge: "Performance",
+    trophy: "Réussite",
+    zap: "Impact",
+} as const;
+
+export type MethodStepIcon = keyof typeof METHOD_STEP_ICON_LABELS;
+
+export const METHOD_STEP_ICONS = Object.keys(METHOD_STEP_ICON_LABELS) as [
+    MethodStepIcon,
+    ...MethodStepIcon[],
+];
+
+export const DEFAULT_METHOD_STEP_ICON = "phone" satisfies MethodStepIcon;
+
+export function isMethodStepIcon(value: unknown): value is MethodStepIcon {
+    return typeof value === "string" && Object.hasOwn(METHOD_STEP_ICON_LABELS, value);
+}
+
+export function normalizeMethodStepIcon(value: unknown): MethodStepIcon {
+    return isMethodStepIcon(value) ? value : DEFAULT_METHOD_STEP_ICON;
+}
 
 export const METHOD_RESOURCE_TYPES = ["link", "document", "video", "audio", "image"] as const;
 

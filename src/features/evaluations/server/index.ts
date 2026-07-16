@@ -1,4 +1,5 @@
 export * from "./archive-quiz";
+export * from "./assert-quiz-lifecycle";
 export * from "./create-quiz";
 export * from "./create-quiz-attempt";
 export * from "./duplicate-quiz";
@@ -8,6 +9,7 @@ export * from "./get-quiz-by-id";
 export * from "./list-quiz-form-options";
 export * from "./list-quiz-target-options";
 export * from "./list-quizzes";
+export * from "./revalidate-quiz-consumers";
 export * from "./save-quiz-request";
 export * from "./save-quiz-attempt-answers";
 export * from "./submit-quiz-attempt";

@@ -147,6 +147,9 @@ export function mapDbRoleplayToUi(roleplay: RoleplayListItem | DbRoleplayDetail,
 
     return {
         category: textOrMock(roleplay.category, mock?.category ?? ""),
+        coachAvatarSrc: roleplay.coachAvatarUrl ?? "",
+        coachId: roleplay.coachId ?? undefined,
+        coachName: roleplay.coachName ?? undefined,
         company: textOrMock(roleplay.company, mock?.company ?? ""),
         description: cardDescription,
         detail: buildDetail(roleplay, mock),

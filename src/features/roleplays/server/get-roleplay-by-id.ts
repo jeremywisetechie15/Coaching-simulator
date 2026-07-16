@@ -7,5 +7,5 @@ export async function getRoleplayById(roleplayId: string): Promise<RoleplayDetai
     const context = await requireAuth();
     const supabase = await createClient();
 
-    return fetchRoleplayDetail(supabase, roleplayId, context.userId);
+    return fetchRoleplayDetail(supabase, roleplayId, { statsUserId: context.userId });
 }

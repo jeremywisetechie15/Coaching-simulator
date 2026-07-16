@@ -33,6 +33,12 @@ export type SkillDimension = keyof SkillDimensions;
 /** Libellés des 3 dimensions tels qu'affichés sur le site (identiques pour toutes les compétences). */
 export const SKILL_DIMENSIONS = ["savoir", "savoir_faire", "savoir_etre"] as const;
 
+export const SKILL_DIMENSION_TITLES: Record<SkillDimension, string> = {
+    savoir: "Savoir",
+    savoir_faire: "Savoir-faire",
+    savoir_etre: "Savoir-être",
+};
+
 export const SKILL_DIMENSION_LABELS: Record<SkillDimension, string> = {
     savoir: "Knowledge requis",
     savoir_faire: "Dimensions pratiques",

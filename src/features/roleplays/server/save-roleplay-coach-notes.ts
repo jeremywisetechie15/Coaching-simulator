@@ -65,7 +65,9 @@ async function resolveCoachNotesContext(
 ) {
     const context = await requireAuth();
     const authenticatedSupabase = await createClient();
-    const roleplay = await fetchRoleplayDetail(authenticatedSupabase, roleplayId, context.userId);
+    const roleplay = await fetchRoleplayDetail(authenticatedSupabase, roleplayId, {
+        statsUserId: context.userId,
+    });
     const adminSupabase = createAdminClient();
     const methodStep = await resolveMethodStep(adminSupabase, roleplay.methodId, input);
 

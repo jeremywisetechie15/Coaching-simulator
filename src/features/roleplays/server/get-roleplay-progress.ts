@@ -1,5 +1,4 @@
 import { requireAuth } from "@/features/auth/server";
-import { CONTENT_STATUS } from "@/features/content/domain";
 import { QUIZ_KIND } from "@/features/evaluations/domain";
 import {
     fetchCompletedQuizSkillCriteria,
@@ -77,6 +76,10 @@ interface NamedRow {
 
 interface ProgressQuizRow {
     id: string;
+}
+
+interface ScenarioProgressQuizRow {
+    quiz_id: string;
 }
 
 interface ScorecardStepMethodRow {
@@ -187,24 +190,64 @@ async function fetchProgressBaseline(scorecardId?: string | null, methodId?: str
     return methodId ? fetchMethodBaseline(methodId) : [];
 }
 
-async function fetchMethodKnowledgeQuizIds(
+export function mergeRoleplayProgressQuizIds(
+    methodQuizIds: string[],
+    scenarioQuizIds: string[],
+) {
+    return uniqueValues([...methodQuizIds, ...scenarioQuizIds]);
+}
+
+async function fetchRoleplayProgressQuizIds(
     supabase: ReturnType<typeof createAdminClient>,
+    roleplayId: string,
     methodId?: string | null,
 ) {
-    if (!methodId) return [];
-
-    const methodQuizResult = await supabase
-        .from("quizzes")
-        .select("id")
-        .eq("method_id", methodId)
-        .eq("quiz_kind", QUIZ_KIND.methodKnowledge)
-        .eq("is_active", true)
-        .neq("status", CONTENT_STATUS.archived)
-        .returns<ProgressQuizRow[]>();
+    const methodQuizQuery = methodId
+        ? supabase
+              .from("quizzes")
+              .select("id")
+              .eq("method_id", methodId)
+              .eq("quiz_kind", QUIZ_KIND.methodKnowledge)
+              .returns<ProgressQuizRow[]>()
+        : Promise.resolve({ data: [] as ProgressQuizRow[], error: null });
+    const scenarioQuizQuery = supabase
+        .from("scenario_quizzes")
+        .select("quiz_id")
+        .eq("scenario_id", roleplayId)
+        .returns<ScenarioProgressQuizRow[]>();
+    const [methodQuizResult, scenarioQuizResult] = await Promise.all([
+        methodQuizQuery,
+        scenarioQuizQuery,
+    ]);
 
     if (methodQuizResult.error) throw methodQuizResult.error;
+    if (scenarioQuizResult.error) throw scenarioQuizResult.error;
 
-    return uniqueValues((methodQuizResult.data ?? []).map((row) => row.id));
+    return mergeRoleplayProgressQuizIds(
+        (methodQuizResult.data ?? []).map((row) => row.id),
+        (scenarioQuizResult.data ?? []).map((row) => row.quiz_id),
+    );
+}
+
+function buildUniqueScorecardStepIdBySkillId(baselineSteps: ProgressBaselineStep[]) {
+    const stepIdsBySkillId = new Map<string, Set<string>>();
+
+    for (const step of baselineSteps) {
+        if (!step.scorecardStepId) continue;
+
+        for (const criterion of step.criteria) {
+            if (!criterion.skillId) continue;
+            const stepIds = stepIdsBySkillId.get(criterion.skillId) ?? new Set<string>();
+            stepIds.add(step.scorecardStepId);
+            stepIdsBySkillId.set(criterion.skillId, stepIds);
+        }
+    }
+
+    return new Map(
+        Array.from(stepIdsBySkillId.entries()).flatMap(([skillId, stepIds]) =>
+            stepIds.size === 1 ? [[skillId, Array.from(stepIds)[0]] as const] : [],
+        ),
+    );
 }
 
 async function fetchScorecardStepIdByMethodStepId(
@@ -233,23 +276,32 @@ function mapQuizSkillCriteriaToProgressCriteria(
     skillNamesById: Map<string, string>,
     dimensionItemLabelsById: Map<string, string>,
     scorecardStepIdByMethodStepId: Map<string, string>,
+    scorecardStepIdBySkillId: Map<string, string>,
 ): ProgressCriterionResult[] {
-    return rows.map((row, index) => ({
-        advice: null,
-        coachComment: null,
-        completedAt: row.createdAt,
-        criterionRef: `quiz:${row.quizId}:${row.sourceId}:${row.dimensionItemId ?? index}`,
-        dimension: row.dimension,
-        dimensionItemId: row.dimensionItemId,
-        dimensionItemLabel: row.dimensionItemId ? dimensionItemLabelsById.get(row.dimensionItemId) ?? null : null,
-        pointsAwarded: row.pointsAwarded,
-        pointsMax: row.pointsMax,
-        scorePercent: row.scorePercent,
-        scorecardStepId: row.methodStepId ? scorecardStepIdByMethodStepId.get(row.methodStepId) ?? null : null,
-        sessionId: row.sourceId,
-        skillId: row.skillId,
-        skillName: row.skillId ? skillNamesById.get(row.skillId) ?? null : null,
-    }));
+    return rows.map((row, index) => {
+        const scorecardStepId =
+            (row.methodStepId ? scorecardStepIdByMethodStepId.get(row.methodStepId) : null) ??
+            (row.skillId ? scorecardStepIdBySkillId.get(row.skillId) : null) ??
+            null;
+
+        return {
+            advice: null,
+            coachComment: null,
+            completedAt: row.createdAt,
+            criterionRef: `quiz:${row.quizId}:${row.sourceId}:${row.dimensionItemId ?? index}`,
+            dimension: row.dimension,
+            dimensionItemId: row.dimensionItemId,
+            dimensionItemLabel: row.dimensionItemId ? dimensionItemLabelsById.get(row.dimensionItemId) ?? null : null,
+            pointsAwarded: row.pointsAwarded,
+            pointsMax: row.pointsMax,
+            scorePercent: row.scorePercent,
+            scorecardStepId,
+            sessionId: row.sourceId,
+            skillId: row.skillId,
+            skillName: row.skillId ? skillNamesById.get(row.skillId) ?? null : null,
+            sourceGroupId: row.quizId,
+        };
+    });
 }
 
 export async function getRoleplayProgress(
@@ -278,8 +330,9 @@ export async function getRoleplayProgress(
         sessionId: row.session_id,
     }));
     const baselineSteps = await fetchProgressBaseline(scorecardId, methodId);
+    const scorecardStepIdBySkillId = buildUniqueScorecardStepIdBySkillId(baselineSteps);
     const [quizIds, scorecardStepIdByMethodStepId] = await Promise.all([
-        fetchMethodKnowledgeQuizIds(supabase, methodId),
+        fetchRoleplayProgressQuizIds(supabase, roleplayId, methodId),
         fetchScorecardStepIdByMethodStepId(supabase, scorecardId),
     ]);
     const quizSkillCriteria = await fetchCompletedQuizSkillCriteria(supabase, {
@@ -301,6 +354,7 @@ export async function getRoleplayProgress(
                 quizSkillNamesById,
                 quizDimensionItemLabelsById,
                 scorecardStepIdByMethodStepId,
+                scorecardStepIdBySkillId,
             ),
             sessions,
             steps: [],
@@ -368,6 +422,7 @@ export async function getRoleplayProgress(
         skillNamesById,
         dimensionItemLabelsById,
         scorecardStepIdByMethodStepId,
+        scorecardStepIdBySkillId,
     );
 
     return buildRoleplayProgress({

@@ -5,7 +5,6 @@ import { fetchQuizList } from "./quiz-query";
 
 interface ListQuizOptionsParams {
     availableForMethodId?: string;
-    includeArchived?: boolean;
     unassignedOnly?: boolean;
 }
 
@@ -20,14 +19,16 @@ export async function listQuizOptions(params: ListQuizOptionsParams = {}): Promi
     const quizzes = await listQuizzes();
 
     return quizzes
-        .filter(
-            (quiz) =>
-                params.includeArchived ||
-                quiz.status !== "archived" ||
-                (params.availableForMethodId && quiz.methodId === params.availableForMethodId),
-        )
-        .filter((quiz) => !params.unassignedOnly || !quiz.methodId)
-        .filter((quiz) => !params.availableForMethodId || !quiz.methodId || quiz.methodId === params.availableForMethodId)
+        .filter((quiz) => {
+            const isCurrentMethodQuiz = Boolean(
+                params.availableForMethodId
+                && quiz.methodId === params.availableForMethodId
+                && quiz.kind === QUIZ_KIND.methodKnowledge
+            );
+
+            if (params.unassignedOnly && quiz.methodId && !isCurrentMethodQuiz) return false;
+            return !params.availableForMethodId || !quiz.methodId || quiz.methodId === params.availableForMethodId;
+        })
         .map((quiz) => ({
             id: quiz.id,
             kind: quiz.kind,
@@ -37,7 +38,9 @@ export async function listQuizOptions(params: ListQuizOptionsParams = {}): Promi
         }));
 }
 
-export async function getMethodAssociatedQuizOption(methodId: string): Promise<QuizOption | null> {
+export async function getMethodAssociatedQuizOption(
+    methodId: string,
+): Promise<QuizOption | null> {
     const quizzes = await listQuizOptions();
 
     return quizzes.find((quiz) => quiz.methodId === methodId && quiz.kind === QUIZ_KIND.methodKnowledge) ?? null;

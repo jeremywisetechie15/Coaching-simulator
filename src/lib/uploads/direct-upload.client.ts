@@ -1,16 +1,18 @@
 "use client";
 
-import { Upload } from "tus-js-client";
 import {
     applyDirectUploadReferences,
     DIRECT_UPLOAD_API_PATH,
-    DIRECT_UPLOAD_TUS_CHUNK_SIZE_BYTES,
     type DirectUploadIntent,
     type DirectUploadProgressHandler,
     type DirectUploadReference,
     type PendingDirectUpload,
 } from "./direct-upload";
-import { CONTENT_UPLOAD_PURPOSES } from "./content-upload";
+import {
+    CONTENT_UPLOAD_ERROR_MESSAGES,
+    CONTENT_UPLOAD_PURPOSES,
+    getContentUploadSizeErrorMessage,
+} from "./content-upload";
 
 interface DirectUploadApiPayload {
     error?: string;
@@ -37,39 +39,99 @@ async function requestDirectUploadIntent(upload: PendingDirectUpload) {
     return payload.intent;
 }
 
-function uploadFileWithTus(
+interface StorageUploadErrorPayload {
+    code?: string;
+    error?: string;
+    message?: string;
+    statusCode?: number | string;
+}
+
+function getStorageUploadErrorMessage(
+    status: number,
+    responseText: string,
+    upload: PendingDirectUpload,
+) {
+    const payload = (() => {
+        try {
+            return JSON.parse(responseText) as StorageUploadErrorPayload;
+        } catch {
+            return null;
+        }
+    })();
+    const detail = payload?.message || payload?.error;
+    const normalizedCode = payload?.code?.toLowerCase() ?? "";
+    const normalizedDetail = detail?.toLowerCase() ?? "";
+    const isTooLarge =
+        status === 413 ||
+        normalizedCode === "entitytoolarge" ||
+        normalizedDetail.includes("maximum allowed size") ||
+        normalizedDetail.includes("too large");
+
+    if (isTooLarge) {
+        return getContentUploadSizeErrorMessage(upload.file, upload.purpose);
+    }
+
+    if (status === 401 || status === 403 || String(payload?.statusCode) === "403") {
+        return CONTENT_UPLOAD_ERROR_MESSAGES.forbidden;
+    }
+
+    if (normalizedCode === "invalidmimetype" || normalizedDetail.includes("mime type")) {
+        return CONTENT_UPLOAD_ERROR_MESSAGES.invalidType;
+    }
+
+    if (normalizedCode === "nosuchbucket" || normalizedDetail.includes("bucket not found")) {
+        return CONTENT_UPLOAD_ERROR_MESSAGES.storageNotConfigured;
+    }
+
+    if (
+        status === 402 ||
+        normalizedCode.includes("quota") ||
+        normalizedDetail.includes("quota") ||
+        normalizedDetail.includes("storage limit")
+    ) {
+        return CONTENT_UPLOAD_ERROR_MESSAGES.storageFull;
+    }
+
+    if (status >= 500) {
+        return CONTENT_UPLOAD_ERROR_MESSAGES.unavailable;
+    }
+
+    return CONTENT_UPLOAD_ERROR_MESSAGES.unknown;
+}
+
+export function uploadFileToSignedUrl(
     upload: PendingDirectUpload,
     intent: DirectUploadIntent,
     onProgress?: DirectUploadProgressHandler,
 ) {
     return new Promise<void>((resolve, reject) => {
-        const tusUpload = new Upload(upload.file, {
-            chunkSize: DIRECT_UPLOAD_TUS_CHUNK_SIZE_BYTES,
-            endpoint: intent.endpoint,
-            headers: {
-                "x-signature": intent.token,
-            },
-            metadata: {
-                bucketName: intent.bucket,
-                cacheControl: upload.purpose === CONTENT_UPLOAD_PURPOSES.personaCv ? "0" : "3600",
-                contentType: upload.file.type,
-                objectName: intent.path,
-            },
-            onError: reject,
-            onProgress: (bytesUploaded, bytesTotal) => {
-                const percentage = bytesTotal > 0 ? Math.round((bytesUploaded / bytesTotal) * 100) : 0;
-                onProgress?.(upload.clientFileId, percentage);
-            },
-            onSuccess: () => {
+        const request = new XMLHttpRequest();
+        request.open("PUT", intent.signedUrl);
+        request.setRequestHeader(
+            "cache-control",
+            upload.purpose === CONTENT_UPLOAD_PURPOSES.personaCv
+                ? "no-store, max-age=0"
+                : "max-age=3600",
+        );
+        request.setRequestHeader("content-type", upload.file.type || "application/octet-stream");
+        request.setRequestHeader("x-upsert", "false");
+        request.upload.onprogress = (event) => {
+            if (!event.lengthComputable || event.total <= 0) return;
+
+            onProgress?.(upload.clientFileId, Math.round((event.loaded / event.total) * 100));
+        };
+        request.onerror = () => reject(new Error(CONTENT_UPLOAD_ERROR_MESSAGES.network));
+        request.onabort = () => reject(new Error("L'upload du fichier a été annulé."));
+        request.onload = () => {
+            if (request.status >= 200 && request.status < 300) {
                 onProgress?.(upload.clientFileId, 100);
                 resolve();
-            },
-            removeFingerprintOnSuccess: true,
-            retryDelays: [0, 3000, 5000, 10000, 20000],
-            uploadDataDuringCreation: true,
-        });
+                return;
+            }
 
-        tusUpload.start();
+            reject(new Error(getStorageUploadErrorMessage(request.status, request.responseText, upload)));
+        };
+        request.send(upload.file);
     });
 }
 
@@ -100,7 +162,7 @@ export async function uploadFilesDirectly(
             };
             issuedReferences.push(reference);
             onProgress?.(upload.clientFileId, 0);
-            await uploadFileWithTus(upload, intent, onProgress);
+            await uploadFileToSignedUrl(upload, intent, onProgress);
             referencesByClientFileId.set(upload.clientFileId, reference);
         }
     } catch (error) {

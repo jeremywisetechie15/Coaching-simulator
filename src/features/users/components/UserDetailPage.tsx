@@ -36,6 +36,11 @@ import {
 } from "@/lib/ui/atoms";
 import { GroupedTableSectionHeader } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
+import {
+    createFormSubmitError,
+    notifyFormSubmitError,
+    notifyFormSubmitSuccess,
+} from "@/lib/ui/feedback/form-submit-feedback";
 import { notify } from "@/lib/ui/feedback/toast";
 import { ROLEPLAY_INDEX_DESCRIPTION } from "@/features/roleplays/domain";
 import {
@@ -1230,8 +1235,8 @@ function SkillsTab({ skills }: { skills: UserSkillProgress[] }) {
 }
 
 export function UserDetailPage({
-    assignedQuizzes: initialQuizzes = [],
-    assignedRoleplays: initialRoleplays = [],
+    assignedQuizzes = [],
+    assignedRoleplays = [],
     avatarUrl,
     initialMode = "view",
     initials,
@@ -1252,8 +1257,6 @@ export function UserDetailPage({
     const [groupPendingRemoval, setGroupPendingRemoval] = useState<UserAssignedGroup | null>(null);
     const [groupDialogError, setGroupDialogError] = useState<string | null>(null);
     const [isGroupActionPending, setIsGroupActionPending] = useState(false);
-    const [assignedRoleplays] = useState<UserAssignedRoleplay[]>(initialRoleplays);
-    const [assignedQuizzes] = useState<UserAssignedQuiz[]>(initialQuizzes);
     const [isEditing, setIsEditing] = useState(initialMode === "edit");
     const [isSaving, setIsSaving] = useState(false);
     const [draft, setDraft] = useState<DetailFormValues>(() => getFormValuesFromUser(user));
@@ -1351,16 +1354,17 @@ export function UserDetailPage({
                 | null;
 
             if (!response.ok || !payload?.user) {
-                notify.error(getApiErrorMessage(payload, "Impossible de modifier l'utilisateur."));
+                const message = getApiErrorMessage(payload, "Impossible de modifier l'utilisateur.");
+                notifyFormSubmitError(createFormSubmitError(message, response.status), message);
                 return;
             }
 
             setCurrentUser(payload.user);
             setDraft(getFormValuesFromUser(payload.user));
             setIsEditing(false);
-            notify.success("Utilisateur modifié");
-        } catch {
-            notify.error("Impossible de modifier l'utilisateur.");
+            notifyFormSubmitSuccess();
+        } catch (error) {
+            notifyFormSubmitError(error, "Impossible de modifier l'utilisateur.");
         } finally {
             setIsSaving(false);
         }
@@ -1395,7 +1399,8 @@ export function UserDetailPage({
                 | null;
 
             if (!response.ok || !payload?.status || typeof payload.isSuspended !== "boolean") {
-                setStatusActionError(getApiErrorMessage(payload, "Impossible de modifier le statut de l'utilisateur."));
+                const message = getApiErrorMessage(payload, "Impossible de modifier le statut de l'utilisateur.");
+                setStatusActionError(notifyFormSubmitError(createFormSubmitError(message, response.status), message));
                 return;
             }
 
@@ -1410,8 +1415,8 @@ export function UserDetailPage({
                     : "Utilisateur réactivé",
             );
             setPendingStatusAction(null);
-        } catch {
-            setStatusActionError("Impossible de modifier le statut de l'utilisateur.");
+        } catch (error) {
+            setStatusActionError(notifyFormSubmitError(error, "Impossible de modifier le statut de l'utilisateur."));
         } finally {
             setIsStatusActionPending(false);
         }
@@ -1450,15 +1455,17 @@ export function UserDetailPage({
             const payload = (await response.json().catch(() => null)) as UserGroupsResult | ApiErrorPayload | null;
 
             if (!response.ok) {
-                setGroupDialogError(getApiErrorMessage(payload as ApiErrorPayload | null, "Impossible d'ajouter l'utilisateur au groupe."));
+                const message = getApiErrorMessage(payload as ApiErrorPayload | null, "Impossible d'ajouter l'utilisateur au groupe.");
+                setGroupDialogError(notifyFormSubmitError(createFormSubmitError(message, response.status), message));
                 return;
             }
 
             applyUserGroupsResult(payload as UserGroupsResult | null);
             setIsAddGroupOpen(false);
             setSelectedGroupId("");
-        } catch {
-            setGroupDialogError("Impossible d'ajouter l'utilisateur au groupe.");
+            notifyFormSubmitSuccess();
+        } catch (error) {
+            setGroupDialogError(notifyFormSubmitError(error, "Impossible d'ajouter l'utilisateur au groupe."));
         } finally {
             setIsGroupActionPending(false);
         }
@@ -1495,14 +1502,16 @@ export function UserDetailPage({
             const payload = (await response.json().catch(() => null)) as UserGroupsResult | ApiErrorPayload | null;
 
             if (!response.ok) {
-                setGroupDialogError(getApiErrorMessage(payload as ApiErrorPayload | null, "Impossible de retirer l'utilisateur du groupe."));
+                const message = getApiErrorMessage(payload as ApiErrorPayload | null, "Impossible de retirer l'utilisateur du groupe.");
+                setGroupDialogError(notifyFormSubmitError(createFormSubmitError(message, response.status), message));
                 return;
             }
 
             applyUserGroupsResult(payload as UserGroupsResult | null);
             setGroupPendingRemoval(null);
-        } catch {
-            setGroupDialogError("Impossible de retirer l'utilisateur du groupe.");
+            notifyFormSubmitSuccess();
+        } catch (error) {
+            setGroupDialogError(notifyFormSubmitError(error, "Impossible de retirer l'utilisateur du groupe."));
         } finally {
             setIsGroupActionPending(false);
         }

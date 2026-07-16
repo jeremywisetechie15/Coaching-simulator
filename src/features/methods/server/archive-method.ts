@@ -1,31 +1,22 @@
 import { requireAdmin } from "@/features/auth/server";
-import { CONTENT_STATUS } from "@/features/content/domain";
-import { ConflictError, NotFoundError } from "@/lib/server/errors";
+import { CONTENT_STATUS, type ContentStatus } from "@/features/content/domain";
+import { assertContentStatusTransition } from "@/features/content/server";
+import { NotFoundError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
-import type { SupabaseClient } from "@supabase/supabase-js";
-
-export async function assertMethodCanBeArchived(supabase: SupabaseClient, methodId: string) {
-    const { data, error } = await supabase
-        .from("scenarios")
-        .select("id")
-        .eq("method_id", methodId)
-        .limit(1)
-        .maybeSingle<{ id: string }>();
-
-    if (error) {
-        throw error;
-    }
-
-    if (data) {
-        throw new ConflictError("Impossible de supprimer cette méthode car elle est associée à un roleplay.");
-    }
-}
 
 export async function archiveMethod(methodId: string) {
     await requireAdmin();
     const adminSupabase = createAdminClient();
+    const { data: existing, error: existingError } = await adminSupabase
+        .from("methods")
+        .select("status")
+        .eq("id", methodId)
+        .maybeSingle<{ status: ContentStatus }>();
 
-    await assertMethodCanBeArchived(adminSupabase, methodId);
+    if (existingError) throw existingError;
+    if (!existing) throw new NotFoundError("Méthode introuvable.");
+
+    assertContentStatusTransition(existing.status, CONTENT_STATUS.archived);
 
     const { data, error } = await adminSupabase
         .from("methods")
@@ -38,11 +29,6 @@ export async function archiveMethod(methodId: string) {
         .select("id")
         .maybeSingle<{ id: string }>();
 
-    if (error) {
-        throw error;
-    }
-
-    if (!data) {
-        throw new NotFoundError("Méthode introuvable.");
-    }
+    if (error) throw error;
+    if (!data) throw new NotFoundError("Méthode introuvable.");
 }

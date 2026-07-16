@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import { AppShell, ContextualLink } from "@/features/app-shell/components";
 import { Box, Button, CardSurface, InlineIcon, SelectInput, Text, TextInput } from "@/lib/ui/atoms";
+import { notifyFormSubmitError, notifyFormSubmitSuccess } from "@/lib/ui/feedback/form-submit-feedback";
 import {
+    getUserInvitationSuccessMessage,
     getUserStatusLabel,
     type PlatformRole,
     type UserListItem,
@@ -49,6 +51,15 @@ interface ApiErrorPayload {
 
 interface UsersPayload {
     users?: UserListItem[];
+}
+
+interface OrganizationGroupOption {
+    id: string;
+    name: string;
+}
+
+interface GroupsPayload {
+    groups?: OrganizationGroupOption[];
 }
 
 interface ApiRequestError extends Error {
@@ -135,6 +146,19 @@ async function fetchUsers() {
     return (payload as UsersPayload | null)?.users ?? [];
 }
 
+async function fetchOrganizationGroups(organizationId: string) {
+    const response = await fetch(`/api/organizations/${organizationId}/groups`, {
+        headers: { Accept: "application/json" },
+    });
+    const payload = (await readJsonPayload(response)) as GroupsPayload | ApiErrorPayload | null;
+
+    if (!response.ok) {
+        throw new Error((payload as ApiErrorPayload | null)?.error ?? "Impossible de charger les groupes.");
+    }
+
+    return (payload as GroupsPayload | null)?.groups ?? [];
+}
+
 async function inviteUserRequest(values: UserInviteFormValues) {
     const response = await fetch(`/api/organizations/${values.organizationId}/users/invite`, {
         method: "POST",
@@ -187,6 +211,11 @@ export function UsersPage({ avatarUrl, initials, initialUsers, organizations, pl
         initialData: initialUsers,
     });
     const users = usersQuery.data;
+    const inviteGroupsQuery = useQuery({
+        enabled: modalMode === "create" && formValues.organizationId.length > 0,
+        queryKey: ["organization-groups", formValues.organizationId],
+        queryFn: () => fetchOrganizationGroups(formValues.organizationId),
+    });
 
     const filteredUsers = useMemo(() => {
         const normalizedQuery = query.trim().toLocaleLowerCase("fr-FR");
@@ -244,16 +273,18 @@ export function UsersPage({ avatarUrl, initials, initialUsers, organizations, pl
             setInviteStatus(null);
 
             if (isApiRequestError(error)) {
-                setInviteError(getInviteErrorMessage(error.status, error.payload));
+                const message = getInviteErrorMessage(error.status, error.payload);
+                setInviteError(notifyFormSubmitError(error, message));
                 return;
             }
 
-            setInviteError(error instanceof Error ? error.message : "Impossible d'envoyer l'invitation.");
+            setInviteError(notifyFormSubmitError(error, "Impossible d'envoyer l'invitation."));
         },
         onSuccess: (email) => {
-            setInviteSuccess(`Invitation envoyée à ${email}.`);
+            setInviteSuccess(getUserInvitationSuccessMessage(email));
             void queryClient.invalidateQueries({ queryKey: usersQueryKey });
             void queryClient.invalidateQueries({ queryKey: ["organizations"] });
+            notifyFormSubmitSuccess();
             closeModal();
         },
     });
@@ -262,6 +293,7 @@ export function UsersPage({ avatarUrl, initials, initialUsers, organizations, pl
         setFormValues((current) => ({
             ...current,
             [field]: field === "role" ? (value as UserInviteFormValues["role"]) : value,
+            ...(field === "organizationId" ? { groupId: "" } : {}),
         }));
         setInviteError(null);
         setInviteStatus(null);
@@ -463,7 +495,22 @@ export function UsersPage({ avatarUrl, initials, initialUsers, organizations, pl
                 <UserInviteModal
                     formError={inviteError}
                     formStatus={inviteStatus}
-                    groupOptions={[]}
+                    groupOptions={(inviteGroupsQuery.data ?? []).map((group) => ({
+                        label: group.name,
+                        value: group.id,
+                    }))}
+                    groupSelectDisabled={!formValues.organizationId || inviteGroupsQuery.isPending || inviteGroupsQuery.isError}
+                    groupSelectPlaceholder={
+                        !formValues.organizationId
+                            ? "Sélectionnez d'abord une organisation"
+                            : inviteGroupsQuery.isPending
+                              ? "Chargement des groupes..."
+                              : inviteGroupsQuery.isError
+                                ? "Impossible de charger les groupes"
+                                : inviteGroupsQuery.data?.length
+                                  ? "Sélectionnez un groupe"
+                                  : "Aucun groupe disponible"
+                    }
                     isSubmitting={inviteUserMutation.isPending}
                     onClose={closeModal}
                     onSubmit={submitModal}

@@ -51,7 +51,7 @@ const quiz = {
                         { id: "choice-5", isCorrect: false, label: "C", order: 3 },
                     ],
                     competenceId: "skill-2",
-                    dimension: "savoir_faire",
+                    dimension: "savoir",
                     dimensionItem: "Application",
                     dimensionItemId: null,
                     explanation: "",

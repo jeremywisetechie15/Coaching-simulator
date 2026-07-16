@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { CONTENT_UPLOAD_PURPOSES } from "./content-upload";
 import {
     applyDirectUploadReferences,
-    buildDirectStorageEndpoint,
     getDirectUploadBucket,
     getDirectUploadStagingPrefix,
     isOwnedDirectUploadReference,
@@ -15,15 +14,6 @@ describe("direct upload domain", () => {
         expect(getDirectUploadBucket(CONTENT_UPLOAD_PURPOSES.personaCv)).toBe("personas-cvs");
         expect(getDirectUploadBucket(CONTENT_UPLOAD_PURPOSES.quizAttachment)).toBe("quizzes");
         expect(getDirectUploadBucket(CONTENT_UPLOAD_PURPOSES.scenarioResource)).toBe("resource_scenarios");
-    });
-
-    it("builds the direct Supabase Storage TUS endpoint", () => {
-        expect(buildDirectStorageEndpoint("https://project-ref.supabase.co")).toBe(
-            "https://project-ref.storage.supabase.co/storage/v1/upload/resumable",
-        );
-        expect(buildDirectStorageEndpoint("http://127.0.0.1:54321")).toBe(
-            "http://127.0.0.1:54321/storage/v1/upload/resumable",
-        );
     });
 
     it("accepts only the current admin's persona CV staging reference", () => {

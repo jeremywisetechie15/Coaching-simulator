@@ -2,7 +2,7 @@ import {
     DEFAULT_OPENAI_REALTIME_VOICE_ID,
     type VoiceId,
 } from "@/lib/openai/realtime-voices";
-import type { ContentStatus } from "@/features/content/domain";
+import { CONTENT_STATUS, type ContentStatus } from "@/features/content/domain";
 import {
     PERSONA_DISC_PROFILE,
     type PersonaDiscProfile,
@@ -41,6 +41,7 @@ export interface PersonaEditorValues {
     netIncomeBeforeTax: string;
     residenceCountry: string;
     role: string;
+    status: ContentStatus;
     systemInstructions: string;
     voiceId: VoiceId;
 }
@@ -48,7 +49,6 @@ export interface PersonaEditorValues {
 export interface PersonaDetail extends PersonaEditorValues {
     createdAt: string | null;
     id: string;
-    status: ContentStatus;
     updatedAt: string | null;
     voiceCharacteristic: string | null;
     voiceName: string;
@@ -73,6 +73,7 @@ export const EMPTY_PERSONA_EDITOR_VALUES: PersonaEditorValues = {
     netIncomeBeforeTax: "",
     residenceCountry: "",
     role: "",
+    status: CONTENT_STATUS.published,
     systemInstructions: "",
     voiceId: DEFAULT_OPENAI_REALTIME_VOICE_ID,
 };

@@ -2,8 +2,14 @@ import type {
     RoleplayNotationCriterionRef,
     RoleplayNotationCriterionResult,
     RoleplayNotationScoreResult,
+    RoleplayNotationStepRef,
     RoleplayNotationStepResult,
 } from "@/features/roleplays/domain";
+import {
+    calculateScorecardGlobalScorePercent,
+    calculateScorecardStepScorePercent,
+    SCORECARD_STEP_WEIGHT_TOTAL_PERCENT,
+} from "@/features/scorecards/domain";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -220,6 +226,7 @@ function normalizeCriterionResult(
 export function calculateScorecardNotationResult(
     methodoResult: JsonRecord | null,
     criterionRefs: RoleplayNotationCriterionRef[],
+    stepRefs: RoleplayNotationStepRef[],
 ): RoleplayNotationScoreResult {
     const criteriaByRef = new Map<string, JsonRecord>();
     for (const criterion of getAllCriterionRecords(methodoResult)) {
@@ -243,20 +250,16 @@ export function calculateScorecardNotationResult(
         criteriaByStepId.set(criterionRef.scorecardStepId, current);
     }
 
-    const firstRefByStepId = new Map<string, RoleplayNotationCriterionRef>();
-    for (const criterionRef of criterionRefs) {
-        if (!firstRefByStepId.has(criterionRef.scorecardStepId)) {
-            firstRefByStepId.set(criterionRef.scorecardStepId, criterionRef);
-        }
-    }
-
-    const steps: RoleplayNotationStepResult[] = Array.from(firstRefByStepId.values())
-        .sort((first, second) => first.stepOrder - second.stepOrder)
-        .map((criterionRef) => {
-            const stepCriteria = criteriaByStepId.get(criterionRef.scorecardStepId) ?? [];
+    const steps: RoleplayNotationStepResult[] = stepRefs
+        .slice()
+        .sort((first, second) => first.order - second.order)
+        .map((stepRef) => {
+            const stepCriteria = criteriaByStepId.get(stepRef.scorecardStepId) ?? [];
             const pointsAwarded = round2(stepCriteria.reduce((total, criterion) => total + criterion.pointsAwarded, 0));
             const pointsMax = round2(stepCriteria.reduce((total, criterion) => total + criterion.pointsMax, 0));
-            const scorePercent = pointsMax > 0 ? round2((pointsAwarded / pointsMax) * 100) : 0;
+            const scorePercent = calculateScorecardStepScorePercent(
+                stepCriteria.map((criterion) => criterion.scorePercent),
+            );
             const coachComment =
                 stepCriteria.find((criterion) => criterion.coachComment)?.coachComment ||
                 stepCriteria.find((criterion) => criterion.advice)?.advice ||
@@ -265,19 +268,20 @@ export function calculateScorecardNotationResult(
             return {
                 coachComment,
                 criteria: stepCriteria,
-                methodStepId: criterionRef.methodStepId,
+                methodStepId: stepRef.methodStepId,
                 pointsAwarded,
                 pointsMax,
                 scorePercent,
-                scorecardStepId: criterionRef.scorecardStepId,
-                stepOrder: criterionRef.stepOrder,
-                title: criterionRef.stepTitle,
+                scorecardStepId: stepRef.scorecardStepId,
+                stepOrder: stepRef.order,
+                title: stepRef.title,
+                weightPercent: stepRef.weightPercent,
             };
         });
 
     const pointsAwarded = round2(criteria.reduce((total, criterion) => total + criterion.pointsAwarded, 0));
     const pointsMax = round2(criteria.reduce((total, criterion) => total + criterion.pointsMax, 0));
-    const globalScorePercent = pointsMax > 0 ? round2((pointsAwarded / pointsMax) * 100) : 0;
+    const globalScorePercent = calculateScorecardGlobalScorePercent(steps);
 
     return {
         criteria,
@@ -290,7 +294,7 @@ export function calculateScorecardNotationResult(
 
 export function buildScoreGlobalFromScorecard(result: RoleplayNotationScoreResult) {
     const detail_calcul = result.steps.map((step) => {
-        const poids = result.pointsMax > 0 ? round2(step.pointsMax / result.pointsMax) : 0;
+        const poids = round2(step.weightPercent / SCORECARD_STEP_WEIGHT_TOTAL_PERCENT);
 
         return {
             etape: step.title,
@@ -308,7 +312,7 @@ export function buildScoreGlobalFromScorecard(result: RoleplayNotationScoreResul
         detail_calcul,
         points_obtenus: result.pointsAwarded,
         points_max: result.pointsMax,
-        methode_calcul: "somme_points_criteres_scorecard",
+        methode_calcul: "moyenne_criteres_puis_ponderation_etapes_scorecard",
         score_process: result.globalScorePercent,
         notation_source: "scorecard",
     };

@@ -13,6 +13,11 @@ import type {
 } from "@/features/organizations/domain/organization-detail";
 import { ORGANIZATION_MEMBER_STATUS_LABELS } from "@/features/organizations/domain/organization-member";
 import { Box, Button, CardSurface, FieldLabel, FormRoot, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
+import {
+    createFormSubmitError,
+    notifyFormSubmitError,
+    notifyFormSubmitSuccess,
+} from "@/lib/ui/feedback/form-submit-feedback";
 import { uiTokens } from "@/lib/ui/tokens";
 import { OrganizationDetailEvaluations } from "./OrganizationDetailEvaluations";
 import { OrganizationDetailRoleplays } from "./OrganizationDetailRoleplays";
@@ -339,7 +344,12 @@ export function OrganizationGroupDetailContent({
     };
 
     const saveGroup = async () => {
-        if (isSubmitting || !formValues.name.trim()) {
+        if (isSubmitting) {
+            return;
+        }
+
+        if (!formValues.name.trim()) {
+            setFormError(notifyFormSubmitError(new Error("Le nom du groupe est obligatoire."), "Le nom du groupe est obligatoire."));
             return;
         }
 
@@ -355,14 +365,16 @@ export function OrganizationGroupDetailContent({
             const payload = (await response.json().catch(() => null)) as ApiErrorPayload | GroupPayload | null;
 
             if (!response.ok) {
-                setFormError(getApiErrorMessage(payload as ApiErrorPayload | null, "Impossible de modifier le groupe."));
+                const message = getApiErrorMessage(payload as ApiErrorPayload | null, "Impossible de modifier le groupe.");
+                setFormError(notifyFormSubmitError(createFormSubmitError(message, response.status), message));
                 return;
             }
 
             const updatedGroup = (payload as GroupPayload | null)?.group;
 
             if (!updatedGroup) {
-                setFormError("Réponse invalide du serveur.");
+                const message = "Réponse invalide du serveur.";
+                setFormError(notifyFormSubmitError(new Error(message), message));
                 return;
             }
 
@@ -373,8 +385,9 @@ export function OrganizationGroupDetailContent({
             });
             setIsEditing(false);
             router.refresh();
-        } catch {
-            setFormError("Impossible de modifier le groupe.");
+            notifyFormSubmitSuccess();
+        } catch (error) {
+            setFormError(notifyFormSubmitError(error, "Impossible de modifier le groupe."));
         } finally {
             setIsSubmitting(false);
         }

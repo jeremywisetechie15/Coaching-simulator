@@ -35,6 +35,10 @@ export interface RoleplayDetail {
 export interface RoleplayItem {
     id: string;
     title?: string;
+    /** Coach associé au scénario DB ; absent uniquement pour les anciens mocks. */
+    coachId?: string;
+    coachName?: string;
+    coachAvatarSrc?: string;
     category: string;
     domain: string;
     name: string;

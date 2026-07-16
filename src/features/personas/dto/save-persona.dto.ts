@@ -5,6 +5,7 @@ import {
     PERSONA_DISC_PROFILE,
     PERSONA_DISC_PROFILES,
 } from "@/features/personas/domain/persona-profile";
+import { CONTENT_STATUSES } from "@/features/content/domain";
 import {
     MAX_PERSONA_CV_UPLOAD_SIZE_BYTES,
     PERSONA_CV_UPLOAD_MIME_TYPE,
@@ -62,6 +63,7 @@ export const savePersonaDto = z.object({
     netIncomeBeforeTax: optionalString(120, "Le revenu net avant impôt est trop long."),
     residenceCountry: optionalString(120, "Le pays de résidence est trop long."),
     role: z.string().trim().max(120, "La fonction est trop longue.").optional().default(""),
+    status: z.enum(CONTENT_STATUSES).default("published"),
     systemInstructions: z
         .string()
         .trim()

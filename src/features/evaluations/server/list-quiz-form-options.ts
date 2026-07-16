@@ -1,4 +1,3 @@
-import { CONTENT_STATUS } from "@/features/content/domain";
 import type { QuizMethodOption, QuizOrganizationOption } from "@/features/evaluations/domain/quiz";
 import { listMethods } from "@/features/methods/server";
 import { listOrganizations } from "@/features/organizations/server";
@@ -53,13 +52,11 @@ async function listMethodStepsByMethodId(methodIds: string[]) {
 
 export async function listQuizMethodOptions(): Promise<QuizMethodOption[]> {
     const methods = await listMethods();
-    const activeMethods = methods.filter((method) => method.status !== CONTENT_STATUS.archived);
-    const stepsByMethodId = await listMethodStepsByMethodId(activeMethods.map((method) => method.id));
+    const stepsByMethodId = await listMethodStepsByMethodId(methods.map((method) => method.id));
 
-    return activeMethods.map((method) => ({
+    return methods.map((method) => ({
         id: method.id,
         name: method.name,
-        shortName: method.code || method.name,
         steps: stepsByMethodId.get(method.id) ?? [],
     }));
 }

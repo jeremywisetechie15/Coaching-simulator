@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/features/auth/server';
 import { PUBLISHED_CONTENT_STATUS } from '@/features/content/domain';
+import { SCORECARD_STEP_WEIGHT_TOTAL_PERCENT } from '@/features/scorecards/domain';
 import {
     getRoleplaySessionEvaluationDecision,
     MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
@@ -785,6 +786,11 @@ function buildScorecardMethodoPayload(
             score_max: 100,
             points_obtenus: step.pointsAwarded,
             points_max: step.pointsMax,
+            poids: round2(step.weightPercent / SCORECARD_STEP_WEIGHT_TOTAL_PERCENT),
+            contribution_score_global: round2(
+                step.scorePercent *
+                    (step.weightPercent / SCORECARD_STEP_WEIGHT_TOTAL_PERCENT),
+            ),
             commentaire_coach: step.coachComment,
             criteres: step.criteria.map((criterion) => {
                 const criterionRef = refsByRef.get(criterion.ref);
@@ -855,7 +861,11 @@ async function runScorecardNotation(
         throw new Error(`Réponse methodo scorecard invalide: ${methodoValidationErrors.join(" ")}`);
     }
 
-    const scoreResult = calculateScorecardNotationResult(methodoResult.result, context.criterionRefs);
+    const scoreResult = calculateScorecardNotationResult(
+        methodoResult.result,
+        context.criterionRefs,
+        context.stepRefs,
+    );
     notation.methodo = buildScorecardMethodoPayload(methodoResult.result, scoreResult, context.criterionRefs);
     notation.score_global = buildScoreGlobalFromScorecard(scoreResult);
 

@@ -33,6 +33,7 @@ function publishedScorecard(overrides: Partial<SaveScorecardInput> = {}): SaveSc
                 methodStepId,
                 name: "Accrocher",
                 order: 1,
+                weightPercent: 100,
             },
         ],
         visibility: "public",
@@ -143,6 +144,32 @@ describe("saveScorecardDto", () => {
         expect(result.success).toBe(false);
         expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain(
             "steps.0.criteria.0.verbatim",
+        );
+    });
+
+    it("rejects a zero step weight", () => {
+        const result = saveScorecardDto.safeParse(
+            publishedScorecard({
+                steps: [{ ...publishedScorecard().steps![0], weightPercent: 0 }],
+            }),
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain(
+            "steps.0.weightPercent",
+        );
+    });
+
+    it("requires published step weights to total 100 percent", () => {
+        const result = saveScorecardDto.safeParse(
+            publishedScorecard({
+                steps: [{ ...publishedScorecard().steps![0], weightPercent: 80 }],
+            }),
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.message)).toContain(
+            "La pondération des étapes doit totaliser 100%.",
         );
     });
 });

@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Method, MethodStep } from "@/features/methods/data/methods";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import { RoleplayStepCoachPageContent } from "./RoleplayStepCoachPageContent";
+import { RoleplayStepsPageContent } from "./RoleplayStepsPageContent";
 
 vi.mock("next/navigation", () => ({
     usePathname: () => "/roleplays/roleplay-1/steps/1",
@@ -40,6 +41,9 @@ const method: Method = {
 const roleplay: RoleplayItem = {
     avatarSrc: "",
     category: "Prospection",
+    coachAvatarSrc: "https://cdn.example.com/coach.webp",
+    coachId: "coach-1",
+    coachName: "Jannik BOA",
     company: "MaiaCoach",
     description: "Description",
     detail: {
@@ -81,6 +85,7 @@ describe("RoleplayStepCoachPageContent", () => {
         expect(html).toContain("Posture &amp; Communication");
         expect(html).toContain("Verbatims préconisés");
         expect(html).toContain("Objectif réel de l&#x27;étape");
+        expect(html).toContain("coach_id=coach-1");
         expect(html).not.toContain("Conseils de préparation");
         expect(html).not.toContain("Pièges à éviter");
     });
@@ -100,5 +105,19 @@ describe("RoleplayStepCoachPageContent", () => {
 
         expect(html).toContain("coach_mode=after_training");
         expect(html).toContain("ref_session_id=1fef1dae-97db-4bce-9624-88bf84306db8");
+    });
+});
+
+describe("RoleplayStepsPageContent", () => {
+    it("displays the coach associated with the roleplay", () => {
+        const html = renderToStaticMarkup(
+            <RoleplayStepsPageContent
+                method={method}
+                roleplay={roleplay}
+            />,
+        );
+
+        expect(html).toContain('aria-label="Jannik BOA"');
+        expect(html).toContain("https://cdn.example.com/coach.webp");
     });
 });

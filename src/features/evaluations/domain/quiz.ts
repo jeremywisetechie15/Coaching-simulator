@@ -6,6 +6,7 @@ import {
     type ContentStatus,
     type ContentVisibilityScope,
 } from "@/features/content/domain";
+import type { MethodSelectionOption } from "@/features/methods/domain/method";
 
 export const QUIZ_KIND = {
     contextual: "contextual",
@@ -57,6 +58,28 @@ export const QUIZ_PARTICIPATION_LABELS: Record<QuizParticipation, string> = {
     [QUIZ_PARTICIPATION.optional]: "Optionnel",
 };
 
+export const DEFAULT_QUIZ_MAX_ATTEMPTS = 3;
+
+export type QuizMaxAttempts = number | null;
+
+export function normalizeQuizMaxAttempts(value: number | null | undefined): QuizMaxAttempts {
+    return value === undefined ? DEFAULT_QUIZ_MAX_ATTEMPTS : value;
+}
+
+export function getQuizAttemptsRemaining(
+    maxAttempts: QuizMaxAttempts,
+    attemptsUsed: number,
+): number | null {
+    return maxAttempts === null ? null : Math.max(maxAttempts - attemptsUsed, 0);
+}
+
+export function hasReachedQuizAttemptLimit(
+    maxAttempts: QuizMaxAttempts,
+    attemptsUsed: number,
+) {
+    return maxAttempts !== null && attemptsUsed >= maxAttempts;
+}
+
 export const QUIZ_QUESTION_TYPES = ["QCU", "QCM"] as const;
 
 export type QuizQuestionType = (typeof QUIZ_QUESTION_TYPES)[number];
@@ -66,15 +89,28 @@ export const QUIZ_QUESTION_TYPE_LABELS: Record<QuizQuestionType, string> = {
     QCU: "QCU (choix unique)",
 };
 
-export const QUIZ_DIMENSIONS = ["savoir", "savoir_faire", "savoir_etre"] as const;
+export const QUIZ_EVALUATED_DIMENSION = "savoir" as const;
+
+export const QUIZ_DIMENSIONS = [QUIZ_EVALUATED_DIMENSION] as const;
 
 export type QuizDimension = (typeof QUIZ_DIMENSIONS)[number];
 
 export const QUIZ_DIMENSION_LABELS: Record<QuizDimension, string> = {
     savoir: "Savoir",
-    savoir_etre: "Savoir-être",
-    savoir_faire: "Savoir-faire",
 };
+
+interface QuizSkillDimensionItemLike {
+    dimension: string;
+    isActive: boolean;
+}
+
+export function hasActiveQuizKnowledgeItem(skill: {
+    dimensionItems: readonly QuizSkillDimensionItemLike[];
+}) {
+    return skill.dimensionItems.some(
+        (item) => item.isActive && item.dimension === QUIZ_EVALUATED_DIMENSION,
+    );
+}
 
 export const QUIZ_ATTACHMENT_TYPES = ["link", "image", "video", "audio", "document"] as const;
 
@@ -87,10 +123,7 @@ export interface QuizMethodStepOption {
     weight: number | null;
 }
 
-export interface QuizMethodOption {
-    id: string;
-    name: string;
-    shortName: string;
+export interface QuizMethodOption extends MethodSelectionOption {
     steps: QuizMethodStepOption[];
 }
 
@@ -170,7 +203,7 @@ export interface QuizListItem {
     id: string;
     isActive: boolean;
     kind: QuizKind;
-    maxAttempts: number;
+    maxAttempts: QuizMaxAttempts;
     methodId: string | null;
     methodName: string | null;
     participation: QuizParticipation;
@@ -339,8 +372,8 @@ export interface QuizAttemptDetail {
 
 export interface QuizAttemptSession {
     attempt: QuizAttemptDetail | null;
-    attemptsRemaining: number;
+    attemptsRemaining: number | null;
     attemptsUsed: number;
     canStartNewAttempt: boolean;
-    maxAttempts: number;
+    maxAttempts: QuizMaxAttempts;
 }

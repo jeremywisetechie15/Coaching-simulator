@@ -105,6 +105,10 @@ export function RoleplayStepCoachPageContent({
     };
     const isImprove = variant === "improve";
     const coachMode = isImprove ? ROLEPLAY_COACH_MODE.afterTraining : ROLEPLAY_COACH_MODE.beforeTraining;
+    const coachName = roleplay.coachName?.trim() || "Coach IA";
+    const coachIdQuery = roleplay.coachId
+        ? `&coach_id=${encodeURIComponent(roleplay.coachId)}`
+        : "";
     const verb = isImprove ? "S'améliorer" : "Se préparer";
     const stepsHref = `/roleplays/${roleplay.id}/steps${
         isImprove
@@ -113,9 +117,9 @@ export function RoleplayStepCoachPageContent({
     }`;
     const { href: backHref, label: backLabel } = useContextualReturn(stepsHref);
 
-    // Embarque le runtime public existant sans le modifier (contrat iframe) ; seul `coach_mode` varie.
+    // Le coach explicite garde l'affichage et le contexte alignés sur l'association courante du scénario.
     const iframeSrc = roleplay.scenarioId
-        ? `/iframe?scenario_id=${roleplay.scenarioId}&mode=coach&coach_mode=${coachMode}&step=${stepNumber}&coach_session_id=${coachSessionId}${
+        ? `/iframe?scenario_id=${roleplay.scenarioId}&mode=coach&coach_mode=${coachMode}&step=${stepNumber}&coach_session_id=${coachSessionId}${coachIdQuery}${
             referenceSessionId ? `&ref_session_id=${encodeURIComponent(referenceSessionId)}` : ""
         }`
         : null;
@@ -286,7 +290,7 @@ export function RoleplayStepCoachPageContent({
                 liveTabLabel="AI Coach"
                 iframeSrc={iframeSrc}
                 onAddTranscriptMessage={addTranscriptMessageToNotes}
-                personaName="Coach IA"
+                personaName={coachName}
                 transcript={transcript}
                 transcriptAside={(
                     <MeetingNotesPanel

@@ -1,14 +1,13 @@
 import { CONTENT_STATUS, normalizeContentStatus } from "@/features/content/domain";
 import {
-    METHOD_SCOPE,
     METHOD_RESOURCE_TYPES,
-    METHOD_STEP_ICONS,
+    METHOD_SCOPE,
+    normalizeMethodStepIcon,
     type MethodDetail,
     type MethodListItem,
     type MethodResource,
     type MethodResourceType,
     type MethodScope,
-    type MethodStepIcon,
     type MethodStepItem,
 } from "@/features/methods/domain/method";
 
@@ -41,6 +40,7 @@ export interface MethodStepRow {
     icon?: string | null;
     id: string;
     method_id: string;
+    notation_step_id?: string | null;
     objectives?: string[] | null;
     pitfalls?: string[] | null;
     posture?: string[] | null;
@@ -73,10 +73,6 @@ function cleanArray(value: string[] | null | undefined) {
 
 function normalizeScope(value: string | null | undefined): MethodScope {
     return value === METHOD_SCOPE.organization ? METHOD_SCOPE.organization : METHOD_SCOPE.public;
-}
-
-function normalizeStepIcon(value: string | null | undefined): MethodStepIcon {
-    return METHOD_STEP_ICONS.includes(value as MethodStepIcon) ? (value as MethodStepIcon) : "phone";
 }
 
 function normalizeResourceType(value: string | null | undefined): MethodResourceType {
@@ -147,7 +143,7 @@ export function mapMethodStepRow(row: MethodStepRow, resources: MethodResource[]
     return {
         bestPractices: cleanArray(row.best_practices),
         code: row.code ?? "",
-        icon: normalizeStepIcon(row.icon),
+        icon: normalizeMethodStepIcon(row.icon),
         id: row.id,
         objectives: cleanArray(row.objectives),
         order: row.step_order,

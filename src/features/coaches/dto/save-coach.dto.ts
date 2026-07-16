@@ -6,7 +6,7 @@ import {
     COACHING_STYLE,
     COACHING_STYLES,
 } from "@/features/coaches/domain/coach-profile";
-import { CONTENT_DOMAINS } from "@/features/content/domain";
+import { CONTENT_DOMAINS, CONTENT_STATUSES } from "@/features/content/domain";
 
 const optionalString = (max: number, message: string) =>
     z.string().trim().max(max, message).optional().default("");
@@ -24,6 +24,7 @@ export const saveCoachDto = z.object({
         .trim()
         .min(1, "Le nom du coach est requis.")
         .max(160, "Le nom du coach est trop long."),
+    status: z.enum(CONTENT_STATUSES).default("published"),
     systemInstructions: z
         .string()
         .trim()

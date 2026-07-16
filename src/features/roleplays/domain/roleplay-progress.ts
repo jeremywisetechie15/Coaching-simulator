@@ -97,6 +97,7 @@ export interface ProgressCriterionResult {
     sessionId: string;
     skillId: string | null;
     skillName?: string | null;
+    sourceGroupId?: string | null;
 }
 
 export interface ProgressBaselineCriterion {
@@ -232,7 +233,7 @@ function buildCompetencies(
     });
 }
 
-function selectBestQuizCriteriaByAttempt(criteria: ProgressCriterionResult[]) {
+function selectBestAttemptCriteria(criteria: ProgressCriterionResult[]) {
     const criteriaBySession = Array.from(groupBy(criteria, (criterion) => criterion.sessionId).values());
     if (criteriaBySession.length === 0) return [];
 
@@ -246,6 +247,12 @@ function selectBestQuizCriteriaByAttempt(criteria: ProgressCriterionResult[]) {
             const secondCompletedAt = Math.max(...second.map((criterion) => dateValue(criterion.completedAt ?? null)));
             return secondCompletedAt - firstCompletedAt;
         })[0] ?? [];
+}
+
+function selectBestQuizCriteriaByAttempt(criteria: ProgressCriterionResult[]) {
+    return Array.from(
+        groupBy(criteria, (criterion) => criterion.sourceGroupId || "legacy-quiz").values(),
+    ).flatMap(selectBestAttemptCriteria);
 }
 
 function buildBaselineCompetencies(criteria: ProgressBaselineCriterion[]): ProgressCompetency[] {
@@ -269,19 +276,37 @@ function buildBaselineCompetencies(criteria: ProgressBaselineCriterion[]): Progr
         });
 }
 
-function buildBaselineSteps(steps: ProgressBaselineStep[]): ProgressStep[] {
+function buildBaselineSteps(
+    steps: ProgressBaselineStep[],
+    quizCriteria: ProgressCriterionResult[] = [],
+): ProgressStep[] {
+    const quizCriteriaByStepId = groupBy(
+        quizCriteria,
+        (criterion) => criterion.scorecardStepId || "unassigned",
+    );
+
     return steps
         .slice()
         .sort((first, second) => first.stepOrder - second.stepOrder)
-        .map((step) => ({
-            competencies: buildBaselineCompetencies(step.criteria),
-            delta: 0,
-            diagnostic: "Aucune simulation notée pour cette étape.",
-            icon: stepIcon(step.stepOrder),
-            number: step.stepOrder,
-            score: 0,
-            title: step.title,
-        }));
+        .map((step) => {
+            const baselineCompetencies = buildBaselineCompetencies(step.criteria);
+            const quizCompetencies = step.scorecardStepId
+                ? buildCompetencies(quizCriteriaByStepId.get(step.scorecardStepId) ?? [], [])
+                : [];
+            const competenciesByName = new Map(
+                [...baselineCompetencies, ...quizCompetencies].map((competency) => [competency.name, competency]),
+            );
+
+            return {
+                competencies: Array.from(competenciesByName.values()),
+                delta: 0,
+                diagnostic: "Aucune simulation notée pour cette étape.",
+                icon: stepIcon(step.stepOrder),
+                number: step.stepOrder,
+                score: 0,
+                title: step.title,
+            };
+        });
 }
 
 function buildProgressSteps(
@@ -336,7 +361,11 @@ function buildProgressSteps(
         });
 }
 
-export function createEmptyRoleplayProgress(title: string, baselineSteps: ProgressBaselineStep[] = []): RoleplayProgress {
+export function createEmptyRoleplayProgress(
+    title: string,
+    baselineSteps: ProgressBaselineStep[] = [],
+    quizCriteria: ProgressCriterionResult[] = [],
+): RoleplayProgress {
     return {
         afterTraining: 0,
         delta: 0,
@@ -357,7 +386,7 @@ export function createEmptyRoleplayProgress(title: string, baselineSteps: Progre
                 score: 0,
             },
         ],
-        steps: buildBaselineSteps(baselineSteps),
+        steps: buildBaselineSteps(baselineSteps, quizCriteria),
         target: ROLEPLAY_PROGRESS_TARGET,
         title,
     };
@@ -368,7 +397,11 @@ export function buildRoleplayProgress(input: BuildRoleplayProgressInput): Rolepl
     const quizScore = bestQuizCriteria.length > 0 ? weightedScore(bestQuizCriteria) : null;
 
     if (input.sessions.length === 0) {
-        const emptyProgress = createEmptyRoleplayProgress(input.title, input.baselineSteps);
+        const emptyProgress = createEmptyRoleplayProgress(
+            input.title,
+            input.baselineSteps,
+            bestQuizCriteria,
+        );
         if (quizScore === null) return emptyProgress;
 
         return {
@@ -379,7 +412,13 @@ export function buildRoleplayProgress(input: BuildRoleplayProgressInput): Rolepl
                     : dimension,
             ),
             modalities: emptyProgress.modalities.map((modality) =>
-                modality.icon === "quiz" ? { ...modality, score: quizScore } : modality,
+                modality.icon === "quiz"
+                    ? {
+                          ...modality,
+                          description: "Évalue le Savoir théorique des compétences mobilisées",
+                          score: quizScore,
+                      }
+                    : modality,
             ),
         };
     }

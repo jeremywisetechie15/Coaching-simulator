@@ -8,16 +8,26 @@ import {
     Plus,
     X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { ContextualBackLink, useContextualReturnHref } from "@/features/app-shell/components";
 import { buildPostSaveHref } from "@/features/app-shell/domain";
-import { CONTENT_STATUS, CONTENT_VISIBILITY_SCOPE } from "@/features/content/domain";
-import { ContentTargetScopeField, type ContentTargetScopeValue } from "@/features/content/components";
+import {
+    CONTENT_STATUS,
+    CONTENT_VISIBILITY_SCOPE,
+} from "@/features/content/domain";
+import {
+    ContentEditorSubmitActions,
+    ContentTargetScopeField,
+    type ContentTargetScopeValue,
+} from "@/features/content/components";
 import { CreateCoachPageContent } from "@/features/coaches/components/CreateCoachPageContent";
 import type { CoachListItem } from "@/features/coaches/domain/coach-list";
 import { QUIZ_PARTICIPATION_LABELS, QUIZ_PARTICIPATIONS, type QuizParticipation } from "@/features/evaluations/domain";
 import { CreateMethodPageContent } from "@/features/methods/components/CreateMethodPageContent";
-import type { MethodDetail as CreatedMethodDetail } from "@/features/methods/domain/method";
+import {
+    toMethodSelectOption,
+    type MethodDetail as CreatedMethodDetail,
+} from "@/features/methods/domain/method";
 import { CreatePersonaPageContent } from "@/features/personas/components/CreatePersonaPageContent";
 import type { PersonaListItem } from "@/features/personas/domain/persona-list";
 import type { SaveRoleplayInput } from "@/features/roleplays/dto";
@@ -51,6 +61,11 @@ import {
 import type { PendingDirectUpload } from "@/lib/uploads/direct-upload";
 import { submitWithDirectUploads } from "@/lib/uploads/direct-upload.client";
 import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextInput } from "@/lib/ui/atoms";
+import {
+    createFormSubmitApiError,
+    notifyFormSubmitError,
+    notifyFormSubmitSuccess,
+} from "@/lib/ui/feedback/form-submit-feedback";
 import {
     AlertMessage,
     FileUploadField,
@@ -286,7 +301,7 @@ function QuizParticipationField({
                         {selectedQuizzes.map((quiz) => (
                             <Box
                                 key={quiz.id}
-                                className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#EEF0FF] pl-3 pr-2 text-[13px] font-semibold text-[#5140F0]"
+                                className="inline-flex min-h-8 items-center gap-1.5 rounded-lg bg-[#EEF0FF] py-1 pl-3 pr-2 text-[13px] font-semibold text-[#5140F0]"
                             >
                                 {quiz.title}
                                 <Button
@@ -327,7 +342,7 @@ function QuizParticipationField({
                                     <Button
                                         key={quiz.id}
                                         onClick={() => onToggle(quiz.id)}
-                                        className="flex h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-[14px] font-medium text-[#111827] transition hover:bg-[#F6F7FB]"
+                                        className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[14px] font-medium text-[#111827] transition hover:bg-[#F6F7FB]"
                                     >
                                         <Box
                                             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border transition ${
@@ -478,8 +493,11 @@ async function saveRoleplay(
     const payload = (await response.json().catch(() => null)) as RoleplayApiPayload | null;
 
     if (!response.ok) {
-        const validationMessage = payload?.issues?.map((issue) => issue.message).join(" ");
-        throw new Error(validationMessage || payload?.error || "Impossible d'enregistrer le roleplay.");
+        throw createFormSubmitApiError(
+            payload,
+            response.status,
+            "Impossible d'enregistrer le roleplay.",
+        );
     }
 
     if (!payload?.roleplay) {
@@ -561,6 +579,7 @@ export function CreateRoleplayPageContent({
     userOptions,
 }: CreateRoleplayPageContentProps) {
     const returnHref = roleplayId ? ROLEPLAY_ROUTES.app.detail(roleplayId) : ROLEPLAY_ROUTES.app.collection;
+    const isDraft = !initialRoleplay || initialRoleplay.status === CONTENT_STATUS.draft;
     const router = useRouter();
     const contextualReturnHref = useContextualReturnHref(returnHref);
     const [localPersonaOptions, setLocalPersonaOptions] = useState(personaOptions);
@@ -614,11 +633,7 @@ export function CreateRoleplayPageContent({
         [localCoachOptions],
     );
     const methodSelectOptions = useMemo(
-        () =>
-            localMethodOptions.map((item) => ({
-                label: item.shortName || item.name,
-                value: item.id,
-            })),
+        () => localMethodOptions.map(toMethodSelectOption),
         [localMethodOptions],
     );
     const scorecardSelectOptions = useMemo(
@@ -753,7 +768,8 @@ export function CreateRoleplayPageContent({
         (targetScope.scope === CONTENT_VISIBILITY_SCOPE.organization && Boolean(targetScope.organizationId)) ||
         (targetScope.scope === CONTENT_VISIBILITY_SCOPE.group && Boolean(targetScope.organizationId && targetScope.groupId)) ||
         (targetScope.scope === CONTENT_VISIBILITY_SCOPE.user && Boolean(targetScope.assignedUserId));
-    const canSubmit = Boolean(persona && coach && method && scorecard && domain && category && difficulty && scopeTargetReady);
+    const canSave = Boolean(persona && coach && method && scorecard && domain && category && difficulty && scopeTargetReady);
+    const canPublish = canSave;
 
     function selectCreatedPersona(createdPersona: PersonaListItem) {
         setLocalPersonaOptions((current) =>
@@ -799,7 +815,6 @@ export function CreateRoleplayPageContent({
                       {
                           id: createdMethod.id,
                           name: createdMethod.name,
-                          shortName: createdMethod.code || createdMethod.name,
                       },
                   ],
         );
@@ -807,7 +822,7 @@ export function CreateRoleplayPageContent({
         setOpenEntityEditor(null);
     }
 
-    function toSaveInput(): SaveRoleplayInput {
+    function toSaveInput(status: SaveRoleplayInput["status"]): SaveRoleplayInput {
         const scope = targetScope.scope;
         const title = buildGeneratedTitle({
             category,
@@ -843,13 +858,14 @@ export function CreateRoleplayPageContent({
             resources: resources.map(roleplayResourceToInput),
             scope,
             scorecardId: scorecard,
-            status: CONTENT_STATUS.published,
+            status,
             title,
         };
     }
 
-    async function handleSave() {
-        if (!canSubmit || saving) return;
+    async function handleSave(status: SaveRoleplayInput["status"]) {
+        const canSaveStatus = status === CONTENT_STATUS.published ? canPublish : canSave;
+        if (!canSaveStatus || saving) return;
 
         setFormError(null);
         setSaving(true);
@@ -858,10 +874,11 @@ export function CreateRoleplayPageContent({
             const saved = await submitWithDirectUploads({
                 onProgress: (clientFileId, percentage) =>
                     setUploadProgressByClientFileId((current) => ({ ...current, [clientFileId]: percentage })),
-                payload: toSaveInput(),
+                payload: toSaveInput(status),
                 save: (payload) => saveRoleplay(roleplayId, payload, backgroundFile),
                 uploads: collectUploadFiles(),
             });
+            notifyFormSubmitSuccess();
             router.push(
                 buildPostSaveHref(
                     ROLEPLAY_ROUTES.app.detail(saved.id),
@@ -871,16 +888,25 @@ export function CreateRoleplayPageContent({
             );
             router.refresh();
         } catch (error) {
-            setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer le roleplay.");
+            setFormError(notifyFormSubmitError(error, "Impossible d'enregistrer le roleplay."));
         } finally {
             setSaving(false);
             setUploadProgressByClientFileId({});
         }
     }
 
+    function handleSubmit(event: FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
+        const status = submitter?.value === "save-draft"
+            ? CONTENT_STATUS.draft
+            : CONTENT_STATUS.published;
+        void handleSave(status);
+    }
+
     return (
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
-            <Box className="mx-auto max-w-[1000px]">
+            <Box as="form" onSubmit={handleSubmit} className="mx-auto max-w-[1000px]">
                 <Box className="mb-6 flex items-start gap-4">
                     <ContextualBackLink
                         fallbackHref={returnHref}
@@ -1231,17 +1257,14 @@ export function CreateRoleplayPageContent({
                     >
                         Annuler
                     </ContextualBackLink>
-                    <Button
-                        disabled={!canSubmit || saving}
-                        onClick={() => void handleSave()}
-                        className={`flex h-11 items-center justify-center rounded-xl px-6 text-[14px] font-bold text-white transition ${
-                            canSubmit && !saving
-                                ? "bg-[#5140F0] shadow-[0_10px_20px_rgba(81,64,240,0.18)] hover:bg-[#4635E7]"
-                                : "cursor-not-allowed bg-[#B9B2F8]"
-                        }`}
-                    >
-                        {saving ? "Enregistrement..." : "Créer le scénario"}
-                    </Button>
+                    <ContentEditorSubmitActions
+                        canSaveDraft={canSave}
+                        canSubmit={canPublish}
+                        isDraft={isDraft}
+                        isPending={saving}
+                        publishLabel="Publier le scénario"
+                        submitLabel="Enregistrer les modifications"
+                    />
                 </Box>
             </Box>
 

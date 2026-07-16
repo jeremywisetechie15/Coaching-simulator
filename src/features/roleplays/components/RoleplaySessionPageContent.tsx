@@ -39,7 +39,7 @@ import {
     ROLEPLAY_SESSION_LIFECYCLE_STATUS,
     type RoleplaySessionLifecycleStatus,
 } from "@/features/roleplays/domain";
-import { notify } from "@/lib/ui/feedback/toast";
+import { notify, notifyHttpError } from "@/lib/ui/feedback/toast";
 import { RoleplayDocumentsModal } from "./RoleplayDocumentsModal";
 import { roleplayChipIcons } from "./roleplayChipIcons";
 
@@ -144,6 +144,7 @@ export function RoleplaySessionPageContent({ roleplay }: { roleplay: RoleplayIte
 
         if (sessionLifecycleStatus !== ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationFailed) return;
 
+        let responseStatus: number | null = null;
         setSessionLifecycleStatus(ROLEPLAY_SESSION_LIFECYCLE_STATUS.saved);
         setSessionFeedback(null);
         setAnalysisStep(0);
@@ -172,6 +173,7 @@ export function RoleplaySessionPageContent({ roleplay }: { roleplay: RoleplayIte
                     : "";
 
             if (!response.ok || !sessionId) {
+                responseStatus = response.status;
                 throw new Error(getRoleplayNotationApiErrorMessage(payload));
             }
 
@@ -193,7 +195,7 @@ export function RoleplaySessionPageContent({ roleplay }: { roleplay: RoleplayIte
                 ? error.message
                 : ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.generationError;
             setSessionFeedback(errorMessage);
-            notify.error(errorMessage);
+            notifyHttpError(errorMessage, responseStatus);
         }
     };
 

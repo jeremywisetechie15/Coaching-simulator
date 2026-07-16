@@ -55,6 +55,7 @@ export async function fetchQuizList(supabase: SupabaseClient): Promise<QuizListI
     const { data: rows, error } = await supabase
         .from("quizzes")
         .select(QUIZ_SELECT)
+        .neq("status", "archived")
         .order("updated_at", { ascending: false });
 
     if (error) {

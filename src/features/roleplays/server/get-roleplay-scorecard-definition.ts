@@ -17,6 +17,7 @@ interface ScorecardStepRow {
     method_step_id: string | null;
     name: string | null;
     step_order: number;
+    weight_percent: number | string;
 }
 
 interface ScorecardCriterionRow {
@@ -72,6 +73,7 @@ export interface RoleplayScorecardDefinition {
         methodStepId: string | null;
         order: number;
         title: string;
+        weightPercent: number;
     }>;
 }
 
@@ -96,7 +98,7 @@ export async function getRoleplayScorecardDefinition(
 
     let scorecardStepsQuery = supabase
         .from("scorecard_steps")
-        .select("id, method_step_id, step_order, name")
+        .select("id, method_step_id, step_order, name, weight_percent")
         .eq("scorecard_id", scorecardId);
 
     if (methodStepId) {
@@ -213,6 +215,7 @@ export async function getRoleplayScorecardDefinition(
             methodStepId: step.method_step_id,
             order: step.step_order,
             title: cleanText(step.name) || `Étape ${step.step_order}`,
+            weightPercent: Number(step.weight_percent),
         })),
     };
 }

@@ -13,8 +13,8 @@ const rowsByTable: Record<string, Array<Record<string, unknown>>> = {
         name: "Scorecard test",
     }],
     scorecard_steps: [
-        { id: "scorecard-step-1", method_step_id: "method-step-1", name: "Ouverture", scorecard_id: "scorecard-1", step_order: 1 },
-        { id: "scorecard-step-2", method_step_id: "method-step-2", name: "Découverte", scorecard_id: "scorecard-1", step_order: 2 },
+        { id: "scorecard-step-1", method_step_id: "method-step-1", name: "Ouverture", scorecard_id: "scorecard-1", step_order: 1, weight_percent: 40 },
+        { id: "scorecard-step-2", method_step_id: "method-step-2", name: "Découverte", scorecard_id: "scorecard-1", step_order: 2, weight_percent: 60 },
     ],
     scorecard_criteria: [
         {
@@ -98,6 +98,7 @@ describe("getRoleplayScorecardDefinition", () => {
             methodStepId: "method-step-2",
             order: 2,
             title: "Découverte",
+            weightPercent: 60,
         });
         expect(result?.steps[0].criteria[0]).toMatchObject({
             dimension: "savoir_faire",

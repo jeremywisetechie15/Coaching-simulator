@@ -60,6 +60,7 @@ export function createMethodInsert(input: SaveMethodDto, code: string, createdBy
 export function createMethodUpdate(input: SaveMethodDto) {
     return {
         ...createMethodBasePayload(input),
+        is_active: input.status !== "archived",
         updated_at: new Date().toISOString(),
     };
 }

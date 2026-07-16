@@ -1,4 +1,5 @@
 export * from "./archive-method";
+export * from "./assert-method-lifecycle";
 export * from "./create-method";
 export * from "./duplicate-method";
 export * from "./get-method-by-id";

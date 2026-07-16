@@ -1,4 +1,4 @@
-import type { ContentDomain, ContentStatus } from "@/features/content/domain";
+import { CONTENT_STATUS, type ContentDomain, type ContentStatus } from "@/features/content/domain";
 import { DEFAULT_COACH_VOICE_ID, type VoiceId } from "@/lib/openai/realtime-voices";
 import { getStorageAvatarPublicUrl, isStorageAvatarPath } from "@/lib/uploads/avatar-path";
 import {
@@ -34,6 +34,7 @@ export interface CoachEditorValues {
     discProfile: CoachDiscProfile;
     expertiseDomain: ContentDomain | "";
     name: string;
+    status: ContentStatus;
     systemInstructions: string;
     voiceId: VoiceId;
 }
@@ -41,7 +42,6 @@ export interface CoachEditorValues {
 export interface CoachDetail extends CoachEditorValues {
     createdAt: string | null;
     id: string;
-    status: ContentStatus;
     updatedAt: string | null;
     voiceCharacteristic: string | null;
     voiceName: string;
@@ -56,6 +56,7 @@ export const EMPTY_COACH_EDITOR_VALUES: CoachEditorValues = {
     discProfile: COACH_DISC_PROFILE.stable,
     expertiseDomain: "",
     name: "",
+    status: CONTENT_STATUS.published,
     systemInstructions: "",
     voiceId: DEFAULT_COACH_VOICE_ID,
 };

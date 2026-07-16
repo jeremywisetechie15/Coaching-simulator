@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { AlertTriangle, ArrowLeft, Copy, Edit3, History, MoreHorizontal, Phone, Plus, Trash2 } from "lucide-react";
+import { Archive, ArrowLeft, Copy, Edit3, History, MoreHorizontal, Phone, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
     ContextualBackLink,
@@ -9,7 +9,7 @@ import {
     useCurrentAppHref,
 } from "@/features/app-shell/components";
 import { withReturnTo, withSearchParams } from "@/features/app-shell/domain";
-import { DiscProfileBadge } from "@/features/content/components";
+import { ArchiveContentConfirmationModal, DiscProfileBadge } from "@/features/content/components";
 import {
     categoryBadgeStyles,
     difficultyBadgeStyles,
@@ -25,7 +25,6 @@ import { ROLEPLAY_ROUTES } from "@/features/roleplays/domain";
 import { Box, Button, CardSurface, InlineIcon, Text, Tooltip } from "@/lib/ui/atoms";
 import { CardActionMenu, CardActionMenuButton, CardActionMenuLink, FilterSelect } from "@/lib/ui/molecules";
 import { ENTITY_ACTION_LABELS } from "@/lib/ui/domain/entity-action";
-import { Modal } from "@/lib/ui/organisms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
@@ -63,12 +62,12 @@ async function duplicateRoleplayRequest(roleplayId: string) {
     }
 }
 
-async function deleteRoleplayRequest(roleplayId: string) {
+async function archiveRoleplayRequest(roleplayId: string) {
     const response = await fetch(ROLEPLAY_ROUTES.api.detail(roleplayId), { method: "DELETE" });
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
 
     if (!response.ok) {
-        throw new Error(payload?.error || "Impossible de supprimer le roleplay.");
+        throw new Error(payload?.error || "Impossible d'archiver le roleplay.");
     }
 }
 
@@ -99,7 +98,7 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
     const [busyRoleplayId, setBusyRoleplayId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-    const [roleplayToDelete, setRoleplayToDelete] = useState<RoleplayItem | null>(null);
+    const [roleplayToArchive, setRoleplayToArchive] = useState<RoleplayItem | null>(null);
 
     const categoryOptions = useMemo(() => getRoleplayCategoryFilterOptions(domain), [domain]);
     const filteredRoleplays = useMemo(
@@ -147,18 +146,18 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
         }
     }
 
-    async function handleDelete() {
-        if (!roleplayToDelete) return;
+    async function handleArchive() {
+        if (!roleplayToArchive) return;
 
         setError(null);
-        setBusyRoleplayId(roleplayToDelete.id);
+        setBusyRoleplayId(roleplayToArchive.id);
 
         try {
-            await deleteRoleplayRequest(roleplayToDelete.id);
-            setRoleplayToDelete(null);
+            await archiveRoleplayRequest(roleplayToArchive.id);
+            setRoleplayToArchive(null);
             router.refresh();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Impossible de supprimer le roleplay.");
+            setError(err instanceof Error ? err.message : "Impossible d'archiver le roleplay.");
         } finally {
             setBusyRoleplayId(null);
         }
@@ -236,7 +235,7 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                     </Box>
                 </CardSurface>
 
-                {error && !roleplayToDelete && (
+                {error && !roleplayToArchive && (
                     <CardSurface className="mb-5 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 shadow-none">
                         <Text className={cn("text-[13px] font-semibold", uiTokens.text.danger)}>{error}</Text>
                     </CardSurface>
@@ -301,12 +300,12 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                                                             <CardActionMenuButton
                                                                 danger
                                                                 disabled={busyRoleplayId === roleplay.id}
-                                                                icon={Trash2}
-                                                                label={ENTITY_ACTION_LABELS.delete}
+                                                                icon={Archive}
+                                                                label={ENTITY_ACTION_LABELS.archive}
                                                                 onClick={() => {
                                                                     setError(null);
                                                                     setOpenMenuId(null);
-                                                                    setRoleplayToDelete(roleplay);
+                                                                    setRoleplayToArchive(roleplay);
                                                                 }}
                                                             />
                                                         </CardActionMenu>
@@ -391,58 +390,18 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                     </CardSurface>
                 )}
 
-                {roleplayToDelete && (
-                    <Modal
-                        title="Supprimer le roleplay"
-                        description={`Confirmez la suppression de ${roleplayToDelete.title || roleplayToDelete.name}.`}
-                        onClose={() => {
-                            if (busyRoleplayId) return;
-                            setRoleplayToDelete(null);
+                {roleplayToArchive && (
+                    <ArchiveContentConfirmationModal
+                        busy={busyRoleplayId === roleplayToArchive.id}
+                        entityLabel="le roleplay"
+                        error={error}
+                        name={roleplayToArchive.title || roleplayToArchive.name}
+                        onCancel={() => {
+                            setRoleplayToArchive(null);
                             setError(null);
                         }}
-                        className="max-w-[500px]"
-                    >
-                        <Box className="space-y-5">
-                            <Box className={cn("flex gap-3 rounded-xl border p-4", uiTokens.tone.warning.soft)}>
-                                <InlineIcon icon={AlertTriangle} className="mt-0.5 h-5 w-5 shrink-0" />
-                                <Text className="text-[13px] font-semibold leading-6">
-                                    Cette action retire le roleplay des listes actives. Les sessions déjà réalisées restent conservées.
-                                </Text>
-                            </Box>
-
-                            {error && (
-                                <Box
-                                    aria-live="polite"
-                                    className={cn(
-                                        "rounded-lg border px-4 py-3 text-[13px] font-semibold",
-                                        uiTokens.tone.danger.soft,
-                                    )}
-                                >
-                                    {error}
-                                </Box>
-                            )}
-
-                            <Box className="grid gap-3 sm:grid-cols-2">
-                                <Button
-                                    disabled={Boolean(busyRoleplayId)}
-                                    onClick={() => {
-                                        setRoleplayToDelete(null);
-                                        setError(null);
-                                    }}
-                                    className={uiTokens.action.secondaryButton}
-                                >
-                                    Annuler
-                                </Button>
-                                <Button
-                                    disabled={Boolean(busyRoleplayId)}
-                                    onClick={() => void handleDelete()}
-                                    className={uiTokens.action.dangerButton}
-                                >
-                                    {busyRoleplayId === roleplayToDelete.id ? "Suppression..." : "Supprimer"}
-                                </Button>
-                            </Box>
-                        </Box>
-                    </Modal>
+                        onConfirm={() => void handleArchive()}
+                    />
                 )}
             </Box>
         </Box>

@@ -1,12 +1,13 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft, CheckCircle2, MessageSquare, Phone, Plus, Shield, X } from "lucide-react";
+import { ArrowLeft, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { ContextualBackLink, useContextualReturnHref } from "@/features/app-shell/components";
 import { buildPostSaveHref } from "@/features/app-shell/domain";
 import {
     CONTENT_DOMAINS,
+    CONTENT_STATUS,
     CONTENT_VISIBILITY_CHOICE,
     CONTENT_VISIBILITY_CHOICE_DESCRIPTIONS,
     CONTENT_VISIBILITY_CHOICE_LABELS,
@@ -17,8 +18,10 @@ import {
 } from "@/features/content/domain";
 import { QUIZ_KIND, type QuizOption } from "@/features/evaluations/domain";
 import {
+    DEFAULT_METHOD_STEP_ICON,
     type MethodDetail,
     METHOD_SCOPE,
+    normalizeMethodStepIcon,
     type MethodOrganizationOption,
     type MethodResource,
     type MethodResourceType,
@@ -36,36 +39,24 @@ import { submitWithDirectUploads } from "@/lib/uploads/direct-upload.client";
 import type { PendingDirectUpload } from "@/lib/uploads/direct-upload";
 import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import {
+    createFormSubmitApiError,
+    createFormSubmitError,
+    notifyFormSubmitError,
+    notifyFormSubmitSuccess,
+} from "@/lib/ui/feedback/form-submit-feedback";
+import {
     AlertMessage,
     EditableTextListField,
     FileUploadField,
     SingleSelectField,
-    type SingleSelectOption,
 } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
+import { validateMethodFormPayload } from "./method-form-validation";
+import { METHOD_STEP_ICON_OPTIONS } from "./method-step-icon.catalog";
 
 const mediaTypeOptions = ["URL (YouTube, Vimeo…)", "Téléchargement"];
 const noQuizOptionValue = "__no_quiz__";
-const stepIconLabels = ["Téléphone", "Message", "Bouclier", "Coche"] as const;
-const stepIconOptions: SingleSelectOption[] = [
-    { icon: Phone, label: "Téléphone", value: "Téléphone" },
-    { icon: MessageSquare, label: "Message", value: "Message" },
-    { icon: Shield, label: "Bouclier", value: "Bouclier" },
-    { icon: CheckCircle2, label: "Coche", value: "Coche" },
-];
-const stepIconByLabel: Record<string, MethodStepIcon> = {
-    Bouclier: "shield",
-    Coche: "check",
-    Message: "message",
-    Téléphone: "phone",
-};
-const stepIconLabelByValue: Record<MethodStepIcon, string> = {
-    check: "Coche",
-    message: "Message",
-    phone: "Téléphone",
-    shield: "Bouclier",
-};
 
 const labelClasses = uiTokens.form.label;
 const inputClasses = uiTokens.form.control;
@@ -92,7 +83,7 @@ interface MethodStepFormState {
     videoStoragePath: string;
     videoUploadedFileName: string;
     videoUploadedFileSizeBytes: number | null;
-    icon: string;
+    icon: MethodStepIcon;
     objectifs: string[];
     bonnesPratiques: string[];
     erreurs: string[];
@@ -115,6 +106,7 @@ interface MethodResourceFormState {
 }
 
 interface ApiErrorPayload {
+    code?: string;
     error?: string;
     issues?: Array<{ message: string }>;
     method?: MethodDetail;
@@ -146,8 +138,11 @@ async function saveMethod(
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
 
     if (!response.ok) {
-        const validationMessage = payload?.issues?.map((issue) => issue.message).join(" ");
-        throw new Error(validationMessage || payload?.error || "Impossible d'enregistrer la méthode.");
+        throw createFormSubmitApiError(
+            payload,
+            response.status,
+            "Impossible d'enregistrer la méthode.",
+        );
     }
 
     if (!payload?.method) {
@@ -176,7 +171,7 @@ function emptyStep(): MethodStepFormState {
         videoStoragePath: "",
         videoUploadedFileName: "",
         videoUploadedFileSizeBytes: null,
-        icon: stepIconLabels[0],
+        icon: DEFAULT_METHOD_STEP_ICON,
         objectifs: [""],
         bonnesPratiques: [""],
         erreurs: [""],
@@ -305,7 +300,7 @@ function methodStepToFormState(step: MethodDetail["steps"][number]): MethodStepF
         description: step.summary,
         erreurs: editableList(step.pitfalls),
         extraResources: step.resources.filter((resource) => resource.id !== learningResource?.id),
-        icon: stepIconLabelByValue[step.icon],
+        icon: step.icon,
         id: step.id,
         objectifs: editableList(step.objectives),
         posture: editableList(step.posture),
@@ -389,6 +384,7 @@ export function CreateMethodPageContent({
 }: CreateMethodPageContentProps) {
     const router = useRouter();
     const isEditing = Boolean(initialMethod);
+    const isDraft = !initialMethod || initialMethod.status === CONTENT_STATUS.draft;
     const organizationSelectOptions = organizationOptions.map((organization) => ({
         label: organization.name,
         value: organization.id,
@@ -438,11 +434,6 @@ export function CreateMethodPageContent({
     const [savingStatus, setSavingStatus] = useState<ContentStatus | null>(null);
     const [uploadProgressByClientFileId, setUploadProgressByClientFileId] = useState<Record<string, number>>({});
 
-    const canSubmit =
-        name.trim().length > 0 &&
-        steps.every((step) => step.title.trim().length > 0) &&
-        (visibility === CONTENT_VISIBILITY_CHOICE.public || Boolean(selectedOrganizationId));
-    const canPublish = canSubmit;
     const isSaving = savingStatus !== null;
     const returnHref = initialMethod ? `/methods/${initialMethod.id}` : "/methods";
     const contextualReturnHref = useContextualReturnHref(returnHref);
@@ -606,7 +597,7 @@ export function CreateMethodPageContent({
                 bestPractices: step.bonnesPratiques,
                 code: step.code,
                 id: step.id,
-                icon: stepIconByLabel[step.icon] ?? "phone",
+                icon: step.icon,
                 objectives: step.objectifs,
                 pitfalls: step.erreurs,
                 posture: step.posture,
@@ -650,9 +641,16 @@ export function CreateMethodPageContent({
     }
 
     async function handleSave(status: ContentStatus) {
-        if (isSaving || (status === "published" ? !canPublish : !canSubmit)) return;
+        if (isSaving) return;
 
         setFormError(null);
+        const payload = validateMethodFormPayload(buildPayload(status));
+        if (!payload.success) {
+            const error = createFormSubmitError(payload.message, 400, "VALIDATION_ERROR");
+            setFormError(notifyFormSubmitError(error, payload.message));
+            return;
+        }
+
         setSavingStatus(status);
         setUploadProgressByClientFileId({});
 
@@ -660,10 +658,11 @@ export function CreateMethodPageContent({
             const savedMethod = await submitWithDirectUploads({
                 onProgress: (clientFileId, percentage) =>
                     setUploadProgressByClientFileId((current) => ({ ...current, [clientFileId]: percentage })),
-                payload: buildPayload(status),
+                payload: payload.data,
                 save: (payload) => saveMethod(initialMethod?.id, payload),
                 uploads: collectUploadFiles(),
             });
+            notifyFormSubmitSuccess();
             if (onSaved) {
                 onSaved(savedMethod);
                 return;
@@ -674,7 +673,7 @@ export function CreateMethodPageContent({
             );
             router.refresh();
         } catch (error) {
-            setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer la méthode.");
+            setFormError(notifyFormSubmitError(error, "Impossible d'enregistrer la méthode."));
         } finally {
             setSavingStatus(null);
             setUploadProgressByClientFileId({});
@@ -740,10 +739,10 @@ export function CreateMethodPageContent({
                             />
                         </Box>
                         <Box>
-                            <FieldLabel className={labelClasses}>Quiz associé</FieldLabel>
+                            <FieldLabel className={labelClasses}>Quiz associé (optionnel)</FieldLabel>
                             <SingleSelectField
                                 options={quizSelectOptions}
-                                value={quiz}
+                                value={quiz ?? noQuizOptionValue}
                                 placeholder="Aucun quiz associé"
                                 onChange={(value) => setQuiz(value === noQuizOptionValue ? null : value)}
                             />
@@ -1117,10 +1116,12 @@ export function CreateMethodPageContent({
                                     <Box>
                                         <FieldLabel className={uiTokens.form.subLabel}>Icône</FieldLabel>
                                         <SingleSelectField
-                                            options={stepIconOptions}
+                                            options={METHOD_STEP_ICON_OPTIONS}
                                             value={step.icon}
                                             placeholder="Sélectionner une icône"
-                                            onChange={(value) => updateStep(stepIndex, { icon: value })}
+                                            onChange={(value) =>
+                                                updateStep(stepIndex, { icon: normalizeMethodStepIcon(value) })
+                                            }
                                         />
                                     </Box>
 
@@ -1251,30 +1252,33 @@ export function CreateMethodPageContent({
                             <AlertMessage message={formError} />
                         </Box>
                     )}
-
                     <Box className="flex justify-end gap-3">
+                        {isDraft && (
+                            <Button
+                                disabled={isSaving}
+                                onClick={() => handleSave(CONTENT_STATUS.draft)}
+                                className={uiTokens.action.secondaryButton}
+                            >
+                                {savingStatus === CONTENT_STATUS.draft
+                                    ? "Enregistrement..."
+                                    : "Enregistrer en brouillon"}
+                            </Button>
+                        )}
                         <Button
                             disabled={isSaving}
-                            onClick={() => handleSave("draft")}
-                            className={uiTokens.action.secondaryButton}
-                        >
-                            {savingStatus === "draft" ? "Enregistrement..." : "Enregistrer en brouillon"}
-                        </Button>
-                        <Button
-                            disabled={!canPublish || isSaving}
-                            onClick={() => handleSave("published")}
+                            onClick={() => handleSave(CONTENT_STATUS.published)}
                             className={cn(
                                 "flex h-11 items-center justify-center rounded-xl px-6 text-[14px] font-bold text-white transition",
-                                canPublish && !isSaving
+                                !isSaving
                                     ? uiTokens.action.primaryButton
                                     : uiTokens.action.primaryButtonDisabled,
                             )}
                         >
-                            {savingStatus === "published"
-                                ? "Publication..."
-                                : isEditing
-                                  ? "Publier les modifications"
-                                  : "Publier la méthode"}
+                            {savingStatus === CONTENT_STATUS.published
+                                ? "Enregistrement..."
+                                : isDraft
+                                  ? "Publier la méthode"
+                                  : "Enregistrer les modifications"}
                         </Button>
                     </Box>
                 </CardSurface>

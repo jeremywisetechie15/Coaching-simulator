@@ -1,11 +1,11 @@
 "use client";
 
-import { ArrowLeft, BotMessageSquare, Copy, Edit3, MoreHorizontal, Plus, Trash2 } from "lucide-react";
+import { Archive, ArrowLeft, BotMessageSquare, Copy, Edit3, MoreHorizontal, Plus } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
 import {
-    DeleteContentConfirmationModal,
+    ArchiveContentConfirmationModal,
     EntityDetailsModalFeedback,
 } from "@/features/content/components";
 import { requestContentCardAction } from "@/features/content/data/content-card-action.request";
@@ -65,7 +65,7 @@ async function fetchCoachDetail(coachId: string) {
 export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageContentProps) {
     const [actionError, setActionError] = useState<string | null>(null);
     const [busyCoachId, setBusyCoachId] = useState<string | null>(null);
-    const [coachToDelete, setCoachToDelete] = useState<CoachListItem | null>(null);
+    const [coachToArchive, setCoachToArchive] = useState<CoachListItem | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [selectedCoachId, setSelectedCoachId] = useState<string | null>(null);
     const coachesQuery = useQuery({
@@ -104,23 +104,23 @@ export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageCon
         }
     }
 
-    async function handleDelete() {
-        if (!coachToDelete) return;
+    async function handleArchive() {
+        if (!coachToArchive) return;
 
         setActionError(null);
-        setBusyCoachId(coachToDelete.id);
+        setBusyCoachId(coachToArchive.id);
 
         try {
             await requestContentCardAction(
-                COACH_ROUTES.api.detail(coachToDelete.id),
+                COACH_ROUTES.api.detail(coachToArchive.id),
                 "DELETE",
-                "Impossible de supprimer le coach.",
+                "Impossible d'archiver le coach.",
             );
-            setCoachToDelete(null);
-            setSelectedCoachId((currentId) => currentId === coachToDelete.id ? null : currentId);
+            setCoachToArchive(null);
+            setSelectedCoachId((currentId) => currentId === coachToArchive.id ? null : currentId);
             await coachesQuery.refetch();
         } catch (error) {
-            setActionError(error instanceof Error ? error.message : "Impossible de supprimer le coach.");
+            setActionError(error instanceof Error ? error.message : "Impossible d'archiver le coach.");
         } finally {
             setBusyCoachId(null);
         }
@@ -165,7 +165,7 @@ export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageCon
                     </Box>
                 )}
 
-                {actionError && !coachToDelete && (
+                {actionError && !coachToArchive && (
                     <CardSurface className={cn("mb-5 rounded-xl border px-4 py-3 shadow-none", uiTokens.tone.danger.soft)}>
                         <Text className="text-[13px] font-semibold">{actionError}</Text>
                     </CardSurface>
@@ -226,12 +226,12 @@ export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageCon
                                                         <CardActionMenuButton
                                                             danger
                                                             disabled={busyCoachId === coach.id}
-                                                            icon={Trash2}
-                                                            label={ENTITY_ACTION_LABELS.delete}
+                                                            icon={Archive}
+                                                            label={ENTITY_ACTION_LABELS.archive}
                                                             onClick={() => {
                                                                 setActionError(null);
                                                                 setOpenMenuId(null);
-                                                                setCoachToDelete(coach);
+                                                                setCoachToArchive(coach);
                                                             }}
                                                         />
                                                     </CardActionMenu>
@@ -288,17 +288,17 @@ export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageCon
                         onClose={() => setSelectedCoachId(null)}
                     />
                 )}
-                {coachToDelete && (
-                    <DeleteContentConfirmationModal
-                        busy={busyCoachId === coachToDelete.id}
+                {coachToArchive && (
+                    <ArchiveContentConfirmationModal
+                        busy={busyCoachId === coachToArchive.id}
                         entityLabel="le coach"
                         error={actionError}
-                        name={coachToDelete.name}
+                        name={coachToArchive.name}
                         onCancel={() => {
                             setActionError(null);
-                            setCoachToDelete(null);
+                            setCoachToArchive(null);
                         }}
-                        onConfirm={() => void handleDelete()}
+                        onConfirm={() => void handleArchive()}
                     />
                 )}
             </Box>

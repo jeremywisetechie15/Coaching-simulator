@@ -1,11 +1,11 @@
 "use client";
 
-import { ArrowLeft, Copy, Edit3, MoreHorizontal, Plus, Trash2, UserRoundCog } from "lucide-react";
+import { Archive, ArrowLeft, Copy, Edit3, MoreHorizontal, Plus, UserRoundCog } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
 import {
-    DeleteContentConfirmationModal,
+    ArchiveContentConfirmationModal,
     EntityDetailsModalFeedback,
 } from "@/features/content/components";
 import { requestContentCardAction } from "@/features/content/data/content-card-action.request";
@@ -66,7 +66,7 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
     const [actionError, setActionError] = useState<string | null>(null);
     const [busyPersonaId, setBusyPersonaId] = useState<string | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-    const [personaToDelete, setPersonaToDelete] = useState<PersonaListItem | null>(null);
+    const [personaToArchive, setPersonaToArchive] = useState<PersonaListItem | null>(null);
     const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
     const personasQuery = useQuery({
         initialData: initialPersonas,
@@ -104,23 +104,23 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
         }
     }
 
-    async function handleDelete() {
-        if (!personaToDelete) return;
+    async function handleArchive() {
+        if (!personaToArchive) return;
 
         setActionError(null);
-        setBusyPersonaId(personaToDelete.id);
+        setBusyPersonaId(personaToArchive.id);
 
         try {
             await requestContentCardAction(
-                PERSONA_ROUTES.api.detail(personaToDelete.id),
+                PERSONA_ROUTES.api.detail(personaToArchive.id),
                 "DELETE",
-                "Impossible de supprimer le persona.",
+                "Impossible d'archiver le persona.",
             );
-            setPersonaToDelete(null);
-            setSelectedPersonaId((currentId) => currentId === personaToDelete.id ? null : currentId);
+            setPersonaToArchive(null);
+            setSelectedPersonaId((currentId) => currentId === personaToArchive.id ? null : currentId);
             await personasQuery.refetch();
         } catch (error) {
-            setActionError(error instanceof Error ? error.message : "Impossible de supprimer le persona.");
+            setActionError(error instanceof Error ? error.message : "Impossible d'archiver le persona.");
         } finally {
             setBusyPersonaId(null);
         }
@@ -165,7 +165,7 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
                     </Box>
                 )}
 
-                {actionError && !personaToDelete && (
+                {actionError && !personaToArchive && (
                     <CardSurface className={cn("mb-5 rounded-xl border px-4 py-3 shadow-none", uiTokens.tone.danger.soft)}>
                         <Text className="text-[13px] font-semibold">{actionError}</Text>
                     </CardSurface>
@@ -222,12 +222,12 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
                                                     <CardActionMenuButton
                                                         danger
                                                         disabled={busyPersonaId === persona.id}
-                                                        icon={Trash2}
-                                                        label={ENTITY_ACTION_LABELS.delete}
+                                                        icon={Archive}
+                                                        label={ENTITY_ACTION_LABELS.archive}
                                                         onClick={() => {
                                                             setActionError(null);
                                                             setOpenMenuId(null);
-                                                            setPersonaToDelete(persona);
+                                                            setPersonaToArchive(persona);
                                                         }}
                                                     />
                                                 </CardActionMenu>
@@ -288,17 +288,17 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
                         onClose={() => setSelectedPersonaId(null)}
                     />
                 )}
-                {personaToDelete && (
-                    <DeleteContentConfirmationModal
-                        busy={busyPersonaId === personaToDelete.id}
+                {personaToArchive && (
+                    <ArchiveContentConfirmationModal
+                        busy={busyPersonaId === personaToArchive.id}
                         entityLabel="le persona"
                         error={actionError}
-                        name={personaToDelete.name}
+                        name={personaToArchive.name}
                         onCancel={() => {
                             setActionError(null);
-                            setPersonaToDelete(null);
+                            setPersonaToArchive(null);
                         }}
-                        onConfirm={() => void handleDelete()}
+                        onConfirm={() => void handleArchive()}
                     />
                 )}
             </Box>

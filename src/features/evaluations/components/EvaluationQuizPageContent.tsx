@@ -17,7 +17,6 @@ import {
     Phone,
     Shield,
     Target,
-    Users,
     X,
     type LucideIcon,
 } from "lucide-react";
@@ -118,8 +117,6 @@ const stepIconAccents: { color: string; icon: LucideIcon; wrap: string }[] = [
 
 const dimensionIcons: Record<QuizDimension, LucideIcon> = {
     savoir: BookOpen,
-    savoir_etre: Users,
-    savoir_faire: Target,
 };
 
 function computeCompetenceDimensionBreakdown(
@@ -788,7 +785,11 @@ export function EvaluationQuizPageContent({
                                 className={cn(uiTokens.action.secondaryButton, "gap-2 disabled:cursor-not-allowed disabled:opacity-60")}
                             >
                                 Nouvelle tentative
-                                {attemptsRemaining > 0 ? ` (${attemptsRemaining} restante${attemptsRemaining > 1 ? "s" : ""})` : ""}
+                                {attemptsRemaining === null
+                                    ? " (tentatives illimitées)"
+                                    : attemptsRemaining > 0
+                                      ? ` (${attemptsRemaining} restante${attemptsRemaining > 1 ? "s" : ""})`
+                                      : ""}
                             </Button>
                         )}
                         <Button

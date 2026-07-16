@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { RoleplayNotationCriterionRef } from "@/features/roleplays/domain";
+import type { RoleplayNotationCriterionRef, RoleplayNotationStepRef } from "@/features/roleplays/domain";
 import {
     buildScoreGlobalFromScorecard,
     calculateScorecardNotationResult,
@@ -63,8 +63,29 @@ const refs: RoleplayNotationCriterionRef[] = [
     },
 ];
 
+const stepRefs: RoleplayNotationStepRef[] = [
+    {
+        code: "DISCOVER",
+        methodStepId: "method-step-1",
+        order: 1,
+        ref: "S1",
+        scorecardStepId: "scorecard-step-1",
+        title: "Découvrir",
+        weightPercent: 40,
+    },
+    {
+        code: "CONFIRM",
+        methodStepId: "method-step-2",
+        order: 2,
+        ref: "S2",
+        scorecardStepId: "scorecard-step-2",
+        title: "Confirmer",
+        weightPercent: 60,
+    },
+];
+
 describe("scorecard notation scoring", () => {
-    it("calculates global and step scores from criterion points when total is not 100", () => {
+    it("averages criteria equally inside each step then applies explicit step weights", () => {
         const result = calculateScorecardNotationResult(
             {
                 etapes: [
@@ -84,23 +105,26 @@ describe("scorecard notation scoring", () => {
                 ],
             },
             refs,
+            stepRefs,
         );
 
         expect(result.pointsAwarded).toBe(10);
         expect(result.pointsMax).toBe(15);
-        expect(result.globalScorePercent).toBe(66.67);
+        expect(result.globalScorePercent).toBe(81.67);
         expect(result.steps).toMatchObject([
             {
                 pointsAwarded: 5,
                 pointsMax: 10,
-                scorePercent: 50,
+                scorePercent: 54.17,
                 stepOrder: 1,
+                weightPercent: 40,
             },
             {
                 pointsAwarded: 5,
                 pointsMax: 5,
                 scorePercent: 100,
                 stepOrder: 2,
+                weightPercent: 60,
             },
         ]);
     });
@@ -114,6 +138,7 @@ describe("scorecard notation scoring", () => {
                 ],
             },
             refs,
+            stepRefs,
         );
 
         expect(result.criteria.map((criterion) => ({
@@ -124,7 +149,7 @@ describe("scorecard notation scoring", () => {
             { ref: "C2", pointsAwarded: 0 },
             { ref: "C3", pointsAwarded: 0 },
         ]);
-        expect(result.globalScorePercent).toBe(26.67);
+        expect(result.globalScorePercent).toBe(20);
     });
 
     it("maps legacy schema criterion code, normalized score and evidence arrays", () => {
@@ -155,6 +180,7 @@ describe("scorecard notation scoring", () => {
                 ],
             },
             refs,
+            stepRefs,
         );
 
         expect(result.criteria[0]).toMatchObject({
@@ -165,10 +191,10 @@ describe("scorecard notation scoring", () => {
             ref: "C1",
             scorePercent: 50,
         });
-        expect(result.globalScorePercent).toBe(13.33);
+        expect(result.globalScorePercent).toBe(10);
     });
 
-    it("builds a score_global payload with inferred step weights", () => {
+    it("builds a score_global payload with explicit step weights", () => {
         const result = calculateScorecardNotationResult(
             {
                 criteria_results: [
@@ -178,23 +204,24 @@ describe("scorecard notation scoring", () => {
                 ],
             },
             refs,
+            stepRefs,
         );
 
         expect(buildScoreGlobalFromScorecard(result)).toMatchObject({
-            methode_calcul: "somme_points_criteres_scorecard",
+            methode_calcul: "moyenne_criteres_puis_ponderation_etapes_scorecard",
             notation_source: "scorecard",
             points_max: 15,
             points_obtenus: 10,
-            valeur: 66.67,
+            valeur: 40,
             detail_calcul: [
                 {
                     etape: "Découvrir",
-                    poids: 0.67,
+                    poids: 0.4,
                     score_etape: 100,
                 },
                 {
                     etape: "Confirmer",
-                    poids: 0.33,
+                    poids: 0.6,
                     score_etape: 0,
                 },
             ],

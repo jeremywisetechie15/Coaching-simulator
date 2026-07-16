@@ -1,5 +1,7 @@
+export * from "./ArchiveContentConfirmationModal";
 export * from "./ContentTargetScopeField";
 export * from "./ContentResourcesModal";
+export * from "./ContentEditorSubmitActions";
 export * from "./ContentStatusBadge";
 export * from "./DeleteContentConfirmationModal";
 export * from "./DiscProfileBadge";

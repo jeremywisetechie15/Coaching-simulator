@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Clock, Copy, Edit3, FileText, MoreHorizontal, Plus, Search, Trash2 } from "lucide-react";
+import { Archive, ArrowLeft, Clock, Copy, Edit3, FileText, MoreHorizontal, Plus, Search } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
     ContextualBackLink,
@@ -19,6 +19,7 @@ import {
     type QuizListItem,
 } from "@/features/evaluations/domain";
 import { ALL_CONTENT_CATEGORIES, CONTENT_DOMAINS, getCategoriesForDomain } from "@/features/content/domain";
+import { ArchiveContentConfirmationModal } from "@/features/content/components";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { CardActionMenu, CardActionMenuButton, CardActionMenuLink } from "@/lib/ui/molecules";
 import { ENTITY_ACTION_LABELS } from "@/lib/ui/domain/entity-action";
@@ -81,6 +82,7 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [busyQuizId, setBusyQuizId] = useState<string | null>(null);
+    const [quizToArchive, setQuizToArchive] = useState<QuizListItem | null>(null);
 
     const categoryOptions = [
         "all",
@@ -128,6 +130,7 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
             await archiveQuiz(quizId);
             router.refresh();
             setOpenMenuId(null);
+            setQuizToArchive(null);
         } catch (err) {
             setError(err instanceof Error ? err.message : "Impossible d'archiver le quiz.");
         } finally {
@@ -195,7 +198,7 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                     )}
                 </Box>
 
-                {error && (
+                {error && !quizToArchive && (
                     <CardSurface className="mb-5 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 shadow-none">
                         <Text className={cn("text-[13px] font-semibold", uiTokens.text.danger)}>{error}</Text>
                     </CardSurface>
@@ -260,9 +263,13 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                                             <CardActionMenuButton
                                                 danger
                                                 disabled={busyQuizId === quiz.id}
-                                                icon={Trash2}
-                                                label={ENTITY_ACTION_LABELS.delete}
-                                                onClick={() => void handleArchive(quiz.id)}
+                                                icon={Archive}
+                                                label={ENTITY_ACTION_LABELS.archive}
+                                                onClick={() => {
+                                                    setError(null);
+                                                    setOpenMenuId(null);
+                                                    setQuizToArchive(quiz);
+                                                }}
                                             />
                                         </CardActionMenu>
                                     )}
@@ -320,8 +327,22 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                         </Text>
                     </CardSurface>
                 )}
+                </Box>
+
+                {quizToArchive && (
+                    <ArchiveContentConfirmationModal
+                        busy={busyQuizId === quizToArchive.id}
+                        entityLabel="le quiz"
+                        error={error}
+                        name={quizToArchive.title}
+                        onCancel={() => {
+                            setError(null);
+                            setQuizToArchive(null);
+                        }}
+                        onConfirm={() => void handleArchive(quizToArchive.id)}
+                    />
+                )}
             </Box>
-        </Box>
     );
 }
 

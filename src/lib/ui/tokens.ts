@@ -43,6 +43,7 @@ export const uiTokens = {
     },
     entityDetails: {
         avatar: "flex h-[112px] w-[112px] items-center justify-center overflow-hidden rounded-full border-[3px] border-[#E7EAFF] bg-[#F1F2F6]",
+        avatarFallback: "flex h-full w-full items-center justify-center bg-[#F1F2F6]",
         avatarImage: "h-full w-full bg-cover bg-center",
         avatarInitials: "text-[24px] font-extrabold text-[#5140F0]",
         dates: "hidden max-w-[190px] space-y-1.5 text-right sm:block",
@@ -54,21 +55,31 @@ export const uiTokens = {
         sidebar: "flex flex-col items-center gap-3",
     },
     toast: {
-        actionButton: "!rounded-lg !bg-[#5140F0] !px-3 !font-bold !text-white hover:!bg-[#4635E7]",
-        cancelButton: "!rounded-lg !bg-[#F3F4F6] !px-3 !font-bold !text-[#4B5563] hover:!bg-[#E5E7EB]",
+        actionButton:
+            "!h-8 !rounded-lg !bg-[linear-gradient(135deg,#5140F0_0%,#7C3AED_100%)] !px-3 !font-bold !text-white !shadow-[0_6px_16px_rgba(81,64,240,0.24)] transition hover:!brightness-95",
+        cancelButton:
+            "!h-8 !rounded-lg !border !border-[#E5E7EB] !bg-white/75 !px-3 !font-bold !text-[#4B5563] transition hover:!bg-white",
         closeButton:
-            "!border-[#E5E7EB] !bg-white !text-[#6B7280] hover:!border-[#D5D7DE] hover:!text-[#111827]",
-        description: "!text-[12px] !font-medium !leading-5 !text-[#6B7280]",
-        error: "!border-[#FECACA] !bg-[#FEF2F2] !text-[#B91C1C]",
-        icon: "h-4 w-4",
-        info: "!border-[#BFDBFE] !bg-[#EFF6FF] !text-[#1D4ED8]",
-        loading: "!border-[#E5E7EB] !bg-white !text-[#5140F0]",
-        loadingIcon: "h-4 w-4 animate-spin",
+            "!left-auto !right-2 !top-2 !h-7 !w-7 !transform-none !border-white/80 !bg-white/80 !text-[#6B7280] !opacity-70 !shadow-[0_4px_12px_rgba(17,24,39,0.08)] !backdrop-blur-md transition hover:!border-white hover:!text-[#111827] hover:!opacity-100",
+        content: "!min-w-0 !flex-1 !gap-0.5 !pr-4",
+        description: "!text-[12px] !font-medium !leading-[18px] !text-[#667085]",
+        error:
+            "!border-[#FECACA] !bg-[linear-gradient(135deg,#FEF2F2_0%,#FFF8F8_52%,#FFFFFF_100%)] !text-[#B91C1C]",
+        icon: "h-[18px] w-[18px]",
+        iconSlot:
+            "!m-0 !flex !h-9 !w-9 !shrink-0 !items-center !justify-center !rounded-[10px] !border !border-white/90 !bg-white/75 !shadow-[0_6px_16px_rgba(17,24,39,0.09)] !backdrop-blur-md",
+        info:
+            "!border-[#BFDBFE] !bg-[linear-gradient(135deg,#EFF6FF_0%,#F7FAFF_52%,#FFFFFF_100%)] !text-[#1D4ED8]",
+        loading:
+            "!border-[#DDD6FE] !bg-[linear-gradient(135deg,#F5F3FF_0%,#FAF9FF_52%,#FFFFFF_100%)] !text-[#5140F0]",
+        loadingIcon: "h-[18px] w-[18px] animate-spin",
         root:
-            "!flex !w-full !items-start !gap-3 !rounded-xl !border !border-[#E5E7EB] !bg-white !px-4 !py-3.5 !text-[#111827] !shadow-[0_16px_38px_rgba(17,24,39,0.16)]",
-        success: "!border-[#BBF7D0] !bg-[#F0FDF4] !text-[#15803D]",
-        title: "!text-[13px] !font-bold !leading-5",
-        warning: "!border-[#FDE68A] !bg-[#FFFBEB] !text-[#B45309]",
+            "!relative !flex !w-full !items-start !gap-3 !overflow-hidden !rounded-xl !border !border-[#E5E7EB] !bg-white !px-4 !py-4 !text-[#111827] !shadow-[0_18px_46px_rgba(17,24,39,0.18)] !backdrop-blur-xl transition-shadow hover:!shadow-[0_22px_54px_rgba(17,24,39,0.22)]",
+        success:
+            "!border-[#BBF7D0] !bg-[linear-gradient(135deg,#ECFDF3_0%,#F7FFF9_52%,#FFFFFF_100%)] !text-[#15803D]",
+        title: "!text-[14px] !font-extrabold !leading-5 !tracking-normal",
+        warning:
+            "!border-[#FED7AA] !bg-[linear-gradient(135deg,#FFF7ED_0%,#FFFBF7_52%,#FFFFFF_100%)] !text-[#C2410C]",
     },
     voice: {
         recommendedBadge: "inline-flex h-6 items-center rounded-lg border px-2.5 text-[11px] font-bold",

@@ -104,6 +104,7 @@ const context = {
         ref: "S1",
         scorecardStepId: "scorecard-step-1",
         title: "Découvrir",
+        weightPercent: 100,
     }],
     transcript: "",
     transcription: {
@@ -142,6 +143,7 @@ const scoreResult = {
             scorecardStepId: "scorecard-step-1",
             stepOrder: 1,
             title: "Découvrir",
+            weightPercent: 100,
         },
     ],
 } satisfies RoleplayNotationScoreResult;

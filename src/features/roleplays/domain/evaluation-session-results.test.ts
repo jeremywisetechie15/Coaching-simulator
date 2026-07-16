@@ -127,4 +127,22 @@ describe("evaluation session results", () => {
             },
         ]);
     });
+
+    it("keeps the notation JSON criteria when legacy foreign keys are missing", () => {
+        const evaluation = applyEvaluationSessionResults(baseEvaluation, {
+            criteria: [],
+            steps: [{
+                coachComment: "Commentaire normalisé.",
+                pointsAwarded: 1,
+                pointsMax: 2,
+                scorePercent: 50,
+                scorecardStepId: null,
+                stepOrder: 1,
+                title: "Ancienne étape",
+            }],
+        });
+
+        expect(evaluation.steps[0].criteria).toEqual(baseEvaluation.steps[0].criteria);
+        expect(evaluation.steps[0].commentaireCoach).toBe("Commentaire normalisé.");
+    });
 });

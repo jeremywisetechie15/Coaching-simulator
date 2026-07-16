@@ -1,4 +1,6 @@
-export type MethodStepIcon = "phone" | "message" | "shield" | "check";
+import type { MethodStepIcon } from "@/features/methods/domain/method";
+
+export type { MethodStepIcon } from "@/features/methods/domain/method";
 
 export interface MethodStep {
     id?: string;

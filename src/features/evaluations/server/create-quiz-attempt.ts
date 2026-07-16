@@ -1,4 +1,9 @@
-import type { QuizAttemptSession } from "@/features/evaluations/domain";
+import {
+    getQuizAttemptsRemaining,
+    hasReachedQuizAttemptLimit,
+    normalizeQuizMaxAttempts,
+    type QuizAttemptSession,
+} from "@/features/evaluations/domain";
 import { requireAuth } from "@/features/auth/server";
 import { AppError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -12,7 +17,7 @@ export async function createQuizAttempt(quizId: string): Promise<QuizAttemptSess
     const authenticatedSupabase = await createClient();
     const adminSupabase = createAdminClient();
     const quiz = await getAccessibleQuizForAttempt(authenticatedSupabase, quizId);
-    const maxAttempts = quiz.max_attempts ?? 1;
+    const maxAttempts = normalizeQuizMaxAttempts(quiz.max_attempts);
 
     const { data: inProgressAttempt, error: inProgressError } = await adminSupabase
         .from("quiz_attempts")
@@ -39,14 +44,14 @@ export async function createQuizAttempt(quizId: string): Promise<QuizAttemptSess
     if (inProgressAttempt) {
         return {
             attempt: await fetchQuizAttemptDetail(adminSupabase, inProgressAttempt),
-            attemptsRemaining: Math.max(maxAttempts - attemptsUsed, 0),
+            attemptsRemaining: getQuizAttemptsRemaining(maxAttempts, attemptsUsed),
             attemptsUsed,
             canStartNewAttempt: false,
             maxAttempts,
         };
     }
 
-    if (attemptsUsed >= maxAttempts) {
+    if (hasReachedQuizAttemptLimit(maxAttempts, attemptsUsed)) {
         throw new AppError("Le nombre maximal de tentatives est atteint.", 409, "QUIZ_MAX_ATTEMPTS_REACHED");
     }
 
@@ -65,7 +70,7 @@ export async function createQuizAttempt(quizId: string): Promise<QuizAttemptSess
 
     return {
         attempt: await fetchQuizAttemptDetail(adminSupabase, attemptRow),
-        attemptsRemaining: Math.max(maxAttempts - attemptsUsed, 0),
+        attemptsRemaining: getQuizAttemptsRemaining(maxAttempts, attemptsUsed),
         attemptsUsed,
         canStartNewAttempt: false,
         maxAttempts,

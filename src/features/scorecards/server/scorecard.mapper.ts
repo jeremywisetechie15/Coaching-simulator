@@ -31,6 +31,7 @@ export interface ScorecardStepRow {
     name: string;
     scorecard_id: string;
     step_order: number;
+    weight_percent: number | string;
 }
 
 export interface ScorecardCriterionRow {
@@ -96,6 +97,7 @@ function mapStepRow(row: ScorecardStepRow, criteria: ScorecardCriterion[] = []):
         methodStepId: row.method_step_id,
         name: row.name,
         order: row.step_order,
+        weightPercent: Number(row.weight_percent),
     };
 }
 

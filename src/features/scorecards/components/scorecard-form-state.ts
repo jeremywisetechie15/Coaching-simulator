@@ -1,5 +1,6 @@
 import type { ContentStatus } from "@/features/content/domain";
 import {
+    distributeScorecardStepWeights,
     SCORECARD_VISIBILITY,
     type ScorecardDetail,
     type ScorecardCriterionDimension,
@@ -28,6 +29,7 @@ export interface ScorecardStepFormState {
     methodStepId: string;
     name: string;
     order: number;
+    weightPercent: string;
 }
 
 export interface ScorecardFormState {
@@ -102,6 +104,7 @@ export function scorecardDetailToFormState(scorecard: ScorecardDetail): Scorecar
             methodStepId: step.methodStepId,
             name: step.name,
             order: step.order,
+            weightPercent: String(step.weightPercent),
         })),
         visibility: scorecard.visibility,
     };
@@ -109,17 +112,20 @@ export function scorecardDetailToFormState(scorecard: ScorecardDetail): Scorecar
 
 /** Construit les étapes du formulaire à partir des étapes (read-only) de la méthode. */
 export function stepsFromMethod(methodSteps: ScorecardMethodStep[]): ScorecardStepFormState[] {
-    return methodSteps
+    const orderedSteps = methodSteps
         .slice()
-        .sort((first, second) => first.order - second.order)
-        .map((step) => ({
-            collapsed: false,
-            criteria: [],
-            id: step.id,
-            methodStepId: step.id,
-            name: step.title,
-            order: step.order,
-        }));
+        .sort((first, second) => first.order - second.order);
+    const weights = distributeScorecardStepWeights(orderedSteps.length);
+
+    return orderedSteps.map((step, index) => ({
+        collapsed: false,
+        criteria: [],
+        id: step.id,
+        methodStepId: step.id,
+        name: step.title,
+        order: step.order,
+        weightPercent: String(weights[index] ?? 0),
+    }));
 }
 
 function textOrNull(value: string | null | undefined) {
@@ -130,6 +136,11 @@ function textOrNull(value: string | null | undefined) {
 export function integerFromText(value: string, fallback: number) {
     const number = Number(value);
     return Number.isFinite(number) ? Math.round(number) : fallback;
+}
+
+export function numberFromText(value: string, fallback: number) {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : fallback;
 }
 
 export function toSaveScorecardInput(form: ScorecardFormState, status: ContentStatus): SaveScorecardInput {
@@ -159,6 +170,7 @@ export function toSaveScorecardInput(form: ScorecardFormState, status: ContentSt
             methodStepId: step.methodStepId,
             name: step.name,
             order: step.order || stepIndex + 1,
+            weightPercent: numberFromText(step.weightPercent, 0),
         })),
         visibility: form.visibility,
     };

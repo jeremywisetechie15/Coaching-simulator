@@ -234,6 +234,63 @@ describe("roleplay progress helpers", () => {
         });
     });
 
+    it("shows savoir progression before the first roleplay simulation", () => {
+        const progress = buildRoleplayProgress({
+            baselineSteps: [
+                {
+                    criteria: [
+                        {
+                            criterionRef: "criterion-1",
+                            dimension: "savoir_faire",
+                            dimensionItemId: "item-practice",
+                            dimensionItemLabel: "Questionner le prospect",
+                            skillId: "skill-1",
+                            skillName: "Découverte des besoins",
+                        },
+                    ],
+                    scorecardStepId: "step-1",
+                    stepOrder: 1,
+                    title: "Découvrir le besoin",
+                },
+            ],
+            criteria: [],
+            quizCriteria: [
+                {
+                    advice: null,
+                    coachComment: null,
+                    completedAt: "2026-07-14T10:00:00.000Z",
+                    criterionRef: "quiz-knowledge-1",
+                    dimension: "savoir",
+                    dimensionItemId: "item-knowledge",
+                    dimensionItemLabel: "Connaître les questions de découverte",
+                    pointsAwarded: 8,
+                    pointsMax: 10,
+                    scorePercent: 80,
+                    scorecardStepId: "step-1",
+                    sessionId: "quiz-attempt-1",
+                    skillId: "skill-1",
+                    skillName: "Découverte des besoins",
+                    sourceGroupId: "quiz-1",
+                },
+            ],
+            sessions: [],
+            steps: [],
+            title: "Prise de rendez-vous",
+        });
+
+        expect(progress.dimensions.find((dimension) => dimension.key === "savoir")?.score).toBe(80);
+        expect(progress.modalities.find((modality) => modality.icon === "quiz")).toMatchObject({
+            description: "Évalue le Savoir théorique des compétences mobilisées",
+            score: 80,
+        });
+        expect(progress.steps[0]?.competencies[0]?.dimensions).toContainEqual({
+            diagnostic: "Savoir maîtrisé selon les résultats retenus.",
+            key: "savoir",
+            label: "Savoir",
+            score: 80,
+        });
+    });
+
     it("uses the best three of the six latest sessions while keeping the first session as initial", () => {
         const sessionScores = [
             ["session-initial", 99],
@@ -303,6 +360,42 @@ describe("roleplay progress helpers", () => {
 
         expect(progress.dimensions.find((dimension) => dimension.key === "savoir")?.score).toBe(100);
         expect(progress.modalities.find((modality) => modality.icon === "quiz")?.score).toBe(100);
+    });
+
+    it("keeps the best attempt of every quiz associated with the roleplay", () => {
+        const quizCriterion = (
+            quizId: string,
+            sessionId: string,
+            completedAt: string,
+            score: number,
+        ) => ({
+            advice: null,
+            coachComment: null,
+            completedAt,
+            criterionRef: `quiz-${sessionId}`,
+            dimension: "savoir",
+            dimensionItemId: `item-${quizId}`,
+            dimensionItemLabel: `Connaissance ${quizId}`,
+            pointsAwarded: score,
+            pointsMax: 100,
+            scorePercent: score,
+            scorecardStepId: "step-1",
+            sessionId,
+            skillId: "skill-1",
+            skillName: "Découverte des besoins",
+            sourceGroupId: quizId,
+        });
+        const progress = buildRoleplayProgress({
+            ...createProgressInput(),
+            quizCriteria: [
+                quizCriterion("method", "method-best", "2026-06-01T10:00:00.000Z", 100),
+                quizCriterion("method", "method-latest", "2026-06-15T10:00:00.000Z", 40),
+                quizCriterion("contextual", "contextual-best", "2026-06-10T10:00:00.000Z", 60),
+            ],
+        });
+
+        expect(progress.dimensions.find((dimension) => dimension.key === "savoir")?.score).toBe(80);
+        expect(progress.modalities.find((modality) => modality.icon === "quiz")?.score).toBe(80);
     });
 
     it("does not derive savoir from roleplay simulation criteria", () => {

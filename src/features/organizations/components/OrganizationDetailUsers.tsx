@@ -6,6 +6,11 @@ import { Eye, Pencil, Plus } from "lucide-react";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { ENTITY_ACTION_LABELS } from "@/lib/ui/domain/entity-action";
 import {
+    createFormSubmitError,
+    notifyFormSubmitError,
+    notifyFormSubmitSuccess,
+} from "@/lib/ui/feedback/form-submit-feedback";
+import {
     type OrganizationGroupRow,
     type OrganizationUserRow,
 } from "@/features/organizations/domain/organization-detail";
@@ -17,6 +22,7 @@ import {
     UserInviteModal,
     type UserInviteFormValues,
 } from "@/features/users/components/UserInviteModal";
+import { getUserInvitationSuccessMessage } from "@/features/users/domain/users";
 
 const columns = ["Utilisateur", "Email", "Rôle", "Statut", "Roleplays", "Quizzes", "Actions"];
 
@@ -187,18 +193,20 @@ export function OrganizationDetailUsers({
 
             if (!response.ok) {
                 setInviteStatus(null);
-                setInviteError(getInviteErrorMessage(response.status, payload as ApiErrorPayload | null));
+                const message = getInviteErrorMessage(response.status, payload as ApiErrorPayload | null);
+                setInviteError(notifyFormSubmitError(createFormSubmitError(message, response.status), message));
                 return;
             }
-        } catch {
+        } catch (error) {
             setInviteStatus(null);
-            setInviteError("Impossible d'envoyer l'invitation.");
+            setInviteError(notifyFormSubmitError(error, "Impossible d'envoyer l'invitation."));
             return;
         } finally {
             setIsInviting(false);
         }
 
-        setInviteSuccess(`Invitation envoyée à ${email}.`);
+        setInviteSuccess(getUserInvitationSuccessMessage(email));
+        notifyFormSubmitSuccess();
         void queryClient.invalidateQueries({ queryKey: ["organizations"] });
         void queryClient.invalidateQueries({ queryKey: ["users"] });
         void loadUsers();

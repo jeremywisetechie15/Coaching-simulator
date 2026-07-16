@@ -43,7 +43,7 @@ export default async function Page({ params, searchParams }: PageProps) {
             roleplay = mapDbRoleplayToUi(roleplayDetail);
             progress = await getRoleplayProgress(
                 roleplayId,
-                roleplayDetail.objective || roleplayDetail.title,
+                roleplayDetail.previewTitle || roleplayDetail.title,
                 roleplayDetail.scorecardId,
                 roleplayDetail.methodId,
             );

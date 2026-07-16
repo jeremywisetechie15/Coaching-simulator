@@ -34,6 +34,31 @@ export async function duplicateScorecard(scorecardId: string): Promise<Scorecard
             throw new NotFoundError("Scorecard introuvable.");
         }
 
+        const { data: sourceSteps, error: sourceStepsError } = await adminSupabase
+            .from("scorecard_steps")
+            .select(SCORECARD_STEP_SELECT)
+            .eq("scorecard_id", scorecardId)
+            .order("step_order", { ascending: true });
+
+        if (sourceStepsError) {
+            throw sourceStepsError;
+        }
+
+        const steps = (sourceSteps ?? []) as ScorecardStepRow[];
+        const { data: sourceCriteria, error: sourceCriteriaError } = steps.length > 0
+            ? await adminSupabase
+                .from("scorecard_criteria")
+                .select(SCORECARD_CRITERION_SELECT)
+                .in("scorecard_step_id", steps.map((step) => step.id))
+                .order("criterion_order", { ascending: true })
+            : { data: [], error: null };
+
+        if (sourceCriteriaError) {
+            throw sourceCriteriaError;
+        }
+
+        const criteria = (sourceCriteria ?? []) as ScorecardCriterionRow[];
+
         const duplicateName = await resolveDuplicateName(adminSupabase, {
             column: "name",
             maxLength: 180,
@@ -53,17 +78,6 @@ export async function duplicateScorecard(scorecardId: string): Promise<Scorecard
 
         duplicatedScorecardId = duplicatedScorecard.id;
 
-        const { data: sourceSteps, error: sourceStepsError } = await adminSupabase
-            .from("scorecard_steps")
-            .select(SCORECARD_STEP_SELECT)
-            .eq("scorecard_id", scorecardId)
-            .order("step_order", { ascending: true });
-
-        if (sourceStepsError) {
-            throw sourceStepsError;
-        }
-
-        const steps = (sourceSteps ?? []) as ScorecardStepRow[];
         if (steps.length === 0) {
             return fetchScorecardDetail(adminSupabase, duplicatedScorecardId);
         }
@@ -90,21 +104,8 @@ export async function duplicateScorecard(scorecardId: string): Promise<Scorecard
             }
         }
 
-        const { data: sourceCriteria, error: sourceCriteriaError } = await adminSupabase
-            .from("scorecard_criteria")
-            .select(SCORECARD_CRITERION_SELECT)
-            .in(
-                "scorecard_step_id",
-                steps.map((step) => step.id),
-            )
-            .order("criterion_order", { ascending: true });
-
-        if (sourceCriteriaError) {
-            throw sourceCriteriaError;
-        }
-
         const criterionRows = createDuplicateScorecardCriterionRows(
-            (sourceCriteria ?? []) as ScorecardCriterionRow[],
+            criteria,
             duplicatedStepIdsBySourceStepId,
         );
 

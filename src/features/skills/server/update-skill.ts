@@ -1,12 +1,12 @@
+import { randomUUID } from "node:crypto";
 import { requireAdmin } from "@/features/auth/server";
 import type { SkillDetail } from "@/features/skills/domain/skills";
 import type { SaveSkillDto } from "@/features/skills/dto";
-import { NotFoundError } from "@/lib/server/errors";
+import { mapDatabaseError, NotFoundError } from "@/lib/server/errors";
+import { assertContentStatusTransition } from "@/features/content/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchSkillDetail } from "./skill-query";
-import { createSkillUpdate, SKILL_SELECT } from "./skills.persistence";
-import { replaceSkillDimensionItems } from "./replace-skill-dimension-items";
-import type { SkillRow } from "./skill.mapper";
+import { createSkillDimensionItemRows, createSkillUpdate } from "./skills.persistence";
 
 export async function updateSkill(skillId: string, input: SaveSkillDto): Promise<SkillDetail> {
     await requireAdmin();
@@ -14,9 +14,9 @@ export async function updateSkill(skillId: string, input: SaveSkillDto): Promise
 
     const { data: existingSkill, error: existingError } = await adminSupabase
         .from("skills")
-        .select("id")
+        .select("id, status")
         .eq("id", skillId)
-        .maybeSingle<{ id: string }>();
+        .maybeSingle<{ id: string; status: SaveSkillDto["status"] }>();
 
     if (existingError) {
         throw existingError;
@@ -26,18 +26,19 @@ export async function updateSkill(skillId: string, input: SaveSkillDto): Promise
         throw new NotFoundError("Compétence introuvable.");
     }
 
-    const { error } = await adminSupabase
-        .from("skills")
-        .update(createSkillUpdate(input))
-        .eq("id", skillId)
-        .select(SKILL_SELECT)
-        .single<SkillRow>();
+    assertContentStatusTransition(existingSkill.status, input.status);
 
-    if (error) {
-        throw error;
-    }
+    const items = createSkillDimensionItemRows(skillId, input).map((item) => ({
+        ...item,
+        id: item.id ?? randomUUID(),
+    }));
+    const { error } = await adminSupabase.rpc("admin_update_skill_aggregate", {
+        p_items: items,
+        p_skill: createSkillUpdate(input),
+        p_skill_id: skillId,
+    });
 
-    await replaceSkillDimensionItems(adminSupabase, skillId, input);
+    if (error) throw mapDatabaseError(error);
 
     return fetchSkillDetail(adminSupabase, skillId);
 }

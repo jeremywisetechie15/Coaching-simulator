@@ -37,6 +37,7 @@ const scorecardDetail: ScorecardDetail = {
             methodStepId: "44444444-4444-4444-8444-444444444444",
             name: "Démarrer",
             order: 1,
+            weightPercent: 100,
         },
     ],
     visibility: "private",
@@ -61,6 +62,7 @@ describe("scorecard form state", () => {
             methodStepId: "44444444-4444-4444-8444-444444444444",
             name: "Démarrer",
             order: 1,
+            weightPercent: "100",
         });
         expect(form.steps[0].criteria[0]).toMatchObject({
             competenceId: "acces-decideur",
@@ -89,6 +91,7 @@ describe("scorecard form state", () => {
                         },
                     ],
                     methodStepId: "44444444-4444-4444-8444-444444444444",
+                    weightPercent: 100,
                 },
             ],
             visibility: "private",

@@ -10,6 +10,7 @@ const steps: RoleplayNotationStepRef[] = [
         ref: "S1",
         scorecardStepId: "scorecard-step-1",
         title: "Engager la conversation",
+        weightPercent: 40,
     },
     {
         code: "EXPLORE",
@@ -18,6 +19,7 @@ const steps: RoleplayNotationStepRef[] = [
         ref: "S2",
         scorecardStepId: "scorecard-step-2",
         title: "Explorer le besoin",
+        weightPercent: 60,
     },
 ];
 

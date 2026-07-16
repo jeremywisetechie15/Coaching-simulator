@@ -16,6 +16,7 @@ import {
     type RoleplayUploadFilesByClientId,
     type UploadedRoleplayStorageObject,
 } from "./roleplay-upload-files";
+import { assertRoleplayLifecycle } from "./assert-roleplay-lifecycle";
 
 export async function resolveNotationMethodId(methodId: string | null) {
     if (!methodId) return null;
@@ -64,6 +65,7 @@ export async function createRoleplay(
     const uploadedObjects: UploadedRoleplayStorageObject[] = [];
     let createdRoleplayId: string | null = null;
 
+    await assertRoleplayLifecycle(adminSupabase, input);
     await assertScorecardMatchesMethod(input);
     await assertRoleplayQuizzesMatchMethod(input);
 

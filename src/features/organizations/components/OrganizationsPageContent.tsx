@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Box } from "@/lib/ui/atoms";
+import { notifyFormSubmitError, notifyFormSubmitSuccess } from "@/lib/ui/feedback/form-submit-feedback";
 import {
     type CreateOrganizationFieldErrors,
     initialCreateOrganizationFormValues,
@@ -154,10 +155,11 @@ export function OrganizationsPageContent({ initialOrganizations }: Organizations
             if (isApiRequestError(error) && error.payload?.code === "VALIDATION_ERROR") {
                 setCreateFieldErrors(mapValidationIssuesToFieldErrors(error.payload.issues));
                 setCreateFormError(null);
+                notifyFormSubmitError(error, "Vérifiez les champs du formulaire.");
                 return;
             }
 
-            setCreateFormError(error instanceof Error ? error.message : "Impossible de créer l'organisation.");
+            setCreateFormError(notifyFormSubmitError(error, "Impossible de créer l'organisation."));
         },
         onSuccess: (organization) => {
             queryClient.setQueryData<OrganizationListItem[]>(organizationsQueryKey, (currentOrganizations = []) => [
@@ -165,6 +167,7 @@ export function OrganizationsPageContent({ initialOrganizations }: Organizations
                 ...currentOrganizations.filter((currentOrganization) => currentOrganization.id !== organization.id),
             ]);
             void queryClient.invalidateQueries({ queryKey: organizationsQueryKey });
+            notifyFormSubmitSuccess();
             closeCreateModal();
         },
     });

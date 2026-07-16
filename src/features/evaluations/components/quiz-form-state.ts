@@ -1,7 +1,8 @@
 import { CONTENT_DOMAINS, type ContentStatus } from "@/features/content/domain";
 import {
+    DEFAULT_QUIZ_MAX_ATTEMPTS,
     QUIZ_KIND,
-    QUIZ_DIMENSIONS,
+    QUIZ_EVALUATED_DIMENSION,
     type QuizAttachmentType,
     type QuizDetail,
     type QuizDimension,
@@ -14,7 +15,6 @@ import {
     type QuizVisibilityScope,
 } from "@/features/evaluations/domain";
 import type { SaveQuizInput } from "@/features/evaluations/dto";
-import type { SkillOption } from "@/features/skills/domain/skills";
 import {
     CONTENT_RESOURCE_DELIVERY_OPTIONS,
     type ContentResourceDeliveryType,
@@ -23,6 +23,8 @@ import {
 } from "@/lib/uploads/content-upload";
 
 export const domainOptions = [...CONTENT_DOMAINS];
+
+export const DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE = String(DEFAULT_QUIZ_MAX_ATTEMPTS);
 
 export const attachmentTypeLabels: Record<QuizAttachmentType, string> = {
     audio: "Audio",
@@ -87,7 +89,7 @@ export interface QuizFormState {
     domain: string | null;
     durationMinutes: string;
     groupId: string;
-    maxAttempts: string;
+    maxAttempts: string | null;
     methodId: string | null;
     organizationId: string | null;
     participation: QuizParticipation;
@@ -132,7 +134,7 @@ export function emptyQuestion(): QuizQuestionFormState {
         attachments: [],
         choices: [emptyChoice(), emptyChoice(), emptyChoice(), emptyChoice()],
         competenceId: null,
-        dimension: "savoir",
+        dimension: QUIZ_EVALUATED_DIMENSION,
         dimensionItem: null,
         dimensionItemId: null,
         explanation: "",
@@ -185,16 +187,6 @@ export function createQuizStepsFromMethod(method: QuizMethodOption): QuizStepFor
         methodStepId: methodStep.id,
         name: methodStep.title,
     }));
-}
-
-export function getDefaultQuestionDimensionForSkill(
-    skill: Pick<SkillOption, "dimensionItems"> | null | undefined,
-): QuizDimension {
-    return (
-        QUIZ_DIMENSIONS.find((dimension) =>
-            skill?.dimensionItems.some((item) => item.isActive && item.dimension === dimension),
-        ) ?? "savoir"
-    );
 }
 
 export function textOrNull(value: string | null | undefined) {
@@ -257,7 +249,7 @@ export function quizToFormState(
             domain: null,
             durationMinutes: "30",
             groupId: "",
-            maxAttempts: "3",
+            maxAttempts: DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE,
             methodId: null,
             organizationId: null,
             participation: "optional",
@@ -294,7 +286,7 @@ export function quizToFormState(
         domain: textOrNull(quiz.domain),
         durationMinutes: String(quiz.durationMinutes),
         groupId,
-        maxAttempts: String(quiz.maxAttempts),
+        maxAttempts: quiz.maxAttempts === null ? null : String(quiz.maxAttempts),
         methodId: quiz.methodId,
         organizationId,
         participation: quiz.participation,
@@ -357,7 +349,10 @@ export function toSaveQuizInput(form: QuizFormState, status: ContentStatus): Sav
         domain: form.domain ?? "",
         durationMinutes: integerFromText(form.durationMinutes, 30),
         groupId: form.scope === "group" ? textOrNull(form.groupId) : null,
-        maxAttempts: integerFromText(form.maxAttempts, 3),
+        maxAttempts:
+            form.maxAttempts === null
+                ? null
+                : integerFromText(form.maxAttempts, DEFAULT_QUIZ_MAX_ATTEMPTS),
         methodId: form.methodId,
         organizationId:
             form.scope === "organization" || form.scope === "group" ? form.organizationId : null,

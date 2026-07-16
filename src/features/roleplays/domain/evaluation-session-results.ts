@@ -146,6 +146,7 @@ export function applyEvaluationSessionResults(
                     return first.criterionRef.localeCompare(second.criterionRef);
                 });
             const summaries = summarizeCriteria(stepCriteria);
+            const normalizedCriteria = stepCriteria.map(mapCriterion);
 
             return {
                 ...(baseStep ?? {
@@ -156,9 +157,11 @@ export function applyEvaluationSessionResults(
                     total: formatPoints(step.pointsAwarded, step.pointsMax, score),
                 }),
                 commentaireCoach: step.coachComment || baseStep?.commentaireCoach,
-                criteria: stepCriteria.map(mapCriterion),
-                criteresAAmeliorer: summaries.ameliorer.length > 0 ? summaries.ameliorer : undefined,
-                criteresReussis: summaries.reussis.length > 0 ? summaries.reussis : undefined,
+                criteria: normalizedCriteria.length > 0 ? normalizedCriteria : baseStep?.criteria ?? [],
+                criteresAAmeliorer:
+                    summaries.ameliorer.length > 0 ? summaries.ameliorer : baseStep?.criteresAAmeliorer,
+                criteresReussis:
+                    summaries.reussis.length > 0 ? summaries.reussis : baseStep?.criteresReussis,
                 icon: baseStep?.icon ?? STEP_ICONS[index % STEP_ICONS.length],
                 number: step.stepOrder,
                 score,

@@ -11,6 +11,11 @@ import {
 } from "@/features/auth/domain/password-recovery";
 import { createClient } from "@/lib/supabase/client";
 import { FormRoot } from "@/lib/ui/atoms";
+import {
+    createFormSubmitError,
+    notifyFormSubmitError,
+    notifyFormSubmitSuccess,
+} from "@/lib/ui/feedback/form-submit-feedback";
 import { AlertMessage, PasswordField, StatusMessage, SubmitButton } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { AuthCardFrame } from "./AuthCardFrame";
@@ -40,7 +45,7 @@ export function ResetPasswordCard({ hasRecoverySession }: ResetPasswordCardProps
         const validationError = validateNewPassword(password, confirmation);
 
         if (validationError) {
-            setError(validationError);
+            setError(notifyFormSubmitError(new Error(validationError), validationError));
             return;
         }
 
@@ -50,7 +55,8 @@ export function ResetPasswordCard({ hasRecoverySession }: ResetPasswordCardProps
 
         if (updateError) {
             setIsSubmitting(false);
-            setError("Le lien a expiré ou a déjà été utilisé. Demandez un nouveau lien.");
+            const message = "Le lien a expiré ou a déjà été utilisé. Demandez un nouveau lien.";
+            setError(notifyFormSubmitError(createFormSubmitError(message, updateError.status), message));
             return;
         }
 
@@ -58,12 +64,15 @@ export function ResetPasswordCard({ hasRecoverySession }: ResetPasswordCardProps
 
         if (signOutError) {
             setIsSubmitting(false);
+            const message =
+                "Le mot de passe a été modifié, mais la déconnexion a échoué. Déconnectez-vous manuellement avant de continuer.";
             setError(
-                "Le mot de passe a été modifié, mais la déconnexion a échoué. Déconnectez-vous manuellement avant de continuer.",
+                notifyFormSubmitError(createFormSubmitError(message, signOutError.status), message),
             );
             return;
         }
 
+        notifyFormSubmitSuccess();
         window.location.replace(buildAuthPath(AUTH_PATHS.signIn, redirectTo, "password-reset"));
     };
 

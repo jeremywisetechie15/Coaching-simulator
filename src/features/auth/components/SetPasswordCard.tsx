@@ -7,6 +7,11 @@ import { resolveInternalHref } from "@/features/app-shell/domain";
 import { createClient } from "@/lib/supabase/client";
 import { validateNewPassword } from "@/features/auth/domain/password-recovery";
 import { FormRoot } from "@/lib/ui/atoms";
+import {
+    createFormSubmitError,
+    notifyFormSubmitError,
+    notifyFormSubmitSuccess,
+} from "@/lib/ui/feedback/form-submit-feedback";
 import { AlertMessage, PasswordField, SubmitButton } from "@/lib/ui/molecules";
 import { AuthCardFrame } from "./AuthCardFrame";
 
@@ -55,7 +60,7 @@ export function SetPasswordCard() {
         const authHashError = getAuthHashErrorMessage();
 
         if (authHashError) {
-            setError(authHashError);
+            setError(notifyFormSubmitError(new Error(authHashError), authHashError));
             return;
         }
 
@@ -64,7 +69,7 @@ export function SetPasswordCard() {
         const validationError = validateNewPassword(password, confirmPassword);
 
         if (validationError) {
-            setError(validationError);
+            setError(notifyFormSubmitError(new Error(validationError), validationError));
             return;
         }
 
@@ -75,7 +80,8 @@ export function SetPasswordCard() {
         if (tokenHash) {
             if (otpType !== "invite") {
                 setIsSubmitting(false);
-                setError("Lien d'invitation invalide. Demandez une nouvelle invitation.");
+                const message = "Lien d'invitation invalide. Demandez une nouvelle invitation.";
+                setError(notifyFormSubmitError(new Error(message), message));
                 return;
             }
 
@@ -86,7 +92,10 @@ export function SetPasswordCard() {
 
             if (verifyError) {
                 setIsSubmitting(false);
-                setError(expiredInvitationMessage);
+                setError(notifyFormSubmitError(
+                    createFormSubmitError(expiredInvitationMessage, verifyError.status),
+                    expiredInvitationMessage,
+                ));
                 return;
             }
         }
@@ -98,7 +107,10 @@ export function SetPasswordCard() {
         setIsSubmitting(false);
 
         if (updateError) {
-            setError(expiredInvitationMessage);
+            setError(notifyFormSubmitError(
+                createFormSubmitError(expiredInvitationMessage, updateError.status),
+                expiredInvitationMessage,
+            ));
             return;
         }
 
@@ -111,10 +123,15 @@ export function SetPasswordCard() {
         });
 
         if (!activationResponse.ok) {
-            setError("Mot de passe créé, mais l'activation de l'organisation a échoué. Contactez un administrateur.");
+            const message = "Mot de passe créé, mais l'activation de l'organisation a échoué. Contactez un administrateur.";
+            setError(notifyFormSubmitError(
+                createFormSubmitError(message, activationResponse.status),
+                message,
+            ));
             return;
         }
 
+        notifyFormSubmitSuccess();
         window.location.assign(redirectTo);
     };
 

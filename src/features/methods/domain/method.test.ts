@@ -1,12 +1,32 @@
 import { describe, expect, it } from "vitest";
 import {
     calculateMethodMasteryTrend,
+    DEFAULT_METHOD_STEP_ICON,
     formatMethodMasteryDate,
+    getMethodMasteryLabel,
+    getMethodSelectionLabel,
     getMethodScopeLabel,
+    isMethodStepIcon,
     METHOD_MASTERY_TREND,
     METHOD_SCOPE,
+    METHOD_STEP_ICON_LABELS,
+    METHOD_STEP_ICONS,
     METHOD_STEP_SECTION_LABELS,
+    normalizeMethodStepIcon,
+    toMethodSelectOption,
 } from "./method";
+
+describe("method selection labels", () => {
+    it("uses the canonical method name in every selector", () => {
+        const method = { id: "method-1", name: "Méthode DAGO" };
+
+        expect(getMethodSelectionLabel(method)).toBe("Méthode DAGO");
+        expect(toMethodSelectOption(method)).toEqual({
+            label: "Méthode DAGO",
+            value: "method-1",
+        });
+    });
+});
 
 describe("getMethodScopeLabel", () => {
     it("keeps public methods explicit", () => {
@@ -55,6 +75,14 @@ describe("calculateMethodMasteryTrend", () => {
     });
 });
 
+describe("getMethodMasteryLabel", () => {
+    it("distinguishes a missing quiz from an untested associated quiz", () => {
+        expect(getMethodMasteryLabel(false, null)).toBe("Aucun quiz associé");
+        expect(getMethodMasteryLabel(true, null)).toBe("Non testée");
+        expect(getMethodMasteryLabel(true, { scorePercent: 71.6 })).toBe("72%");
+    });
+});
+
 describe("METHOD_STEP_SECTION_LABELS", () => {
     it("defines the shared architecture of a method step", () => {
         expect(Object.values(METHOD_STEP_SECTION_LABELS)).toEqual([
@@ -64,5 +92,27 @@ describe("METHOD_STEP_SECTION_LABELS", () => {
             "Posture & Communication",
             "Verbatims préconisés",
         ]);
+    });
+});
+
+describe("method-step icon catalogue", () => {
+    it("exposes one stable label for each supported icon", () => {
+        expect(METHOD_STEP_ICONS).toHaveLength(28);
+        expect(new Set(METHOD_STEP_ICONS).size).toBe(METHOD_STEP_ICONS.length);
+        expect(METHOD_STEP_ICONS).toEqual(Object.keys(METHOD_STEP_ICON_LABELS));
+        expect(METHOD_STEP_ICONS).toEqual(
+            expect.arrayContaining(["ear", "handshake", "target", "plan", "briefcase", "trophy", "zap"]),
+        );
+
+        for (const icon of METHOD_STEP_ICONS) {
+            expect(METHOD_STEP_ICON_LABELS[icon].trim()).not.toBe("");
+            expect(isMethodStepIcon(icon)).toBe(true);
+        }
+    });
+
+    it("keeps a single safe fallback for missing or legacy values", () => {
+        expect(normalizeMethodStepIcon("trophy")).toBe("trophy");
+        expect(normalizeMethodStepIcon("unknown-icon")).toBe(DEFAULT_METHOD_STEP_ICON);
+        expect(normalizeMethodStepIcon(null)).toBe(DEFAULT_METHOD_STEP_ICON);
     });
 });

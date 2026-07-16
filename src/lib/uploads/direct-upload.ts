@@ -7,7 +7,6 @@ import {
 
 export const DIRECT_UPLOAD_API_PATH = "/api/uploads/intents";
 export const DIRECT_UPLOAD_STAGING_ROOT = "_staging";
-export const DIRECT_UPLOAD_TUS_CHUNK_SIZE_BYTES = 6 * 1024 * 1024;
 
 export const directUploadIntentInputDto = z
     .object({
@@ -36,8 +35,7 @@ export type DirectUploadIntentInput = z.infer<typeof directUploadIntentInputDto>
 export type DirectUploadReference = z.infer<typeof directUploadReferenceDto>;
 
 export interface DirectUploadIntent extends DirectUploadReference {
-    endpoint: string;
-    token: string;
+    signedUrl: string;
 }
 
 export interface PendingDirectUpload {
@@ -66,19 +64,6 @@ export function isOwnedDirectUploadReference(
         reference.bucket === getDirectUploadBucket(expectedPurpose) &&
         reference.path.startsWith(getDirectUploadStagingPrefix(userId, expectedPurpose))
     );
-}
-
-export function buildDirectStorageEndpoint(supabaseUrl: string) {
-    const url = new URL(supabaseUrl);
-    const projectRef = url.hostname.split(".")[0];
-
-    if (!projectRef) {
-        throw new Error("URL Supabase invalide pour l'upload direct.");
-    }
-
-    return url.hostname.endsWith(".supabase.co")
-        ? `${url.protocol}//${projectRef}.storage.supabase.co/storage/v1/upload/resumable`
-        : `${url.origin}/storage/v1/upload/resumable`;
 }
 
 export function applyDirectUploadReferences<T>(

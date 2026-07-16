@@ -4,6 +4,7 @@ import {
     type CoachListItem,
 } from "@/features/coaches/domain/coach-list";
 import type { SaveCoachDto } from "@/features/coaches/dto/save-coach.dto";
+import { assertContentStatusTransition } from "@/features/content/server";
 import { AppError, NotFoundError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -34,12 +35,17 @@ export async function updateCoach(
     const adminSupabase = createAdminClient();
     const { data: existingCoach, error: existingCoachError } = await adminSupabase
         .from("coaches")
-        .select("avatar_url, background_image_path")
+        .select("avatar_url, background_image_path, status")
         .eq("id", coachId)
-        .maybeSingle<{ avatar_url: string | null; background_image_path: string | null }>();
+        .maybeSingle<{
+            avatar_url: string | null;
+            background_image_path: string | null;
+            status: SaveCoachDto["status"];
+        }>();
 
     if (existingCoachError) throw existingCoachError;
     if (!existingCoach) throw new NotFoundError("Coach introuvable.");
+    assertContentStatusTransition(existingCoach.status, input.status);
     if (!backgroundFile && input.backgroundImagePath && input.backgroundImagePath !== existingCoach.background_image_path) {
         throw new AppError(
             "Le fond de session sélectionné n'appartient pas à ce coach.",
@@ -88,6 +94,7 @@ export async function updateCoach(
             disc_profile: input.discProfile || null,
             expertise_domain: input.expertiseDomain || null,
             name: input.name,
+            status: input.status,
             system_instructions: input.systemInstructions,
             updated_at: new Date().toISOString(),
             voice_id: input.voiceId,

@@ -8,6 +8,11 @@ import { createClient } from "@/lib/supabase/client";
 import { resolveInternalHref } from "@/features/app-shell/domain";
 import { AUTH_PATHS, buildAuthPath } from "@/features/auth/domain/password-recovery";
 import { FormRoot } from "@/lib/ui/atoms";
+import {
+    createFormSubmitError,
+    notifyFormSubmitError,
+    notifyFormSubmitSuccess,
+} from "@/lib/ui/feedback/form-submit-feedback";
 import { AlertMessage, PasswordField, StatusMessage, SubmitButton, TextField } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { AuthCardFrame } from "./AuthCardFrame";
@@ -42,10 +47,12 @@ export function SignInCard() {
         setIsSubmitting(false);
 
         if (signInError) {
-            setError("Email ou mot de passe incorrect.");
+            const message = "Email ou mot de passe incorrect.";
+            setError(notifyFormSubmitError(createFormSubmitError(message, signInError.status), message));
             return;
         }
 
+        notifyFormSubmitSuccess();
         window.location.assign(redirectTo);
     };
 

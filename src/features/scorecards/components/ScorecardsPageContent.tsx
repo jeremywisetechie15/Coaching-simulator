@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-    AlertTriangle,
+    Archive,
     ClipboardList,
     Copy,
     Edit3,
@@ -13,18 +13,17 @@ import {
     Plus,
     Search,
     Target,
-    Trash2,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ContextualLink, useCurrentAppHref } from "@/features/app-shell/components";
 import { withReturnTo, withSearchParams } from "@/features/app-shell/domain";
+import { ArchiveContentConfirmationModal } from "@/features/content/components";
 import { CONTENT_DOMAINS } from "@/features/content/domain";
 import { getQuizStatusLabel } from "@/features/evaluations/domain";
 import { SCORECARD_ROUTES, SCORECARD_VISIBILITY_LABELS, type ScorecardListItem } from "@/features/scorecards/domain";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { CardActionMenu, CardActionMenuButton, CardActionMenuLink } from "@/lib/ui/molecules";
 import { ENTITY_ACTION_LABELS } from "@/lib/ui/domain/entity-action";
-import { Modal } from "@/lib/ui/organisms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
@@ -46,12 +45,12 @@ async function duplicateScorecardRequest(scorecardId: string) {
     }
 }
 
-async function deleteScorecardRequest(scorecardId: string) {
+async function archiveScorecardRequest(scorecardId: string) {
     const response = await fetch(SCORECARD_ROUTES.api.detail(scorecardId), { method: "DELETE" });
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
 
     if (!response.ok) {
-        throw new Error(payload?.error || "Impossible de supprimer la scorecard.");
+        throw new Error(payload?.error || "Impossible d'archiver la scorecard.");
     }
 }
 
@@ -67,7 +66,7 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
     const [busyScorecardId, setBusyScorecardId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-    const [scorecardToDelete, setScorecardToDelete] = useState<ScorecardListItem | null>(null);
+    const [scorecardToArchive, setScorecardToArchive] = useState<ScorecardListItem | null>(null);
 
     const filtered = useMemo(() => {
         const term = query.trim().toLowerCase();
@@ -100,18 +99,18 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
         }
     }
 
-    async function handleDelete() {
-        if (!scorecardToDelete) return;
+    async function handleArchive() {
+        if (!scorecardToArchive) return;
 
         setError(null);
-        setBusyScorecardId(scorecardToDelete.id);
+        setBusyScorecardId(scorecardToArchive.id);
 
         try {
-            await deleteScorecardRequest(scorecardToDelete.id);
-            setScorecardToDelete(null);
+            await archiveScorecardRequest(scorecardToArchive.id);
+            setScorecardToArchive(null);
             router.refresh();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Impossible de supprimer la scorecard.");
+            setError(err instanceof Error ? err.message : "Impossible d'archiver la scorecard.");
         } finally {
             setBusyScorecardId(null);
         }
@@ -179,7 +178,7 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
                     </Box>
                 </CardSurface>
 
-                {error && (
+                {error && !scorecardToArchive && (
                     <CardSurface className="mt-5 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 shadow-none">
                         <Text className={cn("text-[13px] font-semibold", uiTokens.text.danger)}>{error}</Text>
                     </CardSurface>
@@ -199,10 +198,10 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
                                 key={scorecard.id}
                                 busy={busyScorecardId === scorecard.id}
                                 isMenuOpen={openMenuId === scorecard.id}
-                                onDelete={() => {
+                                onArchive={() => {
                                     setError(null);
                                     setOpenMenuId(null);
-                                    setScorecardToDelete(scorecard);
+                                    setScorecardToArchive(scorecard);
                                 }}
                                 onDuplicate={() => void handleDuplicate(scorecard.id)}
                                 onToggleMenu={() => setOpenMenuId(openMenuId === scorecard.id ? null : scorecard.id)}
@@ -213,58 +212,18 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
                     </Box>
                 )}
 
-                {scorecardToDelete && (
-                    <Modal
-                        title="Supprimer la scorecard"
-                        description={`Confirmez la suppression de ${scorecardToDelete.name}.`}
-                        onClose={() => {
-                            if (busyScorecardId) return;
-                            setScorecardToDelete(null);
+                {scorecardToArchive && (
+                    <ArchiveContentConfirmationModal
+                        busy={busyScorecardId === scorecardToArchive.id}
+                        entityLabel="la scorecard"
+                        error={error}
+                        name={scorecardToArchive.name}
+                        onCancel={() => {
+                            setScorecardToArchive(null);
                             setError(null);
                         }}
-                        className="max-w-[500px]"
-                    >
-                        <Box className="space-y-5">
-                            <Box className={cn("flex gap-3 rounded-xl border p-4", uiTokens.tone.warning.soft)}>
-                                <InlineIcon icon={AlertTriangle} className="mt-0.5 h-5 w-5 shrink-0" />
-                                <Text className="text-[13px] font-semibold leading-6">
-                                    {"Cette action retire la scorecard des listes actives. Elle est bloquée si la scorecard est déjà associée à un roleplay."}
-                                </Text>
-                            </Box>
-
-                            {error && (
-                                <Box
-                                    aria-live="polite"
-                                    className={cn(
-                                        "rounded-lg border px-4 py-3 text-[13px] font-semibold",
-                                        uiTokens.tone.danger.soft,
-                                    )}
-                                >
-                                    {error}
-                                </Box>
-                            )}
-
-                            <Box className="grid gap-3 sm:grid-cols-2">
-                                <Button
-                                    disabled={Boolean(busyScorecardId)}
-                                    onClick={() => {
-                                        setScorecardToDelete(null);
-                                        setError(null);
-                                    }}
-                                    className={uiTokens.action.secondaryButton}
-                                >
-                                    Annuler
-                                </Button>
-                                <Button
-                                    disabled={Boolean(busyScorecardId)}
-                                    onClick={() => void handleDelete()}
-                                    className={uiTokens.action.dangerButton}
-                                >
-                                    {busyScorecardId === scorecardToDelete.id ? "Suppression..." : "Supprimer"}
-                                </Button>
-                            </Box>
-                        </Box>
-                    </Modal>
+                        onConfirm={() => void handleArchive()}
+                    />
                 )}
             </Box>
         </Box>
@@ -274,7 +233,7 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
 interface ScorecardCardProps {
     busy: boolean;
     isMenuOpen: boolean;
-    onDelete: () => void;
+    onArchive: () => void;
     onDuplicate: () => void;
     onToggleMenu: () => void;
     scorecard: ScorecardListItem;
@@ -284,7 +243,7 @@ interface ScorecardCardProps {
 function ScorecardCard({
     busy,
     isMenuOpen,
-    onDelete,
+    onArchive,
     onDuplicate,
     onToggleMenu,
     scorecard,
@@ -319,9 +278,9 @@ function ScorecardCard({
                             <CardActionMenuButton
                                 danger
                                 disabled={busy}
-                                icon={Trash2}
-                                label={ENTITY_ACTION_LABELS.delete}
-                                onClick={onDelete}
+                                icon={Archive}
+                                label={ENTITY_ACTION_LABELS.archive}
+                                onClick={onArchive}
                             />
                         </CardActionMenu>
                     )}

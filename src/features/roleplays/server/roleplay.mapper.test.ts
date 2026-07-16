@@ -23,6 +23,19 @@ function mapAvatarToRoleplayCard(avatarUrl: string) {
     return mapDbRoleplayToUi(mapRoleplayRowToListItem(row), null).avatarSrc;
 }
 
+function mapCoachToRoleplay(avatarUrl: string) {
+    const row: RoleplayRow = {
+        coach_avatar_url: avatarUrl,
+        coach_id: "coach-1",
+        coach_name: "Jannik BOA",
+        id: "roleplay-1",
+        persona_id: "persona-1",
+        title: "Prospection commerciale",
+    };
+
+    return mapDbRoleplayToUi(mapRoleplayRowToListItem(row), null);
+}
+
 describe("roleplay session date formatting", () => {
     it("formats the date and time in the application timezone", () => {
         const timestamp = "2026-07-12T22:30:00.000Z";
@@ -57,5 +70,15 @@ describe("roleplay card persona avatar", () => {
 
         expect(proposedAvatarUrl).toBeDefined();
         expect(mapAvatarToRoleplayCard(proposedAvatarUrl ?? "")).toBe(proposedAvatarUrl);
+    });
+});
+
+describe("roleplay coach presentation", () => {
+    it("keeps the associated coach identity and external avatar", () => {
+        const roleplay = mapCoachToRoleplay("https://cdn.example.com/coach.webp");
+
+        expect(roleplay.coachId).toBe("coach-1");
+        expect(roleplay.coachName).toBe("Jannik BOA");
+        expect(roleplay.coachAvatarSrc).toBe("https://cdn.example.com/coach.webp");
     });
 });

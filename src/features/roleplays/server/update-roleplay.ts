@@ -1,8 +1,9 @@
+import { randomUUID } from "node:crypto";
 import { requireAdmin } from "@/features/auth/server";
 import type { RoleplayDetail } from "@/features/roleplays/domain";
 import type { SaveRoleplayDto } from "@/features/roleplays/dto";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { AppError, NotFoundError } from "@/lib/server/errors";
+import { AppError, mapDatabaseError, NotFoundError } from "@/lib/server/errors";
 import {
     removeSessionBackground,
     SESSION_BACKGROUND_OWNER,
@@ -11,13 +12,23 @@ import {
 import { assertScorecardMatchesMethod, resolveNotationMethodId } from "./create-roleplay";
 import { fetchRoleplayDetail } from "./roleplay-query";
 import { assertRoleplayQuizzesMatchMethod } from "./roleplay-quiz-assignment.validation";
-import { createRoleplayUpdate } from "./roleplay.persistence";
-import { saveRoleplayChildren } from "./save-roleplay-children";
+import {
+    createRoleplayUpdate,
+    createScenarioQuizRows,
+    createScenarioResourceRows,
+    SCENARIO_RESOURCE_SELECT,
+} from "./roleplay.persistence";
+import {
+    cleanupStaleScenarioResourceFiles,
+    type ScenarioResourceRow,
+} from "./save-roleplay-children";
 import {
     cleanupUploadedRoleplayStorageObjects,
+    materializeScenarioResourceUploads,
     type RoleplayUploadFilesByClientId,
     type UploadedRoleplayStorageObject,
 } from "./roleplay-upload-files";
+import { assertRoleplayLifecycle } from "./assert-roleplay-lifecycle";
 
 export async function updateRoleplay(
     roleplayId: string,
@@ -34,12 +45,13 @@ export async function updateRoleplay(
     const uploadedObjects: UploadedRoleplayStorageObject[] = [];
     const { data: existingRoleplay, error: existingRoleplayError } = await adminSupabase
         .from("scenarios")
-        .select("background_image_path")
+        .select("background_image_path, status")
         .eq("id", roleplayId)
-        .maybeSingle<{ background_image_path: string | null }>();
+        .maybeSingle<{ background_image_path: string | null; status: SaveRoleplayDto["status"] }>();
 
     if (existingRoleplayError) throw existingRoleplayError;
     if (!existingRoleplay) throw new NotFoundError("Roleplay introuvable.");
+    await assertRoleplayLifecycle(adminSupabase, input, existingRoleplay.status);
     if (
         !backgroundFile &&
         input.backgroundImagePath &&
@@ -59,15 +71,11 @@ export async function updateRoleplay(
     const nextBackgroundPath = uploadedBackground?.path ?? (input.backgroundImagePath || null);
     const resolvedInput = { ...input, backgroundImagePath: nextBackgroundPath ?? "" };
 
+    let currentResources: ScenarioResourceRow[] = [];
+    let savedResources: ScenarioResourceRow[] = [];
+
     try {
-        const { error } = await adminSupabase
-            .from("scenarios")
-            .update(createRoleplayUpdate(resolvedInput, notationMethodId))
-            .eq("id", roleplayId);
-
-        if (error) throw error;
-
-        await saveRoleplayChildren(
+        const materializedInput = await materializeScenarioResourceUploads(
             adminSupabase,
             roleplayId,
             resolvedInput,
@@ -75,29 +83,49 @@ export async function updateRoleplay(
             uploadedObjects,
             context.userId,
         );
+        const { data, error: currentResourcesError } = await adminSupabase
+            .from("scenario_resources")
+            .select(SCENARIO_RESOURCE_SELECT)
+            .eq("scenario_id", roleplayId)
+            .returns<ScenarioResourceRow[]>();
 
-        const roleplay = await fetchRoleplayDetail(adminSupabase, roleplayId);
+        if (currentResourcesError) throw currentResourcesError;
+        currentResources = data ?? [];
 
-        if (
-            existingRoleplay.background_image_path &&
-            existingRoleplay.background_image_path !== nextBackgroundPath
-        ) {
-            await removeSessionBackground(adminSupabase, existingRoleplay.background_image_path).catch((cleanupError) => {
-                console.error("Unable to remove previous roleplay background:", cleanupError);
-            });
-        }
+        const resources = createScenarioResourceRows(roleplayId, materializedInput).map((resource) => ({
+            ...resource,
+            id: resource.id ?? randomUUID(),
+        }));
+        const { error } = await adminSupabase.rpc("admin_update_roleplay_aggregate", {
+            p_quizzes: createScenarioQuizRows(roleplayId, materializedInput),
+            p_resources: resources,
+            p_roleplay: createRoleplayUpdate(materializedInput, notationMethodId),
+            p_roleplay_id: roleplayId,
+        });
+        savedResources = resources as ScenarioResourceRow[];
 
-        return roleplay;
+        if (error) throw mapDatabaseError(error);
+
     } catch (error) {
-        await adminSupabase
-            .from("scenarios")
-            .update({ background_image_path: existingRoleplay.background_image_path })
-            .eq("id", roleplayId);
-
         if (uploadedObjects.length > 0) {
             await cleanupUploadedRoleplayStorageObjects(adminSupabase, uploadedObjects);
         }
 
         throw error;
     }
+
+    const roleplay = await fetchRoleplayDetail(adminSupabase, roleplayId);
+    await cleanupStaleScenarioResourceFiles(adminSupabase, currentResources, savedResources).catch((cleanupError) => {
+        console.error("Unable to remove previous roleplay resource files:", cleanupError);
+    });
+    if (
+        existingRoleplay.background_image_path &&
+        existingRoleplay.background_image_path !== nextBackgroundPath
+    ) {
+        await removeSessionBackground(adminSupabase, existingRoleplay.background_image_path).catch((cleanupError) => {
+            console.error("Unable to remove previous roleplay background:", cleanupError);
+        });
+    }
+
+    return roleplay;
 }

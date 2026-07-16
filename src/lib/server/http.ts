@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
-import { AppError } from "./errors";
+import { AppError, mapDatabaseError } from "./errors";
 
 export function jsonError(error: unknown) {
+    error = mapDatabaseError(error);
     if (error instanceof ZodError) {
         return NextResponse.json(
             {

@@ -1,5 +1,5 @@
 import { requireAdmin } from "@/features/auth/server";
-import { PUBLISHED_CONTENT_STATUS } from "@/features/content/domain";
+import { assertInitialContentStatus } from "@/features/content/server";
 import {
     isPersonaAvatarStoragePath,
     type PersonaListItem,
@@ -25,6 +25,8 @@ export async function createPersona(
     const now = new Date().toISOString();
     const personaId = crypto.randomUUID();
 
+    assertInitialContentStatus(input.status);
+
     if (!avatarFile && isPersonaAvatarStoragePath(input.avatarUrl)) {
         throw new AppError(
             "Un avatar existant ne peut pas être attribué à un nouveau persona.",
@@ -47,7 +49,7 @@ export async function createPersona(
                 createdBy: context.userId,
                 id: personaId,
                 now,
-                status: PUBLISHED_CONTENT_STATUS,
+                status: input.status,
             }))
             .select(PERSONA_SELECT)
             .single<PersonaRow>();

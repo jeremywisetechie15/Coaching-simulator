@@ -23,10 +23,30 @@ export const CONTENT_RESOURCE_DELIVERY_OPTIONS = [
     { label: "URL", value: CONTENT_RESOURCE_DELIVERY_TYPE.url },
 ] as const;
 
-export const MAX_CONTENT_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
-export const MAX_PERSONA_CV_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
-export const MAX_SESSION_BACKGROUND_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
-export const MAX_VIDEO_UPLOAD_SIZE_BYTES = 250 * 1024 * 1024;
+const MEBIBYTE_BYTES = 1024 * 1024;
+
+/** Application limits aligned with the current Supabase Storage plan. */
+export const CONTENT_UPLOAD_SIZE_LIMITS_BYTES = {
+    file: 25 * MEBIBYTE_BYTES,
+    image: 10 * MEBIBYTE_BYTES,
+    personaCv: 5 * MEBIBYTE_BYTES,
+    video: 50 * MEBIBYTE_BYTES,
+} as const;
+
+export const CONTENT_UPLOAD_ERROR_MESSAGES = {
+    forbidden: "L'upload n'est pas autorisé ou son lien sécurisé a expiré. Réessayez.",
+    invalidType: "Le format du fichier n'est pas accepté.",
+    network: "La connexion au service de fichiers a été interrompue. Vérifiez votre connexion et réessayez.",
+    storageFull: "L'espace de stockage disponible est insuffisant. Contactez un administrateur.",
+    storageNotConfigured: "Le stockage de fichiers n'est pas configuré. Contactez un administrateur.",
+    unavailable: "Le service de fichiers est temporairement indisponible. Réessayez dans quelques instants.",
+    unknown: "L'upload du fichier a échoué. Vérifiez le fichier et réessayez.",
+} as const;
+
+export const MAX_CONTENT_UPLOAD_SIZE_BYTES = CONTENT_UPLOAD_SIZE_LIMITS_BYTES.file;
+export const MAX_PERSONA_CV_UPLOAD_SIZE_BYTES = CONTENT_UPLOAD_SIZE_LIMITS_BYTES.personaCv;
+export const MAX_SESSION_BACKGROUND_UPLOAD_SIZE_BYTES = CONTENT_UPLOAD_SIZE_LIMITS_BYTES.image;
+export const MAX_VIDEO_UPLOAD_SIZE_BYTES = CONTENT_UPLOAD_SIZE_LIMITS_BYTES.video;
 
 export const CONTENT_UPLOAD_RESOURCE_TYPES = ["document", "video", "audio", "image"] as const;
 
@@ -135,6 +155,10 @@ export interface ContentUploadFileLike {
     type: string;
 }
 
+function formatUploadLimit(sizeBytes: number) {
+    return `${sizeBytes / MEBIBYTE_BYTES} Mo`;
+}
+
 export function getContentUploadAccept(purpose: ContentUploadPurpose = CONTENT_UPLOAD_PURPOSES.contentAsset) {
     if (purpose === CONTENT_UPLOAD_PURPOSES.personaCv) return PERSONA_CV_UPLOAD_ACCEPT;
     if (purpose === CONTENT_UPLOAD_PURPOSES.methodDocument) return DOCUMENT_UPLOAD_ACCEPT;
@@ -154,18 +178,18 @@ export function getContentUploadLimitLabel(
         AVATAR_UPLOAD_PURPOSES.includes(purpose) ||
         purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground
     ) {
-        return "Images JPG, PNG ou WebP : 10 Mo maximum.";
+        return `Images JPG, PNG ou WebP : ${formatUploadLimit(MAX_SESSION_BACKGROUND_UPLOAD_SIZE_BYTES)} maximum.`;
     }
 
     if (purpose === CONTENT_UPLOAD_PURPOSES.methodDocument) {
-        return "Documents : 25 Mo maximum.";
+        return `Documents : ${formatUploadLimit(MAX_CONTENT_UPLOAD_SIZE_BYTES)} maximum.`;
     }
 
     if (purpose === CONTENT_UPLOAD_PURPOSES.personaCv) {
-        return "CV au format PDF : 5 Mo maximum.";
+        return `CV au format PDF : ${formatUploadLimit(MAX_PERSONA_CV_UPLOAD_SIZE_BYTES)} maximum.`;
     }
 
-    return "Vidéos : 250 Mo maximum. Autres fichiers : 25 Mo maximum.";
+    return `Vidéos : ${formatUploadLimit(MAX_VIDEO_UPLOAD_SIZE_BYTES)} maximum. Autres fichiers : ${formatUploadLimit(MAX_CONTENT_UPLOAD_SIZE_BYTES)} maximum.`;
 }
 
 export function getContentUploadMimeConfig(mimeType: string) {
@@ -174,6 +198,66 @@ export function getContentUploadMimeConfig(mimeType: string) {
 
 export function inferContentUploadResourceType(mimeType: string): ContentUploadResourceType {
     return getContentUploadMimeConfig(mimeType)?.resourceType ?? "document";
+}
+
+export function getContentUploadMaxSizeBytes(
+    file: Pick<ContentUploadFileLike, "type">,
+    purpose: ContentUploadPurpose = CONTENT_UPLOAD_PURPOSES.contentAsset,
+) {
+    const resourceType = getContentUploadMimeConfig(file.type)?.resourceType;
+    const isLimitedImage =
+        AVATAR_UPLOAD_PURPOSES.includes(purpose) ||
+        purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground;
+
+    if (purpose === CONTENT_UPLOAD_PURPOSES.personaCv) {
+        return MAX_PERSONA_CV_UPLOAD_SIZE_BYTES;
+    }
+
+    if (isLimitedImage) {
+        return MAX_SESSION_BACKGROUND_UPLOAD_SIZE_BYTES;
+    }
+
+    if (
+        DIRECT_CONTENT_UPLOAD_PURPOSES.includes(purpose as DirectContentUploadPurpose) &&
+        resourceType === "video"
+    ) {
+        return MAX_VIDEO_UPLOAD_SIZE_BYTES;
+    }
+
+    return MAX_CONTENT_UPLOAD_SIZE_BYTES;
+}
+
+export function getContentUploadSizeErrorMessage(
+    file: Pick<ContentUploadFileLike, "type">,
+    purpose: ContentUploadPurpose = CONTENT_UPLOAD_PURPOSES.contentAsset,
+) {
+    const maxSizeBytes = getContentUploadMaxSizeBytes(file, purpose);
+    const resourceType = getContentUploadMimeConfig(file.type)?.resourceType;
+    const isLimitedImage =
+        AVATAR_UPLOAD_PURPOSES.includes(purpose) ||
+        purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground;
+
+    if (purpose === CONTENT_UPLOAD_PURPOSES.personaCv) {
+        return `Le CV ne doit pas dépasser ${formatUploadLimit(maxSizeBytes)}.`;
+    }
+
+    if (isLimitedImage) {
+        if (purpose === CONTENT_UPLOAD_PURPOSES.coachAvatar) {
+            return `L'avatar du coach ne doit pas dépasser ${formatUploadLimit(maxSizeBytes)}.`;
+        }
+
+        if (purpose === CONTENT_UPLOAD_PURPOSES.personaAvatar) {
+            return `L'avatar du persona ne doit pas dépasser ${formatUploadLimit(maxSizeBytes)}.`;
+        }
+
+        return `L'image de fond ne doit pas dépasser ${formatUploadLimit(maxSizeBytes)}.`;
+    }
+
+    if (resourceType === "video") {
+        return `La vidéo dépasse ${formatUploadLimit(maxSizeBytes)}, la limite actuelle. Compressez-la ou utilisez une URL YouTube/Vimeo.`;
+    }
+
+    return `Le fichier ne doit pas dépasser ${formatUploadLimit(maxSizeBytes)}.`;
 }
 
 export function validateContentUploadFile(
@@ -218,30 +302,10 @@ export function validateContentUploadFile(
         return "Le fichier est vide.";
     }
 
-    const isLimitedImage =
-        AVATAR_UPLOAD_PURPOSES.includes(purpose) ||
-        purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground;
-    const maxSizeBytes = purpose === CONTENT_UPLOAD_PURPOSES.personaCv
-        ? MAX_PERSONA_CV_UPLOAD_SIZE_BYTES
-        : isLimitedImage
-          ? MAX_SESSION_BACKGROUND_UPLOAD_SIZE_BYTES
-          : DIRECT_CONTENT_UPLOAD_PURPOSES.includes(purpose as DirectContentUploadPurpose) &&
-              mimeConfig.resourceType === "video"
-            ? MAX_VIDEO_UPLOAD_SIZE_BYTES
-            : MAX_CONTENT_UPLOAD_SIZE_BYTES;
+    const maxSizeBytes = getContentUploadMaxSizeBytes(file, purpose);
 
     if (file.size > maxSizeBytes) {
-        return purpose === CONTENT_UPLOAD_PURPOSES.personaCv
-            ? "Le CV ne doit pas dépasser 5 Mo."
-            : isLimitedImage
-            ? AVATAR_UPLOAD_PURPOSES.includes(purpose)
-                ? purpose === CONTENT_UPLOAD_PURPOSES.coachAvatar
-                    ? "L'avatar du coach ne doit pas dépasser 10 Mo."
-                    : "L'avatar du persona ne doit pas dépasser 10 Mo."
-                : "L'image de fond ne doit pas dépasser 10 Mo."
-            : mimeConfig.resourceType === "video" && maxSizeBytes === MAX_VIDEO_UPLOAD_SIZE_BYTES
-            ? "La vidéo ne doit pas dépasser 250 Mo."
-            : "Le fichier ne doit pas dépasser 25 Mo.";
+        return getContentUploadSizeErrorMessage(file, purpose);
     }
 
     return null;

@@ -19,6 +19,7 @@ import {
     type RoleplayResource,
     type RoleplayStats,
 } from "@/features/roleplays/domain";
+import { getCoachAvatarPublicUrl } from "@/features/coaches/domain/coach-list";
 import { getPersonaAvatarPublicUrl } from "@/features/personas/domain/persona-list";
 
 export interface RoleplayRow {
@@ -26,6 +27,7 @@ export interface RoleplayRow {
     background_image_path?: string | null;
     assigned_user_name?: string | null;
     category?: string | null;
+    coach_avatar_url?: string | null;
     coach_id?: string | null;
     coach_name?: string | null;
     coaching_steps?: string | null;
@@ -146,6 +148,7 @@ export function mapRoleplayRowToListItem(row: RoleplayRow, quizCount = 0, attemp
         backgroundImagePath: row.background_image_path ?? null,
         attemptCount,
         category: row.category ?? "",
+        coachAvatarUrl: getCoachAvatarPublicUrl(row.coach_avatar_url),
         coachId: row.coach_id ?? null,
         coachName: row.coach_name ?? null,
         company: row.persona_company ?? "",

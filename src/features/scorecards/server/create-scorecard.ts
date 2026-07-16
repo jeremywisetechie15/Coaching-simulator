@@ -6,11 +6,14 @@ import type { ScorecardRow } from "./scorecard.mapper";
 import { fetchScorecardDetail } from "./scorecard-query";
 import { createScorecardInsert, SCORECARD_SELECT } from "./scorecard.persistence";
 import { replaceScorecardChildren } from "./save-scorecard-children";
+import { assertScorecardLifecycle } from "./assert-scorecard-lifecycle";
 
 export async function createScorecard(input: SaveScorecardDto): Promise<ScorecardDetail> {
     const context = await requireAdmin();
     const adminSupabase = createAdminClient();
     let createdScorecardId: string | null = null;
+
+    await assertScorecardLifecycle(adminSupabase, input);
 
     try {
         const { data: scorecardRow, error } = await adminSupabase

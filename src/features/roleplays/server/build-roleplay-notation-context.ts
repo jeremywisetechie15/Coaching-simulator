@@ -99,6 +99,7 @@ export interface RoleplayScorecardNotationContext {
             order: number;
             stepRef: string;
             title: string;
+            weightPercent: number;
         }>;
     };
     session: {
@@ -175,6 +176,7 @@ export async function buildRoleplayScorecardNotationContext(
             ref,
             scorecardStepId: step.id,
             title: step.title || methodStep?.title || `Etape ${step.order}`,
+            weightPercent: step.weightPercent,
         };
     });
     const stepRefsByScorecardStepId = new Map(stepRefs.map((step) => [step.scorecardStepId, step]));
@@ -224,6 +226,7 @@ export async function buildRoleplayScorecardNotationContext(
             order: step.order,
             stepRef: stepRef.ref,
             title: stepRef.title,
+            weightPercent: step.weightPercent,
         };
     });
     const transcription = buildRoleplayNotationTranscript(messages);

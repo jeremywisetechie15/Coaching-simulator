@@ -54,7 +54,7 @@ import {
     type RoleplayPdfTemplate,
 } from "@/features/roleplays/domain";
 import { ROLEPLAY_ANALYSIS_STEPS, ROLEPLAY_PDF_EXPORT_STEPS } from "@/features/roleplays/data/session-analysis";
-import { notify } from "@/lib/ui/feedback/toast";
+import { notify, notifyHttpError } from "@/lib/ui/feedback/toast";
 import { SimulationView } from "./SimulationView";
 import { EvaluationKeyMomentsSection } from "./EvaluationKeyMomentsSection";
 import { RoleplayGuidanceTabsPanel } from "./RoleplayGuidanceTabsPanel";
@@ -201,6 +201,7 @@ export function EvaluationPageContent({
     const refreshNotation = async () => {
         if (notationRefreshing) return;
 
+        let responseStatus: number | null = null;
         setNotationRefreshStep(0);
         setActionMenuOpen(false);
 
@@ -217,6 +218,7 @@ export function EvaluationPageContent({
             }
 
             if (!response.ok) {
+                responseStatus = response.status;
                 throw new Error(getRoleplayNotationApiErrorMessage(
                     payload,
                     ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.regenerationError,
@@ -228,10 +230,11 @@ export function EvaluationPageContent({
             router.refresh();
         } catch (error) {
             setNotationRefreshStep(null);
-            notify.error(
+            notifyHttpError(
                 error instanceof Error
                     ? error.message
                     : ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.regenerationError,
+                responseStatus,
             );
         }
     };

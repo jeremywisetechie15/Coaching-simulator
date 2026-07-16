@@ -32,7 +32,7 @@ describe("CreateMethodPageContent", () => {
             />,
         );
 
-        expect(html).toContain("Quiz associé");
+        expect(html).toContain("Quiz associé (optionnel)");
         expect(html).toContain("Aucun quiz associé");
         expect(html).not.toContain("Un quiz associé est requis pour publier une nouvelle méthode.");
         expect(html).toContain("Ressources complémentaires");
@@ -40,6 +40,9 @@ describe("CreateMethodPageContent", () => {
         expect(html).toContain("Type de document");
         expect(html).toContain("Fichier du document");
         expect(html).toContain("Choisir un fichier");
+        const publishButton = html.match(/<button[^>]*>Publier la méthode<\/button>/)?.[0];
+        expect(publishButton).toBeDefined();
+        expect(publishButton).not.toContain("disabled");
     });
 
     it("renders existing method-level resources as separate documents", () => {

@@ -96,6 +96,7 @@ const context: RoleplayCoachContext = {
             methodStepId: "step-1",
             order: 1,
             title: "Découvrir",
+            weightPercent: 100,
         }],
     },
     selectedStep,

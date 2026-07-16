@@ -1,4 +1,5 @@
 import { requireAuth } from "@/features/auth/server";
+import { CONTENT_STATUS } from "@/features/content/domain";
 import type { SkillListItem, SkillOption } from "@/features/skills/domain/skills";
 import { createClient } from "@/lib/supabase/server";
 import {
@@ -15,6 +16,7 @@ export async function listSkills(): Promise<SkillListItem[]> {
     const { data, error } = await supabase
         .from("skills")
         .select(SKILL_SELECT)
+        .neq("status", CONTENT_STATUS.archived)
         .eq("is_active", true)
         .order("name", { ascending: true });
 

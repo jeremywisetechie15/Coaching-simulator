@@ -50,6 +50,7 @@ const scorecardDetail: ScorecardDetail = {
             methodStepId: "method-step-1",
             name: "Démarrer l'appel",
             order: 1,
+            weightPercent: 100,
         },
     ],
     visibility: "public",

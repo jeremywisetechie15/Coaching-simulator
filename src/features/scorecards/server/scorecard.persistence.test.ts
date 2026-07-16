@@ -46,6 +46,7 @@ describe("scorecard persistence helpers", () => {
                     methodStepId,
                     name: "Accrocher",
                     order: 1,
+                    weightPercent: 100,
                 },
             ],
             visibility: "private",
@@ -66,6 +67,7 @@ describe("scorecard persistence helpers", () => {
                 name: "Accrocher",
                 scorecard_id: "scorecard-1",
                 step_order: 1,
+                weight_percent: 100,
             },
         ]);
 
@@ -125,6 +127,7 @@ describe("scorecard persistence helpers", () => {
                     methodStepId,
                     name: "Accrocher",
                     order: 1,
+                    weightPercent: 100,
                 },
             ],
             visibility: "public",
@@ -182,6 +185,7 @@ describe("scorecard persistence helpers", () => {
                     name: "Accrocher",
                     scorecard_id: "scorecard-source",
                     step_order: 1,
+                    weight_percent: 100,
                 },
             ]),
         ).toEqual([
@@ -190,6 +194,7 @@ describe("scorecard persistence helpers", () => {
                 name: "Accrocher",
                 scorecard_id: "scorecard-copy",
                 step_order: 1,
+                weight_percent: 100,
             },
         ]);
 
@@ -246,6 +251,7 @@ describe("scorecard mapper", () => {
                     name: "Découvrir",
                     scorecard_id: "scorecard-1",
                     step_order: 2,
+                    weight_percent: 40,
                 },
                 {
                     id: "step-1",
@@ -253,6 +259,7 @@ describe("scorecard mapper", () => {
                     name: "Accrocher",
                     scorecard_id: "scorecard-1",
                     step_order: 1,
+                    weight_percent: 60,
                 },
             ],
             [

@@ -1,49 +1,80 @@
-import { CONTENT_STATUS, isPublishedContent, type ContentStatus } from "./content-status";
+import { CONTENT_STATUS, type ContentStatus } from "./content-status";
+import { CONTENT_VISIBILITY_SCOPE, type ContentVisibilityScope } from "./visibility-scope";
 
-export interface ScenarioPublicationDependencies {
-    coachStatus?: ContentStatus | null;
-    methodStatus?: ContentStatus | null;
-    notationMethodStatus?: ContentStatus | null;
-    outputSchemaStatuses?: ContentStatus[];
-    personaStatus: ContentStatus;
-    promptStatuses?: ContentStatus[];
+export interface ContentAudience {
+    groupId?: string | null;
+    organizationId?: string | null;
+    scope: ContentVisibilityScope;
+    userGroupIds?: readonly string[];
+    userId?: string | null;
+    userOrganizationIds?: readonly string[];
 }
 
-export interface DependencyUnpublishInput {
-    publishedScenarioCount: number;
+export const CONTENT_TRANSITION_BLOCK_CODE = {
+    archivedRestoreUnsupported: "archived_restore_unsupported",
+    publishedToDraftUnsupported: "published_to_draft_unsupported",
+} as const;
+
+export type ContentTransitionBlockCode =
+    (typeof CONTENT_TRANSITION_BLOCK_CODE)[keyof typeof CONTENT_TRANSITION_BLOCK_CODE];
+
+export interface ContentTransitionBlock {
+    code: ContentTransitionBlockCode;
 }
 
-export function getScenarioPublicationBlocks(input: ScenarioPublicationDependencies): string[] {
-    const blocks: string[] = [];
+/**
+ * Every viewer of a published parent must also be allowed to read its private
+ * dependency. This access rule is independent from the content lifecycle.
+ */
+export function contentAudienceCoversDependency(
+    parent: ContentAudience,
+    dependency: ContentAudience,
+) {
+    if (dependency.scope === CONTENT_VISIBILITY_SCOPE.public) return true;
 
-    addBlockWhenUnpublished(blocks, "persona", input.personaStatus);
-    addBlockWhenUnpublished(blocks, "coach", input.coachStatus);
-    addBlockWhenUnpublished(blocks, "methode", input.methodStatus);
-    addBlockWhenUnpublished(blocks, "methode de notation", input.notationMethodStatus);
-
-    input.promptStatuses?.forEach((status, index) => {
-        addBlockWhenUnpublished(blocks, `prompt ${index + 1}`, status);
-    });
-
-    input.outputSchemaStatuses?.forEach((status, index) => {
-        addBlockWhenUnpublished(blocks, `schema JSON ${index + 1}`, status);
-    });
-
-    return blocks;
-}
-
-export function canPublishScenario(input: ScenarioPublicationDependencies) {
-    return getScenarioPublicationBlocks(input).length === 0;
-}
-
-export function canUnpublishDependency(input: DependencyUnpublishInput) {
-    return input.publishedScenarioCount === 0;
-}
-
-function addBlockWhenUnpublished(blocks: string[], label: string, status: ContentStatus | null | undefined) {
-    if (status && !isPublishedContent(status)) {
-        blocks.push(`${label}: ${status}`);
+    switch (parent.scope) {
+        case CONTENT_VISIBILITY_SCOPE.public:
+            return false;
+        case CONTENT_VISIBILITY_SCOPE.organization:
+            return dependency.scope === CONTENT_VISIBILITY_SCOPE.organization
+                && dependency.organizationId === parent.organizationId;
+        case CONTENT_VISIBILITY_SCOPE.group:
+            return (
+                dependency.scope === CONTENT_VISIBILITY_SCOPE.organization
+                && dependency.organizationId === parent.organizationId
+            ) || (
+                dependency.scope === CONTENT_VISIBILITY_SCOPE.group
+                && dependency.groupId === parent.groupId
+            );
+        case CONTENT_VISIBILITY_SCOPE.user:
+            return (
+                dependency.scope === CONTENT_VISIBILITY_SCOPE.user
+                && dependency.userId === parent.userId
+            ) || (
+                dependency.scope === CONTENT_VISIBILITY_SCOPE.organization
+                && Boolean(dependency.organizationId)
+                && (parent.userOrganizationIds ?? []).includes(dependency.organizationId ?? "")
+            ) || (
+                dependency.scope === CONTENT_VISIBILITY_SCOPE.group
+                && Boolean(dependency.groupId)
+                && (parent.userGroupIds ?? []).includes(dependency.groupId ?? "")
+            );
     }
+}
+
+export function getContentTransitionBlock(
+    currentStatus: ContentStatus,
+    nextStatus: ContentStatus,
+): ContentTransitionBlock | null {
+    if (currentStatus === CONTENT_STATUS.archived && nextStatus !== CONTENT_STATUS.archived) {
+        return { code: CONTENT_TRANSITION_BLOCK_CODE.archivedRestoreUnsupported };
+    }
+
+    if (currentStatus === CONTENT_STATUS.published && nextStatus === CONTENT_STATUS.draft) {
+        return { code: CONTENT_TRANSITION_BLOCK_CODE.publishedToDraftUnsupported };
+    }
+
+    return null;
 }
 
 export const PUBLISHED_CONTENT_STATUS = CONTENT_STATUS.published;

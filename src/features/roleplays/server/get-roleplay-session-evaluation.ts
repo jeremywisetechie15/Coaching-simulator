@@ -14,6 +14,7 @@ import {
 } from "@/features/roleplays/domain";
 import { NotFoundError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { fetchRoleplayDetail } from "./roleplay-query";
 import { formatRoleplayDate, formatRoleplayDuration, formatRoleplayTime } from "./roleplay.mapper";
 
@@ -203,6 +204,7 @@ async function fetchEvaluationSessionResults(
 
 export async function getRoleplaySessionEvaluation(sessionId: string, userId?: string): Promise<RoleplaySessionEvaluation> {
     const supabase = createAdminClient();
+    const quizAccessClient = await createClient();
 
     let query = supabase
         .from("sessions")
@@ -224,7 +226,10 @@ export async function getRoleplaySessionEvaluation(sessionId: string, userId?: s
     }
 
     const [roleplayDetail, messagesResult, sessionResults, attemptNumber] = await Promise.all([
-        fetchRoleplayDetail(supabase, session.scenario_id, userId),
+        fetchRoleplayDetail(supabase, session.scenario_id, {
+            quizAccessClient,
+            statsUserId: userId,
+        }),
         supabase
             .from("messages")
             .select("role, content, timestamp")

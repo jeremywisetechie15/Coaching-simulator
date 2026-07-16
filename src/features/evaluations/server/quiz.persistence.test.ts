@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CONTENT_STATUS } from "@/features/content/domain";
 import { QUIZ_KIND, QUIZ_VISIBILITY_SCOPE } from "@/features/evaluations/domain";
 import { saveQuizDto } from "@/features/evaluations/dto";
-import { mapQuizRowsToDetail } from "./quiz.mapper";
+import { mapQuizRowsToDetail, mapQuizRowToListItem } from "./quiz.mapper";
 import {
     createAttachmentRows,
     createChoiceRows,
@@ -173,9 +173,55 @@ describe("quiz persistence helpers", () => {
             status: CONTENT_STATUS.archived,
         });
     });
+
+    it("persists a renamed title in quiz updates", () => {
+        const input = saveQuizDto.parse({ title: "Nouveau titre du quiz" });
+
+        expect(createQuizUpdate(input).title).toBe("Nouveau titre du quiz");
+    });
+
+    it("persists unlimited attempts as null", () => {
+        const input = saveQuizDto.parse({
+            maxAttempts: null,
+            title: "Quiz sans limite",
+        });
+
+        expect(createQuizInsert(input, "33333333-3333-4333-8333-333333333333").max_attempts).toBeNull();
+        expect(createQuizUpdate(input).max_attempts).toBeNull();
+    });
+
+    it("preserves an incomplete private visibility target for a draft", () => {
+        const input = saveQuizDto.parse({
+            scope: QUIZ_VISIBILITY_SCOPE.organization,
+            title: "Quiz privé en préparation",
+        });
+
+        expect(createQuizInsert(input, "33333333-3333-4333-8333-333333333333")).toMatchObject({
+            assigned_user_id: null,
+            group_id: null,
+            organization_id: null,
+            status: CONTENT_STATUS.draft,
+            visibility_scope: QUIZ_VISIBILITY_SCOPE.organization,
+        });
+        expect(createQuizUpdate(input)).toMatchObject({
+            organization_id: null,
+            status: CONTENT_STATUS.draft,
+            visibility_scope: QUIZ_VISIBILITY_SCOPE.organization,
+        });
+    });
 });
 
 describe("quiz mapper", () => {
+    it("preserves unlimited attempts from persistence", () => {
+        const quiz = mapQuizRowToListItem({
+            id: "quiz-unlimited",
+            max_attempts: null,
+            title: "Quiz sans limite",
+        });
+
+        expect(quiz.maxAttempts).toBeNull();
+    });
+
     it("builds a sorted quiz detail from normalized rows", () => {
         const detail = mapQuizRowsToDetail(
             {

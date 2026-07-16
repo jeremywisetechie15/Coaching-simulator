@@ -1,4 +1,8 @@
-import type { QuizAttemptSession } from "@/features/evaluations/domain";
+import {
+    getQuizAttemptsRemaining,
+    hasReachedQuizAttemptLimit,
+    type QuizAttemptSession,
+} from "@/features/evaluations/domain";
 import { requireAuth } from "@/features/auth/server";
 import { quizAttemptAnswersDto, type QuizAttemptAnswersInput } from "@/features/evaluations/dto";
 import { AppError, NotFoundError } from "@/lib/server/errors";
@@ -93,9 +97,9 @@ export async function submitQuizAttempt(
 
     return {
         attempt: await fetchQuizAttemptDetail(adminSupabase, completedAttempt),
-        attemptsRemaining: Math.max(maxAttempts - attemptsUsed, 0),
+        attemptsRemaining: getQuizAttemptsRemaining(maxAttempts, attemptsUsed),
         attemptsUsed,
-        canStartNewAttempt: attemptsUsed < maxAttempts,
+        canStartNewAttempt: !hasReachedQuizAttemptLimit(maxAttempts, attemptsUsed),
         maxAttempts,
     };
 }

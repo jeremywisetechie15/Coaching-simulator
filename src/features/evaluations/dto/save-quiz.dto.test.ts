@@ -6,6 +6,7 @@ import { saveQuizDto, type SaveQuizInput } from "./save-quiz.dto";
 const methodId = "11111111-1111-4111-8111-111111111111";
 const organizationId = "22222222-2222-4222-8222-222222222222";
 const dimensionItemId = "33333333-3333-4333-8333-333333333333";
+const groupId = "44444444-4444-4444-8444-444444444444";
 
 function publishedQuiz(overrides: Partial<SaveQuizInput> = {}): SaveQuizInput {
     return {
@@ -51,9 +52,33 @@ describe("saveQuizDto", () => {
     it("accepts a minimal contextual draft", () => {
         const result = saveQuizDto.parse({ title: "Quiz brouillon" });
 
+        expect(result.maxAttempts).toBe(3);
         expect(result.status).toBe(CONTENT_STATUS.draft);
         expect(result.quizKind).toBe(QUIZ_KIND.contextual);
+        expect(result.scope).toBe(QUIZ_VISIBILITY_SCOPE.public);
+        expect(result.organizationId).toBeNull();
+        expect(result.groupId).toBeNull();
+        expect(result.assignedUserId).toBeNull();
         expect(result.steps).toEqual([]);
+    });
+
+    it("accepts unlimited attempts", () => {
+        const result = saveQuizDto.parse({
+            maxAttempts: null,
+            title: "Quiz sans limite",
+        });
+
+        expect(result.maxAttempts).toBeNull();
+    });
+
+    it.each([0, -1, 1.5])("rejects an invalid %s attempt limit", (maxAttempts) => {
+        const result = saveQuizDto.safeParse({
+            maxAttempts,
+            title: "Quiz invalide",
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain("maxAttempts");
     });
 
     it("requires a method for a method knowledge quiz", () => {
@@ -68,15 +93,54 @@ describe("saveQuizDto", () => {
         );
     });
 
-    it("requires an organization target for organization-private quizzes", () => {
-        const result = saveQuizDto.safeParse({
-            scope: QUIZ_VISIBILITY_SCOPE.organization,
-            title: "Quiz privé",
-        });
+    it.each([
+        QUIZ_VISIBILITY_SCOPE.organization,
+        QUIZ_VISIBILITY_SCOPE.group,
+        QUIZ_VISIBILITY_SCOPE.user,
+    ])("accepts an incomplete %s visibility target in a draft", (scope) => {
+        const result = saveQuizDto.parse({ scope, title: "Quiz privé" });
+
+        expect(result.scope).toBe(scope);
+        expect(result.organizationId).toBeNull();
+        expect(result.groupId).toBeNull();
+        expect(result.assignedUserId).toBeNull();
+    });
+
+    it("requires an organization target to publish an organization-private quiz", () => {
+        const result = saveQuizDto.safeParse(
+            publishedQuiz({ scope: QUIZ_VISIBILITY_SCOPE.organization }),
+        );
 
         expect(result.success).toBe(false);
-        expect(result.error?.issues.map((issue) => issue.message)).toContain(
-            "Un quiz privé organisation doit être lié à une organisation.",
+        expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain(
+            "organizationId",
+        );
+    });
+
+    it("requires an organization and group target to publish a group-private quiz", () => {
+        const withoutOrganization = saveQuizDto.safeParse(
+            publishedQuiz({ groupId, scope: QUIZ_VISIBILITY_SCOPE.group }),
+        );
+        const withoutGroup = saveQuizDto.safeParse(
+            publishedQuiz({ organizationId, scope: QUIZ_VISIBILITY_SCOPE.group }),
+        );
+
+        expect(withoutOrganization.success).toBe(false);
+        expect(withoutOrganization.error?.issues.map((issue) => issue.path.join("."))).toContain(
+            "organizationId",
+        );
+        expect(withoutGroup.success).toBe(false);
+        expect(withoutGroup.error?.issues.map((issue) => issue.path.join("."))).toContain("groupId");
+    });
+
+    it("requires a user target to publish a user-private quiz", () => {
+        const result = saveQuizDto.safeParse(
+            publishedQuiz({ scope: QUIZ_VISIBILITY_SCOPE.user }),
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain(
+            "assignedUserId",
         );
     });
 
@@ -208,6 +272,25 @@ describe("saveQuizDto", () => {
         expect(result.success).toBe(false);
         expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain(
             "steps.0.questions.0.dimensionItemId",
+        );
+    });
+
+    it("rejects quiz questions that target a dimension other than savoir", () => {
+        const quiz = publishedQuiz();
+        const result = saveQuizDto.safeParse({
+            ...quiz,
+            steps: quiz.steps?.map((step) => ({
+                ...step,
+                questions: step.questions?.map((question) => ({
+                    ...question,
+                    dimension: "savoir_faire",
+                })),
+            })),
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain(
+            "steps.0.questions.0.dimension",
         );
     });
 

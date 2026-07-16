@@ -9,6 +9,7 @@ import { difficultyBadgeStyles } from "@/features/roleplays/data/roleplays";
 import type { Method } from "@/features/methods/data/methods";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import { ROLEPLAY_ROUTES } from "@/features/roleplays/domain";
+import { getCoachInitials } from "@/features/coaches/domain/coach-list";
 import type { StepCoachVariant } from "./RoleplayStepCoachPageContent";
 
 interface RoleplayStepsPageContentProps {
@@ -35,6 +36,8 @@ export function RoleplayStepsPageContent({
     const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
     const isImprove = variant === "improve";
     const verb = isImprove ? "S'améliorer" : "Se préparer";
+    const coachName = roleplay.coachName?.trim() || "Coach IA";
+    const coachAvatarSrc = roleplay.coachAvatarSrc?.trim() || "";
     const stepSuffix = isImprove
         ? `?coach=after${referenceSessionId ? `&sessionId=${encodeURIComponent(referenceSessionId)}` : ""}`
         : "";
@@ -55,18 +58,26 @@ export function RoleplayStepsPageContent({
                 <CardSurface className="rounded-[18px] border border-[#E9E7FB] bg-gradient-to-b from-[#F6F4FE] to-white p-5 shadow-[0_1px_2px_rgba(17,24,39,0.04)] md:p-6">
                     <Box className="flex flex-col items-center text-center">
                         <Box className="h-[88px] w-[88px] overflow-hidden rounded-full border-[3px] border-[#E7DCFB] shadow-[0_8px_18px_rgba(81,64,240,0.18)]">
-                            <Box
-                                aria-label={roleplay.name}
-                                role="img"
-                                className="h-full w-full bg-cover bg-center"
-                                style={{ backgroundImage: `url(${roleplay.avatarSrc})` }}
-                            />
+                            {coachAvatarSrc ? (
+                                <Box
+                                    aria-label={coachName}
+                                    role="img"
+                                    className={uiTokens.entityDetails.avatarImage}
+                                    style={{ backgroundImage: `url(${coachAvatarSrc})` }}
+                                />
+                            ) : (
+                                <Box className={uiTokens.entityDetails.avatarFallback}>
+                                    <Text className={uiTokens.entityDetails.avatarInitials}>
+                                        {getCoachInitials(coachName)}
+                                    </Text>
+                                </Box>
+                            )}
                         </Box>
                         <Text
                             as="h1"
                             className="mt-3 border-b-2 border-[#5140F0] pb-1 text-[22px] font-extrabold text-[#111827]"
                         >
-                            {roleplay.name}
+                            {coachName}
                         </Text>
                         <Box className="mt-3 flex flex-wrap items-center justify-center gap-1.5">
                             <Box className="inline-flex h-6 items-center rounded-md bg-[#F3E8FD] px-2.5 text-[12px] font-semibold text-[#8B2FD6]">

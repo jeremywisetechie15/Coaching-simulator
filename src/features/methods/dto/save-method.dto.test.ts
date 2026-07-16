@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CONTENT_STATUS } from "@/features/content/domain";
-import { METHOD_SCOPE } from "@/features/methods/domain/method";
+import { METHOD_SCOPE, METHOD_STEP_ICONS } from "@/features/methods/domain/method";
 import { saveMethodDto } from "./save-method.dto";
 
 const minimalMethodInput = {
@@ -94,6 +94,26 @@ describe("saveMethodDto", () => {
         });
 
         expect(result.quizId).toBe("00000000-0000-4000-8000-000000000001");
+    });
+
+    it("accepts every icon exposed by the shared method-step catalogue", () => {
+        for (const icon of METHOD_STEP_ICONS) {
+            const result = saveMethodDto.parse({
+                ...minimalMethodInput,
+                steps: [{ icon, title: "Étape" }],
+            });
+
+            expect(result.steps[0].icon).toBe(icon);
+        }
+    });
+
+    it("rejects method-step icons outside the shared catalogue", () => {
+        const result = saveMethodDto.safeParse({
+            ...minimalMethodInput,
+            steps: [{ icon: "unknown-icon", title: "Étape" }],
+        });
+
+        expect(result.success).toBe(false);
     });
 
     it("rejects invalid quiz association identifiers", () => {

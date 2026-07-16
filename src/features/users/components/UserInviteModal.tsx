@@ -46,6 +46,8 @@ interface UserInviteModalProps {
     formError?: string | null;
     formStatus?: string | null;
     groupOptions: UserInviteOption[];
+    groupSelectDisabled?: boolean;
+    groupSelectPlaceholder?: string;
     isSubmitting?: boolean;
     onClose: () => void;
     onSubmit: () => void;
@@ -139,6 +141,8 @@ export function UserInviteModal({
     formError = null,
     formStatus = null,
     groupOptions,
+    groupSelectDisabled = false,
+    groupSelectPlaceholder = "Sélectionnez un groupe",
     isSubmitting = false,
     onClose,
     onSubmit,
@@ -230,10 +234,11 @@ export function UserInviteModal({
                         value={values.organizationId}
                     />
                     <UserSelectField
+                        disabled={groupSelectDisabled}
                         id="user-group"
                         label="Groupe"
                         onChange={(value) => onValueChange("groupId", value)}
-                        options={[{ label: "Sélectionnez un groupe", value: "" }, ...groupOptions]}
+                        options={[{ label: groupSelectPlaceholder, value: "" }, ...groupOptions]}
                         value={values.groupId}
                     />
 

@@ -4,13 +4,13 @@ import { requireAdmin } from "@/features/auth/server";
 import { AppError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
+    CONTENT_UPLOAD_ERROR_MESSAGES,
     sanitizeUploadFileName,
     getStoragePathFileName,
     validateContentUploadFile,
     type DirectContentUploadPurpose,
 } from "./content-upload";
 import {
-    buildDirectStorageEndpoint,
     directUploadIntentInputDto,
     getDirectUploadBucket,
     getDirectUploadStagingPrefix,
@@ -19,6 +19,38 @@ import {
     type DirectUploadIntentInput,
     type DirectUploadReference,
 } from "./direct-upload";
+
+interface StorageErrorLike {
+    error?: string;
+    message?: string;
+    statusCode?: number | string;
+}
+
+function mapSignedUploadError(error: StorageErrorLike) {
+    const detail = `${error.error ?? ""} ${error.message ?? ""}`.toLowerCase();
+
+    if (detail.includes("bucket") && (detail.includes("not found") || detail.includes("does not exist"))) {
+        return new AppError(
+            CONTENT_UPLOAD_ERROR_MESSAGES.storageNotConfigured,
+            503,
+            "UPLOAD_STORAGE_NOT_CONFIGURED",
+        );
+    }
+
+    if (String(error.statusCode) === "402" || detail.includes("quota") || detail.includes("storage limit")) {
+        return new AppError(
+            CONTENT_UPLOAD_ERROR_MESSAGES.storageFull,
+            507,
+            "UPLOAD_STORAGE_FULL",
+        );
+    }
+
+    return new AppError(
+        CONTENT_UPLOAD_ERROR_MESSAGES.unavailable,
+        503,
+        "UPLOAD_STORAGE_UNAVAILABLE",
+    );
+}
 
 export async function createDirectUploadIntent(input: DirectUploadIntentInput): Promise<DirectUploadIntent> {
     const context = await requireAdmin();
@@ -36,11 +68,6 @@ export async function createDirectUploadIntent(input: DirectUploadIntentInput): 
         throw new AppError(validationMessage, 400, "INVALID_DIRECT_UPLOAD_FILE");
     }
 
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    if (!supabaseUrl) {
-        throw new Error("Configuration Supabase manquante.");
-    }
-
     const bucket = getDirectUploadBucket(parsedInput.purpose);
     const path = [
         getDirectUploadStagingPrefix(context.userId, parsedInput.purpose).replace(/\/$/, ""),
@@ -52,16 +79,24 @@ export async function createDirectUploadIntent(input: DirectUploadIntentInput): 
         upsert: false,
     });
 
-    if (error || !data?.token) {
-        throw error ?? new Error("Le jeton d'upload est introuvable.");
+    if (error || !data?.signedUrl) {
+        if (error) {
+            console.error("Unable to create a signed upload URL.", error);
+            throw mapSignedUploadError(error);
+        }
+
+        throw new AppError(
+            CONTENT_UPLOAD_ERROR_MESSAGES.unavailable,
+            503,
+            "UPLOAD_STORAGE_UNAVAILABLE",
+        );
     }
 
     return {
         bucket,
-        endpoint: buildDirectStorageEndpoint(supabaseUrl),
         path,
         purpose: parsedInput.purpose,
-        token: data.token,
+        signedUrl: data.signedUrl,
     };
 }
 

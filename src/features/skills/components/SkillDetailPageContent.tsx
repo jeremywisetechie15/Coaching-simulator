@@ -4,10 +4,10 @@ import { useState } from "react";
 import { ArrowLeft, BookOpen, ChevronDown, ChevronUp, Edit3, Target, TrendingUp, Users } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
-import { QUIZ_DIMENSION_LABELS } from "@/features/evaluations/domain";
 import {
     getSkillLevel,
     SKILL_DIMENSION_LABELS,
+    SKILL_DIMENSION_TITLES,
     SKILL_DIMENSIONS,
     skillCategoryStyles,
     type SkillDetail,
@@ -187,7 +187,7 @@ export function SkillDetailPageContent({ canManage = false, skill }: SkillDetail
                                                         <InlineIcon icon={dimensionIcons[dimension]} className="h-4 w-4" />
                                                     </Box>
                                                     <Text className={cn("text-[13px] font-semibold", uiTokens.text.heading)}>
-                                                        {QUIZ_DIMENSION_LABELS[dimension]}
+                                                        {SKILL_DIMENSION_TITLES[dimension]}
                                                     </Text>
                                                 </Box>
                                                 <Text className={cn("text-[13px] font-bold", uiTokens.text.heading)}>{score}%</Text>
@@ -245,7 +245,7 @@ export function SkillDetailPageContent({ canManage = false, skill }: SkillDetail
                                             </Box>
                                             <Box>
                                                 <Text className={cn("text-[14px] font-extrabold leading-tight", uiTokens.text.heading)}>
-                                                    {QUIZ_DIMENSION_LABELS[dimension]}
+                                                    {SKILL_DIMENSION_TITLES[dimension]}
                                                 </Text>
                                                 <Text className={cn("text-[12px] font-medium", uiTokens.text.muted)}>
                                                     {SKILL_DIMENSION_LABELS[dimension]}

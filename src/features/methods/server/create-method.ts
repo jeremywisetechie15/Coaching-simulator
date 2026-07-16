@@ -27,6 +27,7 @@ import {
     type MethodUploadFilesByClientId,
     type UploadedStorageObject,
 } from "./method-upload-files";
+import { assertMethodLifecycle } from "./assert-method-lifecycle";
 
 export async function createMethod(
     input: SaveMethodDto,
@@ -38,6 +39,8 @@ export async function createMethod(
     const code = await createUniqueMethodCode(adminSupabase, normalizedInput.name);
     let createdMethodId: string | null = null;
     const uploadedObjects: UploadedStorageObject[] = [];
+
+    await assertMethodLifecycle(adminSupabase, normalizedInput);
 
     try {
         const { data: methodRow, error: methodError } = await adminSupabase

@@ -5,6 +5,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Eye, Pencil, Plus, Trash2, UsersRound } from "lucide-react";
 import { ContextualLink } from "@/features/app-shell/components";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import {
+    createFormSubmitError,
+    notifyFormSubmitError,
+    notifyFormSubmitSuccess,
+} from "@/lib/ui/feedback/form-submit-feedback";
 import type { OrganizationGroupRow } from "@/features/organizations/domain/organization-detail";
 import { CreateGroupModal } from "./CreateGroupModal";
 
@@ -111,22 +116,24 @@ export function OrganizationDetailGroups({ organizationId }: OrganizationDetailG
             if (!response.ok) {
                 const errorPayload = payload as ApiErrorPayload | null;
                 const validationMessage = errorPayload?.issues?.map((issue) => issue.message).join(" ");
-
-                setFormError(validationMessage || errorPayload?.error || "Impossible de créer le groupe.");
+                const message = validationMessage || errorPayload?.error || "Impossible de créer le groupe.";
+                setFormError(notifyFormSubmitError(createFormSubmitError(message, response.status), message));
                 return;
             }
 
             const createdGroup = (payload as GroupsPayload | null)?.group;
 
             if (!createdGroup) {
-                setFormError("Réponse invalide du serveur.");
+                const message = "Réponse invalide du serveur.";
+                setFormError(notifyFormSubmitError(new Error(message), message));
                 return;
             }
 
             setGroups((currentGroups) => [...currentGroups, createdGroup]);
             void queryClient.invalidateQueries({ queryKey: ["organizations"] });
-        } catch {
-            setFormError("Impossible de créer le groupe.");
+            notifyFormSubmitSuccess();
+        } catch (error) {
+            setFormError(notifyFormSubmitError(error, "Impossible de créer le groupe."));
             return;
         } finally {
             setIsSubmitting(false);

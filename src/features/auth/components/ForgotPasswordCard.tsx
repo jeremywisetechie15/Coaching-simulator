@@ -12,6 +12,11 @@ import {
 } from "@/features/auth/domain/password-recovery";
 import { createClient } from "@/lib/supabase/client";
 import { FormRoot, InlineIcon } from "@/lib/ui/atoms";
+import {
+    createFormSubmitError,
+    notifyFormSubmitError,
+    notifyFormSubmitSuccess,
+} from "@/lib/ui/feedback/form-submit-feedback";
 import { AlertMessage, StatusMessage, SubmitButton, TextField } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { AuthCardFrame } from "./AuthCardFrame";
@@ -44,15 +49,17 @@ export function ForgotPasswordCard() {
         setIsSubmitting(false);
 
         if (resetError) {
+            const message = resetError.status === 429
+                ? "Une demande a déjà été envoyée récemment. Patientez une minute avant de réessayer."
+                : "L’email n’a pas pu être envoyé. Réessayez dans quelques instants.";
             setError(
-                resetError.status === 429
-                    ? "Une demande a déjà été envoyée récemment. Patientez une minute avant de réessayer."
-                    : "L’email n’a pas pu être envoyé. Réessayez dans quelques instants.",
+                notifyFormSubmitError(createFormSubmitError(message, resetError.status), message),
             );
             return;
         }
 
         setIsSent(true);
+        notifyFormSubmitSuccess();
     };
 
     return (

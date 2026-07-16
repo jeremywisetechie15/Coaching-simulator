@@ -21,15 +21,12 @@ interface ScorecardOptionRow {
     id: string;
     method_id: string;
     name: string;
-    status: string | null;
 }
 
 export async function listRoleplayPersonaOptions(): Promise<RoleplayPersonaOption[]> {
     const personas = await listPersonas();
 
-    return personas
-        .filter((persona) => persona.status !== CONTENT_STATUS.archived)
-        .map((persona) => ({
+    return personas.map((persona) => ({
             avatarUrl: persona.avatarUrl,
             company: persona.company,
             id: persona.id,
@@ -41,9 +38,7 @@ export async function listRoleplayPersonaOptions(): Promise<RoleplayPersonaOptio
 export async function listRoleplayCoachOptions(): Promise<RoleplayCoachOption[]> {
     const coaches = await listCoaches();
 
-    return coaches
-        .filter((coach) => coach.status !== CONTENT_STATUS.archived)
-        .map((coach) => ({
+    return coaches.map((coach) => ({
             id: coach.id,
             name: coach.name,
         }));
@@ -52,17 +47,14 @@ export async function listRoleplayCoachOptions(): Promise<RoleplayCoachOption[]>
 export async function listRoleplayMethodOptions(): Promise<RoleplayMethodOption[]> {
     const methods = await listMethods();
 
-    return methods
-        .filter((method) => method.status !== CONTENT_STATUS.archived)
-        .map((method) => ({
+    return methods.map((method) => ({
             id: method.id,
             name: method.name,
-            shortName: method.code || method.name,
         }));
 }
 
 export async function listRoleplayQuizOptions(): Promise<RoleplayQuizOption[]> {
-    const quizzes = await listQuizOptions({ includeArchived: false });
+    const quizzes = await listQuizOptions();
 
     return quizzes.map((quiz) => ({
         id: quiz.id,
@@ -76,20 +68,22 @@ export async function listRoleplayQuizOptions(): Promise<RoleplayQuizOption[]> {
 export async function listRoleplayScorecardOptions(): Promise<RoleplayScorecardOption[]> {
     await requireAdmin();
     const adminSupabase = createAdminClient();
-    const { data, error } = await adminSupabase
+    const query = adminSupabase
         .from("scorecards")
-        .select("id, name, method_id, status")
+        .select("id, name, method_id")
         .neq("status", CONTENT_STATUS.archived)
-        .order("name", { ascending: true })
-        .returns<ScorecardOptionRow[]>();
+        .eq("is_active", true)
+        .order("name", { ascending: true });
+
+    const { data, error } = await query.returns<ScorecardOptionRow[]>();
 
     if (error) throw error;
 
     return (data ?? []).map((scorecard) => ({
-        id: scorecard.id,
-        methodId: scorecard.method_id,
-        name: scorecard.name,
-    }));
+            id: scorecard.id,
+            methodId: scorecard.method_id,
+            name: scorecard.name,
+        }));
 }
 
 export async function listRoleplayOrganizationOptions(): Promise<RoleplayOrganizationOption[]> {

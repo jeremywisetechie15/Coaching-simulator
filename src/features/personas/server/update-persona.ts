@@ -4,6 +4,7 @@ import {
     type PersonaListItem,
 } from "@/features/personas/domain/persona-list";
 import type { SavePersonaDto } from "@/features/personas/dto/save-persona.dto";
+import { assertContentStatusTransition } from "@/features/content/server";
 import { AppError, NotFoundError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
@@ -29,12 +30,13 @@ export async function updatePersona(
     const adminSupabase = createAdminClient();
     const { data: existingPersona, error: existingPersonaError } = await adminSupabase
         .from("personas")
-        .select("avatar_url")
+        .select("avatar_url, status")
         .eq("id", personaId)
-        .maybeSingle<{ avatar_url: string | null }>();
+        .maybeSingle<{ avatar_url: string | null; status: SavePersonaDto["status"] }>();
 
     if (existingPersonaError) throw existingPersonaError;
     if (!existingPersona) throw new NotFoundError("Persona introuvable.");
+    assertContentStatusTransition(existingPersona.status, input.status);
     if (
         !avatarFile &&
         isPersonaAvatarStoragePath(input.avatarUrl) &&
@@ -94,6 +96,7 @@ export async function updatePersona(
                 net_income_before_tax: input.netIncomeBeforeTax || null,
                 residence_country: input.residenceCountry || null,
                 role: input.role || null,
+                status: input.status,
                 system_instructions: input.systemInstructions,
                 updated_at: new Date().toISOString(),
                 voice_id: input.voiceId,

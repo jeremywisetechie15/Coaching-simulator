@@ -64,6 +64,10 @@ export function getUserRoleLabel(role: UserRole) {
     return USER_ROLE_LABELS[role];
 }
 
+export function getUserInvitationSuccessMessage(email: string) {
+    return `Invitation envoyée à ${email}. Pensez à lui demander de vérifier sa boîte de réception ainsi que son dossier de courriers indésirables (spams).`;
+}
+
 export interface UserTraining {
     assignedAt: string;
     id: string;

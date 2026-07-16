@@ -19,7 +19,6 @@ import {
     Phone,
     Play,
     Quote,
-    ShieldCheck,
     Target,
     TrendingDown,
     TrendingUp,
@@ -37,6 +36,7 @@ import {
 import { EVALUATION_ROUTES, type QuizOption } from "@/features/evaluations/domain";
 import {
     formatMethodMasteryDate,
+    getMethodMasteryLabel,
     getMethodScopeLabel,
     METHOD_MASTERY_TREND,
     METHOD_ROUTES,
@@ -45,7 +45,6 @@ import {
     type MethodDetail,
     type MethodMastery,
     type MethodResource,
-    type MethodStepIcon,
     type MethodStepItem,
 } from "@/features/methods/domain/method";
 import { ROLEPLAY_ROUTES } from "@/features/roleplays/domain";
@@ -54,13 +53,7 @@ import { Box, Button, CardSurface, InlineIcon, Text, Tooltip } from "@/lib/ui/at
 import { AlertMessage } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
-
-const stepIcons: Record<MethodStepIcon, { icon: LucideIcon; bg: string; color: string }> = {
-    phone: { icon: Phone, bg: "#E7EDFD", color: "#3B6FD0" },
-    message: { icon: MessageSquare, bg: "#F3E8FD", color: "#8B2FD6" },
-    shield: { icon: ShieldCheck, bg: "#E7F9ED", color: "#16A34A" },
-    check: { icon: CheckCircle2, bg: "#FEECF0", color: "#E11D6B" },
-};
+import { getMethodStepIconPresentation } from "./method-step-icon.catalog";
 
 function StepBlock({
     icon,
@@ -139,13 +132,17 @@ function getMethodResourceMeta(resource: MethodResource) {
     return undefined;
 }
 
-function getMethodMasteryTrendPresentation(mastery: MethodMastery | null): {
+function getMethodMasteryTrendPresentation(mastery: MethodMastery | null, hasAssociatedQuiz: boolean): {
     icon: LucideIcon;
     label: string;
     tone: keyof typeof uiTokens.tone;
 } {
     if (!mastery) {
-        return { icon: Minus, label: "Aucune évaluation terminée", tone: "neutral" };
+        return {
+            icon: Minus,
+            label: hasAssociatedQuiz ? "Aucune évaluation terminée" : "Aucun quiz associé",
+            tone: "neutral",
+        };
     }
 
     if (mastery.trend === METHOD_MASTERY_TREND.up) {
@@ -197,7 +194,7 @@ function StepAccordion({
     step: MethodStepItem;
 }) {
     const [open, setOpen] = useState(false);
-    const config = stepIcons[step.icon];
+    const config = getMethodStepIconPresentation(step.icon);
     const videoResource = step.resources.find((resource) => resource.resourceType === "video");
 
     return (
@@ -346,7 +343,8 @@ export function MethodDetailPageContent({
     const [isArchiving, setIsArchiving] = useState(false);
     const isArchived = method.status === "archived";
     const masteryDateLabel = formatMethodMasteryDate(mastery?.completedAt);
-    const masteryTrend = getMethodMasteryTrendPresentation(mastery);
+    const masteryTrend = getMethodMasteryTrendPresentation(mastery, Boolean(associatedQuiz));
+    const masteryLabel = getMethodMasteryLabel(Boolean(associatedQuiz), mastery);
     const resourceDocuments = mapMethodResourcesToModalDocuments(method);
 
     async function handleArchive() {
@@ -472,8 +470,14 @@ export function MethodDetailPageContent({
                                             <InlineIcon icon={masteryTrend.icon} className="h-4 w-4" />
                                         </Box>
                                     </Tooltip>
-                                    <Text as="h3" className="text-[20px] font-extrabold text-[#111827]">
-                                        {mastery === null ? "Non testée" : `${Math.round(mastery.scorePercent)}%`}
+                                    <Text
+                                        as="h3"
+                                        className={cn(
+                                            "font-extrabold text-[#111827]",
+                                            associatedQuiz ? "text-[20px]" : "text-[15px]",
+                                        )}
+                                    >
+                                        {masteryLabel}
                                     </Text>
                                 </Box>
                                 {masteryDateLabel && (
@@ -500,7 +504,7 @@ export function MethodDetailPageContent({
                         </Text>
                         <Box className="mt-4 flex flex-col gap-3 md:flex-row md:items-stretch">
                             {method.steps.map((step, index) => {
-                                const config = stepIcons[step.icon];
+                                const config = getMethodStepIconPresentation(step.icon);
                                 return (
                                     <Box key={step.id} className="flex flex-1 items-center gap-3">
                                         <Box className="flex-1 rounded-[12px] border border-[#E5E7EB] bg-white p-4">

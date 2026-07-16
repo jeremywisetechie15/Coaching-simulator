@@ -4,7 +4,7 @@ import {
     type CoachListItem,
 } from "@/features/coaches/domain/coach-list";
 import type { SaveCoachDto } from "@/features/coaches/dto/save-coach.dto";
-import { PUBLISHED_CONTENT_STATUS } from "@/features/content/domain";
+import { assertInitialContentStatus } from "@/features/content/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { AppError } from "@/lib/server/errors";
 import {
@@ -30,6 +30,8 @@ export async function createCoach(
     const adminSupabase = createAdminClient();
     const now = new Date().toISOString();
     const coachId = crypto.randomUUID();
+
+    assertInitialContentStatus(input.status);
 
     if (!backgroundFile && input.backgroundImagePath) {
         throw new AppError(
@@ -70,7 +72,7 @@ export async function createCoach(
             createdBy: context.userId,
             id: coachId,
             now,
-            status: PUBLISHED_CONTENT_STATUS,
+            status: input.status,
         }))
         .select(COACH_SELECT)
         .single<CoachRow>();

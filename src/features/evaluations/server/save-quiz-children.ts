@@ -119,7 +119,7 @@ export async function replaceQuizChildren(
     }
 }
 
-async function materializeQuizAttachments(
+export async function materializeQuizAttachments(
     supabase: SupabaseClient,
     quizId: string,
     input: SaveQuizDto,

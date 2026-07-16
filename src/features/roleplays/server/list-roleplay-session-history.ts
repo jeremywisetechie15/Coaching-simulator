@@ -6,6 +6,7 @@ import {
     MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
 } from "@/features/roleplays/domain";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createClient } from "@/lib/supabase/server";
 import { formatRoleplayDate, formatRoleplayDuration, formatRoleplayTime } from "./roleplay.mapper";
 import { fetchRoleplaysByIds } from "./roleplay-query";
 
@@ -71,7 +72,10 @@ export async function listRoleplaySessionHistory({
     const sessions = data ?? [];
     if (sessions.length === 0) return [];
 
-    const roleplays = await fetchRoleplaysByIds(supabase, uniqueScenarioIds(sessions));
+    const quizAccessClient = await createClient();
+    const roleplays = await fetchRoleplaysByIds(supabase, uniqueScenarioIds(sessions), {
+        quizAccessClient,
+    });
     const roleplaysById = new Map(roleplays.map((roleplay) => [roleplay.id, mapDbRoleplayToUi(roleplay)]));
     const attemptNumberBySession = buildAttemptNumbers(sessions);
 

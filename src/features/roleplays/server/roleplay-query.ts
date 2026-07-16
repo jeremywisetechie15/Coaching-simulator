@@ -34,6 +34,12 @@ interface PersonaRelationRow {
     role: string | null;
 }
 
+interface CoachRelationRow {
+    avatar_url: string | null;
+    id: string;
+    name: string | null;
+}
+
 interface NamedRelationRow {
     id: string;
     name: string | null;
@@ -118,7 +124,21 @@ async function fetchPersonasById(supabase: SupabaseClient, ids: string[]) {
     return new Map((data ?? []).map((row) => [row.id, row]));
 }
 
-async function fetchNamesById(supabase: SupabaseClient, table: "coaches" | "scorecards" | "organizations" | "groups", ids: string[]) {
+async function fetchCoachesById(supabase: SupabaseClient, ids: string[]) {
+    if (ids.length === 0) return new Map<string, CoachRelationRow>();
+
+    const { data, error } = await supabase
+        .from("coaches")
+        .select("id, name, avatar_url")
+        .in("id", ids)
+        .returns<CoachRelationRow[]>();
+
+    if (error) throw error;
+
+    return new Map((data ?? []).map((row) => [row.id, row]));
+}
+
+async function fetchNamesById(supabase: SupabaseClient, table: "scorecards" | "organizations" | "groups", ids: string[]) {
     if (ids.length === 0) return new Map<string, string>();
 
     const { data, error } = await supabase
@@ -180,7 +200,11 @@ async function fetchMethodStepCounts(supabase: SupabaseClient, methodIds: string
     return counts;
 }
 
-async function fetchScenarioQuizzes(supabase: SupabaseClient, scenarioIds: string[]) {
+async function fetchScenarioQuizzes(
+    supabase: SupabaseClient,
+    scenarioIds: string[],
+    quizAccessClient: SupabaseClient = supabase,
+) {
     if (scenarioIds.length === 0) return [];
 
     const { data, error } = await supabase
@@ -192,7 +216,20 @@ async function fetchScenarioQuizzes(supabase: SupabaseClient, scenarioIds: strin
 
     if (error) throw error;
 
-    return data ?? [];
+    const rows = data ?? [];
+    const quizIds = uniqueValues(rows.map((row) => row.quiz_id));
+    if (quizIds.length === 0) return rows;
+
+    const { data: visibleQuizzes, error: visibilityError } = await quizAccessClient
+        .from("quizzes")
+        .select("id")
+        .in("id", quizIds)
+        .returns<MethodKnowledgeQuizRow[]>();
+
+    if (visibilityError) throw visibilityError;
+
+    const visibleQuizIds = new Set((visibleQuizzes ?? []).map((quiz) => quiz.id));
+    return rows.filter((row) => visibleQuizIds.has(row.quiz_id));
 }
 
 async function fetchScenarioResources(supabase: SupabaseClient, scenarioId: string) {
@@ -271,13 +308,15 @@ async function withQuizDetails(supabase: SupabaseClient, rows: ScenarioQuizRow[]
         }
     }
 
-    return rows.map((row) => ({
-        ...row,
-        quiz_duration_minutes: quizById.get(row.quiz_id)?.duration_minutes ?? null,
-        quiz_question_count: quizQuestionCounts.get(row.quiz_id) ?? 0,
-        quiz_title: quizById.get(row.quiz_id)?.title ?? "Quiz",
-        quiz_type: quizById.get(row.quiz_id)?.quiz_type ?? null,
-    }));
+    return rows
+        .filter((row) => quizById.has(row.quiz_id))
+        .map((row) => ({
+            ...row,
+            quiz_duration_minutes: quizById.get(row.quiz_id)?.duration_minutes ?? null,
+            quiz_question_count: quizQuestionCounts.get(row.quiz_id) ?? 0,
+            quiz_title: quizById.get(row.quiz_id)?.title ?? "Quiz",
+            quiz_type: quizById.get(row.quiz_id)?.quiz_type ?? null,
+        }));
 }
 
 async function withRoleplayRelations(rows: RoleplayRow[]) {
@@ -294,7 +333,7 @@ async function withRoleplayRelations(rows: RoleplayRow[]) {
 
     const [
         personasById,
-        coachNamesById,
+        coachesById,
         methodsById,
         scorecardNamesById,
         organizationNamesById,
@@ -303,7 +342,7 @@ async function withRoleplayRelations(rows: RoleplayRow[]) {
         methodStepCountsById,
     ] = await Promise.all([
         fetchPersonasById(adminSupabase, personaIds),
-        fetchNamesById(adminSupabase, "coaches", coachIds),
+        fetchCoachesById(adminSupabase, coachIds),
         fetchMethodsById(adminSupabase, methodIds),
         fetchNamesById(adminSupabase, "scorecards", scorecardIds),
         fetchNamesById(adminSupabase, "organizations", organizationIds),
@@ -313,13 +352,15 @@ async function withRoleplayRelations(rows: RoleplayRow[]) {
     ]);
 
     return rows.map((row) => {
+        const coach = row.coach_id ? coachesById.get(row.coach_id) : null;
         const persona = personasById.get(row.persona_id);
         const method = row.method_id ? methodsById.get(row.method_id) : null;
 
         return {
             ...row,
             assigned_user_name: row.assigned_user_id ? assignedUserNamesById.get(row.assigned_user_id) ?? null : null,
-            coach_name: row.coach_id ? coachNamesById.get(row.coach_id) ?? null : null,
+            coach_avatar_url: coach?.avatar_url ?? null,
+            coach_name: coach?.name ?? null,
             group_name: row.group_id ? groupNamesById.get(row.group_id) ?? null : null,
             method_name: method?.name ?? method?.code ?? null,
             method_step_count: row.method_id ? methodStepCountsById.get(row.method_id) ?? 0 : 0,
@@ -500,7 +541,7 @@ export async function fetchRoleplayList(supabase: SupabaseClient, userId?: strin
     const scenarioIds = rows.map((row) => row.id);
     const adminSupabase = createAdminClient();
     const [scenarioQuizRows, attemptCountsByScenarioId] = await Promise.all([
-        fetchScenarioQuizzes(adminSupabase, scenarioIds),
+        fetchScenarioQuizzes(supabase, scenarioIds),
         fetchRoleplayAttemptCounts(adminSupabase, scenarioIds, userId),
     ]);
     const quizCountsByScenarioId = new Map<string, number>();
@@ -518,7 +559,15 @@ export async function fetchRoleplayList(supabase: SupabaseClient, userId?: strin
     );
 }
 
-export async function fetchRoleplaysByIds(supabase: SupabaseClient, roleplayIds: string[]): Promise<RoleplayListItem[]> {
+interface QuizAccessOptions {
+    quizAccessClient?: SupabaseClient;
+}
+
+export async function fetchRoleplaysByIds(
+    supabase: SupabaseClient,
+    roleplayIds: string[],
+    options: QuizAccessOptions = {},
+): Promise<RoleplayListItem[]> {
     const uniqueRoleplayIds = uniqueValues(roleplayIds);
     if (uniqueRoleplayIds.length === 0) return [];
 
@@ -531,7 +580,11 @@ export async function fetchRoleplaysByIds(supabase: SupabaseClient, roleplayIds:
     if (error) throw error;
 
     const rows = await withRoleplayRelations(data ?? []);
-    const scenarioQuizRows = await fetchScenarioQuizzes(createAdminClient(), uniqueRoleplayIds);
+    const scenarioQuizRows = await fetchScenarioQuizzes(
+        supabase,
+        uniqueRoleplayIds,
+        options.quizAccessClient,
+    );
     const quizCountsByScenarioId = new Map<string, number>();
 
     for (const row of scenarioQuizRows) {
@@ -544,7 +597,7 @@ export async function fetchRoleplaysByIds(supabase: SupabaseClient, roleplayIds:
 export async function fetchRoleplayDetail(
     supabase: SupabaseClient,
     roleplayId: string,
-    statsUserId?: string | null,
+    options: QuizAccessOptions & { statsUserId?: string | null } = {},
 ): Promise<RoleplayDetail> {
     const { data, error } = await supabase
         .from("scenarios")
@@ -559,11 +612,12 @@ export async function fetchRoleplayDetail(
     }
 
     const adminSupabase = createAdminClient();
+    const quizAccessClient = options.quizAccessClient ?? supabase;
     const [row] = await withRoleplayRelations([data]);
-    const scenarioQuizRows = await fetchScenarioQuizzes(adminSupabase, [roleplayId]);
-    const methodQuizId = await fetchMethodKnowledgeQuizId(adminSupabase, row.method_id);
+    const scenarioQuizRows = await fetchScenarioQuizzes(supabase, [roleplayId], quizAccessClient);
+    const methodQuizId = await fetchMethodKnowledgeQuizId(quizAccessClient, row.method_id);
     const quizRows = await withQuizDetails(
-        adminSupabase,
+        quizAccessClient,
         mergeMethodKnowledgeQuizRow({
             methodQuizId,
             scenarioId: roleplayId,
@@ -571,7 +625,7 @@ export async function fetchRoleplayDetail(
         }),
     );
     const resourceRows = await fetchScenarioResources(adminSupabase, roleplayId);
-    const stats = await fetchRoleplayStats(adminSupabase, roleplayId, statsUserId);
+    const stats = await fetchRoleplayStats(adminSupabase, roleplayId, options.statsUserId);
 
     return mapRoleplayRowsToDetail(row, quizRows, resourceRows, stats);
 }

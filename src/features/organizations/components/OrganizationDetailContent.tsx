@@ -6,6 +6,11 @@ import { useCurrentAppHref } from "@/features/app-shell/components";
 import { withSearchParam, withoutSearchParam } from "@/features/app-shell/domain";
 import { DeleteContentConfirmationModal } from "@/features/content/components";
 import { Box, CardSurface } from "@/lib/ui/atoms";
+import {
+    createFormSubmitError,
+    notifyFormSubmitError,
+    notifyFormSubmitSuccess,
+} from "@/lib/ui/feedback/form-submit-feedback";
 import { notify } from "@/lib/ui/feedback/toast";
 import {
     type CreateOrganizationFieldErrors,
@@ -180,25 +185,32 @@ export function OrganizationDetailContent({
                 if (errorPayload?.code === "VALIDATION_ERROR") {
                     setFieldErrors(mapValidationIssuesToFieldErrors(errorPayload.issues));
                     setFormError(null);
+                    notifyFormSubmitError(
+                        createFormSubmitError(errorPayload.error ?? "Vérifiez les champs du formulaire.", response.status),
+                        "Vérifiez les champs du formulaire.",
+                    );
                     return;
                 }
 
-                setFormError(errorPayload?.error ?? "Impossible de modifier l'organisation.");
+                const message = errorPayload?.error ?? "Impossible de modifier l'organisation.";
+                setFormError(notifyFormSubmitError(createFormSubmitError(message, response.status), message));
                 return;
             }
 
             const updatedOrganization = payload?.organization as OrganizationDetail | undefined;
 
             if (!updatedOrganization) {
-                setFormError("Réponse invalide du serveur.");
+                const message = "Réponse invalide du serveur.";
+                setFormError(notifyFormSubmitError(new Error(message), message));
                 return;
             }
 
             setCurrentOrganization(updatedOrganization);
             setFormValues(getFormValuesFromOrganization(updatedOrganization));
             setIsEditing(false);
-        } catch {
-            setFormError("Impossible de modifier l'organisation.");
+            notifyFormSubmitSuccess();
+        } catch (error) {
+            setFormError(notifyFormSubmitError(error, "Impossible de modifier l'organisation."));
         } finally {
             setIsSubmitting(false);
         }

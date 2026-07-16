@@ -1,4 +1,9 @@
-import type { QuizAttemptSession } from "@/features/evaluations/domain";
+import {
+    getQuizAttemptsRemaining,
+    hasReachedQuizAttemptLimit,
+    normalizeQuizMaxAttempts,
+    type QuizAttemptSession,
+} from "@/features/evaluations/domain";
 import { requireAuth } from "@/features/auth/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -19,7 +24,7 @@ export async function getLatestQuizAttempt(
     const adminSupabase = createAdminClient();
     const quiz = await getAccessibleQuizForAttempt(authenticatedSupabase, quizId);
 
-    const maxAttempts = quiz.max_attempts ?? 1;
+    const maxAttempts = normalizeQuizMaxAttempts(quiz.max_attempts);
     const { count: completedCount, error: countError } = await adminSupabase
         .from("quiz_attempts")
         .select("id", { count: "exact", head: true })
@@ -57,9 +62,9 @@ export async function getLatestQuizAttempt(
     if (options.preferCompleted && latestCompletedAttempt) {
         return {
             attempt: await fetchQuizAttemptDetail(adminSupabase, latestCompletedAttempt),
-            attemptsRemaining: Math.max(maxAttempts - attemptsUsed, 0),
+            attemptsRemaining: getQuizAttemptsRemaining(maxAttempts, attemptsUsed),
             attemptsUsed,
-            canStartNewAttempt: !inProgressAttempt && attemptsUsed < maxAttempts,
+            canStartNewAttempt: !inProgressAttempt && !hasReachedQuizAttemptLimit(maxAttempts, attemptsUsed),
             maxAttempts,
         };
     }
@@ -67,7 +72,7 @@ export async function getLatestQuizAttempt(
     if (inProgressAttempt) {
         return {
             attempt: await fetchQuizAttemptDetail(adminSupabase, inProgressAttempt),
-            attemptsRemaining: Math.max(maxAttempts - attemptsUsed, 0),
+            attemptsRemaining: getQuizAttemptsRemaining(maxAttempts, attemptsUsed),
             attemptsUsed,
             canStartNewAttempt: false,
             maxAttempts,
@@ -76,9 +81,9 @@ export async function getLatestQuizAttempt(
 
     return {
         attempt: latestCompletedAttempt ? await fetchQuizAttemptDetail(adminSupabase, latestCompletedAttempt) : null,
-        attemptsRemaining: Math.max(maxAttempts - attemptsUsed, 0),
+        attemptsRemaining: getQuizAttemptsRemaining(maxAttempts, attemptsUsed),
         attemptsUsed,
-        canStartNewAttempt: attemptsUsed < maxAttempts,
+        canStartNewAttempt: !hasReachedQuizAttemptLimit(maxAttempts, attemptsUsed),
         maxAttempts,
     };
 }

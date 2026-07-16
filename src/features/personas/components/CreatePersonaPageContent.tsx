@@ -2,12 +2,21 @@
 
 import { useRouter } from "next/navigation";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { ContextualBackLink } from "@/features/app-shell/components";
-import { DiscProfileSelector, VoiceRecommendationBadge } from "@/features/content/components";
+import {
+    ContentEditorSubmitActions,
+    DiscProfileSelector,
+    VoiceRecommendationBadge,
+} from "@/features/content/components";
 import { AlertMessage, SingleSelectField } from "@/lib/ui/molecules";
 import { Box, CardSurface, FieldLabel, InlineIcon, SelectInput, Text, TextArea, TextInput } from "@/lib/ui/atoms";
+import {
+    createFormSubmitApiError,
+    notifyFormSubmitError,
+    notifyFormSubmitSuccess,
+} from "@/lib/ui/feedback/form-submit-feedback";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 import { OPENAI_REALTIME_VOICES } from "@/lib/openai/realtime-voices";
@@ -18,6 +27,7 @@ import {
 } from "@/features/personas/domain/persona-list";
 import type { PersonaCvSummary } from "@/features/personas/domain/persona-cv";
 import type { PersonaCvInput } from "@/features/personas/dto/save-persona.dto";
+import { CONTENT_STATUS } from "@/features/content/domain";
 import {
     PERSONA_BUSINESS_SECTORS,
     PERSONA_DISC_PROFILE_OPTIONS,
@@ -68,8 +78,11 @@ async function persistPersona(
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
 
     if (!response.ok) {
-        const validationMessage = payload?.issues?.map((issue) => issue.message).join(" ");
-        throw new Error(validationMessage || payload?.error || "Impossible d'enregistrer le persona.");
+        throw createFormSubmitApiError(
+            payload,
+            response.status,
+            "Impossible d'enregistrer le persona.",
+        );
     }
 
     if (!payload?.persona) {
@@ -171,7 +184,7 @@ export function CreatePersonaPageContent({
         }),
         onError: (error) => {
             setCvUploadProgress(null);
-            setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer le persona.");
+            setFormError(notifyFormSubmitError(error, "Impossible d'enregistrer le persona."));
         },
         onSuccess: async (savedPersona) => {
             queryClient.setQueryData<PersonaListItem[]>(["personas"], (current) => {
@@ -182,6 +195,7 @@ export function CreatePersonaPageContent({
                 return [savedPersona, ...current.filter((persona) => persona.id !== savedPersona.id)];
             });
             await queryClient.invalidateQueries({ queryKey: ["personas"] });
+            notifyFormSubmitSuccess();
 
             if (onSaved) {
                 onSaved(savedPersona);
@@ -228,7 +242,15 @@ export function CreatePersonaPageContent({
     function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         setFormError(null);
-        mutation.mutate(form);
+        const action = ((event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null)?.value;
+        mutation.mutate({
+            ...form,
+            status: action === "save-draft"
+                ? CONTENT_STATUS.draft
+                : action === "publish"
+                  ? CONTENT_STATUS.published
+                  : form.status,
+        });
     }
 
     const displayedCv = cvFile
@@ -492,18 +514,12 @@ export function CreatePersonaPageContent({
 
                 <Box className="mx-auto w-full max-w-[420px] space-y-4 pt-2">
                     {formError && <AlertMessage message={formError} />}
-                    <button
-                        type="submit"
-                        disabled={mutation.isPending}
-                        className="flex h-11 w-full items-center justify-center gap-2 rounded-lg bg-[#5140F0] px-5 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.20)] transition hover:bg-[#4635E7] disabled:cursor-not-allowed disabled:opacity-70"
-                    >
-                        <InlineIcon icon={Check} className="h-4 w-4" />
-                        {mutation.isPending
-                            ? "Enregistrement..."
-                            : isEditing
-                              ? "Enregistrer les modifications"
-                              : "Créer mon persona IA"}
-                    </button>
+                    <ContentEditorSubmitActions
+                        isDraft={!embedded && (!isEditing || form.status === CONTENT_STATUS.draft)}
+                        isPending={mutation.isPending}
+                        publishLabel="Publier le persona IA"
+                        submitLabel={isEditing ? "Enregistrer les modifications" : "Créer mon persona IA"}
+                    />
                 </Box>
             </form>
         </Box>

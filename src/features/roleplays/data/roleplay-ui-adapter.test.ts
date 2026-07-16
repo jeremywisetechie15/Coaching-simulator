@@ -29,6 +29,7 @@ function createRoleplayDetail({
         attemptCount: 0,
         backgroundImagePath: null,
         category: "Vente",
+        coachAvatarUrl: null,
         coachId: null,
         coachName: null,
         coachingSteps: "",
