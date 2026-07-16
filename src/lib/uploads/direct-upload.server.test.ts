@@ -69,4 +69,40 @@ describe("direct upload materialization", () => {
             }),
         ).rejects.toMatchObject({ code: "INVALID_DIRECT_UPLOAD_REFERENCE", status: 400 });
     });
+
+    it("revalidates the stored persona CV before moving it", async () => {
+        let moveCalled = false;
+        const supabase = {
+            storage: {
+                from() {
+                    return {
+                        info: () => Promise.resolve({
+                            data: { contentType: "image/png", size: 1024 },
+                            error: null,
+                        }),
+                        move: () => {
+                            moveCalled = true;
+                            return Promise.resolve({ error: null });
+                        },
+                    };
+                },
+            },
+        };
+        const userId = "11111111-1111-4111-8111-111111111111";
+
+        await expect(
+            materializeDirectUpload({
+                destinationPath: "personas/persona-1/cv/cv.pdf",
+                expectedPurpose: CONTENT_UPLOAD_PURPOSES.personaCv,
+                reference: {
+                    bucket: "personas-cvs",
+                    path: `_staging/${userId}/persona_cv/upload/cv.pdf`,
+                    purpose: CONTENT_UPLOAD_PURPOSES.personaCv,
+                },
+                supabase: supabase as never,
+                userId,
+            }),
+        ).rejects.toMatchObject({ code: "INVALID_DIRECT_UPLOAD_FILE", status: 400 });
+        expect(moveCalled).toBe(false);
+    });
 });

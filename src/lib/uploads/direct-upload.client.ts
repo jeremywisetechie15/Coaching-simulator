@@ -10,6 +10,7 @@ import {
     type DirectUploadReference,
     type PendingDirectUpload,
 } from "./direct-upload";
+import { CONTENT_UPLOAD_PURPOSES } from "./content-upload";
 
 interface DirectUploadApiPayload {
     error?: string;
@@ -50,7 +51,7 @@ function uploadFileWithTus(
             },
             metadata: {
                 bucketName: intent.bucket,
-                cacheControl: "3600",
+                cacheControl: upload.purpose === CONTENT_UPLOAD_PURPOSES.personaCv ? "0" : "3600",
                 contentType: upload.file.type,
                 objectName: intent.path,
             },

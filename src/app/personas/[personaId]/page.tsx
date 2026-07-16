@@ -5,7 +5,8 @@ import {
     canManageAppResource,
 } from "@/features/auth/domain/access-control";
 import { CreatePersonaPage } from "@/features/personas/components";
-import { getPersonaById } from "@/features/personas/server";
+import type { PersonaCvSummary } from "@/features/personas/domain/persona-cv";
+import { getPersonaById, getPersonaCvSummary } from "@/features/personas/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { ForbiddenError, UnauthorizedError } from "@/lib/server/errors";
@@ -27,6 +28,7 @@ export default async function Page({ params, searchParams }: PageProps) {
     const { returnTo } = searchParams ? await searchParams : {};
     let profile;
     let persona;
+    let personaCv: PersonaCvSummary | null = null;
 
     try {
         profile = await getCurrentProfile();
@@ -51,7 +53,10 @@ export default async function Page({ params, searchParams }: PageProps) {
     }
 
     try {
-        persona = await getPersonaById(personaId);
+        [persona, personaCv] = await Promise.all([
+            getPersonaById(personaId),
+            getPersonaCvSummary(personaId),
+        ]);
     } catch (error) {
         if (error instanceof ForbiddenError) {
             return (
@@ -72,6 +77,7 @@ export default async function Page({ params, searchParams }: PageProps) {
 
     return (
         <CreatePersonaPage
+            initialCv={personaCv}
             initialValues={persona}
             personaId={personaId}
             profileValues={profileValues}

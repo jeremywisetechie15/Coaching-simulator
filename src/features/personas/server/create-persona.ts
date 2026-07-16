@@ -13,6 +13,7 @@ import {
     type PersonaRow,
 } from "./persona.mapper";
 import { removePersonaAvatar, uploadPersonaAvatar } from "./persona-avatar";
+import { createPersonaCv } from "./persona-cv";
 import { createPersonaInsert } from "./persona.persistence";
 
 export async function createPersona(
@@ -36,23 +37,41 @@ export async function createPersona(
         ? await uploadPersonaAvatar(adminSupabase, personaId, avatarFile)
         : null;
 
-    const { data, error } = await adminSupabase
-        .from("personas")
-        .insert(createPersonaInsert(input, {
-            avatarUrl: uploadedAvatarPath ?? (input.avatarUrl || null),
-            createdBy: context.userId,
-            id: personaId,
-            now,
-            status: PUBLISHED_CONTENT_STATUS,
-        }))
-        .select(PERSONA_SELECT)
-        .single<PersonaRow>();
+    let data: PersonaRow;
 
-    if (error) {
+    try {
+        const result = await adminSupabase
+            .from("personas")
+            .insert(createPersonaInsert(input, {
+                avatarUrl: uploadedAvatarPath ?? (input.avatarUrl || null),
+                createdBy: context.userId,
+                id: personaId,
+                now,
+                status: PUBLISHED_CONTENT_STATUS,
+            }))
+            .select(PERSONA_SELECT)
+            .single<PersonaRow>();
+
+        if (result.error) throw result.error;
+        data = result.data;
+    } catch (error) {
         if (uploadedAvatarPath) {
             await removePersonaAvatar(adminSupabase, uploadedAvatarPath).catch(() => undefined);
         }
         throw error;
+    }
+
+    try {
+        await createPersonaCv(adminSupabase, personaId, context.userId, input.cv);
+    } catch (cvError) {
+        const { error: rollbackError } = await adminSupabase.from("personas").delete().eq("id", personaId);
+        if (rollbackError) {
+            console.error("Unable to roll back persona after CV failure:", rollbackError);
+        }
+        if (uploadedAvatarPath) {
+            await removePersonaAvatar(adminSupabase, uploadedAvatarPath).catch(() => undefined);
+        }
+        throw cvError;
     }
 
     return mapPersonaRowToListItem(data);

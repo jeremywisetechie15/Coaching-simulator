@@ -16,14 +16,24 @@ import {
     type PersonaEditorValues,
     type PersonaListItem,
 } from "@/features/personas/domain/persona-list";
+import type { PersonaCvSummary } from "@/features/personas/domain/persona-cv";
+import type { PersonaCvInput } from "@/features/personas/dto/save-persona.dto";
 import {
     PERSONA_BUSINESS_SECTORS,
     PERSONA_DISC_PROFILE_OPTIONS,
 } from "@/features/personas/domain/persona-profile";
 import { PersonaAvatarField } from "./PersonaAvatarField";
+import { PersonaCvField } from "./PersonaCvField";
+import {
+    CONTENT_UPLOAD_PURPOSES,
+    PERSONA_CV_UPLOAD_MIME_TYPE,
+} from "@/lib/uploads/content-upload";
+import { submitWithDirectUploads } from "@/lib/uploads/direct-upload.client";
+import type { PendingDirectUpload } from "@/lib/uploads/direct-upload";
 
 interface CreatePersonaPageContentProps {
     embedded?: boolean;
+    initialCv?: PersonaCvSummary | null;
     initialValues?: PersonaEditorValues;
     onSaved?: (persona: PersonaListItem) => void;
     personaId?: string;
@@ -35,7 +45,13 @@ interface ApiErrorPayload {
     persona?: PersonaListItem;
 }
 
-async function savePersona(personaId: string | undefined, values: PersonaEditorValues, avatarFile: File | null) {
+type SavePersonaPayload = PersonaEditorValues & { cv: PersonaCvInput | null };
+
+async function persistPersona(
+    personaId: string | undefined,
+    values: SavePersonaPayload,
+    avatarFile: File | null,
+) {
     const body = avatarFile ? new FormData() : JSON.stringify(values);
     const headers = avatarFile ? undefined : { "Content-Type": "application/json" };
 
@@ -61,6 +77,37 @@ async function savePersona(personaId: string | undefined, values: PersonaEditorV
     }
 
     return payload.persona;
+}
+
+async function savePersona({
+    avatarFile,
+    cvFile,
+    cvInput,
+    onCvUploadProgress,
+    personaId,
+    values,
+}: {
+    avatarFile: File | null;
+    cvFile: File | null;
+    cvInput: PersonaCvInput | null;
+    onCvUploadProgress: (percentage: number) => void;
+    personaId?: string;
+    values: PersonaEditorValues;
+}) {
+    if (cvInput?.kind === "upload" && !cvFile) {
+        throw new Error("Le fichier du CV sélectionné est introuvable.");
+    }
+
+    const uploads: PendingDirectUpload[] = cvInput?.kind === "upload" && cvFile
+        ? [{ clientFileId: cvInput.clientFileId, file: cvFile, purpose: CONTENT_UPLOAD_PURPOSES.personaCv }]
+        : [];
+
+    return submitWithDirectUploads({
+        onProgress: (_clientFileId, percentage) => onCvUploadProgress(percentage),
+        payload: { ...values, cv: cvInput },
+        save: (payload) => persistPersona(personaId, payload, avatarFile),
+        uploads,
+    });
 }
 
 function FormSection({ children, title }: { children: React.ReactNode; title: string }) {
@@ -97,6 +144,7 @@ function Field({
 
 export function CreatePersonaPageContent({
     embedded = false,
+    initialCv = null,
     initialValues = EMPTY_PERSONA_EDITOR_VALUES,
     onSaved,
     personaId,
@@ -105,11 +153,24 @@ export function CreatePersonaPageContent({
     const queryClient = useQueryClient();
     const [form, setForm] = useState<PersonaEditorValues>(initialValues);
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
+    const [cvFile, setCvFile] = useState<File | null>(null);
+    const [cvInput, setCvInput] = useState<PersonaCvInput | null>(() =>
+        initialCv ? { kind: "existing" } : null
+    );
+    const [cvUploadProgress, setCvUploadProgress] = useState<number | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
     const isEditing = Boolean(personaId);
     const mutation = useMutation({
-        mutationFn: (values: PersonaEditorValues) => savePersona(personaId, values, avatarFile),
+        mutationFn: (values: PersonaEditorValues) => savePersona({
+            avatarFile,
+            cvFile,
+            cvInput,
+            onCvUploadProgress: setCvUploadProgress,
+            personaId,
+            values,
+        }),
         onError: (error) => {
+            setCvUploadProgress(null);
             setFormError(error instanceof Error ? error.message : "Impossible d'enregistrer le persona.");
         },
         onSuccess: async (savedPersona) => {
@@ -136,11 +197,45 @@ export function CreatePersonaPageContent({
         setForm((previous) => ({ ...previous, [key]: value }));
     }
 
+    function selectCvFile(file: File) {
+        const clientFileId = crypto.randomUUID();
+        setCvFile(file);
+        setCvInput({
+            clientFileId,
+            fileName: file.name,
+            kind: "upload",
+            mimeType: PERSONA_CV_UPLOAD_MIME_TYPE,
+            sizeBytes: file.size,
+            storageBucket: "",
+            storagePath: "",
+        });
+        setCvUploadProgress(null);
+        setFormError(null);
+    }
+
+    function clearCvFile() {
+        if (cvInput?.kind === "upload") {
+            setCvFile(null);
+            setCvInput(initialCv ? { kind: "existing" } : null);
+        } else {
+            setCvInput(null);
+        }
+
+        setCvUploadProgress(null);
+        setFormError(null);
+    }
+
     function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         setFormError(null);
         mutation.mutate(form);
     }
+
+    const displayedCv = cvFile
+        ? { fileName: cvFile.name, sizeBytes: cvFile.size }
+        : cvInput?.kind === "existing"
+          ? initialCv
+          : null;
 
     return (
         <Box as={embedded ? "div" : "main"} className={embedded ? "" : "px-5 pb-16 md:px-9 lg:px-12"}>
@@ -206,6 +301,18 @@ export function CreatePersonaPageContent({
                                     hasLeadingIcon={false}
                                     value={form.role}
                                     onChange={(event) => patch("role", event.target.value)}
+                                />
+                            </Field>
+                            <Field label="CV" htmlFor="persona-cv">
+                                <PersonaCvField
+                                    disabled={mutation.isPending}
+                                    file={displayedCv}
+                                    onClear={clearCvFile}
+                                    onError={setFormError}
+                                    onFileSelected={selectCvFile}
+                                    personaId={personaId}
+                                    showExistingDownload={cvInput?.kind === "existing"}
+                                    uploadProgress={cvInput?.kind === "upload" ? cvUploadProgress : null}
                                 />
                             </Field>
                         </Box>

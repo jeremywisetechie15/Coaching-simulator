@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/features/auth/server";
 import { directUploadCleanupDto, directUploadIntentInputDto } from "@/lib/uploads/direct-upload";
 import { cleanupOwnedDirectUploads, createDirectUploadIntent } from "@/lib/uploads/direct-upload.server";
 import { jsonError } from "@/lib/server/http";
@@ -7,6 +8,7 @@ export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
     try {
+        await requireAdmin();
         const input = directUploadIntentInputDto.parse(await request.json());
         const intent = await createDirectUploadIntent(input);
 
@@ -18,6 +20,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
     try {
+        await requireAdmin();
         const { references } = directUploadCleanupDto.parse(await request.json());
         await cleanupOwnedDirectUploads(references);
 

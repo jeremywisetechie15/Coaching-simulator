@@ -12,6 +12,7 @@ describe("direct upload domain", () => {
     it("maps each purpose to its SSOT bucket", () => {
         expect(getDirectUploadBucket(CONTENT_UPLOAD_PURPOSES.contentAsset)).toBe("notation_pdf");
         expect(getDirectUploadBucket(CONTENT_UPLOAD_PURPOSES.methodDocument)).toBe("notation_pdf");
+        expect(getDirectUploadBucket(CONTENT_UPLOAD_PURPOSES.personaCv)).toBe("personas-cvs");
         expect(getDirectUploadBucket(CONTENT_UPLOAD_PURPOSES.quizAttachment)).toBe("quizzes");
         expect(getDirectUploadBucket(CONTENT_UPLOAD_PURPOSES.scenarioResource)).toBe("resource_scenarios");
     });
@@ -23,6 +24,27 @@ describe("direct upload domain", () => {
         expect(buildDirectStorageEndpoint("http://127.0.0.1:54321")).toBe(
             "http://127.0.0.1:54321/storage/v1/upload/resumable",
         );
+    });
+
+    it("accepts only the current admin's persona CV staging reference", () => {
+        const userId = "11111111-1111-4111-8111-111111111111";
+        const reference = {
+            bucket: "personas-cvs",
+            path: `${getDirectUploadStagingPrefix(userId, CONTENT_UPLOAD_PURPOSES.personaCv)}upload/cv.pdf`,
+            purpose: CONTENT_UPLOAD_PURPOSES.personaCv,
+        } as const;
+
+        expect(isOwnedDirectUploadReference(reference, userId, CONTENT_UPLOAD_PURPOSES.personaCv)).toBe(true);
+        expect(isOwnedDirectUploadReference(
+            { ...reference, bucket: "notation_pdf" },
+            userId,
+            CONTENT_UPLOAD_PURPOSES.personaCv,
+        )).toBe(false);
+        expect(isOwnedDirectUploadReference(
+            reference,
+            "22222222-2222-4222-8222-222222222222",
+            CONTENT_UPLOAD_PURPOSES.personaCv,
+        )).toBe(false);
     });
 
     it("only accepts staging references owned by the current user and purpose", () => {

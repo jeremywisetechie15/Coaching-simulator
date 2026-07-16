@@ -5,6 +5,10 @@ import {
     PERSONA_DISC_PROFILE,
     PERSONA_DISC_PROFILES,
 } from "@/features/personas/domain/persona-profile";
+import {
+    MAX_PERSONA_CV_UPLOAD_SIZE_BYTES,
+    PERSONA_CV_UPLOAD_MIME_TYPE,
+} from "@/lib/uploads/content-upload";
 
 const optionalString = (max: number, message: string) =>
     z.string().trim().max(max, message).optional().default("");
@@ -21,6 +25,21 @@ const optionalIntegerString = (message: string, options: { max?: number } = {}) 
         .optional()
         .default("");
 
+export const personaCvInputDto = z.discriminatedUnion("kind", [
+    z.object({
+        kind: z.literal("existing"),
+    }).strict(),
+    z.object({
+        clientFileId: z.string().trim().min(1).max(120),
+        fileName: z.string().trim().min(1).max(255),
+        kind: z.literal("upload"),
+        mimeType: z.literal(PERSONA_CV_UPLOAD_MIME_TYPE),
+        sizeBytes: z.number().int().positive().max(MAX_PERSONA_CV_UPLOAD_SIZE_BYTES),
+        storageBucket: z.string().trim().max(120).optional().default(""),
+        storagePath: z.string().trim().max(1000).optional().default(""),
+    }).strict(),
+]);
+
 export const savePersonaDto = z.object({
     age: optionalIntegerString("L'âge doit être un nombre entier positif inférieur ou égal à 130.", { max: 130 }),
     annualRevenue: optionalString(120, "Le chiffre d'affaires est trop long."),
@@ -28,6 +47,7 @@ export const savePersonaDto = z.object({
     childrenCount: optionalIntegerString("Le nombre d'enfants doit être un nombre entier positif."),
     company: z.string().trim().max(120, "Le nom de l'entreprise est trop long.").optional().default(""),
     companyDescription: optionalString(2000, "Le descriptif de l'entreprise est trop long."),
+    cv: personaCvInputDto.nullable().optional(),
     diploma: optionalString(160, "Le diplôme est trop long."),
     discProfile: z.enum(PERSONA_DISC_PROFILES).optional().default(PERSONA_DISC_PROFILE.stable),
     employeeCount: optionalIntegerString("Le nombre d'employés doit être un nombre entier positif."),
@@ -53,3 +73,4 @@ export const savePersonaDto = z.object({
 });
 
 export type SavePersonaDto = z.infer<typeof savePersonaDto>;
+export type PersonaCvInput = z.infer<typeof personaCvInputDto>;

@@ -4,6 +4,7 @@ import {
     listPersonas,
     parseSavePersonaRequest,
 } from "@/features/personas/server";
+import { requireAdmin } from "@/features/auth/server";
 import { jsonError } from "@/lib/server/http";
 
 export const dynamic = "force-dynamic";
@@ -20,6 +21,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
     try {
+        await requireAdmin();
         const { avatarFile, input } = await parseSavePersonaRequest(request);
         const persona = await createPersona(input, avatarFile);
 

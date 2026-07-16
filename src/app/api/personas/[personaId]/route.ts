@@ -5,6 +5,7 @@ import {
     parseSavePersonaRequest,
     updatePersona,
 } from "@/features/personas/server";
+import { requireAdmin } from "@/features/auth/server";
 import { NotFoundError } from "@/lib/server/errors";
 import { jsonError } from "@/lib/server/http";
 
@@ -28,6 +29,7 @@ export async function GET(_request: NextRequest, { params }: RouteContext) {
 
 export async function PATCH(request: NextRequest, { params }: RouteContext) {
     try {
+        await requireAdmin();
         const { personaId } = await params;
         const { avatarFile, input } = await parseSavePersonaRequest(request);
         const persona = await updatePersona(personaId, input, avatarFile);

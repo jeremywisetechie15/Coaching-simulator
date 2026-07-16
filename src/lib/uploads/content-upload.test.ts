@@ -2,11 +2,16 @@ import { describe, expect, it } from "vitest";
 import {
     CONTENT_UPLOAD_BUCKET,
     CONTENT_UPLOAD_PURPOSES,
+    MAX_PERSONA_CV_UPLOAD_SIZE_BYTES,
     MAX_VIDEO_UPLOAD_SIZE_BYTES,
+    PERSONA_CV_UPLOAD_BUCKET,
+    PERSONA_CV_UPLOAD_MIME_TYPE,
     QUIZ_UPLOAD_BUCKET,
     SCENARIO_RESOURCE_UPLOAD_BUCKET,
     SESSION_BACKGROUND_UPLOAD_BUCKET,
     formatUploadFileSize,
+    getContentUploadAccept,
+    hasPdfFileSignature,
     inferContentUploadResourceType,
     getContentUploadLimitLabel,
     sanitizeUploadFileName,
@@ -96,6 +101,72 @@ describe("content upload domain", () => {
                 CONTENT_UPLOAD_PURPOSES.coachAvatar,
             ),
         ).toBe("L'avatar du coach accepte uniquement une image JPG, PNG ou WebP.");
+    });
+
+    it("accepts persona CVs only as PDFs up to the shared 5 Mo limit", () => {
+        expect(PERSONA_CV_UPLOAD_BUCKET).toBe("personas-cvs");
+        expect(getContentUploadAccept(CONTENT_UPLOAD_PURPOSES.personaCv)).toBe(
+            PERSONA_CV_UPLOAD_MIME_TYPE,
+        );
+        expect(getContentUploadLimitLabel(CONTENT_UPLOAD_PURPOSES.personaCv)).toBe(
+            "CV au format PDF : 5 Mo maximum.",
+        );
+        expect(
+            validateContentUploadFile(
+                {
+                    name: "CV-Sophie.PDF",
+                    size: MAX_PERSONA_CV_UPLOAD_SIZE_BYTES,
+                    type: PERSONA_CV_UPLOAD_MIME_TYPE,
+                },
+                CONTENT_UPLOAD_PURPOSES.personaCv,
+            ),
+        ).toBeNull();
+        expect(
+            validateContentUploadFile(
+                {
+                    name: "CV-Sophie.docx",
+                    size: 1024,
+                    type: PERSONA_CV_UPLOAD_MIME_TYPE,
+                },
+                CONTENT_UPLOAD_PURPOSES.personaCv,
+            ),
+        ).toBe("Le CV doit être un fichier PDF.");
+        expect(
+            validateContentUploadFile(
+                {
+                    name: "CV-Sophie.pdf",
+                    size: 1024,
+                    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                },
+                CONTENT_UPLOAD_PURPOSES.personaCv,
+            ),
+        ).toBe("Le CV doit être un fichier PDF.");
+        expect(
+            validateContentUploadFile(
+                {
+                    name: "CV-Sophie.pdf",
+                    size: MAX_PERSONA_CV_UPLOAD_SIZE_BYTES + 1,
+                    type: PERSONA_CV_UPLOAD_MIME_TYPE,
+                },
+                CONTENT_UPLOAD_PURPOSES.personaCv,
+            ),
+        ).toBe("Le CV ne doit pas dépasser 5 Mo.");
+        expect(
+            validateContentUploadFile(
+                {
+                    name: "CV-Sophie.pdf",
+                    size: 0,
+                    type: PERSONA_CV_UPLOAD_MIME_TYPE,
+                },
+                CONTENT_UPLOAD_PURPOSES.personaCv,
+            ),
+        ).toBe("Le fichier est vide.");
+    });
+
+    it("recognizes the PDF file signature instead of trusting metadata alone", () => {
+        expect(hasPdfFileSignature(new TextEncoder().encode("%PDF-1.7"))).toBe(true);
+        expect(hasPdfFileSignature(new TextEncoder().encode("<html>"))).toBe(false);
+        expect(hasPdfFileSignature(new Uint8Array())).toBe(false);
     });
 
     it("rejects unsupported or oversized files", () => {

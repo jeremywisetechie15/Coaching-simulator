@@ -4,6 +4,7 @@ export const CONTENT_UPLOAD_BUCKET = "notation_pdf";
 export const QUIZ_UPLOAD_BUCKET = "quizzes";
 export const SCENARIO_RESOURCE_UPLOAD_BUCKET = "resource_scenarios";
 export const SESSION_BACKGROUND_UPLOAD_BUCKET = "session-backgrounds";
+export const PERSONA_CV_UPLOAD_BUCKET = "personas-cvs";
 
 export const CONTENT_RESOURCE_DELIVERY_TYPE = {
     file: "file",
@@ -23,6 +24,7 @@ export const CONTENT_RESOURCE_DELIVERY_OPTIONS = [
 ] as const;
 
 export const MAX_CONTENT_UPLOAD_SIZE_BYTES = 25 * 1024 * 1024;
+export const MAX_PERSONA_CV_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024;
 export const MAX_SESSION_BACKGROUND_UPLOAD_SIZE_BYTES = 10 * 1024 * 1024;
 export const MAX_VIDEO_UPLOAD_SIZE_BYTES = 250 * 1024 * 1024;
 
@@ -35,6 +37,7 @@ export const CONTENT_UPLOAD_PURPOSES = {
     contentAsset: "content_asset",
     methodDocument: "method_document",
     personaAvatar: "persona_avatar",
+    personaCv: "persona_cv",
     quizAttachment: "quiz_attachment",
     scenarioResource: "scenario_resource",
     sessionBackground: "session_background",
@@ -43,6 +46,7 @@ export const CONTENT_UPLOAD_PURPOSES = {
 export const DIRECT_CONTENT_UPLOAD_PURPOSES = [
     CONTENT_UPLOAD_PURPOSES.contentAsset,
     CONTENT_UPLOAD_PURPOSES.methodDocument,
+    CONTENT_UPLOAD_PURPOSES.personaCv,
     CONTENT_UPLOAD_PURPOSES.quizAttachment,
     CONTENT_UPLOAD_PURPOSES.scenarioResource,
 ] as const;
@@ -52,6 +56,7 @@ export type DirectContentUploadPurpose = (typeof DIRECT_CONTENT_UPLOAD_PURPOSES)
 export const DIRECT_CONTENT_UPLOAD_BUCKET_BY_PURPOSE = {
     [CONTENT_UPLOAD_PURPOSES.contentAsset]: CONTENT_UPLOAD_BUCKET,
     [CONTENT_UPLOAD_PURPOSES.methodDocument]: CONTENT_UPLOAD_BUCKET,
+    [CONTENT_UPLOAD_PURPOSES.personaCv]: PERSONA_CV_UPLOAD_BUCKET,
     [CONTENT_UPLOAD_PURPOSES.quizAttachment]: QUIZ_UPLOAD_BUCKET,
     [CONTENT_UPLOAD_PURPOSES.scenarioResource]: SCENARIO_RESOURCE_UPLOAD_BUCKET,
 } as const satisfies Record<DirectContentUploadPurpose, string>;
@@ -109,6 +114,9 @@ const DOCUMENT_UPLOAD_MIME_TYPES = Object.entries(CONTENT_UPLOAD_MIME_TYPES)
 
 export const DOCUMENT_UPLOAD_ACCEPT = DOCUMENT_UPLOAD_MIME_TYPES.join(",");
 
+export const PERSONA_CV_UPLOAD_MIME_TYPE = "application/pdf";
+export const PERSONA_CV_UPLOAD_ACCEPT = PERSONA_CV_UPLOAD_MIME_TYPE;
+
 const QUIZ_ATTACHMENT_UPLOAD_MIME_TYPES = Object.entries(CONTENT_UPLOAD_MIME_TYPES)
     .filter(([, config]) => ["document", "image", "video", "audio"].includes(config.resourceType))
     .map(([mimeType]) => mimeType);
@@ -128,6 +136,7 @@ export interface ContentUploadFileLike {
 }
 
 export function getContentUploadAccept(purpose: ContentUploadPurpose = CONTENT_UPLOAD_PURPOSES.contentAsset) {
+    if (purpose === CONTENT_UPLOAD_PURPOSES.personaCv) return PERSONA_CV_UPLOAD_ACCEPT;
     if (purpose === CONTENT_UPLOAD_PURPOSES.methodDocument) return DOCUMENT_UPLOAD_ACCEPT;
     if (purpose === CONTENT_UPLOAD_PURPOSES.quizAttachment) return QUIZ_ATTACHMENT_UPLOAD_ACCEPT;
     if (
@@ -150,6 +159,10 @@ export function getContentUploadLimitLabel(
 
     if (purpose === CONTENT_UPLOAD_PURPOSES.methodDocument) {
         return "Documents : 25 Mo maximum.";
+    }
+
+    if (purpose === CONTENT_UPLOAD_PURPOSES.personaCv) {
+        return "CV au format PDF : 5 Mo maximum.";
     }
 
     return "Vidéos : 250 Mo maximum. Autres fichiers : 25 Mo maximum.";
@@ -178,6 +191,13 @@ export function validateContentUploadFile(
     }
 
     if (
+        purpose === CONTENT_UPLOAD_PURPOSES.personaCv &&
+        (file.type !== PERSONA_CV_UPLOAD_MIME_TYPE || !file.name.toLocaleLowerCase("fr-FR").endsWith(".pdf"))
+    ) {
+        return "Le CV doit être un fichier PDF.";
+    }
+
+    if (
         purpose === CONTENT_UPLOAD_PURPOSES.quizAttachment &&
         !["document", "image", "video", "audio"].includes(mimeConfig.resourceType)
     ) {
@@ -201,15 +221,19 @@ export function validateContentUploadFile(
     const isLimitedImage =
         AVATAR_UPLOAD_PURPOSES.includes(purpose) ||
         purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground;
-    const maxSizeBytes = isLimitedImage
-        ? MAX_SESSION_BACKGROUND_UPLOAD_SIZE_BYTES
-        : DIRECT_CONTENT_UPLOAD_PURPOSES.includes(purpose as DirectContentUploadPurpose) &&
-            mimeConfig.resourceType === "video"
+    const maxSizeBytes = purpose === CONTENT_UPLOAD_PURPOSES.personaCv
+        ? MAX_PERSONA_CV_UPLOAD_SIZE_BYTES
+        : isLimitedImage
+          ? MAX_SESSION_BACKGROUND_UPLOAD_SIZE_BYTES
+          : DIRECT_CONTENT_UPLOAD_PURPOSES.includes(purpose as DirectContentUploadPurpose) &&
+              mimeConfig.resourceType === "video"
             ? MAX_VIDEO_UPLOAD_SIZE_BYTES
             : MAX_CONTENT_UPLOAD_SIZE_BYTES;
 
     if (file.size > maxSizeBytes) {
-        return isLimitedImage
+        return purpose === CONTENT_UPLOAD_PURPOSES.personaCv
+            ? "Le CV ne doit pas dépasser 5 Mo."
+            : isLimitedImage
             ? AVATAR_UPLOAD_PURPOSES.includes(purpose)
                 ? purpose === CONTENT_UPLOAD_PURPOSES.coachAvatar
                     ? "L'avatar du coach ne doit pas dépasser 10 Mo."
@@ -221,6 +245,17 @@ export function validateContentUploadFile(
     }
 
     return null;
+}
+
+export function hasPdfFileSignature(bytes: ArrayLike<number>) {
+    return (
+        bytes.length >= 5 &&
+        bytes[0] === 0x25 &&
+        bytes[1] === 0x50 &&
+        bytes[2] === 0x44 &&
+        bytes[3] === 0x46 &&
+        bytes[4] === 0x2d
+    );
 }
 
 export function sanitizeUploadFileName(fileName: string, mimeType: string) {
