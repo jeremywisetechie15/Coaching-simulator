@@ -8,7 +8,7 @@ const savoirItemId = "11111111-1111-4111-8111-111111111111";
 const savoirFaireItemId = "22222222-2222-4222-8222-222222222222";
 
 const editedSkillInput: SaveSkillDto = {
-    category: "Métier",
+    category: "Prospection",
     description: "",
     dimensionItems: {
         savoir: [{ id: savoirItemId, label: "Connaissance de la méthode" }],
@@ -20,13 +20,13 @@ const editedSkillInput: SaveSkillDto = {
     },
     assignedUserId: null,
     domain: "Commercial",
-    functions: ["Sales"],
     groupId: null,
     id: "",
     name: "Gestion des objections",
     organizationId: null,
     scope: CONTENT_VISIBILITY_SCOPE.public,
     status: CONTENT_STATUS.published,
+    type: "Métier",
 };
 
 interface SupabaseCall {

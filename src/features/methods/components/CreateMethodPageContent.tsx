@@ -13,6 +13,10 @@ import {
     CONTENT_VISIBILITY_CHOICE_LABELS,
     CONTENT_VISIBILITY_CHOICES,
     getCategoriesForDomain,
+    isContentCategoryForDomain,
+    isContentDomain,
+    type ContentCategory,
+    type ContentDomain,
     type ContentStatus,
     type ContentVisibilityChoice,
 } from "@/features/content/domain";
@@ -406,9 +410,13 @@ export function CreateMethodPageContent({
             value: quiz.id,
         })),
     ];
+    const initialDomain = isContentDomain(initialMethod?.domain) ? initialMethod.domain : null;
+    const initialCategory = isContentCategoryForDomain(initialDomain, initialMethod?.category)
+        ? initialMethod.category
+        : null;
     const [name, setName] = useState(initialMethod?.name ?? "");
-    const [domain, setDomain] = useState<string | null>(initialMethod?.domain || null);
-    const [category, setCategory] = useState<string | null>(initialMethod?.category || null);
+    const [domain, setDomain] = useState<ContentDomain | null>(initialDomain);
+    const [category, setCategory] = useState<ContentCategory | null>(initialCategory);
     const [quiz, setQuiz] = useState<string | null>(initialQuizId);
     const [description, setDescription] = useState(initialMethod?.description ?? "");
     const [readingTime, setReadingTime] = useState(
@@ -716,27 +724,35 @@ export function CreateMethodPageContent({
                                 className={inputClasses}
                             />
                         </Box>
-                        <Box>
-                            <FieldLabel className={labelClasses}>Domaine</FieldLabel>
-                            <SingleSelectField
-                                options={[...CONTENT_DOMAINS]}
-                                value={domain}
-                                placeholder="Sélectionner un domaine"
-                                onChange={(value) => {
-                                    setDomain(value);
-                                    setCategory(null);
-                                }}
-                            />
-                        </Box>
-                        <Box>
-                            <FieldLabel className={labelClasses}>Catégorie</FieldLabel>
-                            <SingleSelectField
-                                options={[...getCategoriesForDomain(domain)]}
-                                value={category}
-                                placeholder={domain ? "Sélectionner une catégorie" : "Sélectionnez d'abord un domaine"}
-                                disabled={!domain}
-                                onChange={setCategory}
-                            />
+                        <Box className="grid gap-5 sm:grid-cols-2">
+                            <Box>
+                                <FieldLabel className={labelClasses}>Domaine</FieldLabel>
+                                <SingleSelectField
+                                    options={[...CONTENT_DOMAINS]}
+                                    value={domain}
+                                    placeholder="Sélectionner un domaine"
+                                    onChange={(value) => {
+                                        if (!isContentDomain(value)) return;
+
+                                        setDomain(value);
+                                        setCategory(null);
+                                    }}
+                                />
+                            </Box>
+                            <Box>
+                                <FieldLabel className={labelClasses}>Catégorie</FieldLabel>
+                                <SingleSelectField
+                                    options={[...getCategoriesForDomain(domain)]}
+                                    value={category}
+                                    placeholder={domain ? "Sélectionner une catégorie" : "Sélectionnez d'abord un domaine"}
+                                    disabled={!domain}
+                                    onChange={(value) => {
+                                        if (isContentCategoryForDomain(domain, value)) {
+                                            setCategory(value);
+                                        }
+                                    }}
+                                />
+                            </Box>
                         </Box>
                         <Box>
                             <FieldLabel className={labelClasses}>Quiz associé (optionnel)</FieldLabel>

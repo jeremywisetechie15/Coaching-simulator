@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_METHOD_STEP_ICON } from "@/features/methods/domain/method";
-import { mapMethodStepRow, type MethodStepRow } from "./method.mapper";
+import { mapMethodRowToListItem, mapMethodStepRow, type MethodStepRow } from "./method.mapper";
 
 function methodStepRow(icon: string | null): MethodStepRow {
     return {
@@ -20,5 +20,19 @@ describe("mapMethodStepRow", () => {
     it("uses the shared safe fallback for historical invalid values", () => {
         expect(mapMethodStepRow(methodStepRow("unknown-icon"), []).icon).toBe(DEFAULT_METHOD_STEP_ICON);
         expect(mapMethodStepRow(methodStepRow(null), []).icon).toBe(DEFAULT_METHOD_STEP_ICON);
+    });
+});
+
+describe("mapMethodRowToListItem", () => {
+    it("keeps the method domain and category distinct", () => {
+        expect(mapMethodRowToListItem({
+            category: "Gestion des conflits",
+            domain: "Communication",
+            id: "11111111-1111-4111-8111-111111111111",
+            name: "Méthode ACOR",
+        })).toMatchObject({
+            category: "Gestion des conflits",
+            domain: "Communication",
+        });
     });
 });

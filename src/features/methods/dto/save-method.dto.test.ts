@@ -9,6 +9,83 @@ const minimalMethodInput = {
 };
 
 describe("saveMethodDto", () => {
+    it("accepts a category from the selected domain", () => {
+        const result = saveMethodDto.parse({
+            ...minimalMethodInput,
+            category: "Gestion des conflits",
+            domain: "Communication",
+        });
+
+        expect(result).toMatchObject({
+            category: "Gestion des conflits",
+            domain: "Communication",
+        });
+    });
+
+    it("keeps an empty taxonomy optional", () => {
+        const result = saveMethodDto.parse(minimalMethodInput);
+
+        expect(result).toMatchObject({ category: "", domain: "" });
+    });
+
+    it("rejects a domain outside the shared taxonomy", () => {
+        const result = saveMethodDto.safeParse({
+            ...minimalMethodInput,
+            domain: "Fonctions",
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        message: "Le domaine sélectionné est invalide.",
+                        path: ["domain"],
+                    }),
+                ]),
+            );
+        }
+    });
+
+    it("rejects a category without a domain", () => {
+        const result = saveMethodDto.safeParse({
+            ...minimalMethodInput,
+            category: "Gestion des conflits",
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        message: "Sélectionnez un domaine avant la catégorie.",
+                        path: ["category"],
+                    }),
+                ]),
+            );
+        }
+    });
+
+    it("rejects a category from another domain", () => {
+        const result = saveMethodDto.safeParse({
+            ...minimalMethodInput,
+            category: "Gestion des conflits",
+            domain: "Commercial",
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        message: "La catégorie ne correspond pas au domaine sélectionné.",
+                        path: ["category"],
+                    }),
+                ]),
+            );
+        }
+    });
+
     it("normalizes a valid method payload", () => {
         const result = saveMethodDto.parse({
             ...minimalMethodInput,

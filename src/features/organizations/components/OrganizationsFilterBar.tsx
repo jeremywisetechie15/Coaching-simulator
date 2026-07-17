@@ -1,12 +1,24 @@
-import { ChevronDown, Search } from "lucide-react";
-import { Box, Button, CardSurface, InlineIcon, Text, TextInput } from "@/lib/ui/atoms";
+import { Search } from "lucide-react";
+import {
+    ORGANIZATION_STATUS_FILTER_OPTIONS,
+    type OrganizationStatusFilter,
+} from "@/features/organizations/domain/organization-list";
+import { Box, CardSurface, InlineIcon, TextInput } from "@/lib/ui/atoms";
+import { FilterSelect } from "@/lib/ui/molecules";
 
 interface OrganizationsFilterBarProps {
     onSearchQueryChange: (value: string) => void;
+    onStatusFilterChange: (value: OrganizationStatusFilter) => void;
     searchQuery: string;
+    statusFilter: OrganizationStatusFilter;
 }
 
-export function OrganizationsFilterBar({ onSearchQueryChange, searchQuery }: OrganizationsFilterBarProps) {
+export function OrganizationsFilterBar({
+    onSearchQueryChange,
+    onStatusFilterChange,
+    searchQuery,
+    statusFilter,
+}: OrganizationsFilterBarProps) {
     return (
         <CardSurface className="mb-7 rounded-[14px] border border-[#E1E4EB] px-4 py-3 shadow-none md:px-5">
             <Box className="flex flex-col gap-3 md:flex-row">
@@ -25,10 +37,14 @@ export function OrganizationsFilterBar({ onSearchQueryChange, searchQuery }: Org
                     />
                 </Box>
 
-                <Button className="flex h-10 min-w-[180px] items-center justify-between rounded-lg border border-[#E1E4EB] bg-[#FBFCFE] px-4 text-left text-[14px] font-semibold text-[#202636] transition hover:bg-white">
-                    <Text as="span">Tous statuts</Text>
-                    <InlineIcon icon={ChevronDown} className="h-5 w-5 text-[#B5BBC8]" />
-                </Button>
+                <Box className="min-w-[180px]">
+                    <FilterSelect
+                        ariaLabel="Filtrer les organisations par statut"
+                        onChange={(value) => onStatusFilterChange(value as OrganizationStatusFilter)}
+                        options={ORGANIZATION_STATUS_FILTER_OPTIONS}
+                        value={statusFilter}
+                    />
+                </Box>
             </Box>
         </CardSurface>
     );

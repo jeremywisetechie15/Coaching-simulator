@@ -10,13 +10,14 @@ import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { ForbiddenError, NotFoundError, UnauthorizedError } from "@/lib/server/errors";
 import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
+import { getOrganizationGroupDetailHref } from "@/features/organizations/domain/organization-navigation";
 
 interface PageProps {
     params: Promise<{
         groupId: string;
         organizationId: string;
     }>;
-    searchParams?: Promise<{ returnTo?: string; tab?: string }>;
+    searchParams?: Promise<{ edit?: string; returnTo?: string; tab?: string }>;
 }
 
 export const metadata = {
@@ -25,7 +26,8 @@ export const metadata = {
 
 export default async function Page({ params, searchParams }: PageProps) {
     const { groupId, organizationId } = await params;
-    const { returnTo, tab } = searchParams ? await searchParams : {};
+    const { edit, returnTo, tab } = searchParams ? await searchParams : {};
+    const initialIsEditing = edit === "1" || edit === "true";
     let groupData: OrganizationGroupPageData;
     let profile;
 
@@ -33,9 +35,10 @@ export default async function Page({ params, searchParams }: PageProps) {
         profile = await getCurrentProfile();
     } catch (error) {
         if (error instanceof UnauthorizedError) {
-            const groupHref = tab
-                ? `/organizations/${organizationId}/groups/${groupId}?tab=${encodeURIComponent(tab)}`
-                : `/organizations/${organizationId}/groups/${groupId}`;
+            const groupHref = getOrganizationGroupDetailHref(organizationId, groupId, {
+                edit: initialIsEditing,
+                tab,
+            });
             redirect(buildAuthRedirectHref(withReturnTo(groupHref, returnTo)));
         }
 
@@ -65,6 +68,7 @@ export default async function Page({ params, searchParams }: PageProps) {
     return (
         <OrganizationGroupDetailPage
             groupData={groupData}
+            initialIsEditing={initialIsEditing}
             profileValues={profileValues}
         />
     );

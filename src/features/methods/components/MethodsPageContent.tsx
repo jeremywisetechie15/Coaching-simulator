@@ -175,9 +175,14 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
                                     {method.subtitle || method.description || "Méthode pédagogique configurable"}
                                 </Text>
                                 <Box className="mt-4 flex flex-wrap gap-2">
-                                    {(method.domain || method.category) && (
-                                        <Box className="inline-flex h-7 w-fit items-center rounded-md border border-[#93C5FD] bg-[#EFF6FF] px-2.5 text-[12px] font-semibold text-[#2563EB]">
-                                            {method.domain || method.category}
+                                    {method.domain && (
+                                        <Box className={cn("inline-flex min-h-7 w-fit items-center rounded-md border px-2.5 py-1 text-[12px] font-semibold", uiTokens.tone.info.soft)}>
+                                            Domaine · {method.domain}
+                                        </Box>
+                                    )}
+                                    {method.category && (
+                                        <Box className={cn("inline-flex min-h-7 w-fit items-center rounded-md border px-2.5 py-1 text-[12px] font-semibold", uiTokens.tone.primary.soft)}>
+                                            Catégorie · {method.category}
                                         </Box>
                                     )}
                                     <Box className="inline-flex h-7 w-fit items-center rounded-md border border-[#C7D2FE] bg-[#EEF2FF] px-2.5 text-[12px] font-semibold text-[#4338CA]">

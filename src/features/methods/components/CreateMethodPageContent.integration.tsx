@@ -33,6 +33,9 @@ describe("CreateMethodPageContent", () => {
         );
 
         expect(html).toContain("Quiz associé (optionnel)");
+        expect(html).toContain("Domaine");
+        expect(html).toContain("Catégorie");
+        expect(html).not.toContain("Fonctions");
         expect(html).toContain("Aucun quiz associé");
         expect(html).not.toContain("Un quiz associé est requis pour publier une nouvelle méthode.");
         expect(html).toContain("Ressources complémentaires");
@@ -47,11 +50,11 @@ describe("CreateMethodPageContent", () => {
 
     it("renders existing method-level resources as separate documents", () => {
         const initialMethod: MethodDetail = {
-            category: "",
+            category: "Gestion des conflits",
             challenges: [],
             code: "dago",
             description: "",
-            domain: "",
+            domain: "Communication",
             id: "11111111-1111-4111-8111-111111111100",
             name: "Méthode DAGO",
             notationMethodId: null,
@@ -107,6 +110,8 @@ describe("CreateMethodPageContent", () => {
         expect(html).toContain("Document 2");
         expect(html).toContain("Guide DAGO");
         expect(html).toContain("Checklist");
+        expect(html).toContain("Communication");
+        expect(html).toContain("Gestion des conflits");
     });
 
     it("preselects the quiz already linked to the edited method", () => {

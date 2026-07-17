@@ -17,6 +17,15 @@ export const organizationStatusOptions = ORGANIZATION_STATUSES.map((status) => (
     value: status,
 }));
 
+export const ORGANIZATION_STATUS_FILTER_ALL = "all" as const;
+
+export type OrganizationStatusFilter = typeof ORGANIZATION_STATUS_FILTER_ALL | OrganizationStatus;
+
+export const ORGANIZATION_STATUS_FILTER_OPTIONS = [
+    { label: "Tous statuts", value: ORGANIZATION_STATUS_FILTER_ALL },
+    ...organizationStatusOptions,
+] as const;
+
 export function getOrganizationStatusLabel(status: OrganizationStatus) {
     return ORGANIZATION_STATUS_LABELS[status];
 }
@@ -30,4 +39,21 @@ export interface OrganizationListItem {
     roleplayCount: number;
     status: OrganizationStatus;
     userCount: number;
+}
+
+export function filterOrganizationListItems(
+    organizations: readonly OrganizationListItem[],
+    query: string,
+    statusFilter: OrganizationStatusFilter,
+) {
+    const normalizedQuery = query.trim().toLocaleLowerCase("fr-FR");
+
+    return organizations.filter((organization) => {
+        const matchesQuery = !normalizedQuery
+            || organization.name.toLocaleLowerCase("fr-FR").includes(normalizedQuery);
+        const matchesStatus = statusFilter === ORGANIZATION_STATUS_FILTER_ALL
+            || organization.status === statusFilter;
+
+        return matchesQuery && matchesStatus;
+    });
 }

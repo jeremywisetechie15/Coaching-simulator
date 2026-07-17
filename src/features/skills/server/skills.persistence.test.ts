@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { CONTENT_STATUS, CONTENT_VISIBILITY_SCOPE } from "@/features/content/domain";
 import type { SaveSkillDto } from "@/features/skills/dto";
-import { createSkillDimensionItemRows, createSkillInsert, slugifySkillValue } from "./skills.persistence";
+import {
+    createSkillDimensionItemRows,
+    createSkillInsert,
+    createSkillUpdate,
+    slugifySkillValue,
+} from "./skills.persistence";
 
 const skillInput: SaveSkillDto = {
-    category: "Métier",
+    category: "Prospection",
     description: "",
     dimensionItems: {
         savoir: [{ label: "Connaissance de la méthode" }],
@@ -13,13 +18,13 @@ const skillInput: SaveSkillDto = {
     },
     assignedUserId: null,
     domain: "Commercial",
-    functions: ["Sales"],
     groupId: null,
     id: "",
     name: "Gestion des objections",
     organizationId: null,
     scope: CONTENT_VISIBILITY_SCOPE.public,
     status: CONTENT_STATUS.published,
+    type: "Métier",
 };
 
 const savoirItemId = "11111111-1111-4111-8111-111111111111";
@@ -87,6 +92,45 @@ describe("skills.persistence", () => {
             visibility_scope: CONTENT_VISIBILITY_SCOPE.group,
         });
         expect(row).not.toHaveProperty("objective");
+    });
+
+    it("maps type, domain and category on create and update without functions", () => {
+        const insert = createSkillInsert(
+            skillInput,
+            "gestion-objections",
+            "66666666-6666-4666-8666-666666666666",
+        );
+        const update = createSkillUpdate(skillInput);
+
+        expect(insert).toMatchObject({
+            category: "Prospection",
+            domain: "Commercial",
+            skill_type: "Métier",
+        });
+        expect(update).toMatchObject({
+            category: "Prospection",
+            domain: "Commercial",
+            skill_type: "Métier",
+        });
+        expect(insert).not.toHaveProperty("functions");
+        expect(update).not.toHaveProperty("functions");
+    });
+
+    it("maps an empty taxonomy pair to null on create and update", () => {
+        const emptyTaxonomyInput = {
+            ...skillInput,
+            category: "",
+            domain: "",
+        } satisfies SaveSkillDto;
+
+        expect(
+            createSkillInsert(
+                emptyTaxonomyInput,
+                "gestion-objections",
+                "66666666-6666-4666-8666-666666666666",
+            ),
+        ).toMatchObject({ category: null, domain: null });
+        expect(createSkillUpdate(emptyTaxonomyInput)).toMatchObject({ category: null, domain: null });
     });
 
     it("keeps existing dimension item ids when editing a skill", () => {

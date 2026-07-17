@@ -440,6 +440,16 @@ export function MethodDetailPageContent({
                                 {method.description}
                             </Text>
                             <Box className="mt-5 flex flex-wrap gap-3">
+                                {method.domain && (
+                                    <Box className={cn("inline-flex min-h-10 items-center rounded-lg border px-3.5 py-2 text-[13px] font-semibold", uiTokens.tone.info.soft)}>
+                                        Domaine · {method.domain}
+                                    </Box>
+                                )}
+                                {method.category && (
+                                    <Box className={cn("inline-flex min-h-10 items-center rounded-lg border px-3.5 py-2 text-[13px] font-semibold", uiTokens.tone.primary.soft)}>
+                                        Catégorie · {method.category}
+                                    </Box>
+                                )}
                                 <Box className="inline-flex h-10 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-3.5 text-[13px] font-semibold text-[#4B5563]">
                                     <InlineIcon icon={Clock} className="h-4 w-4 text-[#9CA3AF]" />
                                     Temps de lecture : {method.readingTimeLabel}

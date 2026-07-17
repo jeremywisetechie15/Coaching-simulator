@@ -1,7 +1,7 @@
 "use client";
 
-import { ArrowLeft, Check, ChevronDown, Plus, Search, SlidersHorizontal, Star, X } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { ArrowLeft, Plus, Search, SlidersHorizontal, Star, X } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
     ContextualBackLink,
@@ -9,19 +9,28 @@ import {
     useCurrentAppHref,
 } from "@/features/app-shell/components";
 import { withSearchParams } from "@/features/app-shell/domain";
-import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import {
-    skillCategoryStyles,
-    skillDomainOptions,
-    skillFunctionOptions,
+    CONTENT_DOMAINS,
+    getCategoriesForDomain,
+    isContentCategoryForDomain,
+    isContentDomain,
+} from "@/features/content/domain";
+import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import { FilterSelect, type FilterSelectOption } from "@/lib/ui/molecules";
+import { uiTokens } from "@/lib/ui/tokens";
+import { cn } from "@/lib/ui/utils/cn";
+import {
+    SKILL_TYPES,
+    isSkillType,
     skillTypeOptions,
     type SkillListItem,
 } from "@/features/skills/domain/skills";
+import { SKILL_TYPE_TONES } from "./skill-ui";
 
 interface FilterState {
+    category: string;
     domain: string;
     type: string;
-    function: string;
 }
 
 interface SkillsPageContentProps {
@@ -29,83 +38,31 @@ interface SkillsPageContentProps {
     skills: SkillListItem[];
 }
 
-const defaultFilters: FilterState = {
-    domain: skillDomainOptions[0],
-    type: skillTypeOptions[0],
-    function: skillFunctionOptions[0],
-};
+const allDomainsOption = { label: "Tous les domaines", value: "" } as const;
+const allCategoriesOption = { label: "Toutes les catégories", value: "" } as const;
+const allTypesOption = { label: skillTypeOptions[0], value: "" } as const;
 
-function FilterSelect({
-    options,
-    value,
-    onChange,
-}: {
-    options: string[];
-    value: string;
-    onChange: (value: string) => void;
-}) {
-    const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
+const domainFilterOptions: FilterSelectOption[] = [allDomainsOption, ...CONTENT_DOMAINS];
+const typeFilterOptions: FilterSelectOption[] = [allTypesOption, ...SKILL_TYPES];
+const defaultFilters: FilterState = { category: "", domain: "", type: "" };
 
-    useEffect(() => {
-        function handleClick(event: MouseEvent) {
-            if (ref.current && !ref.current.contains(event.target as Node)) {
-                setOpen(false);
-            }
-        }
-        document.addEventListener("mousedown", handleClick);
-        return () => document.removeEventListener("mousedown", handleClick);
-    }, []);
-
-    return (
-        <div ref={ref} className="relative">
-            <Button
-                onClick={() => setOpen((current) => !current)}
-                aria-expanded={open}
-                className="flex h-11 w-full items-center justify-between rounded-lg border border-[#E5E7EB] bg-white px-3.5 text-[14px] font-medium text-[#111827] transition hover:border-[#D5D7DE]"
-            >
-                <Text as="span">{value}</Text>
-                <InlineIcon
-                    icon={ChevronDown}
-                    className={`h-4 w-4 text-[#9CA3AF] transition-transform ${open ? "rotate-180" : ""}`}
-                />
-            </Button>
-
-            {open && (
-                <CardSurface className="absolute left-0 right-0 top-[52px] z-30 max-h-[260px] overflow-y-auto rounded-xl border border-[#E5E7EB] p-1.5 shadow-[0_18px_40px_rgba(17,24,39,0.16)]">
-                    {options.map((option) => (
-                        <Button
-                            key={option}
-                            onClick={() => {
-                                onChange(option);
-                                setOpen(false);
-                            }}
-                            className={`flex h-11 w-full items-center justify-between gap-2 rounded-lg px-3 text-left text-[14px] font-medium transition hover:bg-[#F6F7FB] ${
-                                option === value ? "text-[#5140F0]" : "text-[#111827]"
-                            }`}
-                        >
-                            <Text as="span">{option}</Text>
-                            {option === value && <InlineIcon icon={Check} className="h-4 w-4 shrink-0 text-[#5140F0]" />}
-                        </Button>
-                    ))}
-                </CardSurface>
-            )}
-        </div>
-    );
+function categoryFilterOptions(domain: string): FilterSelectOption[] {
+    return [allCategoriesOption, ...getCategoriesForDomain(domain)];
 }
 
 export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const currentHref = useCurrentAppHref();
+    const initialDomain = isContentDomain(searchParams.get("domain"))
+        ? searchParams.get("domain")!
+        : defaultFilters.domain;
     const initialFilters: FilterState = {
-        domain: skillDomainOptions.includes(searchParams.get("domain") ?? "")
-            ? searchParams.get("domain")!
-            : defaultFilters.domain,
-        function: skillFunctionOptions.includes(searchParams.get("function") ?? "")
-            ? searchParams.get("function")!
-            : defaultFilters.function,
-        type: skillTypeOptions.includes(searchParams.get("type") ?? "")
+        category: isContentCategoryForDomain(initialDomain, searchParams.get("category"))
+            ? searchParams.get("category")!
+            : defaultFilters.category,
+        domain: initialDomain,
+        type: isSkillType(searchParams.get("type"))
             ? searchParams.get("type")!
             : defaultFilters.type,
     };
@@ -119,16 +76,15 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
         return skills.filter((skill) => {
             const matchesQuery =
                 !normalized ||
-                [skill.name, skill.description, skill.domain]
+                [skill.name, skill.description, skill.type, skill.domain ?? "", skill.category ?? ""]
                     .some((value) => value.toLowerCase().includes(normalized));
             const matchesDomain =
-                appliedFilters.domain === skillDomainOptions[0] || skill.domain === appliedFilters.domain;
+                !appliedFilters.domain || skill.domain === appliedFilters.domain;
+            const matchesCategory =
+                !appliedFilters.category || skill.category === appliedFilters.category;
             const matchesType =
-                appliedFilters.type === skillTypeOptions[0] || skill.category === appliedFilters.type;
-            const matchesFunction =
-                appliedFilters.function === skillFunctionOptions[0] ||
-                skill.functions.includes(appliedFilters.function);
-            return matchesQuery && matchesDomain && matchesType && matchesFunction;
+                !appliedFilters.type || skill.type === appliedFilters.type;
+            return matchesQuery && matchesDomain && matchesCategory && matchesType;
         });
     }, [query, appliedFilters, skills]);
 
@@ -150,9 +106,9 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
         setFiltersOpen(false);
         router.replace(
             withSearchParams(currentHref, {
-                domain: draftFilters.domain === defaultFilters.domain ? null : draftFilters.domain,
-                function: draftFilters.function === defaultFilters.function ? null : draftFilters.function,
-                type: draftFilters.type === defaultFilters.type ? null : draftFilters.type,
+                category: draftFilters.category || null,
+                domain: draftFilters.domain || null,
+                type: draftFilters.type || null,
             }),
             { scroll: false },
         );
@@ -230,7 +186,7 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
                 {filteredSkills.length > 0 ? (
                     <Box className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                         {filteredSkills.map((skill) => {
-                            const style = skillCategoryStyles[skill.category];
+                            const typeTone = SKILL_TYPE_TONES[skill.type];
                             return (
                                 <ContextualLink
                                     key={skill.id}
@@ -241,15 +197,20 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
                                     <Text as="h3" className="max-w-[85%] text-[17px] font-bold leading-6 text-[#111827]">
                                         {skill.name}
                                     </Text>
-                                    <Box
-                                        className="mt-3 inline-flex h-[22px] w-fit items-center rounded-lg border px-2 text-[12px] font-medium"
-                                        style={{
-                                            backgroundColor: style.bg,
-                                            borderColor: style.border,
-                                            color: style.text,
-                                        }}
-                                    >
-                                        {skill.category}
+                                    <Box className="mt-3 flex flex-wrap gap-2">
+                                        <Box className={cn("inline-flex min-h-6 w-fit items-center rounded-md border px-2 py-0.5 text-[12px] font-semibold", typeTone.soft)}>
+                                            Type · {skill.type}
+                                        </Box>
+                                        {skill.domain && (
+                                            <Box className={cn("inline-flex min-h-6 w-fit items-center rounded-md border px-2 py-0.5 text-[12px] font-semibold", uiTokens.tone.info.soft)}>
+                                                Domaine · {skill.domain}
+                                            </Box>
+                                        )}
+                                        {skill.category && (
+                                            <Box className={cn("inline-flex min-h-6 w-fit items-center rounded-md border px-2 py-0.5 text-[12px] font-semibold", uiTokens.tone.primary.soft)}>
+                                                Catégorie · {skill.category}
+                                            </Box>
+                                        )}
                                     </Box>
                                 </ContextualLink>
                             );
@@ -295,9 +256,16 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
                                     Domaine de compétence
                                 </Text>
                                 <FilterSelect
-                                    options={skillDomainOptions}
+                                    ariaLabel="Filtrer par domaine"
+                                    options={domainFilterOptions}
                                     value={draftFilters.domain}
-                                    onChange={(value) => setDraftFilters((current) => ({ ...current, domain: value }))}
+                                    onChange={(value) =>
+                                        setDraftFilters((current) => ({
+                                            ...current,
+                                            category: "",
+                                            domain: isContentDomain(value) ? value : "",
+                                        }))
+                                    }
                                 />
                             </Box>
                             <Box>
@@ -305,20 +273,32 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
                                     Type de compétence
                                 </Text>
                                 <FilterSelect
-                                    options={skillTypeOptions}
+                                    ariaLabel="Filtrer par type"
+                                    options={typeFilterOptions}
                                     value={draftFilters.type}
-                                    onChange={(value) => setDraftFilters((current) => ({ ...current, type: value }))}
+                                    onChange={(value) =>
+                                        setDraftFilters((current) => ({
+                                            ...current,
+                                            type: isSkillType(value) ? value : "",
+                                        }))
+                                    }
                                 />
                             </Box>
                             <Box>
                                 <Text as="span" className="mb-2 block text-[14px] font-bold text-[#111827]">
-                                    Fonction
+                                    Catégorie de compétence
                                 </Text>
                                 <FilterSelect
-                                    options={skillFunctionOptions}
-                                    value={draftFilters.function}
+                                    ariaLabel="Filtrer par catégorie"
+                                    options={categoryFilterOptions(draftFilters.domain)}
+                                    value={draftFilters.category}
                                     onChange={(value) =>
-                                        setDraftFilters((current) => ({ ...current, function: value }))
+                                        setDraftFilters((current) => ({
+                                            ...current,
+                                            category: isContentCategoryForDomain(current.domain, value)
+                                                ? value
+                                                : "",
+                                        }))
                                     }
                                 />
                             </Box>

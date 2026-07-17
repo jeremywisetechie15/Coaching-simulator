@@ -3,7 +3,7 @@ import { CONTENT_STATUS, CONTENT_VISIBILITY_SCOPE } from "@/features/content/dom
 import { saveSkillDto } from "./save-skill.dto";
 
 const completeSkillInput = {
-    category: "Métier",
+    category: "Prospection",
     description: "Traiter les objections sans casser la relation.",
     dimensionItems: {
         savoir: [{ label: "Connaître les objections fréquentes" }],
@@ -11,7 +11,6 @@ const completeSkillInput = {
         savoir_faire: [{ label: "Reformuler l'objection" }],
     },
     domain: "Commercial",
-    functions: ["Sales", "", "Sales"],
     name: "Gestion des objections",
 };
 
@@ -34,9 +33,11 @@ describe("saveSkillDto", () => {
             },
         });
 
-        expect(result.functions).toEqual(["Sales"]);
+        expect(result.category).toBe("Prospection");
+        expect(result.domain).toBe("Commercial");
         expect(result.status).toBe(CONTENT_STATUS.draft);
         expect(result.scope).toBe(CONTENT_VISIBILITY_SCOPE.public);
+        expect(result.type).toBe("Métier");
         expect(result.dimensionItems.savoir).toEqual([
             { label: "Connaître les objections fréquentes" },
         ]);
@@ -49,6 +50,83 @@ describe("saveSkillDto", () => {
         });
 
         expect(result.status).toBe(CONTENT_STATUS.published);
+    });
+
+    it("accepts an empty taxonomy pair", () => {
+        const result = saveSkillDto.parse({
+            name: "Compétence sans classement",
+        });
+
+        expect(result.category).toBe("");
+        expect(result.domain).toBe("");
+        expect(result.type).toBe("Métier");
+    });
+
+    it("rejects a domain outside the shared taxonomy", () => {
+        const result = saveSkillDto.safeParse({
+            ...completeSkillInput,
+            category: "",
+            domain: "Méthode ACDC",
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        message: "Le domaine sélectionné est invalide.",
+                        path: ["domain"],
+                    }),
+                ]),
+            );
+        }
+    });
+
+    it("requires a domain before a category", () => {
+        const result = saveSkillDto.safeParse({
+            ...completeSkillInput,
+            domain: "",
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        message: "Sélectionnez un domaine avant la catégorie.",
+                        path: ["category"],
+                    }),
+                ]),
+            );
+        }
+    });
+
+    it("rejects a category from another domain", () => {
+        const result = saveSkillDto.safeParse({
+            ...completeSkillInput,
+            category: "Feedback",
+        });
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+            expect(result.error.issues).toEqual(
+                expect.arrayContaining([
+                    expect.objectContaining({
+                        message: "La catégorie ne correspond pas au domaine sélectionné.",
+                        path: ["category"],
+                    }),
+                ]),
+            );
+        }
+    });
+
+    it("rejects the removed functions field", () => {
+        const result = saveSkillDto.safeParse({
+            ...completeSkillInput,
+            functions: ["Sales"],
+        });
+
+        expect(result.success).toBe(false);
     });
 
     it("preserves dimension item ids when parsing an edited skill", () => {

@@ -8,9 +8,27 @@ import type { MethodResourceRow, MethodRow } from "./method.mapper";
 import { syncMethodNotationFiles } from "./method-notation-files";
 import { cleanupStaleMethodResourceFiles, getStaleStoredResourceReferences } from "./method-resource-cleanup";
 import { materializeMethodResourceUploads, type UploadedStorageObject } from "./method-upload-files";
-import { createResourceRows } from "./method.persistence";
+import { createMethodInsert, createMethodUpdate, createResourceRows } from "./method.persistence";
 
 describe("method write/read flow", () => {
+    it("persists the same domain and category on create and update", () => {
+        const input = saveMethodDto.parse({
+            category: "Gestion des conflits",
+            domain: "Communication",
+            name: "Méthode ACOR",
+            steps: [{ title: "Accueillir" }],
+        });
+
+        expect(createMethodInsert(input, "acor", "11111111-1111-4111-8111-111111111110")).toMatchObject({
+            category: "Gestion des conflits",
+            domain: "Communication",
+        });
+        expect(createMethodUpdate(input)).toMatchObject({
+            category: "Gestion des conflits",
+            domain: "Communication",
+        });
+    });
+
     it("keeps method persistence independent from quiz association", () => {
         const input = saveMethodDto.parse({
             name: "Méthode DAGO",

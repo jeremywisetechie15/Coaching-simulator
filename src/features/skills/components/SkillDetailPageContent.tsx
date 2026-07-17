@@ -9,7 +9,6 @@ import {
     SKILL_DIMENSION_LABELS,
     SKILL_DIMENSION_TITLES,
     SKILL_DIMENSIONS,
-    skillCategoryStyles,
     type SkillDetail,
     type SkillDimension,
     type SkillLevel,
@@ -17,23 +16,24 @@ import {
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
+import { SKILL_TYPE_TONES } from "./skill-ui";
 
 interface SkillDetailPageContentProps {
     canManage?: boolean;
     skill: SkillDetail;
 }
 
-/** Icône + couleurs par dimension (couleurs réutilisées depuis skillCategoryStyles — SSOT). */
+/** Icône et ton sémantique de chaque dimension, indépendants du type de compétence. */
 const dimensionIcons: Record<SkillDimension, LucideIcon> = {
     savoir: BookOpen,
     savoir_faire: Target,
     savoir_etre: Users,
 };
 
-const dimensionPalette: Record<SkillDimension, { bg: string; border: string; text: string }> = {
-    savoir: skillCategoryStyles["Métier"],
-    savoir_faire: skillCategoryStyles["Comportementale"],
-    savoir_etre: skillCategoryStyles["Transversale"],
+const dimensionTone: Record<SkillDimension, (typeof uiTokens.tone)[keyof typeof uiTokens.tone]> = {
+    savoir: uiTokens.tone.info,
+    savoir_faire: uiTokens.tone.primary,
+    savoir_etre: uiTokens.tone.success,
 };
 
 const levelStyles: Record<SkillLevel, { badge: string; bar: string }> = {
@@ -61,7 +61,7 @@ function placeholderScores(skill: SkillDetail): Record<SkillDimension, number> {
 
 export function SkillDetailPageContent({ canManage = false, skill }: SkillDetailPageContentProps) {
     const [stateOpen, setStateOpen] = useState(false);
-    const categoryStyle = skillCategoryStyles[skill.category];
+    const typeTone = SKILL_TYPE_TONES[skill.type];
 
     const dimensions = SKILL_DIMENSIONS.map((dimension) => ({
         dimension,
@@ -112,15 +112,19 @@ export function SkillDetailPageContent({ canManage = false, skill }: SkillDetail
                     </Box>
 
                     <Box className="mt-3 flex flex-wrap items-center gap-2">
-                        <Box
-                            className="inline-flex h-7 items-center rounded-lg border px-2.5 text-[12px] font-semibold"
-                            style={{ backgroundColor: categoryStyle.bg, borderColor: categoryStyle.border, color: categoryStyle.text }}
-                        >
-                            {skill.category}
+                        <Box className={cn("inline-flex h-7 items-center rounded-lg border px-2.5 text-[12px] font-semibold", typeTone.soft)}>
+                            Type · {skill.type}
                         </Box>
-                        <Box className="inline-flex h-7 items-center rounded-lg border border-[#DDD6FE] bg-[#F5F3FF] px-2.5 text-[12px] font-semibold text-[#6D28D9]">
-                            {skill.domain}
-                        </Box>
+                        {skill.domain && (
+                            <Box className={cn("inline-flex h-7 items-center rounded-lg border px-2.5 text-[12px] font-semibold", uiTokens.tone.info.soft)}>
+                                Domaine · {skill.domain}
+                            </Box>
+                        )}
+                        {skill.category && (
+                            <Box className={cn("inline-flex h-7 items-center rounded-lg border px-2.5 text-[12px] font-semibold", uiTokens.tone.primary.soft)}>
+                                Catégorie · {skill.category}
+                            </Box>
+                        )}
                     </Box>
 
                     {skill.description && (
@@ -175,14 +179,13 @@ export function SkillDetailPageContent({ canManage = false, skill }: SkillDetail
                                         const score = scores[dimension];
                                         const level = getSkillLevel(score);
                                         const style = levelStyles[level];
-                                        const palette = dimensionPalette[dimension];
+                                        const tone = dimensionTone[dimension];
 
                                         return (
                                             <Box key={dimension} className="grid grid-cols-[1.4fr_56px_2fr_116px] items-center gap-4">
                                                 <Box className="flex items-center gap-2.5">
                                                     <Box
-                                                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
-                                                        style={{ backgroundColor: palette.bg, color: palette.text }}
+                                                        className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border", tone.soft)}
                                                     >
                                                         <InlineIcon icon={dimensionIcons[dimension]} className="h-4 w-4" />
                                                     </Box>
@@ -208,38 +211,19 @@ export function SkillDetailPageContent({ canManage = false, skill }: SkillDetail
                         )}
                     </Box>
 
-                    {/* Fonctions associées */}
-                    {skill.functions.length > 0 && (
-                        <>
-                            <Divider />
-                            <SectionHeading title="Fonctions associées" />
-                            <Box className="mt-4 flex flex-wrap gap-2">
-                                {skill.functions.map((fn) => (
-                                    <Box
-                                        key={fn}
-                                        className="inline-flex h-8 items-center rounded-lg border border-[#E5E7EB] bg-white px-3 text-[13px] font-semibold text-[#374151]"
-                                    >
-                                        {fn}
-                                    </Box>
-                                ))}
-                            </Box>
-                        </>
-                    )}
-
                     {/* Dimensions de la compétence */}
                     <Divider />
                     <SectionHeading title="Dimensions de la compétence" />
                     {dimensions.length > 0 ? (
                         <Box className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
                             {dimensions.map(({ dimension, items }) => {
-                                const palette = dimensionPalette[dimension];
+                                const tone = dimensionTone[dimension];
 
                                 return (
                                     <Box key={dimension} className={uiTokens.surface.dimensionCard}>
                                         <Box className="flex items-center gap-3">
                                             <Box
-                                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
-                                                style={{ backgroundColor: palette.bg, color: palette.text }}
+                                                className={cn("flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border", tone.soft)}
                                             >
                                                 <InlineIcon icon={dimensionIcons[dimension]} className="h-5 w-5" />
                                             </Box>
@@ -256,8 +240,7 @@ export function SkillDetailPageContent({ canManage = false, skill }: SkillDetail
                                             {items.map((item) => (
                                                 <Box as="li" key={item.id} className="flex items-start gap-2.5">
                                                     <Box
-                                                        className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full"
-                                                        style={{ backgroundColor: palette.text }}
+                                                        className={cn("mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-current", tone.text)}
                                                     />
                                                     <Text className={cn("text-[13px] font-medium leading-6", uiTokens.text.subtle)}>
                                                         {item.label}

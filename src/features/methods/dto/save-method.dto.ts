@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { CONTENT_STATUSES } from "@/features/content/domain";
+import {
+    CONTENT_STATUSES,
+    isContentCategoryForDomain,
+    isContentDomain,
+} from "@/features/content/domain";
 import {
     DEFAULT_METHOD_STEP_ICON,
     METHOD_RESOURCE_TYPES,
@@ -12,6 +16,14 @@ const textArrayDto = z
     .optional()
     .default([])
     .transform((items) => items.filter((item) => item.length > 0));
+
+const optionalMethodDomainDto = z
+    .string()
+    .trim()
+    .max(120, "Le domaine est trop long.")
+    .refine((domain) => !domain || isContentDomain(domain), "Le domaine sélectionné est invalide.")
+    .optional()
+    .default("");
 
 const resourceDto = z
     .object({
@@ -71,7 +83,7 @@ export const saveMethodDto = z
         category: z.string().trim().max(120, "La catégorie est trop longue.").optional().default(""),
         challenges: textArrayDto,
         description: z.string().trim().max(4000, "La description est trop longue.").optional().default(""),
-        domain: z.string().trim().max(120, "Le domaine est trop long.").optional().default(""),
+        domain: optionalMethodDomainDto,
         name: z
             .string()
             .trim()
@@ -96,6 +108,20 @@ export const saveMethodDto = z
     })
     .strict()
     .superRefine((method, ctx) => {
+        if (method.category && !method.domain) {
+            ctx.addIssue({
+                code: "custom",
+                message: "Sélectionnez un domaine avant la catégorie.",
+                path: ["category"],
+            });
+        } else if (method.category && !isContentCategoryForDomain(method.domain, method.category)) {
+            ctx.addIssue({
+                code: "custom",
+                message: "La catégorie ne correspond pas au domaine sélectionné.",
+                path: ["category"],
+            });
+        }
+
         if (method.scope === "organization" && !method.organizationId) {
             ctx.addIssue({
                 code: "custom",

@@ -1,12 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, ChevronDown, Plus, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, Plus, X } from "lucide-react";
+import { useState } from "react";
 import { ContextualBackLink } from "@/features/app-shell/components";
 import {
     CONTENT_STATUS,
+    CONTENT_DOMAINS,
     CONTENT_VISIBILITY_SCOPE,
+    getCategoriesForDomain,
+    isContentCategoryForDomain,
+    isContentDomain,
+    type ContentCategory,
+    type ContentDomain,
     type ContentStatus,
     type ContentTargetGroupOption,
     type ContentTargetOrganizationOption,
@@ -14,23 +20,19 @@ import {
 } from "@/features/content/domain";
 import { ContentTargetScopeField, type ContentTargetScopeValue } from "@/features/content/components";
 import type { SaveSkillInput } from "@/features/skills/dto";
-import type { SkillCategory, SkillDetail } from "@/features/skills/domain/skills";
+import {
+    SKILL_TYPES,
+    isSkillType,
+    type SkillDetail,
+    type SkillType,
+} from "@/features/skills/domain/skills";
 import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text } from "@/lib/ui/atoms";
 import {
     createFormSubmitApiError,
     notifyFormSubmitError,
     notifyFormSubmitSuccess,
 } from "@/lib/ui/feedback/form-submit-feedback";
-import { AlertMessage } from "@/lib/ui/molecules";
-import {
-    skillDomainOptions,
-    skillFunctionOptions,
-    skillTypeOptions,
-} from "@/features/skills/domain/skills";
-
-const functionChoices = skillFunctionOptions.slice(1);
-const typeChoices = skillTypeOptions.slice(1);
-const domainChoices = skillDomainOptions.slice(1);
+import { AlertMessage, SingleSelectField } from "@/lib/ui/molecules";
 
 const fieldLabelClasses = "block text-[14px] font-bold text-[#111827]";
 const inputClasses =
@@ -75,150 +77,6 @@ async function saveSkill(skillId: string | undefined, values: SaveSkillInput) {
     }
 
     return payload.skill;
-}
-
-function useOutsideClose(onClose: () => void) {
-    const ref = useRef<HTMLDivElement>(null);
-    useEffect(() => {
-        function handleClick(event: MouseEvent) {
-            if (ref.current && !ref.current.contains(event.target as Node)) {
-                onClose();
-            }
-        }
-        document.addEventListener("mousedown", handleClick);
-        return () => document.removeEventListener("mousedown", handleClick);
-    }, [onClose]);
-    return ref;
-}
-
-function SingleSelect({
-    options,
-    value,
-    placeholder,
-    onChange,
-}: {
-    options: string[];
-    value: string | null;
-    placeholder: string;
-    onChange: (value: string) => void;
-}) {
-    const [open, setOpen] = useState(false);
-    const ref = useOutsideClose(() => setOpen(false));
-
-    return (
-        <div ref={ref} className="relative">
-            <Button
-                onClick={() => setOpen((current) => !current)}
-                aria-expanded={open}
-                className={`flex h-12 w-full items-center justify-between rounded-lg border border-[#E5E7EB] bg-[#F3F4F6] px-3.5 text-[14px] transition hover:border-[#D5D7DE] ${
-                    value ? "font-medium text-[#111827]" : "text-[#9CA3AF]"
-                }`}
-            >
-                <Text as="span">{value ?? placeholder}</Text>
-                <InlineIcon
-                    icon={ChevronDown}
-                    className={`h-4 w-4 text-[#9CA3AF] transition-transform ${open ? "rotate-180" : ""}`}
-                />
-            </Button>
-
-            {open && (
-                <CardSurface className="absolute left-0 right-0 top-[56px] z-30 max-h-[260px] overflow-y-auto rounded-xl border border-[#E5E7EB] p-1.5 shadow-[0_18px_40px_rgba(17,24,39,0.16)]">
-                    {options.map((option) => (
-                        <Button
-                            key={option}
-                            onClick={() => {
-                                onChange(option);
-                                setOpen(false);
-                            }}
-                            className={`flex h-11 w-full items-center justify-between gap-2 rounded-lg px-3 text-left text-[14px] font-medium transition hover:bg-[#F6F7FB] ${
-                                option === value ? "text-[#5140F0]" : "text-[#111827]"
-                            }`}
-                        >
-                            <Text as="span">{option}</Text>
-                            {option === value && <InlineIcon icon={Check} className="h-4 w-4 shrink-0 text-[#5140F0]" />}
-                        </Button>
-                    ))}
-                </CardSurface>
-            )}
-        </div>
-    );
-}
-
-function MultiSelect({
-    options,
-    selected,
-    placeholder,
-    onToggle,
-}: {
-    options: string[];
-    selected: string[];
-    placeholder: string;
-    onToggle: (value: string) => void;
-}) {
-    const [open, setOpen] = useState(false);
-    const ref = useOutsideClose(() => setOpen(false));
-
-    return (
-        <div ref={ref} className="relative">
-            {selected.length > 0 && (
-                <Box className="mb-2.5 flex flex-wrap gap-2">
-                    {selected.map((value) => (
-                        <Box
-                            key={value}
-                            className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-[#EEF0FF] pl-3 pr-2 text-[13px] font-semibold text-[#5140F0]"
-                        >
-                            {value}
-                            <Button
-                                aria-label={`Retirer ${value}`}
-                                onClick={() => onToggle(value)}
-                                className="flex h-5 w-5 items-center justify-center rounded-md text-[#5140F0] transition hover:bg-[#DDE0FF]"
-                            >
-                                <InlineIcon icon={X} className="h-3.5 w-3.5" />
-                            </Button>
-                        </Box>
-                    ))}
-                </Box>
-            )}
-
-            <Button
-                onClick={() => setOpen((current) => !current)}
-                aria-expanded={open}
-                className="flex h-12 w-full items-center justify-between rounded-lg border border-[#E5E7EB] bg-[#F3F4F6] px-3.5 text-[14px] text-[#9CA3AF] transition hover:border-[#D5D7DE]"
-            >
-                <Text as="span">{placeholder}</Text>
-                <InlineIcon
-                    icon={ChevronDown}
-                    className={`h-4 w-4 text-[#9CA3AF] transition-transform ${open ? "rotate-180" : ""}`}
-                />
-            </Button>
-
-            {open && (
-                <CardSurface className="absolute left-0 right-0 top-[56px] z-30 max-h-[268px] overflow-y-auto rounded-xl border border-[#E5E7EB] p-1.5 shadow-[0_18px_40px_rgba(17,24,39,0.16)]">
-                    {options.map((option) => {
-                        const isChecked = selected.includes(option);
-                        return (
-                            <Button
-                                key={option}
-                                onClick={() => onToggle(option)}
-                                className="flex h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-[14px] font-medium text-[#111827] transition hover:bg-[#F6F7FB]"
-                            >
-                                <Box
-                                    className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border transition ${
-                                        isChecked
-                                            ? "border-[#5140F0] bg-[#5140F0] text-white"
-                                            : "border-[#CDD0DA] bg-white"
-                                    }`}
-                                >
-                                    {isChecked && <InlineIcon icon={Check} className="h-3.5 w-3.5" />}
-                                </Box>
-                                {option}
-                            </Button>
-                        );
-                    })}
-                </CardSurface>
-            )}
-        </div>
-    );
 }
 
 function DimensionSection({
@@ -332,9 +190,17 @@ export function CreateSkillPageContent({
     const isDraft = !initialSkill || initialSkill.status === CONTENT_STATUS.draft;
     const [name, setName] = useState(initialSkill?.name ?? "");
     const [description, setDescription] = useState(initialSkill?.description ?? "");
-    const [functions, setFunctions] = useState<string[]>(initialSkill?.functions ?? []);
-    const [type, setType] = useState<SkillCategory | null>(initialSkill?.category ?? null);
-    const [domain, setDomain] = useState<string | null>(initialSkill?.domain || null);
+    const [type, setType] = useState<SkillType | null>(() =>
+        isSkillType(initialSkill?.type) ? initialSkill.type : null,
+    );
+    const [domain, setDomain] = useState<ContentDomain | null>(() =>
+        isContentDomain(initialSkill?.domain) ? initialSkill.domain : null,
+    );
+    const [category, setCategory] = useState<ContentCategory | null>(() =>
+        isContentCategoryForDomain(initialSkill?.domain, initialSkill?.category)
+            ? initialSkill.category
+            : null,
+    );
     const [targetScope, setTargetScope] = useState<ContentTargetScopeValue>(() =>
         getInitialTargetScopeValue(initialSkill, groupOptions, userOptions),
     );
@@ -360,12 +226,6 @@ export function CreateSkillPageContent({
     const canSubmit = name.trim().length > 0 && scopeTargetReady;
     const isSaving = savingStatus !== null;
 
-    function toggleFunction(value: string) {
-        setFunctions((current) =>
-            current.includes(value) ? current.filter((item) => item !== value) : [...current, value],
-        );
-    }
-
     function updateList(
         list: SkillDimensionFormItem[],
         setter: (next: SkillDimensionFormItem[]) => void,
@@ -377,7 +237,7 @@ export function CreateSkillPageContent({
 
     function buildPayload(status: ContentStatus): SaveSkillInput {
         return {
-            category: type ?? "Métier",
+            category: category ?? "",
             description,
             dimensionItems: {
                 savoir: knowledge.map((item) => ({ id: item.id, label: item.label })),
@@ -385,7 +245,7 @@ export function CreateSkillPageContent({
                 savoir_faire: knowHow.map((item) => ({ id: item.id, label: item.label })),
             },
             domain: domain ?? "",
-            functions,
+            type: type ?? "Métier",
             assignedUserId: targetScope.scope === CONTENT_VISIBILITY_SCOPE.user ? targetScope.assignedUserId : null,
             groupId: targetScope.scope === CONTENT_VISIBILITY_SCOPE.group ? targetScope.groupId : null,
             name,
@@ -466,39 +326,50 @@ export function CreateSkillPageContent({
                             />
                         </Box>
 
-                        <Box>
-                            <Text as="span" className={`${fieldLabelClasses} mb-2`}>
-                                Fonctions
-                            </Text>
-                            <MultiSelect
-                                options={functionChoices}
-                                selected={functions}
-                                placeholder="Sélectionner les fonctions"
-                                onToggle={toggleFunction}
-                            />
-                        </Box>
-
-                        <Box className="grid gap-5 md:grid-cols-2">
+                        <Box className="grid gap-5 md:grid-cols-3">
                             <Box>
-                                <Text as="span" className={`${fieldLabelClasses} mb-2`}>
+                                <FieldLabel className={`${fieldLabelClasses} mb-2`}>
                                     Type de compétence
-                                </Text>
-                                <SingleSelect
-                                    options={typeChoices}
+                                </FieldLabel>
+                                <SingleSelectField
+                                    options={[...SKILL_TYPES]}
                                     value={type}
                                     placeholder="Sélectionner un type"
-                                    onChange={(value) => setType(value as SkillCategory)}
+                                    onChange={(value) => {
+                                        if (isSkillType(value)) setType(value);
+                                    }}
                                 />
                             </Box>
                             <Box>
-                                <Text as="span" className={`${fieldLabelClasses} mb-2`}>
+                                <FieldLabel className={`${fieldLabelClasses} mb-2`}>
                                     Domaine de compétence
-                                </Text>
-                                <SingleSelect
-                                    options={domainChoices}
+                                </FieldLabel>
+                                <SingleSelectField
+                                    options={[...CONTENT_DOMAINS]}
                                     value={domain}
                                     placeholder="Sélectionner un domaine"
-                                    onChange={setDomain}
+                                    onChange={(value) => {
+                                        if (!isContentDomain(value)) return;
+
+                                        setDomain(value);
+                                        setCategory(null);
+                                    }}
+                                />
+                            </Box>
+                            <Box>
+                                <FieldLabel className={`${fieldLabelClasses} mb-2`}>
+                                    Catégorie de compétence
+                                </FieldLabel>
+                                <SingleSelectField
+                                    options={[...getCategoriesForDomain(domain)]}
+                                    value={category}
+                                    placeholder={domain ? "Sélectionner une catégorie" : "Sélectionnez d'abord un domaine"}
+                                    disabled={!domain}
+                                    onChange={(value) => {
+                                        if (isContentCategoryForDomain(domain, value)) {
+                                            setCategory(value);
+                                        }
+                                    }}
                                 />
                             </Box>
                         </Box>

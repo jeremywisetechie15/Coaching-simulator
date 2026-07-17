@@ -2,22 +2,26 @@
 
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Eye, Pencil, Plus, Trash2, UsersRound } from "lucide-react";
+import { Archive, Eye, Pencil, Plus, UsersRound } from "lucide-react";
 import { ContextualLink } from "@/features/app-shell/components";
+import { ArchiveContentConfirmationModal } from "@/features/content/components";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import {
-    createFormSubmitError,
+    createFormSubmitApiError,
+    getFormSubmitApiErrorMessage,
     notifyFormSubmitError,
     notifyFormSubmitSuccess,
 } from "@/lib/ui/feedback/form-submit-feedback";
+import { notify } from "@/lib/ui/feedback/toast";
 import type { OrganizationGroupRow } from "@/features/organizations/domain/organization-detail";
+import { getOrganizationGroupDetailHref } from "@/features/organizations/domain/organization-navigation";
 import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
 import { CreateGroupModal } from "./CreateGroupModal";
 
 const columns = ["Groupe", "Membres", "Roleplays", "Quizzes", "Actions"];
 
 interface OrganizationDetailGroupsProps {
-    onGroupCreated?: () => void;
+    onGroupsChanged?: () => void;
     organizationId: string;
 }
 
@@ -37,12 +41,15 @@ interface GroupsPayload {
     groups?: OrganizationGroupRow[];
 }
 
-export function OrganizationDetailGroups({ onGroupCreated, organizationId }: OrganizationDetailGroupsProps) {
+export function OrganizationDetailGroups({ onGroupsChanged, organizationId }: OrganizationDetailGroupsProps) {
     const queryClient = useQueryClient();
     const [groups, setGroups] = useState<OrganizationGroupRow[]>([]);
+    const [groupToArchive, setGroupToArchive] = useState<OrganizationGroupRow | null>(null);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isArchiving, setIsArchiving] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [archiveError, setArchiveError] = useState<string | null>(null);
     const [listError, setListError] = useState<string | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
     const [groupName, setGroupName] = useState("");
@@ -62,7 +69,11 @@ export function OrganizationDetailGroups({ onGroupCreated, organizationId }: Org
                 const payload = (await response.json().catch(() => null)) as GroupsPayload | ApiErrorPayload | null;
 
                 if (!response.ok) {
-                    setListError((payload as ApiErrorPayload | null)?.error ?? "Impossible de charger les groupes.");
+                    setListError(getFormSubmitApiErrorMessage(
+                        payload as ApiErrorPayload | null,
+                        response.status,
+                        "Impossible de charger les groupes.",
+                    ));
                     return;
                 }
 
@@ -117,9 +128,11 @@ export function OrganizationDetailGroups({ onGroupCreated, organizationId }: Org
 
             if (!response.ok) {
                 const errorPayload = payload as ApiErrorPayload | null;
-                const validationMessage = errorPayload?.issues?.map((issue) => issue.message).join(" ");
-                const message = validationMessage || errorPayload?.error || "Impossible de créer le groupe.";
-                setFormError(notifyFormSubmitError(createFormSubmitError(message, response.status), message));
+                const fallback = "Impossible de créer le groupe.";
+                setFormError(notifyFormSubmitError(
+                    createFormSubmitApiError(errorPayload, response.status, fallback),
+                    fallback,
+                ));
                 return;
             }
 
@@ -133,7 +146,7 @@ export function OrganizationDetailGroups({ onGroupCreated, organizationId }: Org
 
             setGroups((currentGroups) => [...currentGroups, createdGroup]);
             void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
-            onGroupCreated?.();
+            onGroupsChanged?.();
             notifyFormSubmitSuccess();
         } catch (error) {
             setFormError(notifyFormSubmitError(error, "Impossible de créer le groupe."));
@@ -143,6 +156,53 @@ export function OrganizationDetailGroups({ onGroupCreated, organizationId }: Org
         }
 
         closeCreateModal();
+    };
+
+    const openArchiveDialog = (group: OrganizationGroupRow) => {
+        setArchiveError(null);
+        setGroupToArchive(group);
+    };
+
+    const closeArchiveDialog = () => {
+        if (isArchiving) return;
+
+        setArchiveError(null);
+        setGroupToArchive(null);
+    };
+
+    const archiveGroup = async () => {
+        if (!groupToArchive || isArchiving) return;
+
+        setIsArchiving(true);
+        setArchiveError(null);
+
+        try {
+            const response = await fetch(
+                `/api/organizations/${organizationId}/groups/${groupToArchive.id}`,
+                { method: "DELETE" },
+            );
+            const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+
+            if (!response.ok) {
+                const fallback = "Impossible d'archiver le groupe.";
+                setArchiveError(notifyFormSubmitError(
+                    createFormSubmitApiError(payload, response.status, fallback),
+                    fallback,
+                ));
+                return;
+            }
+
+            setGroups((currentGroups) => currentGroups.filter((group) => group.id !== groupToArchive.id));
+            setGroupToArchive(null);
+            void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
+            onGroupsChanged?.();
+            notify.success("Groupe archivé");
+        } catch (error) {
+            const fallback = "Impossible d'archiver le groupe.";
+            setArchiveError(notifyFormSubmitError(error, fallback));
+        } finally {
+            setIsArchiving(false);
+        }
     };
 
     return (
@@ -224,21 +284,30 @@ export function OrganizationDetailGroups({ onGroupCreated, organizationId }: Org
                                     <Box as="td" className="px-7 py-5">
                                         <Box className="flex items-center gap-5 text-[#9AA2B2]">
                                             <ContextualLink
-                                                href={`/organizations/${organizationId}/groups/${group.id}`}
+                                                href={getOrganizationGroupDetailHref(organizationId, group.id)}
                                                 aria-label={`Voir ${group.name}`}
                                                 className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
                                             >
                                                 <InlineIcon icon={Eye} className="h-5 w-5" />
                                             </ContextualLink>
-                                            {[Pencil, Trash2].map((icon) => (
-                                                <Button
-                                                    key={icon.displayName ?? icon.name}
-                                                    aria-label={`${icon === Pencil ? "Modifier" : "Supprimer"} ${group.name}`}
-                                                    className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
-                                                >
-                                                    <InlineIcon icon={icon} className="h-5 w-5" />
-                                                </Button>
-                                            ))}
+                                            <ContextualLink
+                                                href={getOrganizationGroupDetailHref(
+                                                    organizationId,
+                                                    group.id,
+                                                    { edit: true },
+                                                )}
+                                                aria-label={`Modifier ${group.name}`}
+                                                className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
+                                            >
+                                                <InlineIcon icon={Pencil} className="h-5 w-5" />
+                                            </ContextualLink>
+                                            <Button
+                                                onClick={() => openArchiveDialog(group)}
+                                                aria-label={`Archiver ${group.name}`}
+                                                className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
+                                            >
+                                                <InlineIcon icon={Archive} className="h-5 w-5" />
+                                            </Button>
                                         </Box>
                                     </Box>
                                 </Box>
@@ -271,6 +340,17 @@ export function OrganizationDetailGroups({ onGroupCreated, organizationId }: Org
                     onDescriptionChange={setGroupDescription}
                     onGroupNameChange={setGroupName}
                     onSubmit={createGroup}
+                />
+            )}
+
+            {groupToArchive && (
+                <ArchiveContentConfirmationModal
+                    busy={isArchiving}
+                    entityLabel="le groupe"
+                    error={archiveError}
+                    name={groupToArchive.name}
+                    onCancel={closeArchiveDialog}
+                    onConfirm={() => void archiveGroup()}
                 />
             )}
         </Box>

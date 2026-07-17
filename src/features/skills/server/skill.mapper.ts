@@ -1,9 +1,15 @@
-import { CONTENT_STATUS, normalizeContentStatus } from "@/features/content/domain";
+import {
+    CONTENT_STATUS,
+    isContentCategoryForDomain,
+    isContentDomain,
+    normalizeContentStatus,
+    type ContentCategory,
+    type ContentDomain,
+} from "@/features/content/domain";
 import {
     SKILL_VISIBILITY_SCOPES,
-    SKILL_CATEGORIES,
     SKILL_DIMENSIONS,
-    type SkillCategory,
+    isSkillType,
     type SkillDetail,
     type SkillDimension,
     type SkillDimensionItem,
@@ -15,13 +21,13 @@ export interface SkillRow {
     assigned_user_id?: string | null;
     description?: string | null;
     domain?: string | null;
-    functions?: string[] | null;
     group_id?: string | null;
     id: string;
     is_active?: boolean | null;
     name: string;
     organization_id?: string | null;
     status?: string | null;
+    skill_type?: string | null;
     visibility_scope?: string | null;
 }
 
@@ -34,8 +40,15 @@ export interface SkillDimensionItemRow {
     skill_id: string;
 }
 
-function normalizeCategory(value: string | null | undefined): SkillCategory {
-    return SKILL_CATEGORIES.includes(value as SkillCategory) ? (value as SkillCategory) : "Métier";
+function normalizeDomain(value: string | null | undefined): ContentDomain | null {
+    return isContentDomain(value) ? value : null;
+}
+
+function normalizeCategory(
+    domain: ContentDomain | null,
+    value: string | null | undefined,
+): ContentCategory | null {
+    return isContentCategoryForDomain(domain, value) ? value : null;
 }
 
 function normalizeDimension(value: string | null | undefined): SkillDimension {
@@ -48,17 +61,14 @@ function normalizeScope(value: string | null | undefined) {
         : "public";
 }
 
-function cleanArray(value: string[] | null | undefined) {
-    return Array.isArray(value) ? value.filter((item) => item.trim().length > 0) : [];
-}
-
 export function mapSkillRowToListItem(row: SkillRow): SkillListItem {
+    const domain = normalizeDomain(row.domain);
+
     return {
         assignedUserId: row.assigned_user_id ?? null,
-        category: normalizeCategory(row.category),
+        category: normalizeCategory(domain, row.category),
         description: row.description ?? "",
-        domain: row.domain ?? "",
-        functions: cleanArray(row.functions),
+        domain,
         groupId: row.group_id ?? null,
         id: row.id,
         isActive: row.is_active ?? true,
@@ -66,6 +76,7 @@ export function mapSkillRowToListItem(row: SkillRow): SkillListItem {
         organizationId: row.organization_id ?? null,
         scope: normalizeScope(row.visibility_scope),
         status: normalizeContentStatus(row.status, CONTENT_STATUS.draft),
+        type: isSkillType(row.skill_type) ? row.skill_type : "Métier",
     };
 }
 

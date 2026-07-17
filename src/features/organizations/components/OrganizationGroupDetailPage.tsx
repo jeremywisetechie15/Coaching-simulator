@@ -6,11 +6,13 @@ import { OrganizationGroupDetailContent } from "./OrganizationGroupDetailContent
 
 interface OrganizationGroupDetailPageProps {
     groupData: OrganizationGroupPageData;
+    initialIsEditing?: boolean;
     profileValues: ProfileFormValues;
 }
 
 export function OrganizationGroupDetailPage({
     groupData,
+    initialIsEditing = false,
     profileValues,
 }: OrganizationGroupDetailPageProps) {
     return (
@@ -25,6 +27,7 @@ export function OrganizationGroupDetailPage({
             <OrganizationGroupDetailContent
                 evaluations={groupData.evaluations}
                 group={groupData.group}
+                initialIsEditing={initialIsEditing}
                 members={groupData.members}
                 roleplays={groupData.roleplays}
             />

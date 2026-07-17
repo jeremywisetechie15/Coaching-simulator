@@ -10,8 +10,11 @@ import {
     type CreateOrganizationFormValues,
 } from "@/features/organizations/domain/create-organization-form";
 import {
+    filterOrganizationListItems,
+    ORGANIZATION_STATUS_FILTER_ALL,
     type OrganizationListItem,
     type OrganizationStatus,
+    type OrganizationStatusFilter,
 } from "@/features/organizations/domain/organization-list";
 import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
 import { CreateOrganizationModal } from "./CreateOrganizationModal";
@@ -124,22 +127,19 @@ export function OrganizationsPageContent({ initialOrganizations }: Organizations
     const [createFormError, setCreateFormError] = useState<string | null>(null);
     const [createFormValues, setCreateFormValues] = useState(initialCreateOrganizationFormValues);
     const [searchQuery, setSearchQuery] = useState("");
+    const [statusFilter, setStatusFilter] = useState<OrganizationStatusFilter>(
+        ORGANIZATION_STATUS_FILTER_ALL,
+    );
     const organizationsQuery = useQuery({
         queryKey: ORGANIZATIONS_QUERY_KEY,
         queryFn: fetchOrganizations,
         initialData: initialOrganizations,
     });
     const organizations = organizationsQuery.data;
-    const normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase("fr-FR");
-    const filteredOrganizations = useMemo(() => {
-        if (!normalizedSearchQuery) {
-            return organizations;
-        }
-
-        return organizations.filter((organization) =>
-            organization.name.toLocaleLowerCase("fr-FR").includes(normalizedSearchQuery)
-        );
-    }, [normalizedSearchQuery, organizations]);
+    const filteredOrganizations = useMemo(
+        () => filterOrganizationListItems(organizations, searchQuery, statusFilter),
+        [organizations, searchQuery, statusFilter],
+    );
 
     const closeCreateModal = () => {
         setIsCreateModalOpen(false);
@@ -193,7 +193,12 @@ export function OrganizationsPageContent({ initialOrganizations }: Organizations
         <Box as="main" className="px-5 pb-12 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1260px]">
                 <OrganizationsPageHeader onCreateClick={() => setIsCreateModalOpen(true)} />
-                <OrganizationsFilterBar searchQuery={searchQuery} onSearchQueryChange={setSearchQuery} />
+                <OrganizationsFilterBar
+                    onSearchQueryChange={setSearchQuery}
+                    onStatusFilterChange={setStatusFilter}
+                    searchQuery={searchQuery}
+                    statusFilter={statusFilter}
+                />
                 {organizationsQuery.isError && (
                     <Box className="mb-5 rounded-lg border border-[#F3C7C7] bg-[#FFF4F4] px-4 py-3 text-[13px] font-semibold text-[#A43A3A]">
                         {organizationsQuery.error.message}

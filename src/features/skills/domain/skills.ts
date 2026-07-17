@@ -1,15 +1,20 @@
 import {
-    CONTENT_DOMAINS,
     CONTENT_VISIBILITY_SCOPE,
     CONTENT_VISIBILITY_SCOPE_LABELS,
     CONTENT_VISIBILITY_SCOPES,
+    type ContentCategory,
+    type ContentDomain,
     type ContentStatus,
     type ContentVisibilityScope,
 } from "@/features/content/domain";
 
-export const SKILL_CATEGORIES = ["Métier", "Comportementale", "Transversale"] as const;
+export const SKILL_TYPES = ["Métier", "Comportementale", "Transversale"] as const;
 
-export type SkillCategory = (typeof SKILL_CATEGORIES)[number];
+export type SkillType = (typeof SKILL_TYPES)[number];
+
+export function isSkillType(value: string | null | undefined): value is SkillType {
+    return Boolean(value) && SKILL_TYPES.includes(value as SkillType);
+}
 
 export const SKILL_VISIBILITY_SCOPE = CONTENT_VISIBILITY_SCOPE;
 
@@ -68,10 +73,9 @@ export interface SkillDimensionItem {
 }
 
 export interface SkillListItem {
-    category: SkillCategory;
+    category: ContentCategory | null;
     description: string;
-    domain: string;
-    functions: string[];
+    domain: ContentDomain | null;
     groupId: string | null;
     id: string;
     isActive: boolean;
@@ -79,6 +83,7 @@ export interface SkillListItem {
     organizationId: string | null;
     scope: SkillVisibilityScope;
     status: ContentStatus;
+    type: SkillType;
     assignedUserId: string | null;
 }
 
@@ -88,29 +93,9 @@ export interface SkillDetail extends SkillListItem {
 
 export interface SkillOption {
     dimensionItems: SkillDimensionItem[];
-    domain: string;
+    domain: ContentDomain | null;
     id: string;
     name: string;
 }
 
-export const skillCategoryStyles: Record<SkillCategory, { bg: string; border: string; text: string }> = {
-    Métier: { bg: "#EFF6FF", border: "#93C5FD", text: "#2563EB" },
-    Comportementale: { bg: "#FAF5FF", border: "#D8B4FE", text: "#9333EA" },
-    Transversale: { bg: "#ECFDF5", border: "#6EE7B7", text: "#059669" },
-};
-
-export const skillDomainOptions = ["Tous les domaines", ...CONTENT_DOMAINS];
-
-export const skillTypeOptions = ["Tous les types", "Métier", "Comportementale", "Transversale"];
-
-export const skillFunctionOptions = [
-    "Toutes les fonctions",
-    "Sales",
-    "Marketing",
-    "Customer Success",
-    "Product",
-    "Operations",
-    "Finance",
-    "HR",
-    "Leadership",
-];
+export const skillTypeOptions = ["Tous les types", ...SKILL_TYPES];

@@ -2,10 +2,16 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Check, Eye, Pencil, Trash2, X } from "lucide-react";
-import { useState } from "react";
-import { ContextualBackLink, ContextualLink, useCurrentAppHref } from "@/features/app-shell/components";
+import { Archive, ArrowLeft, Check, Eye, Pencil, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+    ContextualBackLink,
+    ContextualLink,
+    useContextualReturnHref,
+    useCurrentAppHref,
+} from "@/features/app-shell/components";
 import { withSearchParam, withoutSearchParam } from "@/features/app-shell/domain";
+import { ArchiveContentConfirmationModal } from "@/features/content/components";
 import { getUserDetailHref } from "@/features/users/domain/user-navigation";
 import type {
     OrganizationEvaluationRow,
@@ -14,13 +20,15 @@ import type {
     OrganizationUserRow,
 } from "@/features/organizations/domain/organization-detail";
 import { ORGANIZATION_MEMBER_STATUS_LABELS } from "@/features/organizations/domain/organization-member";
+import { getOrganizationGroupsHref } from "@/features/organizations/domain/organization-navigation";
 import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
 import { Box, Button, CardSurface, FieldLabel, FormRoot, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import {
-    createFormSubmitError,
+    createFormSubmitApiError,
     notifyFormSubmitError,
     notifyFormSubmitSuccess,
 } from "@/lib/ui/feedback/form-submit-feedback";
+import { notify } from "@/lib/ui/feedback/toast";
 import { uiTokens } from "@/lib/ui/tokens";
 import { OrganizationDetailEvaluations } from "./OrganizationDetailEvaluations";
 import { OrganizationDetailRoleplays } from "./OrganizationDetailRoleplays";
@@ -30,6 +38,7 @@ type GroupDetailTab = "overview" | "members" | "roleplays" | "evaluations";
 interface OrganizationGroupDetailContentProps {
     evaluations: OrganizationEvaluationRow[];
     group: OrganizationGroupDetail;
+    initialIsEditing?: boolean;
     members: OrganizationUserRow[];
     roleplays: OrganizationRoleplayRow[];
 }
@@ -61,12 +70,6 @@ function isGroupDetailTab(value: string | null): value is GroupDetailTab {
 }
 
 const memberColumns = ["Utilisateur", "Email", "Rôle", "Statut", "Roleplays", "Quizzes", "Actions"];
-
-function getApiErrorMessage(payload: ApiErrorPayload | null, fallback: string) {
-    const validationMessage = payload?.issues?.map((issue) => issue.message).join(" ");
-
-    return validationMessage || payload?.error || fallback;
-}
 
 function GroupDetailTabs({
     activeTab,
@@ -290,6 +293,7 @@ function GroupMembersTable({ members }: { members: OrganizationUserRow[] }) {
 export function OrganizationGroupDetailContent({
     evaluations,
     group,
+    initialIsEditing = false,
     members,
     roleplays,
 }: OrganizationGroupDetailContentProps) {
@@ -297,18 +301,31 @@ export function OrganizationGroupDetailContent({
     const router = useRouter();
     const searchParams = useSearchParams();
     const currentHref = useCurrentAppHref();
+    const organizationGroupsHref = getOrganizationGroupsHref(group.organizationId);
+    const returnHref = useContextualReturnHref(organizationGroupsHref);
     const [activeTab, setActiveTab] = useState<GroupDetailTab>(() => {
+        if (initialIsEditing) return "overview";
+
         const tab = searchParams.get("tab");
         return isGroupDetailTab(tab) ? tab : "overview";
     });
     const [currentGroup, setCurrentGroup] = useState(group);
-    const [isEditing, setIsEditing] = useState(false);
+    const [isArchiveOpen, setIsArchiveOpen] = useState(false);
+    const [isArchiving, setIsArchiving] = useState(false);
+    const [isEditing, setIsEditing] = useState(initialIsEditing);
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [archiveError, setArchiveError] = useState<string | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
     const [formValues, setFormValues] = useState({
         description: group.description ?? "",
         name: group.name,
     });
+
+    useEffect(() => {
+        if (initialIsEditing && searchParams.has("edit")) {
+            router.replace(withoutSearchParam(currentHref, "edit"), { scroll: false });
+        }
+    }, [currentHref, initialIsEditing, router, searchParams]);
 
     const selectTab = (tab: GroupDetailTab) => {
         setActiveTab(tab);
@@ -369,8 +386,11 @@ export function OrganizationGroupDetailContent({
             const payload = (await response.json().catch(() => null)) as ApiErrorPayload | GroupPayload | null;
 
             if (!response.ok) {
-                const message = getApiErrorMessage(payload as ApiErrorPayload | null, "Impossible de modifier le groupe.");
-                setFormError(notifyFormSubmitError(createFormSubmitError(message, response.status), message));
+                const fallback = "Impossible de modifier le groupe.";
+                setFormError(notifyFormSubmitError(
+                    createFormSubmitApiError(payload as ApiErrorPayload | null, response.status, fallback),
+                    fallback,
+                ));
                 return;
             }
 
@@ -398,23 +418,50 @@ export function OrganizationGroupDetailContent({
         }
     };
 
+    const openArchiveDialog = () => {
+        setArchiveError(null);
+        setIsArchiveOpen(true);
+    };
+
+    const closeArchiveDialog = () => {
+        if (isArchiving) return;
+
+        setArchiveError(null);
+        setIsArchiveOpen(false);
+    };
+
     const archiveGroup = async () => {
-        if (!window.confirm(`Supprimer le groupe ${currentGroup.name} ?`)) {
-            return;
-        }
+        if (isArchiving) return;
 
-        const response = await fetch(`/api/organizations/${currentGroup.organizationId}/groups/${currentGroup.id}`, {
-            method: "DELETE",
-        });
+        setIsArchiving(true);
+        setArchiveError(null);
 
-        if (response.ok) {
+        try {
+            const response = await fetch(
+                `/api/organizations/${currentGroup.organizationId}/groups/${currentGroup.id}`,
+                { method: "DELETE" },
+            );
+            const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+
+            if (!response.ok) {
+                const fallback = "Impossible d'archiver le groupe.";
+                setArchiveError(notifyFormSubmitError(
+                    createFormSubmitApiError(payload, response.status, fallback),
+                    fallback,
+                ));
+                return;
+            }
+
             void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
-            router.push(`/organizations/${currentGroup.organizationId}`);
+            notify.success("Groupe archivé");
+            router.push(returnHref);
             router.refresh();
-            return;
+        } catch (error) {
+            const fallback = "Impossible d'archiver le groupe.";
+            setArchiveError(notifyFormSubmitError(error, fallback));
+        } finally {
+            setIsArchiving(false);
         }
-
-        setFormError("Impossible de supprimer le groupe.");
     };
 
     return (
@@ -423,7 +470,7 @@ export function OrganizationGroupDetailContent({
                 <Box className="mb-8 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                     <Box className="flex items-center gap-7">
                         <ContextualBackLink
-                            fallbackHref={`/organizations/${currentGroup.organizationId}`}
+                            fallbackHref={organizationGroupsHref}
                             className="flex h-10 w-10 items-center justify-center rounded-full text-[#171B2A] transition hover:bg-white"
                             aria-label="Retour à l'organisation"
                         >
@@ -464,12 +511,12 @@ export function OrganizationGroupDetailContent({
                             </Button>
                         )}
                         <Button
-                            disabled={isEditing}
-                            onClick={() => void archiveGroup()}
+                            disabled={isEditing || isArchiving}
+                            onClick={openArchiveDialog}
                             className="flex h-10 items-center gap-3 rounded-lg bg-[#DC2027] px-5 text-[14px] font-bold text-white shadow-[0_12px_24px_rgba(220,32,39,0.18)] transition hover:bg-[#C91C22] disabled:cursor-not-allowed disabled:opacity-50"
                         >
-                            <InlineIcon icon={Trash2} className="h-5 w-5" />
-                            Supprimer
+                            <InlineIcon icon={Archive} className="h-5 w-5" />
+                            Archiver
                         </Button>
                     </Box>
                 </Box>
@@ -501,6 +548,17 @@ export function OrganizationGroupDetailContent({
                         />
                     )}
                 </CardSurface>
+
+                {isArchiveOpen && (
+                    <ArchiveContentConfirmationModal
+                        busy={isArchiving}
+                        entityLabel="le groupe"
+                        error={archiveError}
+                        name={currentGroup.name}
+                        onCancel={closeArchiveDialog}
+                        onConfirm={() => void archiveGroup()}
+                    />
+                )}
             </Box>
         </Box>
     );

@@ -142,9 +142,9 @@ et
 
 | Écran / onglet | Décision |
 |---|---|
-| Liste Organisations | Affiche les vrais compteurs SSOT ; recherche locale par nom ; tri par création décroissante |
+| Liste Organisations | Affiche les vrais compteurs SSOT ; recherche locale par nom ; filtre local par statut ; tri par création décroissante |
 | Informations de base | Modifie nom, secteur, statut, contact, téléphone et région ; les compteurs sont en lecture seule |
-| Groupes | Liste uniquement les groupes actifs avec leurs membres du roster et leurs contenus strictement affectés au groupe |
+| Groupes | Liste uniquement les groupes actifs avec leurs membres du roster et leurs contenus strictement affectés au groupe ; permet de voir, modifier et archiver chaque groupe |
 | Utilisateurs | Liste le roster, permet invitation, ouverture, modification et retrait du rattachement |
 | Roleplays | Consolide les roleplays affectés à l'organisation et calcule leur cohorte exacte |
 | Évaluations | Consolide les quiz affectés, y compris les quiz dérivés des roleplays explicites |
@@ -288,38 +288,57 @@ Migrations de référence :
 - [20260717085528_revoke_archived_group_content_access.sql](../supabase/migrations/20260717085528_revoke_archived_group_content_access.sql) ;
 - [20260717085539_restrict_organization_deletion_with_members.sql](../supabase/migrations/20260717085539_restrict_organization_deletion_with_members.sql).
 
-## 12. Écarts connus
+## 12. Registre des écarts restants
 
-Ces points ne doivent pas être copiés comme règles métier :
+Ce registre distingue un défaut actuel d'une limite volontaire du MVP. Il ne
+constitue pas un engagement à tout développer. Un point reporté reste néanmoins
+tracé avec sa condition de réouverture afin d'éviter toute dette silencieuse.
 
-1. Le filtre de statut et la pagination de `/organizations` sont visuels mais
-   non fonctionnels.
-2. Les boutons Modifier/Archiver des lignes de l'onglet Groupes n'ont pas de
-   handler ; ces actions fonctionnent depuis la fiche groupe.
-3. Le libellé « Supprimer » et `window.confirm` décrivent mal l'archivage d'un
-   groupe.
-4. Les dates d'assignation affichent encore `created_at` du contenu ;
-   `assigned_at` des assignations explicites n'est pas exploité.
-5. L'invitation Auth → profil → organisation → groupe n'est pas transactionnelle
-   et ne vérifie pas encore explicitement que le groupe sélectionné est actif.
-6. Une erreur de chargement des groupes du formulaire d'invitation devient une
-   liste vide sans message.
-7. L'onglet actif n'est pas resynchronisé avec l'historique navigateur.
-8. La fiche d'une organisation inexistante ne produit pas encore toujours une
-   page Next.js `404` dédiée.
-9. Les onglets Roleplays et Évaluations n'ont ni actions Voir/Modifier ni états
-   autonomes de chargement/erreur ; certains textes vides mentionnent à tort un
-   groupe.
-10. Tous les statuts utilisateur utilisent le même badge vert et la liste des
-    utilisateurs ne protège pas encore contre une réponse réseau ancienne.
-11. L'overview de la fiche groupe reçoit `quizCount` mais ne l'affiche pas.
-12. Les horodatages de deux migrations distantes diffèrent de leurs noms locaux
-    malgré un SQL équivalent ; l'historique doit être réaligné avant un futur
-    `supabase db push`.
-13. Une cible mixte, par exemple un groupe et un utilisateur assigné hors de ce
-    groupe, est correctement calculée mais son libellé n'affiche que le groupe.
-14. Après archivage depuis la fiche groupe, la redirection revient sur l'overview
-    Organisation sans conserver l'onglet Groupes ni le contexte de retour.
+Le filtre de statut, les actions Voir/Modifier/Archiver des lignes Groupe, le
+libellé d'archivage et le retour vers l'onglet Groupes sont fonctionnels et ne
+figurent donc plus ci-dessous.
+
+### À corriger
+
+| Réf. | Constat | Sortie attendue |
+|---|---|---|
+| A1 | Les contrôles de pagination de `/organizations` sont factices. | Tant que toute la liste est chargée, masquer ou désactiver ces contrôles ; la pagination serveur reste reportée. |
+| A2 | « Date d'assignation » affiche `created_at` du contenu dans les vues Organisation et Groupe. | Exploiter la vraie date de la source d'affectation ; à défaut, renommer la colonne « Date de création ». |
+| A3 | La colonne « Groupe » masque les cibles mixtes, par exemple groupe plus utilisateurs explicites. | Afficher une colonne « Cible » décrivant toutes les sources dédupliquées. |
+| A4 | Une assignation explicite peut être créée mais pas retirée depuis la fiche utilisateur, malgré les routes `DELETE` existantes. | Afficher « Retirer » uniquement pour `assignmentSource = explicit`, sans supprimer une portée groupe/organisation ni un quiz dérivé. |
+| A5 | L'invitation vérifie que le groupe appartient à l'organisation, mais pas que `groups.status = active`. | Refuser côté serveur tout groupe archivé, y compris avec une requête forgée ou une liste cliente périmée. |
+| A6 | Un échec de chargement des groupes dans le formulaire d'invitation devient silencieusement une liste vide. | Afficher l'erreur ; l'invitation volontaire sans groupe reste autorisée. |
+| A7 | Des chargements concurrents de la liste des utilisateurs peuvent laisser une ancienne réponse remplacer la plus récente. | Annuler ou ignorer toute réponse obsolète. |
+| A8 | `?tab=` initialise l'onglet, mais retour/avance navigateur ne resynchronise pas l'état des fiches Organisation et Groupe. | Dériver ou resynchroniser l'onglet depuis les paramètres de recherche. |
+| A9 | Une organisation inexistante ne produit pas une page Next.js `404` dédiée. | Transformer `NotFoundError` en `notFound()`, comme sur la fiche groupe. |
+| A10 | Les états vides Roleplays/Évaluations parlent de « ce groupe » depuis une organisation. | Utiliser un texte adapté au contexte organisation ou groupe. |
+
+### Limites MVP acceptées
+
+| Réf. | Limite acceptée | Condition de réouverture |
+|---|---|---|
+| M1 | Recherche, filtre et liste Organisations restent entièrement côté client. | Ajouter pagination et filtrage serveur avant une volumétrie où charger toutes les organisations devient coûteux. |
+| M2 | `scenario_user_assignments` et `quiz_user_assignments` n'ont pas d'`organization_id` ; une assignation personnelle apparaît dans chaque organisation de l'utilisateur. | Ajouter le contexte organisationnel avant d'autoriser réellement le multi-organisation. |
+| M3 | Supabase Auth et PostgreSQL ne partagent pas de transaction pour Auth → profil → organisation → groupe. | Ajouter une saga idempotente, une compensation ou un outil de réparation avant les imports ou volumes importants. |
+| M4 | Retirer un membre d'une organisation conserve son compte, son profil et ses assignations directes. | Comportement volontaire ; créer une action séparée de suspension/révocation pour couper tous ses accès. |
+| M5 | La vue consolidée Organisation ne propose pas de « Désassigner » générique, car un contenu peut provenir de plusieurs sources simultanées. | Ajouter cette action uniquement avec l'affichage de la source et la révocation exacte de cette source. |
+
+### Améliorations reportées
+
+- ajouter Voir/Modifier dans les onglets Roleplays et Évaluations ;
+- donner un ton visuel distinct aux statuts Actif, Invité et Suspendu ;
+- afficher `quizCount` dans l'overview de la fiche groupe ;
+- isoler les états de chargement et d'erreur Roleplays/Évaluations afin qu'une
+  panne ne fasse pas échouer toute la fiche.
+
+### Risques de test et maintenance
+
+- Deux migrations distantes ont un horodatage différent de leur fichier local
+  malgré un SQL équivalent ; réaligner l'historique avant le prochain
+  `supabase db push`.
+- Les tests domaine et serveur couvrent les règles de données, mais les parcours
+  UI complets — invitation, modification, archivage, navigation arrière et
+  erreurs réseau — n'ont pas encore de couverture composant/E2E exhaustive.
 
 ## 13. Règles d'évolution
 
@@ -344,6 +363,10 @@ Ces points ne doivent pas être copiés comme règles métier :
   et
   [list-organization-activity.test.ts](../src/features/organizations/server/list-organization-activity.test.ts).
 - Organisations, groupes et utilisateurs :
+  [organization-list.test.ts](../src/features/organizations/domain/organization-list.test.ts),
+  [organization-navigation.test.ts](../src/features/organizations/domain/organization-navigation.test.ts),
+  [OrganizationsFilterBar.test.tsx](../src/features/organizations/components/OrganizationsFilterBar.test.tsx),
+  [route.test.ts — actions groupe](../src/app/api/organizations/%5BorganizationId%5D/groups/%5BgroupId%5D/route.test.ts),
   [list-organizations.test.ts](../src/features/organizations/server/list-organizations.test.ts),
   [update-organization.test.ts](../src/features/organizations/server/update-organization.test.ts),
   [list-organization-groups.test.ts](../src/features/organizations/server/list-organization-groups.test.ts)

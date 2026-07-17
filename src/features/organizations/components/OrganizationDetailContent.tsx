@@ -316,7 +316,7 @@ export function OrganizationDetailContent({
         router.refresh();
     };
 
-    const handleGroupCreated = () => {
+    const handleGroupsChanged = () => {
         router.refresh();
     };
 
@@ -350,7 +350,7 @@ export function OrganizationDetailContent({
                     )}
                     {activeTab === "groups" && (
                         <OrganizationDetailGroups
-                            onGroupCreated={handleGroupCreated}
+                            onGroupsChanged={handleGroupsChanged}
                             organizationId={currentOrganization.id}
                         />
                     )}

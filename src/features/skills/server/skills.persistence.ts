@@ -3,7 +3,7 @@ import type { SaveSkillDto } from "@/features/skills/dto";
 import { SKILL_DIMENSIONS, type SkillDimension } from "@/features/skills/domain/skills";
 
 export const SKILL_SELECT =
-    "id, name, description, category, domain, functions, visibility_scope, organization_id, group_id, assigned_user_id, status, is_active";
+    "id, name, description, skill_type, domain, category, visibility_scope, organization_id, group_id, assigned_user_id, status, is_active";
 
 export const SKILL_DIMENSION_ITEM_SELECT =
     "id, skill_id, dimension, label, item_order, is_active";
@@ -26,16 +26,16 @@ export function slugifySkillValue(value: string, fallback = "competence") {
 
 function createSkillBasePayload(input: SaveSkillDto) {
     return {
-        category: input.category,
+        category: nullableText(input.category),
         description: nullableText(input.description),
         domain: nullableText(input.domain),
-        functions: input.functions,
         assigned_user_id: input.scope === "user" ? input.assignedUserId : null,
         group_id: input.scope === "group" ? input.groupId : null,
         is_active: input.status !== "archived",
         name: input.name,
         organization_id:
             input.scope === "organization" || input.scope === "group" ? input.organizationId : null,
+        skill_type: input.type,
         visibility_scope: input.scope,
         status: input.status,
     };

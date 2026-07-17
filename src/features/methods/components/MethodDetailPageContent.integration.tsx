@@ -16,11 +16,11 @@ vi.mock("next/navigation", () => ({
 }));
 
 const method: MethodDetail = {
-    category: "",
+    category: "Gestion des conflits",
     challenges: [],
     code: "dago",
     description: "Méthode commerciale.",
-    domain: "",
+    domain: "Communication",
     id: "11111111-1111-4111-8111-111111111100",
     name: "Méthode DAGO",
     notationMethodId: null,
@@ -67,6 +67,8 @@ describe("MethodDetailPageContent", () => {
         expect(html).toContain("72%");
         expect(html).toContain("09/07/2026");
         expect(html).toContain("Progression de 12 points depuis le quiz précédent");
+        expect(html).toContain("Domaine · Communication");
+        expect(html).toContain("Catégorie · Gestion des conflits");
         expect(html).not.toContain("Non testée");
     });
 

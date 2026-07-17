@@ -1,12 +1,11 @@
 import { z } from "zod";
-import { CONTENT_STATUSES, CONTENT_VISIBILITY_SCOPES } from "@/features/content/domain";
-import { SKILL_CATEGORIES, SKILL_DIMENSIONS } from "@/features/skills/domain/skills";
-
-const textArrayDto = z
-    .array(z.string().trim().max(120, "Un élément est trop long."))
-    .optional()
-    .default([])
-    .transform((items) => Array.from(new Set(items.filter((item) => item.length > 0))));
+import {
+    CONTENT_STATUSES,
+    CONTENT_VISIBILITY_SCOPES,
+    isContentCategoryForDomain,
+    isContentDomain,
+} from "@/features/content/domain";
+import { SKILL_DIMENSIONS, SKILL_TYPES } from "@/features/skills/domain/skills";
 
 const dimensionItemInputDto = z
     .object({
@@ -39,9 +38,17 @@ const optionalUuidDto = (message: string) =>
         .default(null)
         .transform((value) => value || null);
 
+const optionalSkillDomainDto = z
+    .string()
+    .trim()
+    .max(120, "Le domaine est trop long.")
+    .refine((domain) => !domain || isContentDomain(domain), "Le domaine sélectionné est invalide.")
+    .optional()
+    .default("");
+
 export const saveSkillDto = z
     .object({
-        category: z.enum(SKILL_CATEGORIES).optional().default("Métier"),
+        category: z.string().trim().max(120, "La catégorie est trop longue.").optional().default(""),
         description: z.string().trim().max(4000, "La description est trop longue.").optional().default(""),
         dimensionItems: dimensionItemsDto.optional().default({
             savoir: [],
@@ -49,8 +56,7 @@ export const saveSkillDto = z
             savoir_faire: [],
         }),
         assignedUserId: optionalUuidDto("L'utilisateur sélectionné est invalide."),
-        domain: z.string().trim().max(120, "Le domaine est trop long.").optional().default(""),
-        functions: textArrayDto,
+        domain: optionalSkillDomainDto,
         groupId: optionalUuidDto("Le groupe sélectionné est invalide."),
         id: z
             .string()
@@ -67,9 +73,24 @@ export const saveSkillDto = z
         organizationId: optionalUuidDto("L'organisation sélectionnée est invalide."),
         scope: z.enum(CONTENT_VISIBILITY_SCOPES).optional().default("public"),
         status: z.enum(CONTENT_STATUSES).optional().default("draft"),
+        type: z.enum(SKILL_TYPES).optional().default("Métier"),
     })
     .strict()
     .superRefine((skill, ctx) => {
+        if (skill.category && !skill.domain) {
+            ctx.addIssue({
+                code: "custom",
+                message: "Sélectionnez un domaine avant la catégorie.",
+                path: ["category"],
+            });
+        } else if (skill.category && !isContentCategoryForDomain(skill.domain, skill.category)) {
+            ctx.addIssue({
+                code: "custom",
+                message: "La catégorie ne correspond pas au domaine sélectionné.",
+                path: ["category"],
+            });
+        }
+
         if (skill.scope === "organization" && !skill.organizationId) {
             ctx.addIssue({
                 code: "custom",

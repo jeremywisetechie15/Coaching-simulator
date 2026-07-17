@@ -8,8 +8,8 @@ import { buildAuthRedirectHref, withReturnTo, withSearchParams } from "@/feature
 
 interface PageProps {
     searchParams?: Promise<{
+        category?: string;
         domain?: string;
-        function?: string;
         q?: string;
         returnTo?: string;
         type?: string;
@@ -35,8 +35,8 @@ export default async function Page({ searchParams }: PageProps) {
             buildAuthRedirectHref(
                 withReturnTo(
                     withSearchParams("/skills", {
+                        category: filters.category,
                         domain: filters.domain,
-                        function: filters.function,
                         q: filters.q,
                         type: filters.type,
                     }),

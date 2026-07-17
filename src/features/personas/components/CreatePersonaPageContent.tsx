@@ -498,7 +498,7 @@ export function CreatePersonaPageContent({
                         </Field>
                     </FormSection>
 
-                    <FormSection title="Instructions du persona">
+                    <FormSection title="Personnalité du persona">
                         <Field required label="Ajouter des informations complémentaires sur le persona" htmlFor="persona-instructions">
                             <TextArea
                                 id="persona-instructions"
