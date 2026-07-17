@@ -8,6 +8,42 @@ export const AUTH_PATHS = {
 } as const;
 
 export const PASSWORD_MIN_LENGTH = 8;
+export const PASSWORD_RECOVERY_TYPE = "recovery" as const;
+
+export type PasswordRecoveryCredential =
+    | { kind: "pkce"; value: string }
+    | { kind: "token_hash"; value: string };
+
+export function resolvePasswordRecoveryCredential(
+    searchParams: URLSearchParams,
+): PasswordRecoveryCredential | null {
+    const hasTokenHashParameters = searchParams.has("token_hash") || searchParams.has("type");
+    const tokenHash = searchParams.get("token_hash");
+
+    if (hasTokenHashParameters) {
+        if (
+            !tokenHash
+            || tokenHash !== tokenHash.trim()
+            || searchParams.get("type") !== PASSWORD_RECOVERY_TYPE
+        ) {
+            return null;
+        }
+
+        return { kind: "token_hash", value: tokenHash };
+    }
+
+    const code = searchParams.get("code");
+
+    if (
+        code
+        && code === code.trim()
+        && searchParams.get("flow") === PASSWORD_RECOVERY_TYPE
+    ) {
+        return { kind: "pkce", value: code };
+    }
+
+    return null;
+}
 
 export function validateNewPassword(password: string, confirmation: string) {
     if (password.length < PASSWORD_MIN_LENGTH) {
@@ -44,7 +80,7 @@ export function buildPasswordRecoveryRedirectUrl(origin: string, redirect: strin
         callbackUrl.searchParams.set("redirect", safeRedirect);
     }
 
-    callbackUrl.searchParams.set("flow", "recovery");
+    callbackUrl.searchParams.set("flow", PASSWORD_RECOVERY_TYPE);
 
     return callbackUrl.toString();
 }
