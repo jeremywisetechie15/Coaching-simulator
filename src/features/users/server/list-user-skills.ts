@@ -1,4 +1,5 @@
 import { requireAdmin } from "@/features/auth/server";
+import { MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS } from "@/features/roleplays/domain";
 import type {
     UserSkillDimensionItemProgress,
     UserSkillDimensionKey,
@@ -192,8 +193,9 @@ export async function listUserSkillProgresses(userId: string): Promise<UserSkill
     const [{ data: roleplayCriteria, error: criteriaError }, quizCriteria] = await Promise.all([
         supabase
             .from("roleplay_session_criterion_results")
-            .select("session_id, skill_id, dimension, dimension_item_id, score_percent, points_awarded, points_max, created_at")
+            .select("session_id, skill_id, dimension, dimension_item_id, score_percent, points_awarded, points_max, created_at, sessions!inner(duration_seconds)")
             .eq("user_id", userId)
+            .gte("sessions.duration_seconds", MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS)
             .returns<CriterionSkillRow[]>(),
         fetchCompletedQuizSkillCriteria(supabase, { userId }),
     ]);

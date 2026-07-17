@@ -13,6 +13,7 @@ import {
     type OrganizationListItem,
     type OrganizationStatus,
 } from "@/features/organizations/domain/organization-list";
+import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
 import { CreateOrganizationModal } from "./CreateOrganizationModal";
 import { OrganizationsFilterBar } from "./OrganizationsFilterBar";
 import { OrganizationsPageHeader } from "./OrganizationsPageHeader";
@@ -41,8 +42,6 @@ interface ApiRequestError extends Error {
     payload: ApiErrorPayload | null;
     status: number;
 }
-
-const organizationsQueryKey = ["organizations"] as const;
 
 function isApiRequestError(error: unknown): error is ApiRequestError {
     return error instanceof Error && "payload" in error && "status" in error;
@@ -126,7 +125,7 @@ export function OrganizationsPageContent({ initialOrganizations }: Organizations
     const [createFormValues, setCreateFormValues] = useState(initialCreateOrganizationFormValues);
     const [searchQuery, setSearchQuery] = useState("");
     const organizationsQuery = useQuery({
-        queryKey: organizationsQueryKey,
+        queryKey: ORGANIZATIONS_QUERY_KEY,
         queryFn: fetchOrganizations,
         initialData: initialOrganizations,
     });
@@ -162,11 +161,11 @@ export function OrganizationsPageContent({ initialOrganizations }: Organizations
             setCreateFormError(notifyFormSubmitError(error, "Impossible de créer l'organisation."));
         },
         onSuccess: (organization) => {
-            queryClient.setQueryData<OrganizationListItem[]>(organizationsQueryKey, (currentOrganizations = []) => [
+            queryClient.setQueryData<OrganizationListItem[]>(ORGANIZATIONS_QUERY_KEY, (currentOrganizations = []) => [
                 organization,
                 ...currentOrganizations.filter((currentOrganization) => currentOrganization.id !== organization.id),
             ]);
-            void queryClient.invalidateQueries({ queryKey: organizationsQueryKey });
+            void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
             notifyFormSubmitSuccess();
             closeCreateModal();
         },

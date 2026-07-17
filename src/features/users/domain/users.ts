@@ -88,7 +88,23 @@ export interface UserRoleplay {
 
 export type UserAssignmentStatus = "not_started" | "in_progress" | "completed";
 
+export const USER_CONTENT_ASSIGNMENT_SOURCE = {
+    explicit: "explicit",
+    roleplay: "roleplay",
+    visibility: "visibility",
+} as const;
+
+export type UserContentAssignmentSource =
+    (typeof USER_CONTENT_ASSIGNMENT_SOURCE)[keyof typeof USER_CONTENT_ASSIGNMENT_SOURCE];
+
+export interface UserContentAssignmentCandidate {
+    description: string;
+    id: string;
+    title: string;
+}
+
 export interface UserAssignedRoleplay {
+    assignmentSource: UserContentAssignmentSource;
     assignedAt: string;
     id: string;
     index: number | null;
@@ -99,6 +115,7 @@ export interface UserAssignedRoleplay {
 }
 
 export interface UserAssignedQuiz {
+    assignmentSource: UserContentAssignmentSource;
     assignedAt: string;
     attempts: number;
     id: string;

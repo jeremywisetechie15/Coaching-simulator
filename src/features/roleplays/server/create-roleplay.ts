@@ -11,6 +11,7 @@ import { fetchRoleplayDetail } from "./roleplay-query";
 import { assertRoleplayQuizzesMatchMethod } from "./roleplay-quiz-assignment.validation";
 import { createRoleplayInsert } from "./roleplay.persistence";
 import { saveRoleplayChildren } from "./save-roleplay-children";
+import { saveScenarioAiInstructions } from "./scenario-ai-context";
 import {
     cleanupUploadedRoleplayStorageObjects,
     type RoleplayUploadFilesByClientId,
@@ -90,6 +91,7 @@ export async function createRoleplay(
         }
 
         createdRoleplayId = data.id;
+        await saveScenarioAiInstructions(adminSupabase, data.id, input.aiInstructions);
         if (backgroundFile) {
             const uploadedBackground = await uploadSessionBackground(
                 adminSupabase,

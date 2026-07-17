@@ -2,7 +2,9 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Eye, Pencil, Plus } from "lucide-react";
+import { Eye, Pencil, Plus, UserMinus } from "lucide-react";
+import { ContextualLink } from "@/features/app-shell/components";
+import { DeleteContentConfirmationModal } from "@/features/content/components";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { ENTITY_ACTION_LABELS } from "@/lib/ui/domain/entity-action";
 import {
@@ -10,6 +12,8 @@ import {
     notifyFormSubmitError,
     notifyFormSubmitSuccess,
 } from "@/lib/ui/feedback/form-submit-feedback";
+import { notify } from "@/lib/ui/feedback/toast";
+import { uiTokens } from "@/lib/ui/tokens";
 import {
     type OrganizationGroupRow,
     type OrganizationUserRow,
@@ -17,12 +21,19 @@ import {
 import {
     ORGANIZATION_MEMBER_STATUS_LABELS,
 } from "@/features/organizations/domain/organization-member";
+import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
+import {
+    ORGANIZATION_USER_REMOVAL_SUCCESS_MESSAGE,
+    removeOrganizationUserRow,
+} from "@/features/organizations/domain/organization-user-removal";
 import {
     initialUserInviteFormValues,
     UserInviteModal,
     type UserInviteFormValues,
 } from "@/features/users/components/UserInviteModal";
 import { getUserInvitationSuccessMessage } from "@/features/users/domain/users";
+import { getUserDetailHref } from "@/features/users/domain/user-navigation";
+import { USERS_QUERY_KEY } from "@/features/users/domain/user-query";
 
 const columns = ["Utilisateur", "Email", "Rôle", "Statut", "Roleplays", "Quizzes", "Actions"];
 
@@ -53,6 +64,8 @@ function getInitialCreateUserValues(organizationId: string): UserInviteFormValue
 }
 
 interface OrganizationDetailUsersProps {
+    onUserInvited?: () => void;
+    onUserRemoved?: () => void;
     organizationId: string;
     organizationName?: string;
 }
@@ -71,6 +84,8 @@ function getApiErrorMessage(payload: ApiErrorPayload | null, fallback: string) {
 }
 
 export function OrganizationDetailUsers({
+    onUserInvited,
+    onUserRemoved,
     organizationId,
     organizationName = "Organisation",
 }: OrganizationDetailUsersProps) {
@@ -79,10 +94,13 @@ export function OrganizationDetailUsers({
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
     const [isLoadingUsers, setIsLoadingUsers] = useState(true);
     const [isInviting, setIsInviting] = useState(false);
+    const [isRemovingUser, setIsRemovingUser] = useState(false);
     const [listError, setListError] = useState<string | null>(null);
     const [inviteError, setInviteError] = useState<string | null>(null);
     const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
     const [inviteStatus, setInviteStatus] = useState<string | null>(null);
+    const [removalError, setRemovalError] = useState<string | null>(null);
+    const [userToRemove, setUserToRemove] = useState<OrganizationUserRow | null>(null);
     const [organizationGroups, setOrganizationGroups] = useState<OrganizationGroupRow[]>([]);
     const [createUserValues, setCreateUserValues] = useState<UserInviteFormValues>(() =>
         getInitialCreateUserValues(organizationId)
@@ -207,10 +225,58 @@ export function OrganizationDetailUsers({
 
         setInviteSuccess(getUserInvitationSuccessMessage(email));
         notifyFormSubmitSuccess();
-        void queryClient.invalidateQueries({ queryKey: ["organizations"] });
-        void queryClient.invalidateQueries({ queryKey: ["users"] });
+        void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
+        void queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY });
         void loadUsers();
+        onUserInvited?.();
         closeCreateModal();
+    };
+
+    const openRemovalDialog = (user: OrganizationUserRow) => {
+        setRemovalError(null);
+        setUserToRemove(user);
+    };
+
+    const closeRemovalDialog = () => {
+        if (isRemovingUser) return;
+
+        setRemovalError(null);
+        setUserToRemove(null);
+    };
+
+    const removeUser = async () => {
+        if (!userToRemove || isRemovingUser) return;
+
+        const removedUser = userToRemove;
+        setIsRemovingUser(true);
+        setRemovalError(null);
+
+        try {
+            const response = await fetch(
+                `/api/organizations/${organizationId}/users/${removedUser.id}`,
+                { method: "DELETE" },
+            );
+            const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+
+            if (!response.ok) {
+                setRemovalError(getApiErrorMessage(
+                    payload,
+                    "Impossible de retirer cet utilisateur de l’organisation.",
+                ));
+                return;
+            }
+
+            setUsers((currentUsers) => removeOrganizationUserRow(currentUsers, removedUser.id));
+            setUserToRemove(null);
+            notify.success(ORGANIZATION_USER_REMOVAL_SUCCESS_MESSAGE);
+            void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
+            void queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY });
+            onUserRemoved?.();
+        } catch {
+            setRemovalError("Impossible de retirer cet utilisateur de l’organisation.");
+        } finally {
+            setIsRemovingUser(false);
+        }
     };
 
     return (
@@ -310,18 +376,27 @@ export function OrganizationDetailUsers({
                                     </Box>
                                     <Box as="td" className="px-7 py-5">
                                         <Box className="flex items-center gap-5 text-[#9AA2B2]">
-                                            {[
-                                                { icon: Eye, label: ENTITY_ACTION_LABELS.view },
-                                                { icon: Pencil, label: ENTITY_ACTION_LABELS.modify },
-                                            ].map(({ icon, label }) => (
-                                                <Button
-                                                    key={label}
-                                                    aria-label={`${label} ${user.name}`}
-                                                    className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
-                                                >
-                                                    <InlineIcon icon={icon} className="h-5 w-5" />
-                                                </Button>
-                                            ))}
+                                            <ContextualLink
+                                                href={getUserDetailHref(user.id)}
+                                                aria-label={`${ENTITY_ACTION_LABELS.view} ${user.name}`}
+                                                className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
+                                            >
+                                                <InlineIcon icon={Eye} className="h-5 w-5" />
+                                            </ContextualLink>
+                                            <ContextualLink
+                                                href={getUserDetailHref(user.id, "edit")}
+                                                aria-label={`${ENTITY_ACTION_LABELS.modify} ${user.name}`}
+                                                className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
+                                            >
+                                                <InlineIcon icon={Pencil} className="h-5 w-5" />
+                                            </ContextualLink>
+                                            <Button
+                                                aria-label={`Retirer ${user.name} de l'organisation`}
+                                                className={uiTokens.action.dangerIconButton}
+                                                onClick={() => openRemovalDialog(user)}
+                                            >
+                                                <InlineIcon icon={UserMinus} className="h-5 w-5" />
+                                            </Button>
                                         </Box>
                                     </Box>
                                 </Box>
@@ -356,6 +431,22 @@ export function OrganizationDetailUsers({
                     organizationOptions={[{ label: organizationName, value: organizationId }]}
                     organizationSelectDisabled
                     values={createUserValues}
+                />
+            )}
+
+            {userToRemove && (
+                <DeleteContentConfirmationModal
+                    busy={isRemovingUser}
+                    busyLabel="Retrait..."
+                    confirmLabel="Retirer"
+                    description={`Confirmez le retrait de ${userToRemove.name} de ${organizationName}.`}
+                    entityLabel="le rattachement utilisateur"
+                    error={removalError}
+                    name={userToRemove.name}
+                    onCancel={closeRemovalDialog}
+                    onConfirm={() => void removeUser()}
+                    title="Retirer de l'organisation"
+                    warning="Le compte et le profil seront conservés. L'utilisateur sera également retiré des groupes de cette organisation."
                 />
             )}
         </Box>

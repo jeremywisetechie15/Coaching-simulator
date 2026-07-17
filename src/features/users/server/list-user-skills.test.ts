@@ -1,6 +1,47 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildQuizSkillCriteria } from "@/features/evaluations/server/quiz-skill-criteria";
-import { buildUserSkillProgresses } from "./list-user-skills";
+import { MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS } from "@/features/roleplays/domain";
+import { buildUserSkillProgresses, listUserSkillProgresses } from "./list-user-skills";
+
+const mocks = vi.hoisted(() => ({
+    createAdminClient: vi.fn(),
+    fetchCompletedQuizSkillCriteria: vi.fn(),
+    requireAdmin: vi.fn(),
+}));
+
+vi.mock("@/features/auth/server", () => ({ requireAdmin: mocks.requireAdmin }));
+vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: mocks.createAdminClient }));
+vi.mock("@/features/evaluations/server/quiz-skill-criteria", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@/features/evaluations/server/quiz-skill-criteria")>()),
+    fetchCompletedQuizSkillCriteria: mocks.fetchCompletedQuizSkillCriteria,
+}));
+
+beforeEach(() => {
+    vi.resetAllMocks();
+    mocks.requireAdmin.mockResolvedValue({ userId: "admin-1" });
+    mocks.fetchCompletedQuizSkillCriteria.mockResolvedValue([]);
+});
+
+describe("listUserSkillProgresses", () => {
+    it("excludes roleplay sessions below the shared minimum evaluation duration", async () => {
+        const returns = vi.fn().mockResolvedValue({ data: [], error: null });
+        const gte = vi.fn().mockReturnValue({ returns });
+        const eq = vi.fn().mockReturnValue({ gte });
+        const select = vi.fn().mockReturnValue({ eq });
+        const from = vi.fn().mockReturnValue({ select });
+        mocks.createAdminClient.mockReturnValue({ from });
+
+        await expect(listUserSkillProgresses("user-1")).resolves.toEqual([]);
+
+        expect(from).toHaveBeenCalledWith("roleplay_session_criterion_results");
+        expect(select).toHaveBeenCalledWith(expect.stringContaining("sessions!inner(duration_seconds)"));
+        expect(eq).toHaveBeenCalledWith("user_id", "user-1");
+        expect(gte).toHaveBeenCalledWith(
+            "sessions.duration_seconds",
+            MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
+        );
+    });
+});
 
 describe("buildUserSkillProgresses", () => {
     it("aggregates user progression by skill, dimension, and item", () => {

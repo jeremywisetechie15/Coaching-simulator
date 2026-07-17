@@ -1,11 +1,12 @@
 import { requireAdmin } from "@/features/auth/server";
 import {
     getOrganizationRemovalAction,
+    ORGANIZATION_MEMBERS_REMOVAL_MESSAGE,
     ORGANIZATION_REMOVAL_ACTION,
     type OrganizationRemovalAction,
     type OrganizationRemovalUsage,
 } from "@/features/organizations/domain/organization-deletion";
-import { NotFoundError } from "@/lib/server/errors";
+import { ConflictError, NotFoundError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 interface IdRow {
@@ -109,8 +110,22 @@ async function loadOrganizationRemovalUsage(organizationId: string): Promise<Org
     return {
         hasAssociatedContent: [methodsResult, quizzesResult, scorecardsResult, skillsResult].some(hasCount),
         hasAssociatedRoleplay: [directRoleplaysResult, groupRoleplaysResult, memberRoleplaysResult].some(hasCount),
+        hasMembers: (membershipsResult.data ?? []).length > 0,
         hasSessionHistory: hasCount(sessionsResult),
     };
+}
+
+async function assertOrganizationHasNoMembers(organizationId: string) {
+    const adminSupabase = createAdminClient();
+    const { count, error } = await adminSupabase
+        .from("organization_members")
+        .select("organization_id", { count: "exact", head: true })
+        .eq("organization_id", organizationId);
+
+    if (error) throw error;
+    if ((count ?? 0) > 0) {
+        throw new ConflictError(ORGANIZATION_MEMBERS_REMOVAL_MESSAGE);
+    }
 }
 
 async function deactivateOrganization(organizationId: string): Promise<OrganizationRemovalResult> {
@@ -150,6 +165,14 @@ export async function removeOrganization(organizationId: string): Promise<Organi
         return deactivateOrganization(organizationId);
     }
 
+    if (action === ORGANIZATION_REMOVAL_ACTION.blocked) {
+        throw new ConflictError(ORGANIZATION_MEMBERS_REMOVAL_MESSAGE);
+    }
+
+    // Recheck immediately before the destructive query. The database foreign key
+    // is also restrictive so a concurrent membership cannot be deleted by cascade.
+    await assertOrganizationHasNoMembers(organizationId);
+
     const adminSupabase = createAdminClient();
     const { data, error } = await adminSupabase
         .from("organizations")
@@ -160,6 +183,7 @@ export async function removeOrganization(organizationId: string): Promise<Organi
 
     if (error) {
         if (isPostgresError(error) && error.code === "23503") {
+            await assertOrganizationHasNoMembers(organizationId);
             return deactivateOrganization(organizationId);
         }
 

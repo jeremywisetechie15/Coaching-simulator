@@ -559,13 +559,16 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
             await pc.setLocalDescription(offer);
 
             // Get ephemeral key from our API
+            const isPersonaSimulation = config.mode === "standard" && config.coachMode !== "persona_variant";
             const tokenResponse = await fetch("/api/realtime-session", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     model: config.model,
                     voice: config.voiceId,
-                    system_instructions: config.systemInstructions,
+                    ...(isPersonaSimulation
+                        ? { scenario_id: config.scenarioId }
+                        : { system_instructions: config.systemInstructions }),
                 }),
             });
 

@@ -1,7 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import type { VoiceId, Persona } from "@/types";
 import { DEFAULT_OPENAI_REALTIME_VOICE_ID, isOpenAIRealtimeVoiceId } from "@/lib/openai/realtime-voices";
+import {
+    buildRoleplayPersonaSimulationInstructions,
+    getRoleplayPersonaContext,
+} from "@/features/roleplays/server/get-roleplay-coach-context";
+import {
+    composeRoleplayPersonaSimulationInstructions,
+    loadScenarioAiContext,
+} from "@/features/roleplays/server/scenario-ai-context";
+import { jsonError } from "@/lib/server/http";
+import { requireAuth } from "@/features/auth/server";
 
 const OPENAI_REALTIME_CLIENT_SECRETS_URL = "https://api.openai.com/v1/realtime/client_secrets";
 
@@ -15,9 +27,11 @@ const VALID_MODELS = [
     "gpt-realtime-mini",
     "gpt-realtime-2",
 ];
+const scenarioIdDto = z.string().uuid("L'identifiant du scénario est invalide.");
 
 interface RequestBody {
     persona_id?: string;
+    scenario_id?: string;
     system_instructions?: string;
     voice?: string;
     model?: string;
@@ -32,13 +46,19 @@ interface RealtimeClientSecretResponse {
 export async function POST(request: NextRequest) {
     try {
         const body: RequestBody = await request.json();
-        const { persona_id, system_instructions, voice, model } = body;
+        const { persona_id, scenario_id, system_instructions, voice, model } = body;
 
-        if (!persona_id && !system_instructions) {
+        if (!scenario_id && !persona_id && !system_instructions) {
             return NextResponse.json(
-                { error: "Either persona_id or system_instructions is required" },
-                { status: 400 }
+                { error: "scenario_id, persona_id or system_instructions is required" },
+                { status: 400 },
             );
+        }
+
+        if (scenario_id) {
+            scenarioIdDto.parse(scenario_id);
+        } else {
+            await requireAuth();
         }
 
         let instructions = system_instructions || "";
@@ -56,7 +76,33 @@ export async function POST(request: NextRequest) {
         const selectedModel = model && VALID_MODELS.includes(model) ? model : DEFAULT_MODEL;
 
 
-        if (persona_id) {
+        if (scenario_id) {
+            const supabase = await createClient();
+            const roleplayContext = await getRoleplayPersonaContext(supabase, scenario_id);
+            const persona = roleplayContext.persona;
+
+            if (!persona) {
+                return NextResponse.json({ error: "Persona not found for this scenario" }, { status: 404 });
+            }
+
+            const scenarioAiContext = await loadScenarioAiContext(createAdminClient(), scenario_id);
+            instructions = composeRoleplayPersonaSimulationInstructions(
+                buildRoleplayPersonaSimulationInstructions(roleplayContext),
+                scenarioAiContext,
+            );
+
+            if (!voice) {
+                const personaVoiceId = persona.voiceId;
+                if (!personaVoiceId || !isOpenAIRealtimeVoiceId(personaVoiceId)) {
+                    return NextResponse.json(
+                        { error: "Persona voice is not supported by the realtime service" },
+                        { status: 500 },
+                    );
+                }
+
+                voiceId = personaVoiceId;
+            }
+        } else if (persona_id) {
             const supabase = await createClient();
             const { data: persona, error: dbError } = await supabase
                 .from("personas")
@@ -159,10 +205,6 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error) {
-        console.error("Error creating realtime session:", error);
-        return NextResponse.json(
-            { error: error instanceof Error ? error.message : "Internal server error" },
-            { status: 500 }
-        );
+        return jsonError(error);
     }
 }

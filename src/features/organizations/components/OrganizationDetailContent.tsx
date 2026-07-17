@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useCurrentAppHref } from "@/features/app-shell/components";
 import { withSearchParam, withoutSearchParam } from "@/features/app-shell/domain";
@@ -22,10 +23,13 @@ import type {
     OrganizationRoleplayRow,
 } from "@/features/organizations/domain/organization-detail";
 import {
+    ORGANIZATION_MEMBERS_REMOVAL_MESSAGE,
     ORGANIZATION_REMOVAL_ACTION,
     type OrganizationRemovalAction,
 } from "@/features/organizations/domain/organization-deletion";
+import { decrementOrganizationUserCount } from "@/features/organizations/domain/organization-user-removal";
 import type { OrganizationStatus } from "@/features/organizations/domain/organization-list";
+import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
 import { OrganizationDetailEvaluations } from "./OrganizationDetailEvaluations";
 import { OrganizationDetailGroups } from "./OrganizationDetailGroups";
 import { OrganizationDetailHeader } from "./OrganizationDetailHeader";
@@ -101,6 +105,7 @@ export function OrganizationDetailContent({
     removalAction,
     roleplays = [],
 }: OrganizationDetailContentProps) {
+    const queryClient = useQueryClient();
     const router = useRouter();
     const searchParams = useSearchParams();
     const currentHref = useCurrentAppHref();
@@ -117,6 +122,10 @@ export function OrganizationDetailContent({
     const [fieldErrors, setFieldErrors] = useState<CreateOrganizationFieldErrors>({});
     const [formError, setFormError] = useState<string | null>(null);
     const [formValues, setFormValues] = useState(() => getFormValuesFromOrganization(organization));
+
+    useEffect(() => {
+        setCurrentOrganization(organization);
+    }, [organization]);
 
     useEffect(() => {
         if (initialIsEditing && searchParams.has("edit")) {
@@ -208,6 +217,8 @@ export function OrganizationDetailContent({
             setCurrentOrganization(updatedOrganization);
             setFormValues(getFormValuesFromOrganization(updatedOrganization));
             setIsEditing(false);
+            void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
+            router.refresh();
             notifyFormSubmitSuccess();
         } catch (error) {
             setFormError(notifyFormSubmitError(error, "Impossible de modifier l'organisation."));
@@ -230,6 +241,12 @@ export function OrganizationDetailContent({
     const confirmRemoveOrganization = async () => {
         if (isRemoving) return;
 
+        if (removalAction === ORGANIZATION_REMOVAL_ACTION.blocked) {
+            setIsRemovalOpen(false);
+            selectTab("users");
+            return;
+        }
+
         setIsRemoving(true);
         setRemovalError(null);
 
@@ -243,6 +260,8 @@ export function OrganizationDetailContent({
                 setRemovalError(payload?.error ?? "Impossible de retirer l'organisation.");
                 return;
             }
+
+            void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
 
             if (payload?.action === ORGANIZATION_REMOVAL_ACTION.deactivate) {
                 setCurrentOrganization((current) => ({
@@ -265,7 +284,41 @@ export function OrganizationDetailContent({
         }
     };
 
+    const isRemovalBlocked = removalAction === ORGANIZATION_REMOVAL_ACTION.blocked;
     const isDeactivation = removalAction === ORGANIZATION_REMOVAL_ACTION.deactivate;
+    const removalDialog = isRemovalBlocked
+        ? {
+            confirmLabel: "Voir les utilisateurs",
+            description: `${currentOrganization.name} contient encore des utilisateurs.`,
+            title: "Suppression impossible",
+            warning: ORGANIZATION_MEMBERS_REMOVAL_MESSAGE,
+        }
+        : isDeactivation
+            ? {
+                confirmLabel: "Désactiver",
+                description: `Confirmez la désactivation de ${currentOrganization.name}.`,
+                title: "Désactiver l'organisation",
+                warning: "L'organisation possède des données à conserver. Elle sera désactivée sans supprimer ses membres, ses contenus ni son historique.",
+            }
+            : {
+                confirmLabel: "Supprimer",
+                description: `Confirmez la suppression de ${currentOrganization.name}.`,
+                title: "Supprimer l'organisation",
+                warning: "Cette organisation ne possède aucune donnée à conserver. Sa suppression définitive retirera également ses groupes et ses rattachements.",
+            };
+
+    const handleUserRemoved = () => {
+        setCurrentOrganization(decrementOrganizationUserCount);
+        router.refresh();
+    };
+
+    const handleUserInvited = () => {
+        router.refresh();
+    };
+
+    const handleGroupCreated = () => {
+        router.refresh();
+    };
 
     return (
         <Box as="main" className="px-5 pb-12 md:px-9 lg:px-12">
@@ -295,9 +348,16 @@ export function OrganizationDetailContent({
                             onValueChange={updateFormValue}
                         />
                     )}
-                    {activeTab === "groups" && <OrganizationDetailGroups organizationId={currentOrganization.id} />}
+                    {activeTab === "groups" && (
+                        <OrganizationDetailGroups
+                            onGroupCreated={handleGroupCreated}
+                            organizationId={currentOrganization.id}
+                        />
+                    )}
                     {activeTab === "users" && (
                         <OrganizationDetailUsers
+                            onUserInvited={handleUserInvited}
+                            onUserRemoved={handleUserRemoved}
                             organizationId={currentOrganization.id}
                             organizationName={currentOrganization.name}
                         />
@@ -310,23 +370,15 @@ export function OrganizationDetailContent({
                     <DeleteContentConfirmationModal
                         busy={isRemoving}
                         busyLabel={isDeactivation ? "Désactivation..." : "Suppression..."}
-                        confirmLabel={isDeactivation ? "Désactiver" : "Supprimer"}
-                        description={
-                            isDeactivation
-                                ? `Confirmez la désactivation de ${currentOrganization.name}.`
-                                : `Confirmez la suppression de ${currentOrganization.name}.`
-                        }
+                        confirmLabel={removalDialog.confirmLabel}
+                        description={removalDialog.description}
                         entityLabel="l'organisation"
                         error={removalError}
                         name={currentOrganization.name}
                         onCancel={closeRemovalDialog}
                         onConfirm={() => void confirmRemoveOrganization()}
-                        title={isDeactivation ? "Désactiver l'organisation" : "Supprimer l'organisation"}
-                        warning={
-                            isDeactivation
-                                ? "L'organisation possède des données à conserver. Elle sera désactivée sans supprimer ses membres, ses contenus ni son historique."
-                                : "Cette organisation ne possède aucune donnée à conserver. Sa suppression définitive retirera également ses groupes et ses rattachements."
-                        }
+                        title={removalDialog.title}
+                        warning={removalDialog.warning}
                     />
                 )}
             </Box>

@@ -163,7 +163,7 @@ export default function VoiceSession({ scenario, model = "gpt-4o-mini-realtime-p
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                    persona_id: scenario.persona_id,
+                    scenario_id: scenario.id,
                     voice: selectedVoice,
                     model: model  // Use selected model
                 }),

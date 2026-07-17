@@ -1,15 +1,34 @@
 import { requireAdmin } from "@/features/auth/server";
+import { CONTENT_VISIBILITY_SCOPE } from "@/features/content/domain";
 import { getQuizTypeLabel, type QuizType } from "@/features/evaluations/domain";
-import { MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS } from "@/features/roleplays/domain";
-import type {
-    OrganizationActivityStatus,
-    OrganizationEvaluationRow,
-    OrganizationRoleplayRow,
+import {
+    getOrganizationCohortActivityStatus,
+    indexOrganizationLearnerActivitiesByContentId,
+    resolveOrganizationActivityLearnerIds,
+    type OrganizationActivityAudience,
+} from "@/features/organizations/domain/organization-activity";
+import {
+    ORGANIZATION_GROUP_STATUS,
+    type OrganizationEvaluationRow,
+    type OrganizationRoleplayRow,
 } from "@/features/organizations/domain/organization-detail";
+import { ORGANIZATION_STATUS } from "@/features/organizations/domain/organization-list";
+import { ORGANIZATION_MEMBER_STATUS } from "@/features/organizations/domain/organization-member";
+import {
+    ORGANIZATION_COUNTED_CONTENT_IS_ACTIVE,
+    ORGANIZATION_COUNTED_CONTENT_STATUS,
+} from "@/features/organizations/domain/organization-content-scope";
+import { MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS } from "@/features/roleplays/domain";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveBatchRoleplayDerivedQuizAssignments } from "./resolve-batch-roleplay-derived-quiz-assignments";
 
 interface OrganizationMemberRow {
+    status: string | null;
     user_id: string | null;
+}
+
+interface OrganizationStatusRow {
+    status: string | null;
 }
 
 interface GroupRow {
@@ -22,10 +41,15 @@ interface GroupMemberRow {
     user_id: string | null;
 }
 
-interface ScenarioRow {
-    assigned_user_id?: string | null;
+interface ActivityTargetRow {
+    assigned_user_id: string | null;
+    group_id: string | null;
+    organization_id: string | null;
+    visibility_scope: string | null;
+}
+
+interface ScenarioRow extends ActivityTargetRow {
     created_at: string | null;
-    group_id?: string | null;
     id: string;
     persona_id: string | null;
     title: string;
@@ -40,12 +64,11 @@ interface SessionRow {
     duration_seconds: number | null;
     scenario_id: string | null;
     status: string | null;
+    user_id: string | null;
 }
 
-interface QuizRow {
-    assigned_user_id?: string | null;
+interface QuizRow extends ActivityTargetRow {
     created_at: string | null;
-    group_id?: string | null;
     id: string;
     quiz_type: string | null;
     title: string;
@@ -57,12 +80,47 @@ interface QuizAttemptRow {
     user_id: string | null;
 }
 
-interface OrganizationActivityContext {
-    groupMemberCounts: Map<string, number>;
-    groupNamesById: Map<string, string>;
-    groupIds: string[];
-    memberIds: string[];
+interface ScenarioUserAssignmentRow {
+    assigned_at: string;
+    scenario_id: string;
+    user_id: string;
 }
+
+interface QuizUserAssignmentRow {
+    quiz_id: string;
+    user_id: string;
+}
+
+interface AssignedScenarioMethodRow extends ActivityTargetRow {
+    id: string;
+    method_id: string | null;
+}
+
+interface ScenarioQuizRow {
+    quiz_id: string;
+    scenario_id: string;
+}
+
+interface MethodQuizRow {
+    id: string;
+    method_id: string | null;
+}
+
+interface OrganizationActivityContext extends OrganizationActivityAudience {
+    groupIds: string[];
+    groupNamesById: Map<string, string>;
+    rosterMemberIds: string[];
+}
+
+interface OrganizationActivityRows<T> {
+    explicitAssigneeIdsByContentId: Map<string, string[]>;
+    rows: T[];
+}
+
+const SCENARIO_ACTIVITY_SELECT =
+    "id, title, persona_id, visibility_scope, organization_id, group_id, assigned_user_id, created_at";
+const QUIZ_ACTIVITY_SELECT =
+    "id, title, quiz_type, visibility_scope, organization_id, group_id, assigned_user_id, created_at";
 
 function uniqueValues(values: Array<string | null | undefined>) {
     return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
@@ -80,52 +138,111 @@ function formatLongDate(value: string | null | undefined) {
     }).format(new Date(value));
 }
 
-function getActivityStatus(statuses: string[]): OrganizationActivityStatus {
-    if (statuses.some((status) => status === "completed")) {
-        return "completed";
-    }
-
-    if (statuses.length > 0) {
-        return "in_progress";
-    }
-
-    return "not_started";
-}
-
 function getQuizType(value: string | null): QuizType {
     return value === "self_assessment" ? "self_assessment" : "knowledge";
-}
-
-function countByGroupId(rows: GroupMemberRow[]) {
-    const counts = new Map<string, number>();
-
-    for (const row of rows) {
-        if (!row.group_id) continue;
-        counts.set(row.group_id, (counts.get(row.group_id) ?? 0) + 1);
-    }
-
-    return counts;
 }
 
 function uniqueRowsById<T extends { id: string }>(rows: T[]) {
     return Array.from(new Map(rows.map((row) => [row.id, row])).values());
 }
 
+function indexAssigneeIdsByContentId<T>(
+    rows: T[],
+    getContentId: (row: T) => string,
+    getUserId: (row: T) => string,
+) {
+    const assigneeIdsByContentId = new Map<string, Set<string>>();
+
+    for (const row of rows) {
+        const contentId = getContentId(row);
+        const assigneeIds = assigneeIdsByContentId.get(contentId) ?? new Set<string>();
+        assigneeIds.add(getUserId(row));
+        assigneeIdsByContentId.set(contentId, assigneeIds);
+    }
+
+    return new Map(
+        Array.from(assigneeIdsByContentId, ([contentId, assigneeIds]) => [
+            contentId,
+            Array.from(assigneeIds).sort(),
+        ]),
+    );
+}
+
+function buildActiveGroupMemberIdsByGroupId(groupIds: string[], rows: GroupMemberRow[], memberIds: string[]) {
+    const activeMemberIdSet = new Set(memberIds);
+    const memberIdsByGroupId = new Map<string, Set<string>>(
+        groupIds.map((groupId) => [groupId, new Set<string>()]),
+    );
+
+    for (const row of rows) {
+        if (!row.group_id || !row.user_id || !activeMemberIdSet.has(row.user_id)) {
+            continue;
+        }
+
+        memberIdsByGroupId.get(row.group_id)?.add(row.user_id);
+    }
+
+    return new Map(
+        Array.from(memberIdsByGroupId, ([groupId, groupMemberIds]) => [
+            groupId,
+            Array.from(groupMemberIds).sort(),
+        ]),
+    );
+}
+
+function mapTarget(row: ActivityTargetRow) {
+    return {
+        assignedUserId: row.assigned_user_id,
+        groupId: row.group_id,
+        organizationId: row.organization_id,
+        visibilityScope: row.visibility_scope,
+    };
+}
+
+function resolveLearnerIdsByContentId<T extends ActivityTargetRow & { id: string }>(
+    rows: T[],
+    organizationId: string,
+    context: OrganizationActivityContext,
+    explicitAssigneeIdsByContentId: ReadonlyMap<string, readonly string[]>,
+) {
+    return new Map(
+        rows.map((row) => [
+            row.id,
+            resolveOrganizationActivityLearnerIds({
+                activity: mapTarget(row),
+                audience: context,
+                explicitAssigneeIds: explicitAssigneeIdsByContentId.get(row.id),
+                organizationId,
+            }),
+        ]),
+    );
+}
+
 async function getOrganizationActivityContext(organizationId: string): Promise<OrganizationActivityContext> {
     const adminSupabase = createAdminClient();
-    const [groupsResult, membersResult] = await Promise.all([
+    const [organizationResult, groupsResult, membersResult] = await Promise.all([
+        adminSupabase
+            .from("organizations")
+            .select("status")
+            .eq("id", organizationId)
+            .returns<OrganizationStatusRow[]>(),
         adminSupabase
             .from("groups")
             .select("id, name")
             .eq("organization_id", organizationId)
-            .neq("status", "archived")
+            .eq("status", ORGANIZATION_GROUP_STATUS.active)
             .returns<GroupRow[]>(),
         adminSupabase
             .from("organization_members")
-            .select("user_id")
+            .select("user_id, status")
             .eq("organization_id", organizationId)
+            .neq("status", ORGANIZATION_MEMBER_STATUS.removed)
             .returns<OrganizationMemberRow[]>(),
     ]);
+
+    if (organizationResult.error) {
+        throw organizationResult.error;
+    }
 
     if (groupsResult.error) {
         throw groupsResult.error;
@@ -135,8 +252,16 @@ async function getOrganizationActivityContext(organizationId: string): Promise<O
         throw membersResult.error;
     }
 
-    const groupIds = (groupsResult.data ?? []).map((group) => group.id);
-    const memberIds = uniqueValues((membersResult.data ?? []).map((member) => member.user_id));
+    const groupIds = uniqueValues((groupsResult.data ?? []).map((group) => group.id));
+    const organizationIsActive = organizationResult.data?.[0]?.status === ORGANIZATION_STATUS.active;
+    const rosterMemberIds = uniqueValues((membersResult.data ?? []).map((member) => member.user_id));
+    const activeMemberIds = organizationIsActive
+        ? uniqueValues(
+              (membersResult.data ?? [])
+                  .filter((member) => member.status === ORGANIZATION_MEMBER_STATUS.active)
+                  .map((member) => member.user_id),
+          )
+        : [];
     const groupMembersResult =
         groupIds.length > 0
             ? await adminSupabase
@@ -151,34 +276,86 @@ async function getOrganizationActivityContext(organizationId: string): Promise<O
     }
 
     return {
+        activeGroupMemberIdsByGroupId: buildActiveGroupMemberIdsByGroupId(
+            groupIds,
+            groupMembersResult.data ?? [],
+            activeMemberIds,
+        ),
+        activeMemberIds,
         groupIds,
-        groupMemberCounts: countByGroupId(groupMembersResult.data ?? []),
         groupNamesById: new Map((groupsResult.data ?? []).map((group) => [group.id, group.name ?? "Groupe"])),
-        memberIds,
+        rosterMemberIds,
     };
 }
 
 async function fetchOrganizationScenarioRows(
     organizationId: string,
     context: OrganizationActivityContext,
-) {
+): Promise<OrganizationActivityRows<ScenarioRow>> {
     const adminSupabase = createAdminClient();
+    const assignmentsResult = context.rosterMemberIds.length > 0
+        ? await adminSupabase
+              .from("scenario_user_assignments")
+              .select("scenario_id, user_id")
+              .in("user_id", context.rosterMemberIds)
+              .returns<ScenarioUserAssignmentRow[]>()
+        : { data: [] as ScenarioUserAssignmentRow[], error: null };
+
+    if (assignmentsResult.error) {
+        throw assignmentsResult.error;
+    }
+
+    const explicitAssigneeIdsByContentId = indexAssigneeIdsByContentId(
+        assignmentsResult.data ?? [],
+        (assignment) => assignment.scenario_id,
+        (assignment) => assignment.user_id,
+    );
+    const explicitScenarioIds = Array.from(explicitAssigneeIdsByContentId.keys());
     const queries = [
         adminSupabase
             .from("scenarios")
-            .select("id, title, persona_id, group_id, assigned_user_id, created_at")
+            .select(SCENARIO_ACTIVITY_SELECT)
+            .eq("visibility_scope", CONTENT_VISIBILITY_SCOPE.organization)
             .eq("organization_id", organizationId)
-            .neq("status", "archived")
+            .eq("status", ORGANIZATION_COUNTED_CONTENT_STATUS)
+            .eq("is_active", ORGANIZATION_COUNTED_CONTENT_IS_ACTIVE)
             .returns<ScenarioRow[]>(),
     ];
 
-    if (context.memberIds.length > 0) {
+    if (context.groupIds.length > 0) {
         queries.push(
             adminSupabase
                 .from("scenarios")
-                .select("id, title, persona_id, group_id, assigned_user_id, created_at")
-                .in("assigned_user_id", context.memberIds)
-                .neq("status", "archived")
+                .select(SCENARIO_ACTIVITY_SELECT)
+                .eq("visibility_scope", CONTENT_VISIBILITY_SCOPE.group)
+                .in("group_id", context.groupIds)
+                .eq("status", ORGANIZATION_COUNTED_CONTENT_STATUS)
+                .eq("is_active", ORGANIZATION_COUNTED_CONTENT_IS_ACTIVE)
+                .returns<ScenarioRow[]>(),
+        );
+    }
+
+    if (context.rosterMemberIds.length > 0) {
+        queries.push(
+            adminSupabase
+                .from("scenarios")
+                .select(SCENARIO_ACTIVITY_SELECT)
+                .eq("visibility_scope", CONTENT_VISIBILITY_SCOPE.user)
+                .in("assigned_user_id", context.rosterMemberIds)
+                .eq("status", ORGANIZATION_COUNTED_CONTENT_STATUS)
+                .eq("is_active", ORGANIZATION_COUNTED_CONTENT_IS_ACTIVE)
+                .returns<ScenarioRow[]>(),
+        );
+    }
+
+    if (explicitScenarioIds.length > 0) {
+        queries.push(
+            adminSupabase
+                .from("scenarios")
+                .select(SCENARIO_ACTIVITY_SELECT)
+                .in("id", explicitScenarioIds)
+                .eq("status", ORGANIZATION_COUNTED_CONTENT_STATUS)
+                .eq("is_active", ORGANIZATION_COUNTED_CONTENT_IS_ACTIVE)
                 .returns<ScenarioRow[]>(),
         );
     }
@@ -191,32 +368,166 @@ async function fetchOrganizationScenarioRows(
         rows.push(...(result.data ?? []));
     }
 
-    return uniqueRowsById(rows).sort((first, second) => {
-        return (second.created_at ?? "").localeCompare(first.created_at ?? "");
-    });
+    return {
+        explicitAssigneeIdsByContentId,
+        rows: uniqueRowsById(rows).sort((first, second) =>
+            (second.created_at ?? "").localeCompare(first.created_at ?? ""),
+        ),
+    };
 }
 
 async function fetchOrganizationQuizRows(
     organizationId: string,
     context: OrganizationActivityContext,
-) {
+): Promise<OrganizationActivityRows<QuizRow>> {
     const adminSupabase = createAdminClient();
+    const [assignmentsResult, scenarioAssignmentsResult] = context.rosterMemberIds.length > 0
+        ? await Promise.all([
+              adminSupabase
+                  .from("quiz_user_assignments")
+                  .select("quiz_id, user_id")
+                  .in("user_id", context.rosterMemberIds)
+                  .returns<QuizUserAssignmentRow[]>(),
+              adminSupabase
+                  .from("scenario_user_assignments")
+                  .select("scenario_id, user_id, assigned_at")
+                  .in("user_id", context.rosterMemberIds)
+                  .returns<ScenarioUserAssignmentRow[]>(),
+          ])
+        : [
+              { data: [] as QuizUserAssignmentRow[], error: null },
+              { data: [] as ScenarioUserAssignmentRow[], error: null },
+          ];
+
+    if (assignmentsResult.error) {
+        throw assignmentsResult.error;
+    }
+
+    if (scenarioAssignmentsResult.error) {
+        throw scenarioAssignmentsResult.error;
+    }
+
+    const scenarioAssignments = scenarioAssignmentsResult.data ?? [];
+    const assignedScenarioIds = uniqueValues(
+        scenarioAssignments.map((assignment) => assignment.scenario_id),
+    );
+    const assignedScenariosResult = assignedScenarioIds.length > 0
+        ? await adminSupabase
+              .from("scenarios")
+              .select("id, method_id, visibility_scope, organization_id, group_id, assigned_user_id")
+              .in("id", assignedScenarioIds)
+              .eq("status", ORGANIZATION_COUNTED_CONTENT_STATUS)
+              .eq("is_active", ORGANIZATION_COUNTED_CONTENT_IS_ACTIVE)
+              .returns<AssignedScenarioMethodRow[]>()
+        : { data: [] as AssignedScenarioMethodRow[], error: null };
+
+    if (assignedScenariosResult.error) {
+        throw assignedScenariosResult.error;
+    }
+
+    const assignedScenarioRows = assignedScenariosResult.data ?? [];
+    const activeAssignedScenarioIdSet = new Set(assignedScenarioRows.map((scenario) => scenario.id));
+    const activeScenarioAssignments = scenarioAssignments.filter((assignment) =>
+        activeAssignedScenarioIdSet.has(assignment.scenario_id),
+    );
+    const activeAssignedScenarioIds = uniqueValues(
+        activeScenarioAssignments.map((assignment) => assignment.scenario_id),
+    );
+    const assignedMethodIds = uniqueValues(assignedScenarioRows.map((scenario) => scenario.method_id));
+    const [scenarioQuizzesResult, methodQuizzesResult] = await Promise.all([
+        activeAssignedScenarioIds.length > 0
+            ? adminSupabase
+                  .from("scenario_quizzes")
+                  .select("scenario_id, quiz_id")
+                  .in("scenario_id", activeAssignedScenarioIds)
+                  .returns<ScenarioQuizRow[]>()
+            : Promise.resolve({ data: [] as ScenarioQuizRow[], error: null }),
+        assignedMethodIds.length > 0
+            ? adminSupabase
+                  .from("quizzes")
+                  .select("id, method_id")
+                  .in("method_id", assignedMethodIds)
+                  .eq("quiz_kind", "method_knowledge")
+                  .eq("status", ORGANIZATION_COUNTED_CONTENT_STATUS)
+                  .eq("is_active", ORGANIZATION_COUNTED_CONTENT_IS_ACTIVE)
+                  .returns<MethodQuizRow[]>()
+            : Promise.resolve({ data: [] as MethodQuizRow[], error: null }),
+    ]);
+
+    if (scenarioQuizzesResult.error) {
+        throw scenarioQuizzesResult.error;
+    }
+
+    if (methodQuizzesResult.error) {
+        throw methodQuizzesResult.error;
+    }
+
+    const derivedAssignments = resolveBatchRoleplayDerivedQuizAssignments({
+        methodQuizRows: methodQuizzesResult.data ?? [],
+        scenarioAssignments: activeScenarioAssignments,
+        scenarioQuizRows: scenarioQuizzesResult.data ?? [],
+        scenarioRows: assignedScenarioRows,
+        userIds: context.rosterMemberIds,
+    });
+    const quizAssignments = [
+        ...(assignmentsResult.data ?? []).map((assignment) => ({
+            contentId: assignment.quiz_id,
+            userId: assignment.user_id,
+        })),
+        ...derivedAssignments,
+    ];
+
+    const explicitAssigneeIdsByContentId = indexAssigneeIdsByContentId(
+        quizAssignments,
+        (assignment) => assignment.contentId,
+        (assignment) => assignment.userId,
+    );
+    const explicitQuizIds = Array.from(explicitAssigneeIdsByContentId.keys());
     const queries = [
         adminSupabase
             .from("quizzes")
-            .select("id, title, quiz_type, group_id, assigned_user_id, created_at")
+            .select(QUIZ_ACTIVITY_SELECT)
+            .eq("visibility_scope", CONTENT_VISIBILITY_SCOPE.organization)
             .eq("organization_id", organizationId)
-            .neq("status", "archived")
+            .eq("status", ORGANIZATION_COUNTED_CONTENT_STATUS)
+            .eq("is_active", ORGANIZATION_COUNTED_CONTENT_IS_ACTIVE)
             .returns<QuizRow[]>(),
     ];
 
-    if (context.memberIds.length > 0) {
+    if (context.groupIds.length > 0) {
         queries.push(
             adminSupabase
                 .from("quizzes")
-                .select("id, title, quiz_type, group_id, assigned_user_id, created_at")
-                .in("assigned_user_id", context.memberIds)
-                .neq("status", "archived")
+                .select(QUIZ_ACTIVITY_SELECT)
+                .eq("visibility_scope", CONTENT_VISIBILITY_SCOPE.group)
+                .in("group_id", context.groupIds)
+                .eq("status", ORGANIZATION_COUNTED_CONTENT_STATUS)
+                .eq("is_active", ORGANIZATION_COUNTED_CONTENT_IS_ACTIVE)
+                .returns<QuizRow[]>(),
+        );
+    }
+
+    if (context.rosterMemberIds.length > 0) {
+        queries.push(
+            adminSupabase
+                .from("quizzes")
+                .select(QUIZ_ACTIVITY_SELECT)
+                .eq("visibility_scope", CONTENT_VISIBILITY_SCOPE.user)
+                .in("assigned_user_id", context.rosterMemberIds)
+                .eq("status", ORGANIZATION_COUNTED_CONTENT_STATUS)
+                .eq("is_active", ORGANIZATION_COUNTED_CONTENT_IS_ACTIVE)
+                .returns<QuizRow[]>(),
+        );
+    }
+
+    if (explicitQuizIds.length > 0) {
+        queries.push(
+            adminSupabase
+                .from("quizzes")
+                .select(QUIZ_ACTIVITY_SELECT)
+                .in("id", explicitQuizIds)
+                .eq("status", ORGANIZATION_COUNTED_CONTENT_STATUS)
+                .eq("is_active", ORGANIZATION_COUNTED_CONTENT_IS_ACTIVE)
                 .returns<QuizRow[]>(),
         );
     }
@@ -229,35 +540,36 @@ async function fetchOrganizationQuizRows(
         rows.push(...(result.data ?? []));
     }
 
-    return uniqueRowsById(rows).sort((first, second) => {
-        return (second.created_at ?? "").localeCompare(first.created_at ?? "");
-    });
+    return {
+        explicitAssigneeIdsByContentId,
+        rows: uniqueRowsById(rows).sort((first, second) =>
+            (second.created_at ?? "").localeCompare(first.created_at ?? ""),
+        ),
+    };
 }
 
-function getLearnerCount(
-    row: { assigned_user_id?: string | null; group_id?: string | null },
+function getTargetName(
+    row: ActivityTargetRow,
     context: OrganizationActivityContext,
+    explicitAssigneeIds: readonly string[],
+    organizationId: string,
 ) {
-    if (row.assigned_user_id) {
-        return 1;
-    }
-
-    if (row.group_id) {
-        return context.groupMemberCounts.get(row.group_id) ?? 0;
-    }
-
-    return context.memberIds.length;
-}
-
-function getGroupName(
-    row: { assigned_user_id?: string | null; group_id?: string | null },
-    context: OrganizationActivityContext,
-) {
-    if (row.group_id) {
+    if (row.group_id && context.groupNamesById.has(row.group_id)) {
         return context.groupNamesById.get(row.group_id) ?? "Groupe";
     }
 
-    return row.assigned_user_id ? "Utilisateur spécifique" : "Toute l'organisation";
+    if (
+        row.visibility_scope === CONTENT_VISIBILITY_SCOPE.organization
+        && row.organization_id === organizationId
+    ) {
+        return "Toute l'organisation";
+    }
+
+    if (row.assigned_user_id || explicitAssigneeIds.length > 0) {
+        return "Utilisateur spécifique";
+    }
+
+    return "Toute l'organisation";
 }
 
 export async function listOrganizationRoleplays(organizationId: string): Promise<OrganizationRoleplayRow[]> {
@@ -265,18 +577,29 @@ export async function listOrganizationRoleplays(organizationId: string): Promise
 
     const adminSupabase = createAdminClient();
     const context = await getOrganizationActivityContext(organizationId);
-    const rows = await fetchOrganizationScenarioRows(organizationId, context);
+    const { rows, explicitAssigneeIdsByContentId } = await fetchOrganizationScenarioRows(
+        organizationId,
+        context,
+    );
+    const learnerIdsByScenarioId = resolveLearnerIdsByContentId(
+        rows,
+        organizationId,
+        context,
+        explicitAssigneeIdsByContentId,
+    );
     const scenarioIds = rows.map((scenario) => scenario.id);
+    const targetedLearnerIds = uniqueValues(Array.from(learnerIdsByScenarioId.values()).flat());
     const personaIds = uniqueValues(rows.map((scenario) => scenario.persona_id));
     const [personasResult, sessionsResult] = await Promise.all([
         personaIds.length > 0
             ? adminSupabase.from("personas").select("id, name").in("id", personaIds).returns<PersonaRow[]>()
             : Promise.resolve({ data: [] as PersonaRow[], error: null }),
-        scenarioIds.length > 0
+        scenarioIds.length > 0 && targetedLearnerIds.length > 0
             ? adminSupabase
                   .from("sessions")
-                  .select("scenario_id, status, duration_seconds")
+                  .select("scenario_id, user_id, status, duration_seconds")
                   .in("scenario_id", scenarioIds)
+                  .in("user_id", targetedLearnerIds)
                   .gte("duration_seconds", MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS)
                   .returns<SessionRow[]>()
             : Promise.resolve({ data: [] as SessionRow[], error: null }),
@@ -290,26 +613,35 @@ export async function listOrganizationRoleplays(organizationId: string): Promise
         throw sessionsResult.error;
     }
 
-    const personaNamesById = new Map((personasResult.data ?? []).map((persona) => [persona.id, persona.name ?? "Persona"]));
-    const statusesByScenarioId = new Map<string, string[]>();
+    const personaNamesById = new Map(
+        (personasResult.data ?? []).map((persona) => [persona.id, persona.name ?? "Persona"]),
+    );
+    const sessionsByScenarioId = indexOrganizationLearnerActivitiesByContentId(
+        sessionsResult.data ?? [],
+        (session) => session.scenario_id,
+        (session) => session.status,
+        (session) => session.user_id,
+    );
 
-    for (const session of sessionsResult.data ?? []) {
-        if (!session.scenario_id || !session.status) continue;
-        statusesByScenarioId.set(session.scenario_id, [
-            ...(statusesByScenarioId.get(session.scenario_id) ?? []),
-            session.status,
-        ]);
-    }
+    return rows.map((scenario) => {
+        const explicitAssigneeIds = explicitAssigneeIdsByContentId.get(scenario.id) ?? [];
+        const learnerIds = learnerIdsByScenarioId.get(scenario.id) ?? [];
 
-    return rows.map((scenario) => ({
-        assignedAt: formatLongDate(scenario.created_at),
-        groupName: getGroupName(scenario, context),
-        id: scenario.id,
-        learnerCount: getLearnerCount(scenario, context),
-        persona: scenario.persona_id ? personaNamesById.get(scenario.persona_id) ?? "Persona" : "Persona",
-        status: getActivityStatus(statusesByScenarioId.get(scenario.id) ?? []),
-        title: scenario.title,
-    }));
+        return {
+            assignedAt: formatLongDate(scenario.created_at),
+            groupName: getTargetName(scenario, context, explicitAssigneeIds, organizationId),
+            id: scenario.id,
+            learnerCount: learnerIds.length,
+            persona: scenario.persona_id
+                ? personaNamesById.get(scenario.persona_id) ?? "Persona"
+                : "Persona",
+            status: getOrganizationCohortActivityStatus(
+                learnerIds,
+                sessionsByScenarioId.get(scenario.id) ?? [],
+            ),
+            title: scenario.title,
+        };
+    });
 }
 
 export async function listOrganizationEvaluations(organizationId: string): Promise<OrganizationEvaluationRow[]> {
@@ -317,39 +649,53 @@ export async function listOrganizationEvaluations(organizationId: string): Promi
 
     const adminSupabase = createAdminClient();
     const context = await getOrganizationActivityContext(organizationId);
-    const rows = await fetchOrganizationQuizRows(organizationId, context);
+    const { rows, explicitAssigneeIdsByContentId } = await fetchOrganizationQuizRows(
+        organizationId,
+        context,
+    );
+    const learnerIdsByQuizId = resolveLearnerIdsByContentId(
+        rows,
+        organizationId,
+        context,
+        explicitAssigneeIdsByContentId,
+    );
     const quizIds = rows.map((quiz) => quiz.id);
-    const attemptsResult =
-        quizIds.length > 0 && context.memberIds.length > 0
-            ? await adminSupabase
-                  .from("quiz_attempts")
-                  .select("quiz_id, user_id, status")
-                  .in("quiz_id", quizIds)
-                  .in("user_id", context.memberIds)
-                  .returns<QuizAttemptRow[]>()
-            : { data: [] as QuizAttemptRow[], error: null };
+    const targetedLearnerIds = uniqueValues(Array.from(learnerIdsByQuizId.values()).flat());
+    const attemptsResult = quizIds.length > 0 && targetedLearnerIds.length > 0
+        ? await adminSupabase
+              .from("quiz_attempts")
+              .select("quiz_id, user_id, status")
+              .in("quiz_id", quizIds)
+              .in("user_id", targetedLearnerIds)
+              .returns<QuizAttemptRow[]>()
+        : { data: [] as QuizAttemptRow[], error: null };
 
     if (attemptsResult.error) {
         throw attemptsResult.error;
     }
 
-    const statusesByQuizId = new Map<string, string[]>();
+    const attemptsByQuizId = indexOrganizationLearnerActivitiesByContentId(
+        attemptsResult.data ?? [],
+        (attempt) => attempt.quiz_id,
+        (attempt) => attempt.status,
+        (attempt) => attempt.user_id,
+    );
 
-    for (const attempt of attemptsResult.data ?? []) {
-        if (!attempt.quiz_id || !attempt.status) continue;
-        statusesByQuizId.set(attempt.quiz_id, [
-            ...(statusesByQuizId.get(attempt.quiz_id) ?? []),
-            attempt.status,
-        ]);
-    }
+    return rows.map((quiz) => {
+        const explicitAssigneeIds = explicitAssigneeIdsByContentId.get(quiz.id) ?? [];
+        const learnerIds = learnerIdsByQuizId.get(quiz.id) ?? [];
 
-    return rows.map((quiz) => ({
-        assignedAt: formatLongDate(quiz.created_at),
-        groupName: getGroupName(quiz, context),
-        id: quiz.id,
-        learnerCount: getLearnerCount(quiz, context),
-        status: getActivityStatus(statusesByQuizId.get(quiz.id) ?? []),
-        title: quiz.title,
-        type: getQuizTypeLabel(getQuizType(quiz.quiz_type)),
-    }));
+        return {
+            assignedAt: formatLongDate(quiz.created_at),
+            groupName: getTargetName(quiz, context, explicitAssigneeIds, organizationId),
+            id: quiz.id,
+            learnerCount: learnerIds.length,
+            status: getOrganizationCohortActivityStatus(
+                learnerIds,
+                attemptsByQuizId.get(quiz.id) ?? [],
+            ),
+            title: quiz.title,
+            type: getQuizTypeLabel(getQuizType(quiz.quiz_type)),
+        };
+    });
 }

@@ -8,7 +8,7 @@ import { CreateRoleplayPage } from "@/features/roleplays/components";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import {
-    getRoleplayById,
+    getRoleplayEditorById,
     listRoleplayCoachOptions,
     listRoleplayGroupOptions,
     listRoleplayMethodOptions,
@@ -59,7 +59,7 @@ export default async function Page({ params, searchParams }: PageProps) {
     }
 
     try {
-        roleplay = await getRoleplayById(roleplayId);
+        roleplay = await getRoleplayEditorById(roleplayId);
     } catch (error) {
         if (error instanceof NotFoundError) {
             notFound();

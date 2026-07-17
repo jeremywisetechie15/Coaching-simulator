@@ -8,5 +8,6 @@ export * from "./list-organization-activity";
 export * from "./list-organization-users";
 export * from "./list-organizations";
 export * from "./organization-group-detail";
+export * from "./remove-organization-user";
 export * from "./resolve-organization-for-write";
 export * from "./update-organization";

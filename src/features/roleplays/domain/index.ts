@@ -15,3 +15,4 @@ export * from "./roleplay-routes";
 export * from "./roleplay-session-eligibility";
 export * from "./roleplay-session-history";
 export * from "./roleplay-session-lifecycle";
+export * from "./scenario-ai-instructions";

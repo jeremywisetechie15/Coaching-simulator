@@ -164,9 +164,13 @@ export const uiTokens = {
         controlReadonly:
             "h-9 w-full cursor-default rounded-lg border border-[#E9E7FB] bg-[#F4F3FE] px-3 text-[14px] font-medium text-[#374151] outline-none",
         label: "mb-2 block text-[14px] font-bold text-[#111827]",
+        helpText: "text-[13px] font-medium leading-5 text-[#6B7280]",
         subLabel: "mb-1.5 block text-[13px] font-bold text-[#374151]",
         textArea:
             "w-full resize-none rounded-lg border border-[#E5E7EB] bg-[#F3F4F6] px-3.5 py-3 text-[14px] font-normal text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#5140F0] focus:bg-white focus:ring-4 focus:ring-[#5140F0]/10",
+        textAreaEditor: "min-h-0 flex-1 resize-none bg-white leading-6",
+        textAreaLarge: "min-h-[220px] leading-6",
+        textAreaMedium: "min-h-[96px]",
         textAreaWhite:
             "min-h-[72px] w-full resize-none rounded-lg border border-[#E5E7EB] bg-white px-3 py-2.5 text-[14px] font-normal text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#5140F0] focus:ring-4 focus:ring-[#5140F0]/10",
     },
@@ -230,6 +234,11 @@ export const uiTokens = {
             "inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white px-3 text-[13px] font-semibold text-[#4B5563] transition hover:border-[#C9C2FB] hover:text-[#5140F0]",
         quickLinkIcon: "h-4 w-4 text-[#9CA3AF]",
         title: "mt-6 text-center text-[18px] font-extrabold leading-6 text-[#5140F0]",
+    },
+    roleplayEditor: {
+        aiInstructionsDrawerContent: "flex min-h-0 flex-1 flex-col gap-3",
+        aiInstructionsHeader: "mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between",
+        aiInstructionsHeading: "min-w-0 flex-1",
     },
     evaluationKeyMoments: {
         card: "overflow-hidden rounded-xl border border-[#E5E7EB] bg-white",
@@ -574,12 +583,15 @@ export const uiTokens = {
     },
     /** Panneau latéral coulissant (slide-over) ancré à droite. */
     drawer: {
-        body: "px-6 py-5",
+        body: "min-h-0 flex-1 overflow-y-auto px-6 py-5",
+        bodyEditor: "flex flex-col overflow-hidden",
+        description: "mt-1 text-[13px] font-medium leading-5 text-[#6B7280]",
         header:
             "sticky top-0 z-10 flex items-start justify-between gap-4 border-b border-[#ECEEF3] bg-white px-6 py-5",
         overlay: "fixed inset-0 z-50 flex justify-end bg-[#111827]/45 backdrop-blur-[1px]",
         panel:
-            "flex h-full w-full max-w-[440px] flex-col overflow-y-auto bg-white shadow-[-20px_0_50px_rgba(17,24,39,0.18)]",
+            "flex h-full w-full max-w-[440px] flex-col overflow-hidden bg-white shadow-[-20px_0_50px_rgba(17,24,39,0.18)]",
+        panelEditor: "max-w-[720px]",
         title: "text-[18px] font-extrabold text-[#111827]",
     },
     modal: {

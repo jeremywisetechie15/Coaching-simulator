@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useState } from "react";
+import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
     ArrowLeft,
     BarChart3,
@@ -22,7 +23,7 @@ import {
     UserX,
     X,
 } from "lucide-react";
-import { AppShell, ContextualBackLink } from "@/features/app-shell/components";
+import { AppShell, ContextualBackLink, useCurrentAppHref } from "@/features/app-shell/components";
 import {
     Box,
     Button,
@@ -48,10 +49,12 @@ import {
     getEditableUserRoleOptions,
     getUserRoleLabel,
     getUserStatusLabel,
+    withoutUserDetailMode,
     type PlatformRole,
     type UserAssignedQuiz,
     type UserAssignedRoleplay,
     type UserAssignmentStatus,
+    type UserContentAssignmentCandidate,
     type UserListItem,
     type UserRole,
     type UserSkillProgress,
@@ -63,7 +66,14 @@ import {
 } from "@/features/users/domain";
 import type { UserAssignedGroup, UserAvailableGroup, UserGroupsResult } from "@/features/users/domain/user-groups";
 import { AddUserGroupDialog, RemoveUserGroupDialog } from "./UserGroupDialogs";
+import {
+    UserContentAssignmentDialog,
+    type UserAssignableContentKind,
+} from "./UserContentAssignmentDialog";
 import { UserStatusDialog } from "./UserStatusDialog";
+import { createLatestAbortableRequestCoordinator } from "./latest-abortable-request";
+import { refreshUserViews } from "./user-detail-refresh";
+import { shouldResetUserDraft } from "./user-detail-state";
 
 type UserDetailTab = "profile" | "groups" | "roleplays" | "evaluations" | "statistics" | "skills";
 
@@ -144,6 +154,12 @@ interface ApiValidationIssue {
 interface ApiErrorPayload {
     error?: string;
     issues?: ApiValidationIssue[];
+}
+
+interface UserContentAssignmentApiPayload extends ApiErrorPayload {
+    candidates?: UserContentAssignmentCandidate[];
+    quizzes?: UserAssignedQuiz[];
+    roleplays?: UserAssignedRoleplay[];
 }
 
 function getApiErrorMessage(payload: ApiErrorPayload | null, fallback: string) {
@@ -1246,6 +1262,8 @@ export function UserDetailPage({
     user,
 }: UserDetailPageProps) {
     const router = useRouter();
+    const currentHref = useCurrentAppHref();
+    const queryClient = useQueryClient();
     const [currentUser, setCurrentUser] = useState<UserListItem>(user);
     const [activeTab, setActiveTab] = useState<UserDetailTab>("profile");
     const [assignedGroups, setAssignedGroups] = useState<UserAssignedGroup[]>([]);
@@ -1263,6 +1281,26 @@ export function UserDetailPage({
     const [pendingStatusAction, setPendingStatusAction] = useState<UserStatusAction | null>(null);
     const [statusActionError, setStatusActionError] = useState<string | null>(null);
     const [isStatusActionPending, setIsStatusActionPending] = useState(false);
+    const [roleplayAssignments, setRoleplayAssignments] = useState<UserAssignedRoleplay[]>(assignedRoleplays);
+    const [quizAssignments, setQuizAssignments] = useState<UserAssignedQuiz[]>(assignedQuizzes);
+    const [assignmentDialogKind, setAssignmentDialogKind] = useState<UserAssignableContentKind | null>(null);
+    const [assignmentCandidates, setAssignmentCandidates] = useState<UserContentAssignmentCandidate[]>([]);
+    const [selectedAssignmentContentId, setSelectedAssignmentContentId] = useState("");
+    const [assignmentDialogError, setAssignmentDialogError] = useState<string | null>(null);
+    const [isAssignmentDialogLoading, setIsAssignmentDialogLoading] = useState(false);
+    const [isAssignmentPending, setIsAssignmentPending] = useState(false);
+    const previousUserIdRef = useRef(user.id);
+    const isEditingRef = useRef(isEditing);
+    const assignmentCandidatesRequestCoordinatorRef = useRef<ReturnType<
+        typeof createLatestAbortableRequestCoordinator
+    > | null>(null);
+
+    if (!assignmentCandidatesRequestCoordinatorRef.current) {
+        assignmentCandidatesRequestCoordinatorRef.current = createLatestAbortableRequestCoordinator();
+    }
+
+    const assignmentCandidatesRequestCoordinator = assignmentCandidatesRequestCoordinatorRef.current;
+    isEditingRef.current = isEditing;
 
     const pageTitle = useMemo(() => "Détail de l'utilisateur", []);
     const availableStatusAction = getAvailableUserStatusAction({
@@ -1271,11 +1309,43 @@ export function UserDetailPage({
         targetPlatformRole: currentUser.platformRole,
     });
 
+    const refreshUserData = useCallback(() => {
+        void refreshUserViews(queryClient, router);
+    }, [queryClient, router]);
+
     useEffect(() => {
-        if (initialMode === "edit") {
-            router.replace(`/users/${user.id}`, { scroll: false });
+        const hrefWithoutMode = withoutUserDetailMode(currentHref);
+
+        if (initialMode === "edit" && hrefWithoutMode !== currentHref) {
+            router.replace(hrefWithoutMode, { scroll: false });
         }
-    }, [initialMode, router, user.id]);
+    }, [currentHref, initialMode, router]);
+
+    useEffect(() => {
+        const previousUserId = previousUserIdRef.current;
+        previousUserIdRef.current = user.id;
+        setCurrentUser(user);
+
+        if (shouldResetUserDraft({
+            isEditing: isEditingRef.current,
+            nextUserId: user.id,
+            previousUserId,
+        })) {
+            setDraft(getFormValuesFromUser(user));
+        }
+    }, [user]);
+
+    useEffect(() => () => {
+        assignmentCandidatesRequestCoordinator.cancel();
+    }, [assignmentCandidatesRequestCoordinator]);
+
+    useEffect(() => {
+        setRoleplayAssignments(assignedRoleplays);
+    }, [assignedRoleplays]);
+
+    useEffect(() => {
+        setQuizAssignments(assignedQuizzes);
+    }, [assignedQuizzes]);
 
     const applyUserGroupsResult = useCallback((payload: UserGroupsResult | null) => {
         const nextGroupsPayload = normalizeUserGroupsPayload(payload);
@@ -1363,6 +1433,7 @@ export function UserDetailPage({
             setDraft(getFormValuesFromUser(payload.user));
             setIsEditing(false);
             notifyFormSubmitSuccess();
+            refreshUserData();
         } catch (error) {
             notifyFormSubmitError(error, "Impossible de modifier l'utilisateur.");
         } finally {
@@ -1415,6 +1486,7 @@ export function UserDetailPage({
                     : "Utilisateur réactivé",
             );
             setPendingStatusAction(null);
+            refreshUserData();
         } catch (error) {
             setStatusActionError(notifyFormSubmitError(error, "Impossible de modifier le statut de l'utilisateur."));
         } finally {
@@ -1464,6 +1536,7 @@ export function UserDetailPage({
             setIsAddGroupOpen(false);
             setSelectedGroupId("");
             notifyFormSubmitSuccess();
+            refreshUserData();
         } catch (error) {
             setGroupDialogError(notifyFormSubmitError(error, "Impossible d'ajouter l'utilisateur au groupe."));
         } finally {
@@ -1510,6 +1583,7 @@ export function UserDetailPage({
             applyUserGroupsResult(payload as UserGroupsResult | null);
             setGroupPendingRemoval(null);
             notifyFormSubmitSuccess();
+            refreshUserData();
         } catch (error) {
             setGroupDialogError(notifyFormSubmitError(error, "Impossible de retirer l'utilisateur du groupe."));
         } finally {
@@ -1517,9 +1591,97 @@ export function UserDetailPage({
         }
     };
 
-    const assignRoleplay = () => undefined;
+    const getAssignmentEndpoint = (kind: UserAssignableContentKind) =>
+        `/api/users/${user.id}/assignments/${kind === "roleplay" ? "roleplays" : "quizzes"}`;
 
-    const assignQuiz = () => undefined;
+    const openAssignmentDialog = async (kind: UserAssignableContentKind) => {
+        const assignmentCandidatesRequest = assignmentCandidatesRequestCoordinator.start();
+        setAssignmentDialogKind(kind);
+        setAssignmentCandidates([]);
+        setSelectedAssignmentContentId("");
+        setAssignmentDialogError(null);
+        setIsAssignmentDialogLoading(true);
+
+        try {
+            const response = await fetch(getAssignmentEndpoint(kind), {
+                headers: { Accept: "application/json" },
+                signal: assignmentCandidatesRequest.signal,
+            });
+            const payload = (await response.json().catch(() => null)) as UserContentAssignmentApiPayload | null;
+
+            if (!assignmentCandidatesRequest.isCurrent()) {
+                return;
+            }
+
+            if (!response.ok) {
+                setAssignmentDialogError(getApiErrorMessage(payload, "Impossible de charger les contenus assignables."));
+                return;
+            }
+
+            const candidates = payload?.candidates ?? [];
+            setAssignmentCandidates(candidates);
+            setSelectedAssignmentContentId(candidates[0]?.id ?? "");
+        } catch {
+            if (!assignmentCandidatesRequest.isCurrent()) {
+                return;
+            }
+
+            setAssignmentDialogError("Impossible de charger les contenus assignables.");
+        } finally {
+            if (assignmentCandidatesRequest.isCurrent()) {
+                setIsAssignmentDialogLoading(false);
+                assignmentCandidatesRequest.finish();
+            }
+        }
+    };
+
+    const closeAssignmentDialog = () => {
+        if (isAssignmentPending) return;
+        assignmentCandidatesRequestCoordinator.cancel();
+        setAssignmentDialogKind(null);
+        setAssignmentCandidates([]);
+        setSelectedAssignmentContentId("");
+        setAssignmentDialogError(null);
+        setIsAssignmentDialogLoading(false);
+    };
+
+    const assignSelectedContent = async () => {
+        if (!assignmentDialogKind || !selectedAssignmentContentId || isAssignmentPending) return;
+
+        setIsAssignmentPending(true);
+        setAssignmentDialogError(null);
+
+        try {
+            const response = await fetch(getAssignmentEndpoint(assignmentDialogKind), {
+                body: JSON.stringify({ contentId: selectedAssignmentContentId }),
+                headers: { "Content-Type": "application/json" },
+                method: "POST",
+            });
+            const payload = (await response.json().catch(() => null)) as UserContentAssignmentApiPayload | null;
+
+            if (!response.ok) {
+                const message = getApiErrorMessage(payload, "Impossible d'affecter ce contenu à l'utilisateur.");
+                setAssignmentDialogError(notifyFormSubmitError(createFormSubmitError(message, response.status), message));
+                return;
+            }
+
+            if (payload?.roleplays) setRoleplayAssignments(payload.roleplays);
+            if (payload?.quizzes) setQuizAssignments(payload.quizzes);
+            notify.success(assignmentDialogKind === "roleplay" ? "Roleplay assigné" : "Quiz assigné");
+            setAssignmentDialogKind(null);
+            setAssignmentCandidates([]);
+            setSelectedAssignmentContentId("");
+            refreshUserData();
+        } catch (error) {
+            setAssignmentDialogError(notifyFormSubmitError(error, "Impossible d'affecter ce contenu à l'utilisateur."));
+        } finally {
+            setIsAssignmentPending(false);
+        }
+    };
+
+    const assignRoleplay = () => void openAssignmentDialog("roleplay");
+
+    const assignQuiz = () => void openAssignmentDialog("quiz");
 
     return (
         <AppShell
@@ -1628,8 +1790,8 @@ export function UserDetailPage({
                                 groups={assignedGroups}
                                 isEditing={isEditing}
                                 onDraftChange={updateDraft}
-                                quizCount={assignedQuizzes.length}
-                                roleplayCount={assignedRoleplays.length}
+                                quizCount={quizAssignments.length}
+                                roleplayCount={roleplayAssignments.length}
                             />
                         )}
                         {activeTab === "groups" && (
@@ -1643,10 +1805,10 @@ export function UserDetailPage({
                             />
                         )}
                         {activeTab === "roleplays" && (
-                            <RoleplaysTab onAssign={assignRoleplay} roleplays={assignedRoleplays} />
+                            <RoleplaysTab onAssign={assignRoleplay} roleplays={roleplayAssignments} />
                         )}
                         {activeTab === "evaluations" && (
-                            <EvaluationsTab onAssign={assignQuiz} quizzes={assignedQuizzes} />
+                            <EvaluationsTab onAssign={assignQuiz} quizzes={quizAssignments} />
                         )}
                         {activeTab === "statistics" && <StatisticsTab statistics={statistics} />}
                         {activeTab === "skills" && <SkillsTab skills={skills} />}
@@ -1684,6 +1846,20 @@ export function UserDetailPage({
                     onClose={closeStatusDialog}
                     onConfirm={confirmStatusChange}
                     userName={currentUser.name}
+                />
+            )}
+
+            {assignmentDialogKind && (
+                <UserContentAssignmentDialog
+                    candidates={assignmentCandidates}
+                    error={assignmentDialogError}
+                    isLoading={isAssignmentDialogLoading}
+                    isSubmitting={isAssignmentPending}
+                    kind={assignmentDialogKind}
+                    onClose={closeAssignmentDialog}
+                    onContentChange={setSelectedAssignmentContentId}
+                    onSubmit={() => void assignSelectedContent()}
+                    selectedContentId={selectedAssignmentContentId}
                 />
             )}
         </AppShell>

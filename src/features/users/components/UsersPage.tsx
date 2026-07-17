@@ -23,7 +23,10 @@ import {
     USER_STATUS_FILTER_OPTIONS,
     type UserStatus,
 } from "@/features/users/domain/users";
+import { USERS_QUERY_KEY } from "@/features/users/domain/user-query";
+import { getUserDetailHref } from "@/features/users/domain/user-navigation";
 import type { OrganizationListItem } from "@/features/organizations/domain/organization-list";
+import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
 import {
     initialUserInviteFormValues,
     UserInviteModal,
@@ -66,8 +69,6 @@ interface ApiRequestError extends Error {
     payload: ApiErrorPayload | null;
     status: number;
 }
-
-const usersQueryKey = ["users"] as const;
 
 const columns = [
     "Utilisateur",
@@ -206,7 +207,7 @@ export function UsersPage({ avatarUrl, initials, initialUsers, organizations, pl
     const [inviteStatus, setInviteStatus] = useState<string | null>(null);
     const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
     const usersQuery = useQuery({
-        queryKey: usersQueryKey,
+        queryKey: USERS_QUERY_KEY,
         queryFn: fetchUsers,
         initialData: initialUsers,
     });
@@ -282,8 +283,8 @@ export function UsersPage({ avatarUrl, initials, initialUsers, organizations, pl
         },
         onSuccess: (email) => {
             setInviteSuccess(getUserInvitationSuccessMessage(email));
-            void queryClient.invalidateQueries({ queryKey: usersQueryKey });
-            void queryClient.invalidateQueries({ queryKey: ["organizations"] });
+            void queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY });
+            void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
             notifyFormSubmitSuccess();
             closeModal();
         },
@@ -441,14 +442,14 @@ export function UsersPage({ avatarUrl, initials, initialUsers, organizations, pl
                                             <Box as="td" className="p-[17px]">
                                                 <Box className="flex items-center gap-2 text-[#4F5868]">
                                                     <ContextualLink
-                                                        href={`/users/${user.id}`}
+                                                        href={getUserDetailHref(user.id)}
                                                         aria-label={`Voir ${user.name}`}
                                                         className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
                                                     >
                                                         <InlineIcon icon={Eye} className="h-5 w-5" />
                                                     </ContextualLink>
                                                     <ContextualLink
-                                                        href={`/users/${user.id}?mode=edit`}
+                                                        href={getUserDetailHref(user.id, "edit")}
                                                         aria-label={`Modifier ${user.name}`}
                                                         className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
                                                     >

@@ -7,7 +7,7 @@ import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import type {
     RoleplayCoachOption,
-    RoleplayDetail,
+    RoleplayEditorDetail,
     RoleplayGroupOption,
     RoleplayMethodOption,
     RoleplayOrganizationOption,
@@ -21,7 +21,7 @@ import { CreateRoleplayPageContent } from "./CreateRoleplayPageContent";
 interface CreateRoleplayPageProps {
     coachOptions: RoleplayCoachOption[];
     groupOptions: RoleplayGroupOption[];
-    initialRoleplay?: RoleplayDetail;
+    initialRoleplay?: RoleplayEditorDetail;
     methodOptions: RoleplayMethodOption[];
     organizationOptions: RoleplayOrganizationOption[];
     personaOptions: RoleplayPersonaOption[];

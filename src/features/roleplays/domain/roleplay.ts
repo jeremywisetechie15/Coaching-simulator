@@ -159,6 +159,11 @@ export interface RoleplayDetail extends RoleplayListItem {
     stats: RoleplayStats;
 }
 
+/** Données privées réservées au formulaire d'administration du roleplay. */
+export interface RoleplayEditorDetail extends RoleplayDetail {
+    aiInstructions: string;
+}
+
 export function isRoleplayDifficulty(value: unknown): value is RoleplayDifficulty {
     return typeof value === "string" && ROLEPLAY_DIFFICULTIES.includes(value as RoleplayDifficulty);
 }

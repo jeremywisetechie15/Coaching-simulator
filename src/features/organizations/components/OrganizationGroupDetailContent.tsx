@@ -1,10 +1,12 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Check, Eye, Pencil, Trash2, X } from "lucide-react";
 import { useState } from "react";
 import { ContextualBackLink, ContextualLink, useCurrentAppHref } from "@/features/app-shell/components";
 import { withSearchParam, withoutSearchParam } from "@/features/app-shell/domain";
+import { getUserDetailHref } from "@/features/users/domain/user-navigation";
 import type {
     OrganizationEvaluationRow,
     OrganizationGroupDetail,
@@ -12,6 +14,7 @@ import type {
     OrganizationUserRow,
 } from "@/features/organizations/domain/organization-detail";
 import { ORGANIZATION_MEMBER_STATUS_LABELS } from "@/features/organizations/domain/organization-member";
+import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
 import { Box, Button, CardSurface, FieldLabel, FormRoot, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import {
     createFormSubmitError,
@@ -257,7 +260,7 @@ function GroupMembersTable({ members }: { members: OrganizationUserRow[] }) {
                                     </Box>
                                     <Box as="td" className="px-7 py-5">
                                         <ContextualLink
-                                            href={`/users/${member.id}`}
+                                            href={getUserDetailHref(member.id)}
                                             aria-label={`Voir ${member.name}`}
                                             className="flex h-8 w-8 items-center justify-center rounded-lg text-[#9AA2B2] transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
                                         >
@@ -290,6 +293,7 @@ export function OrganizationGroupDetailContent({
     members,
     roleplays,
 }: OrganizationGroupDetailContentProps) {
+    const queryClient = useQueryClient();
     const router = useRouter();
     const searchParams = useSearchParams();
     const currentHref = useCurrentAppHref();
@@ -384,6 +388,7 @@ export function OrganizationGroupDetailContent({
                 name: updatedGroup.name,
             });
             setIsEditing(false);
+            void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
             router.refresh();
             notifyFormSubmitSuccess();
         } catch (error) {
@@ -403,6 +408,7 @@ export function OrganizationGroupDetailContent({
         });
 
         if (response.ok) {
+            void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
             router.push(`/organizations/${currentGroup.organizationId}`);
             router.refresh();
             return;

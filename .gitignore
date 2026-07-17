@@ -53,4 +53,5 @@ HANDOFF.md
 .claude/
 
 doc/
-docs/
+docs/*
+!docs/decision-page-organisations-2026-07-17.md

@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Archive, ArrowLeft, Copy, Edit3, History, MoreHorizontal, Phone, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
@@ -10,6 +11,7 @@ import {
 } from "@/features/app-shell/components";
 import { withReturnTo, withSearchParams } from "@/features/app-shell/domain";
 import { ArchiveContentConfirmationModal, DiscProfileBadge } from "@/features/content/components";
+import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
 import {
     categoryBadgeStyles,
     difficultyBadgeStyles,
@@ -72,6 +74,7 @@ async function archiveRoleplayRequest(roleplayId: string) {
 }
 
 export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageContentProps) {
+    const queryClient = useQueryClient();
     const router = useRouter();
     const searchParams = useSearchParams();
     const currentHref = useCurrentAppHref();
@@ -155,6 +158,7 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
         try {
             await archiveRoleplayRequest(roleplayToArchive.id);
             setRoleplayToArchive(null);
+            void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
             router.refresh();
         } catch (err) {
             setError(err instanceof Error ? err.message : "Impossible d'archiver le roleplay.");

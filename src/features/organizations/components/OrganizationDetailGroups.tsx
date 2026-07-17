@@ -11,11 +11,13 @@ import {
     notifyFormSubmitSuccess,
 } from "@/lib/ui/feedback/form-submit-feedback";
 import type { OrganizationGroupRow } from "@/features/organizations/domain/organization-detail";
+import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
 import { CreateGroupModal } from "./CreateGroupModal";
 
 const columns = ["Groupe", "Membres", "Roleplays", "Quizzes", "Actions"];
 
 interface OrganizationDetailGroupsProps {
+    onGroupCreated?: () => void;
     organizationId: string;
 }
 
@@ -35,7 +37,7 @@ interface GroupsPayload {
     groups?: OrganizationGroupRow[];
 }
 
-export function OrganizationDetailGroups({ organizationId }: OrganizationDetailGroupsProps) {
+export function OrganizationDetailGroups({ onGroupCreated, organizationId }: OrganizationDetailGroupsProps) {
     const queryClient = useQueryClient();
     const [groups, setGroups] = useState<OrganizationGroupRow[]>([]);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
@@ -130,7 +132,8 @@ export function OrganizationDetailGroups({ organizationId }: OrganizationDetailG
             }
 
             setGroups((currentGroups) => [...currentGroups, createdGroup]);
-            void queryClient.invalidateQueries({ queryKey: ["organizations"] });
+            void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
+            onGroupCreated?.();
             notifyFormSubmitSuccess();
         } catch (error) {
             setFormError(notifyFormSubmitError(error, "Impossible de créer le groupe."));

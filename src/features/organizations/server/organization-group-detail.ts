@@ -1,22 +1,35 @@
 import { requireAdmin } from "@/features/auth/server";
+import { CONTENT_VISIBILITY_SCOPE } from "@/features/content/domain";
 import { getQuizTypeLabel, type QuizType } from "@/features/evaluations/domain";
 import { MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS } from "@/features/roleplays/domain";
 import type { CreateOrganizationGroupDto } from "@/features/organizations/dto/create-organization-group.dto";
+import {
+    getOrganizationCohortActivityStatus,
+    indexOrganizationLearnerActivitiesByContentId,
+} from "@/features/organizations/domain/organization-activity";
+import {
+    ORGANIZATION_COUNTED_CONTENT_IS_ACTIVE,
+    ORGANIZATION_COUNTED_CONTENT_STATUS,
+} from "@/features/organizations/domain/organization-content-scope";
+import { ORGANIZATION_GROUP_STATUS } from "@/features/organizations/domain/organization-detail";
 import type {
-    OrganizationActivityStatus,
     OrganizationEvaluationRow,
     OrganizationGroupDetail,
     OrganizationRoleplayRow,
     OrganizationUserRow,
 } from "@/features/organizations/domain/organization-detail";
+import { ORGANIZATION_STATUS } from "@/features/organizations/domain/organization-list";
+import { ORGANIZATION_MEMBER_STATUS } from "@/features/organizations/domain/organization-member";
 import { AppError, NotFoundError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapOrganizationGroupRow, type OrganizationGroupDbRow } from "./organization-group.mapper";
 import {
+    filterOrganizationRosterMemberships,
     mapOrganizationUserRows,
     type OrganizationMembershipDbRow,
     type OrganizationUserProfileDbRow,
 } from "./list-organization-users";
+import { listOrganizationUserAssignmentCounts } from "./list-organization-user-assignment-counts";
 
 interface GroupDbRow extends OrganizationGroupDbRow {
     organization_id: string;
@@ -25,6 +38,7 @@ interface GroupDbRow extends OrganizationGroupDbRow {
 interface OrganizationNameRow {
     id: string;
     name: string | null;
+    status: string | null;
 }
 
 interface GroupMemberRow {
@@ -48,6 +62,12 @@ interface SessionRow {
     duration_seconds: number | null;
     scenario_id: string | null;
     status: string | null;
+    user_id: string | null;
+}
+
+interface OrganizationMemberStatusRow {
+    status: string | null;
+    user_id: string | null;
 }
 
 interface QuizRow {
@@ -90,18 +110,6 @@ function uniqueValues(values: Array<string | null | undefined>) {
     return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
 }
 
-function getActivityStatus(statuses: string[]): OrganizationActivityStatus {
-    if (statuses.some((status) => status === "completed")) {
-        return "completed";
-    }
-
-    if (statuses.length > 0) {
-        return "in_progress";
-    }
-
-    return "not_started";
-}
-
 function getQuizType(value: string | null): QuizType {
     return value === "self_assessment" ? "self_assessment" : "knowledge";
 }
@@ -128,7 +136,7 @@ async function resolveGroupContext(
     const [{ data: organization, error: organizationError }, { data: group, error: groupError }] = await Promise.all([
         supabase
             .from("organizations")
-            .select("id, name")
+            .select("id, name, status")
             .eq("id", organizationId)
             .maybeSingle<OrganizationNameRow>(),
         supabase
@@ -136,7 +144,7 @@ async function resolveGroupContext(
             .select("id, organization_id, name, description, status, created_at")
             .eq("id", groupId)
             .eq("organization_id", organizationId)
-            .neq("status", "archived")
+            .eq("status", ORGANIZATION_GROUP_STATUS.active)
             .maybeSingle<GroupDbRow>(),
     ]);
 
@@ -155,7 +163,12 @@ async function resolveGroupContext(
     return { group, organization };
 }
 
-async function listGroupMemberIds(supabase: ReturnType<typeof createAdminClient>, groupId: string) {
+async function listGroupAudience(
+    supabase: ReturnType<typeof createAdminClient>,
+    organizationId: string,
+    organizationStatus: string | null,
+    groupId: string,
+) {
     const { data, error } = await supabase
         .from("group_members")
         .select("user_id, assigned_at")
@@ -166,19 +179,47 @@ async function listGroupMemberIds(supabase: ReturnType<typeof createAdminClient>
         throw error;
     }
 
-    return uniqueValues((data ?? []).map((member) => member.user_id));
+    const groupMemberIds = uniqueValues((data ?? []).map((member) => member.user_id));
+    if (groupMemberIds.length === 0) {
+        return { activeMemberIds: [], rosterMemberIds: [] };
+    }
+
+    const membershipsResult = await supabase
+        .from("organization_members")
+        .select("user_id, status")
+        .eq("organization_id", organizationId)
+        .in("user_id", groupMemberIds)
+        .neq("status", ORGANIZATION_MEMBER_STATUS.removed)
+        .returns<OrganizationMemberStatusRow[]>();
+
+    if (membershipsResult.error) {
+        throw membershipsResult.error;
+    }
+
+    const memberships = membershipsResult.data ?? [];
+    return {
+        activeMemberIds: organizationStatus === ORGANIZATION_STATUS.active
+            ? uniqueValues(
+                  memberships
+                      .filter((membership) => membership.status === ORGANIZATION_MEMBER_STATUS.active)
+                      .map((membership) => membership.user_id),
+              )
+            : [],
+        rosterMemberIds: uniqueValues(memberships.map((membership) => membership.user_id)),
+    };
 }
 
 async function listGroupMembers(
     supabase: ReturnType<typeof createAdminClient>,
     organizationId: string,
+    groupId: string,
     memberIds: string[],
 ): Promise<OrganizationUserRow[]> {
     if (memberIds.length === 0) {
         return [];
     }
 
-    const [{ data: memberships, error: membershipsError }, { data: profiles, error: profilesError }] = await Promise.all([
+    const [membershipsResult, profilesResult, assignmentCountsByUserId] = await Promise.all([
         supabase
             .from("organization_members")
             .select("user_id, role, status")
@@ -190,30 +231,42 @@ async function listGroupMembers(
             .select("id, email, name, first_name, last_name")
             .in("id", memberIds)
             .returns<OrganizationUserProfileDbRow[]>(),
+        listOrganizationUserAssignmentCounts(supabase, {
+            groupId,
+            kind: "group",
+            organizationId,
+            userIds: memberIds,
+        }),
     ]);
 
-    if (membershipsError) {
-        throw membershipsError;
+    if (membershipsResult.error) {
+        throw membershipsResult.error;
     }
 
-    if (profilesError) {
-        throw profilesError;
+    if (profilesResult.error) {
+        throw profilesResult.error;
     }
 
-    return mapOrganizationUserRows(memberships ?? [], profiles ?? []);
+    return mapOrganizationUserRows(
+        filterOrganizationRosterMemberships(membershipsResult.data ?? []),
+        profilesResult.data ?? [],
+        assignmentCountsByUserId,
+    );
 }
 
 async function listGroupRoleplays(
     supabase: ReturnType<typeof createAdminClient>,
     groupId: string,
     groupName: string,
-    learnerCount: number,
+    learnerIds: string[],
 ): Promise<OrganizationRoleplayRow[]> {
     const { data: scenarios, error } = await supabase
         .from("scenarios")
         .select("id, title, persona_id, created_at")
         .eq("group_id", groupId)
-        .neq("status", "archived")
+        .eq("visibility_scope", CONTENT_VISIBILITY_SCOPE.group)
+        .eq("status", ORGANIZATION_COUNTED_CONTENT_STATUS)
+        .eq("is_active", ORGANIZATION_COUNTED_CONTENT_IS_ACTIVE)
         .order("created_at", { ascending: false })
         .returns<ScenarioRow[]>();
 
@@ -228,11 +281,12 @@ async function listGroupRoleplays(
         personaIds.length > 0
             ? supabase.from("personas").select("id, name").in("id", personaIds).returns<PersonaRow[]>()
             : Promise.resolve({ data: [] as PersonaRow[], error: null }),
-        scenarioIds.length > 0
+        scenarioIds.length > 0 && learnerIds.length > 0
             ? supabase
                   .from("sessions")
-                  .select("scenario_id, status, duration_seconds")
+                  .select("scenario_id, user_id, status, duration_seconds")
                   .in("scenario_id", scenarioIds)
+                  .in("user_id", learnerIds)
                   .gte("duration_seconds", MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS)
                   .returns<SessionRow[]>()
             : Promise.resolve({ data: [] as SessionRow[], error: null }),
@@ -247,23 +301,23 @@ async function listGroupRoleplays(
     }
 
     const personaNameById = new Map((personasResult.data ?? []).map((persona) => [persona.id, persona.name ?? "Persona"]));
-    const statusesByScenarioId = new Map<string, string[]>();
-
-    for (const session of sessionsResult.data ?? []) {
-        if (!session.scenario_id || !session.status) continue;
-        statusesByScenarioId.set(session.scenario_id, [
-            ...(statusesByScenarioId.get(session.scenario_id) ?? []),
-            session.status,
-        ]);
-    }
+    const sessionsByScenarioId = indexOrganizationLearnerActivitiesByContentId(
+        sessionsResult.data ?? [],
+        (session) => session.scenario_id,
+        (session) => session.status,
+        (session) => session.user_id,
+    );
 
     return rows.map((scenario) => ({
         assignedAt: formatLongDate(scenario.created_at),
         groupName,
         id: scenario.id,
-        learnerCount,
+        learnerCount: learnerIds.length,
         persona: scenario.persona_id ? personaNameById.get(scenario.persona_id) ?? "Persona" : "Persona",
-        status: getActivityStatus(statusesByScenarioId.get(scenario.id) ?? []),
+        status: getOrganizationCohortActivityStatus(
+            learnerIds,
+            sessionsByScenarioId.get(scenario.id) ?? [],
+        ),
         title: scenario.title,
     }));
 }
@@ -278,7 +332,9 @@ async function listGroupEvaluations(
         .from("quizzes")
         .select("id, title, quiz_type, created_at")
         .eq("group_id", groupId)
-        .neq("status", "archived")
+        .eq("visibility_scope", CONTENT_VISIBILITY_SCOPE.group)
+        .eq("status", ORGANIZATION_COUNTED_CONTENT_STATUS)
+        .eq("is_active", ORGANIZATION_COUNTED_CONTENT_IS_ACTIVE)
         .order("created_at", { ascending: false })
         .returns<QuizRow[]>();
 
@@ -302,22 +358,22 @@ async function listGroupEvaluations(
         throw attemptsResult.error;
     }
 
-    const statusesByQuizId = new Map<string, string[]>();
-
-    for (const attempt of attemptsResult.data ?? []) {
-        if (!attempt.quiz_id || !attempt.status) continue;
-        statusesByQuizId.set(attempt.quiz_id, [
-            ...(statusesByQuizId.get(attempt.quiz_id) ?? []),
-            attempt.status,
-        ]);
-    }
+    const attemptsByQuizId = indexOrganizationLearnerActivitiesByContentId(
+        attemptsResult.data ?? [],
+        (attempt) => attempt.quiz_id,
+        (attempt) => attempt.status,
+        (attempt) => attempt.user_id,
+    );
 
     return rows.map((quiz) => ({
         assignedAt: formatLongDate(quiz.created_at),
         groupName,
         id: quiz.id,
         learnerCount: memberIds.length,
-        status: getActivityStatus(statusesByQuizId.get(quiz.id) ?? []),
+        status: getOrganizationCohortActivityStatus(
+            memberIds,
+            attemptsByQuizId.get(quiz.id) ?? [],
+        ),
         title: quiz.title,
         type: getQuizTypeLabel(getQuizType(quiz.quiz_type)),
     }));
@@ -331,11 +387,16 @@ export async function getOrganizationGroupPageData(
 
     const supabase = createAdminClient();
     const { group, organization } = await resolveGroupContext(supabase, organizationId, groupId);
-    const memberIds = await listGroupMemberIds(supabase, groupId);
+    const { activeMemberIds, rosterMemberIds } = await listGroupAudience(
+        supabase,
+        organizationId,
+        organization.status,
+        groupId,
+    );
     const [members, roleplays, evaluations] = await Promise.all([
-        listGroupMembers(supabase, organizationId, memberIds),
-        listGroupRoleplays(supabase, groupId, group.name, memberIds.length),
-        listGroupEvaluations(supabase, groupId, group.name, memberIds),
+        listGroupMembers(supabase, organizationId, groupId, rosterMemberIds),
+        listGroupRoleplays(supabase, groupId, group.name, activeMemberIds),
+        listGroupEvaluations(supabase, groupId, group.name, activeMemberIds),
     ]);
 
     return {
@@ -395,7 +456,7 @@ export async function archiveOrganizationGroup(organizationId: string, groupId: 
     const { error } = await supabase
         .from("groups")
         .update({
-            status: "archived",
+            status: ORGANIZATION_GROUP_STATUS.archived,
             updated_at: new Date().toISOString(),
         })
         .eq("id", groupId)

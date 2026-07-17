@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { Archive, ArrowLeft, Clock, Copy, Edit3, FileText, MoreHorizontal, Plus, Search } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -20,6 +21,7 @@ import {
 } from "@/features/evaluations/domain";
 import { ALL_CONTENT_CATEGORIES, CONTENT_DOMAINS, getCategoriesForDomain } from "@/features/content/domain";
 import { ArchiveContentConfirmationModal } from "@/features/content/components";
+import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { CardActionMenu, CardActionMenuButton, CardActionMenuLink } from "@/lib/ui/molecules";
 import { ENTITY_ACTION_LABELS } from "@/lib/ui/domain/entity-action";
@@ -54,6 +56,7 @@ async function archiveQuiz(quizId: string) {
 }
 
 export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageContentProps) {
+    const queryClient = useQueryClient();
     const router = useRouter();
     const searchParams = useSearchParams();
     const currentHref = useCurrentAppHref();
@@ -128,6 +131,7 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
 
         try {
             await archiveQuiz(quizId);
+            void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
             router.refresh();
             setOpenMenuId(null);
             setQuizToArchive(null);

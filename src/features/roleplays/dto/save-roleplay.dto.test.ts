@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CONTENT_STATUS, CONTENT_VISIBILITY_SCOPE } from "@/features/content/domain";
+import { ROLEPLAY_AI_INSTRUCTIONS_MAX_LENGTH } from "@/features/roleplays/domain";
 import { saveRoleplayDto, type SaveRoleplayInput } from "./save-roleplay.dto";
 
 const personaId = "11111111-1111-4111-8111-111111111111";
@@ -31,6 +32,29 @@ function roleplay(overrides: Partial<SaveRoleplayInput> = {}): SaveRoleplayInput
 }
 
 describe("saveRoleplayDto", () => {
+    it("normalizes optional scenario AI instructions", () => {
+        const result = saveRoleplayDto.parse(
+            roleplay({ aiInstructions: "  Reste réservé jusqu'à ce que le besoin soit clarifié.  " }),
+        );
+
+        expect(result.aiInstructions).toBe("Reste réservé jusqu'à ce que le besoin soit clarifié.");
+    });
+
+    it("defaults scenario AI instructions to an empty value", () => {
+        expect(saveRoleplayDto.parse(roleplay()).aiInstructions).toBe("");
+    });
+
+    it("rejects scenario AI instructions above the shared limit", () => {
+        const result = saveRoleplayDto.safeParse(
+            roleplay({ aiInstructions: "a".repeat(ROLEPLAY_AI_INSTRUCTIONS_MAX_LENGTH + 1) }),
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.message)).toContain(
+            "Les instructions IA du scénario sont trop longues.",
+        );
+    });
+
     it("accepts a public roleplay with linked quizzes", () => {
         const result = saveRoleplayDto.parse(
             roleplay({

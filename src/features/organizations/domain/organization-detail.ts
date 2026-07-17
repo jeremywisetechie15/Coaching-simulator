@@ -3,6 +3,14 @@ import type { OrganizationMemberStatus } from "./organization-member";
 
 export type OrganizationActivityStatus = "not_started" | "in_progress" | "completed";
 
+export const ORGANIZATION_GROUP_STATUS = {
+    active: "active",
+    archived: "archived",
+} as const;
+
+export type OrganizationGroupStatus =
+    (typeof ORGANIZATION_GROUP_STATUS)[keyof typeof ORGANIZATION_GROUP_STATUS];
+
 export interface OrganizationDetail {
     contactEmail: string;
     createdAt: string;
@@ -25,7 +33,7 @@ export interface OrganizationGroupRow {
     name: string;
     quizCount: number;
     roleplayCount: number;
-    status?: "active" | "archived";
+    status?: OrganizationGroupStatus;
 }
 
 export interface OrganizationGroupDetail extends OrganizationGroupRow {

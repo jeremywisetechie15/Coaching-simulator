@@ -5,7 +5,11 @@ import {
     CONTENT_VISIBILITY_SCOPES,
 } from "@/features/content/domain";
 import { QUIZ_PARTICIPATIONS } from "@/features/evaluations/domain";
-import { ROLEPLAY_DIFFICULTIES, ROLEPLAY_DISC_PROFILES } from "@/features/roleplays/domain";
+import {
+    ROLEPLAY_AI_INSTRUCTIONS_MAX_LENGTH,
+    ROLEPLAY_DIFFICULTIES,
+    ROLEPLAY_DISC_PROFILES,
+} from "@/features/roleplays/domain";
 import { CONTENT_UPLOAD_RESOURCE_TYPES } from "@/lib/uploads/content-upload";
 
 const optionalUuid = z.string().uuid("L'identifiant est invalide.").nullable().optional().default(null);
@@ -53,6 +57,15 @@ const roleplayResourceDto = z
 
 export const saveRoleplayDto = z
     .object({
+        aiInstructions: z
+            .string()
+            .trim()
+            .max(
+                ROLEPLAY_AI_INSTRUCTIONS_MAX_LENGTH,
+                "Les instructions IA du scénario sont trop longues.",
+            )
+            .optional()
+            .default(""),
         assignedUserId: optionalUuid,
         backgroundImagePath: z.string().trim().max(1000, "Le chemin de l'image de fond est trop long.").optional().default(""),
         category: z.string().trim().max(120, "La catégorie est trop longue.").optional().default(""),

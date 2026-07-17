@@ -1,17 +1,18 @@
-import type { TextareaHTMLAttributes } from "react";
+import { forwardRef, type TextareaHTMLAttributes } from "react";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
 type TextAreaProps = TextareaHTMLAttributes<HTMLTextAreaElement>;
 
-export function TextArea({ className, ...props }: TextAreaProps) {
+export const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(function TextArea(
+    { className, ...props },
+    ref,
+) {
     return (
         <textarea
-            className={cn(
-                uiTokens.form.textArea,
-                className
-            )}
+            ref={ref}
+            className={cn(uiTokens.form.textArea, className)}
             {...props}
         />
     );
-}
+});

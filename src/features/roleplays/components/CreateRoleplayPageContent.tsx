@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
     ArrowLeft,
     Check,
@@ -30,10 +31,11 @@ import {
 } from "@/features/methods/domain/method";
 import { CreatePersonaPageContent } from "@/features/personas/components/CreatePersonaPageContent";
 import type { PersonaListItem } from "@/features/personas/domain/persona-list";
+import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
 import type { SaveRoleplayInput } from "@/features/roleplays/dto";
 import {
     type RoleplayCoachOption,
-    type RoleplayDetail,
+    type RoleplayEditorDetail,
     type RoleplayDifficulty,
     type RoleplayGroupOption,
     type RoleplayMethodOption,
@@ -60,7 +62,7 @@ import {
 } from "@/lib/uploads/content-upload";
 import type { PendingDirectUpload } from "@/lib/uploads/direct-upload";
 import { submitWithDirectUploads } from "@/lib/uploads/direct-upload.client";
-import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextInput } from "@/lib/ui/atoms";
+import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import {
     createFormSubmitApiError,
     notifyFormSubmitError,
@@ -74,6 +76,7 @@ import {
 } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
+import { RoleplayAiInstructionsField } from "./RoleplayAiInstructionsField";
 
 type EntityEditor = "coach" | "method" | "persona";
 type RoleplayResourceDeliveryType = ContentResourceDeliveryType;
@@ -108,7 +111,7 @@ interface RoleplayResourceFormItem {
 interface CreateRoleplayPageContentProps {
     coachOptions: RoleplayCoachOption[];
     groupOptions: RoleplayGroupOption[];
-    initialRoleplay?: RoleplayDetail;
+    initialRoleplay?: RoleplayEditorDetail;
     methodOptions: RoleplayMethodOption[];
     organizationOptions: RoleplayOrganizationOption[];
     personaOptions: RoleplayPersonaOption[];
@@ -468,9 +471,6 @@ function EntityEditorDialog({
     );
 }
 
-const textareaClasses =
-    "w-full resize-none rounded-lg border border-[#E5E7EB] bg-[#F3F4F6] px-3.5 py-3 text-[14px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#5140F0] focus:bg-white focus:ring-4 focus:ring-[#5140F0]/10";
-
 async function saveRoleplay(
     roleplayId: string | undefined,
     values: SaveRoleplayInput,
@@ -524,7 +524,7 @@ function buildGeneratedTitle({
 }
 
 function getInitialTargetScope(
-    initialRoleplay: RoleplayDetail | undefined,
+    initialRoleplay: RoleplayEditorDetail | undefined,
     groupOptions: RoleplayGroupOption[],
     userOptions: RoleplayUserOption[],
 ): ContentTargetScopeValue {
@@ -578,6 +578,7 @@ export function CreateRoleplayPageContent({
     scorecardOptions,
     userOptions,
 }: CreateRoleplayPageContentProps) {
+    const queryClient = useQueryClient();
     const returnHref = roleplayId ? ROLEPLAY_ROUTES.app.detail(roleplayId) : ROLEPLAY_ROUTES.app.collection;
     const isDraft = !initialRoleplay || initialRoleplay.status === CONTENT_STATUS.draft;
     const router = useRouter();
@@ -600,6 +601,7 @@ export function CreateRoleplayPageContent({
     const [previewDescription, setPreviewDescription] = useState(
         initialRoleplay?.previewDescription || initialRoleplay?.description || "",
     );
+    const [aiInstructions, setAiInstructions] = useState(initialRoleplay?.aiInstructions ?? "");
     const [context, setContext] = useState(initialRoleplay?.context ?? "");
     const [objective, setObjective] = useState(initialRoleplay?.objective ?? "");
     const [obstacles, setObstacles] = useState(initialRoleplay?.obstacles ?? "");
@@ -831,6 +833,7 @@ export function CreateRoleplayPageContent({
             personaOptions: localPersonaOptions,
         });
         return {
+            aiInstructions,
             assignedUserId: scope === CONTENT_VISIBILITY_SCOPE.user ? targetScope.assignedUserId : null,
             backgroundImagePath,
             category: category ?? "",
@@ -878,6 +881,7 @@ export function CreateRoleplayPageContent({
                 save: (payload) => saveRoleplay(roleplayId, payload, backgroundFile),
                 uploads: collectUploadFiles(),
             });
+            void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
             notifyFormSubmitSuccess();
             router.push(
                 buildPostSaveHref(
@@ -917,7 +921,7 @@ export function CreateRoleplayPageContent({
                     </ContextualBackLink>
                     <Box>
                         <Text as="h1" className="text-[28px] font-extrabold leading-tight text-[#111827] md:text-[32px]">
-                            Créer un scénario
+                            {roleplayId ? "Modifier le scénario" : "Créer un scénario"}
                         </Text>
                         <Text className="mt-1.5 text-[15px] font-semibold text-[#596273]">
                             Configurez votre scénario de roleplay personnalisé
@@ -1077,13 +1081,13 @@ export function CreateRoleplayPageContent({
                                 Description courte{" "}
                                 <span className="font-semibold text-[#9CA3AF]">(affichée sur la carte preview)</span>
                             </Text>
-                            <textarea
+                            <TextArea
                                 value={previewDescription}
                                 onChange={(event) => setPreviewDescription(event.target.value)}
                                 placeholder="Résumez l'objectif du roleplay en une ou deux phrases..."
                                 rows={3}
                                 maxLength={500}
-                                className={`min-h-[96px] ${textareaClasses}`}
+                                className={uiTokens.form.textAreaMedium}
                             />
                         </Box>
 
@@ -1091,12 +1095,12 @@ export function CreateRoleplayPageContent({
                             <Text as="span" className={fieldLabelClasses}>
                                 Contexte du scénario
                             </Text>
-                            <textarea
+                            <TextArea
                                 value={context}
                                 onChange={(event) => setContext(event.target.value)}
                                 placeholder="Décrivez le contexte dans lequel vous contactez ce persona..."
                                 rows={3}
-                                className={`min-h-[96px] ${textareaClasses}`}
+                                className={uiTokens.form.textAreaMedium}
                             />
                         </Box>
 
@@ -1120,12 +1124,12 @@ export function CreateRoleplayPageContent({
                             <Text as="span" className={fieldLabelClasses}>
                                 Objectif(s) du scénario
                             </Text>
-                            <textarea
+                            <TextArea
                                 value={objective}
                                 onChange={(event) => setObjective(event.target.value)}
                                 placeholder="Quel est votre objectif principal ?"
                                 rows={3}
-                                className={`min-h-[96px] ${textareaClasses}`}
+                                className={uiTokens.form.textAreaMedium}
                             />
                         </Box>
 
@@ -1133,14 +1137,20 @@ export function CreateRoleplayPageContent({
                             <Text as="span" className={fieldLabelClasses}>
                                 Freins et objections (optionnel)
                             </Text>
-                            <textarea
+                            <TextArea
                                 value={obstacles}
                                 onChange={(event) => setObstacles(event.target.value)}
                                 placeholder="Listez les freins et objections potentiels"
                                 rows={3}
-                                className={`min-h-[96px] ${textareaClasses}`}
+                                className={uiTokens.form.textAreaMedium}
                             />
                         </Box>
+
+                        <RoleplayAiInstructionsField
+                            disabled={saving}
+                            onChange={setAiInstructions}
+                            value={aiInstructions}
+                        />
 
                         <Box>
                             <Box className="flex items-center justify-between">

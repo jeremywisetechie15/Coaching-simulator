@@ -4,5 +4,7 @@ export * from "./list-user-statistics";
 export * from "./list-user-skills";
 export * from "./list-users";
 export * from "./user-groups.persistence";
+export * from "./user-content-assignments.persistence";
+export * from "./user-assignment-targets";
 export * from "./update-user-status";
 export * from "./update-user";

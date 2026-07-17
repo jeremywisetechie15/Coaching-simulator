@@ -1,22 +1,68 @@
-import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/features/auth/server";
-import type { OrganizationGroupRow } from "@/features/organizations/domain/organization-detail";
+import { CONTENT_VISIBILITY_SCOPE } from "@/features/content/domain";
+import {
+    ORGANIZATION_COUNTED_CONTENT_IS_ACTIVE,
+    ORGANIZATION_COUNTED_CONTENT_STATUS,
+} from "@/features/organizations/domain/organization-content-scope";
+import {
+    ORGANIZATION_GROUP_STATUS,
+    type OrganizationGroupRow,
+} from "@/features/organizations/domain/organization-detail";
+import { ORGANIZATION_MEMBER_STATUS } from "@/features/organizations/domain/organization-member";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { mapOrganizationGroupRow, type OrganizationGroupDbRow } from "./organization-group.mapper";
 
 interface GroupMemberCountRow {
     group_id: string | null;
+    user_id: string | null;
 }
 
-function countByGroupId(rows: GroupMemberCountRow[]) {
-    return rows.reduce<Map<string, number>>((counts, row) => {
-        if (!row.group_id) {
-            return counts;
+interface OrganizationMemberCountRow {
+    user_id: string | null;
+}
+
+interface GroupContentCountRow {
+    group_id: string | null;
+    id: string;
+}
+
+function countRosterMembersByGroupId(
+    rows: GroupMemberCountRow[],
+    rosterUserIds: ReadonlySet<string>,
+) {
+    const userIdsByGroupId = new Map<string, Set<string>>();
+
+    for (const row of rows) {
+        if (!row.group_id || !row.user_id || !rosterUserIds.has(row.user_id)) {
+            continue;
         }
 
-        counts.set(row.group_id, (counts.get(row.group_id) ?? 0) + 1);
+        const userIds = userIdsByGroupId.get(row.group_id) ?? new Set<string>();
+        userIds.add(row.user_id);
+        userIdsByGroupId.set(row.group_id, userIds);
+    }
 
-        return counts;
-    }, new Map<string, number>());
+    return new Map(
+        Array.from(userIdsByGroupId, ([groupId, userIds]) => [groupId, userIds.size]),
+    );
+}
+
+function countUniqueContentByGroupId(rows: GroupContentCountRow[]) {
+    const contentIdsByGroupId = new Map<string, Set<string>>();
+
+    for (const row of rows) {
+        if (!row.group_id) {
+            continue;
+        }
+
+        const contentIds = contentIdsByGroupId.get(row.group_id) ?? new Set<string>();
+        contentIds.add(row.id);
+        contentIdsByGroupId.set(row.group_id, contentIds);
+    }
+
+    return new Map(
+        Array.from(contentIdsByGroupId, ([groupId, contentIds]) => [groupId, contentIds.size]),
+    );
 }
 
 export async function listOrganizationGroups(organizationId: string): Promise<OrganizationGroupRow[]> {
@@ -28,7 +74,7 @@ export async function listOrganizationGroups(organizationId: string): Promise<Or
         .from("groups")
         .select("id, name, description, status, created_at")
         .eq("organization_id", organizationId)
-        .neq("status", "archived")
+        .eq("status", ORGANIZATION_GROUP_STATUS.active)
         .order("created_at", { ascending: true })
         .returns<OrganizationGroupDbRow[]>();
 
@@ -42,28 +88,42 @@ export async function listOrganizationGroups(organizationId: string): Promise<Or
         return [];
     }
 
-    const [membersResult, roleplaysResult, quizzesResult] = await Promise.all([
+    const [membersResult, organizationMembersResult, roleplaysResult, quizzesResult] = await Promise.all([
         supabase
             .from("group_members")
-            .select("group_id")
+            .select("group_id, user_id")
             .in("group_id", groupIds)
             .returns<GroupMemberCountRow[]>(),
+        supabase
+            .from("organization_members")
+            .select("user_id")
+            .eq("organization_id", organizationId)
+            .neq("status", ORGANIZATION_MEMBER_STATUS.removed)
+            .returns<OrganizationMemberCountRow[]>(),
         supabase
             .from("scenarios")
-            .select("group_id")
+            .select("id, group_id")
             .in("group_id", groupIds)
-            .neq("status", "archived")
-            .returns<GroupMemberCountRow[]>(),
+            .eq("visibility_scope", CONTENT_VISIBILITY_SCOPE.group)
+            .eq("status", ORGANIZATION_COUNTED_CONTENT_STATUS)
+            .eq("is_active", ORGANIZATION_COUNTED_CONTENT_IS_ACTIVE)
+            .returns<GroupContentCountRow[]>(),
         supabase
             .from("quizzes")
-            .select("group_id")
+            .select("id, group_id")
             .in("group_id", groupIds)
-            .neq("status", "archived")
-            .returns<GroupMemberCountRow[]>(),
+            .eq("visibility_scope", CONTENT_VISIBILITY_SCOPE.group)
+            .eq("status", ORGANIZATION_COUNTED_CONTENT_STATUS)
+            .eq("is_active", ORGANIZATION_COUNTED_CONTENT_IS_ACTIVE)
+            .returns<GroupContentCountRow[]>(),
     ]);
 
     if (membersResult.error) {
         throw membersResult.error;
+    }
+
+    if (organizationMembersResult.error) {
+        throw organizationMembersResult.error;
     }
 
     if (roleplaysResult.error) {
@@ -74,9 +134,14 @@ export async function listOrganizationGroups(organizationId: string): Promise<Or
         throw quizzesResult.error;
     }
 
-    const memberCounts = countByGroupId(membersResult.data ?? []);
-    const roleplayCounts = countByGroupId(roleplaysResult.data ?? []);
-    const quizCounts = countByGroupId(quizzesResult.data ?? []);
+    const rosterUserIds = new Set(
+        (organizationMembersResult.data ?? [])
+            .map((membership) => membership.user_id)
+            .filter((userId): userId is string => Boolean(userId)),
+    );
+    const memberCounts = countRosterMembersByGroupId(membersResult.data ?? [], rosterUserIds);
+    const roleplayCounts = countUniqueContentByGroupId(roleplaysResult.data ?? []);
+    const quizCounts = countUniqueContentByGroupId(quizzesResult.data ?? []);
 
     return (groups ?? []).map((group) =>
         mapOrganizationGroupRow(

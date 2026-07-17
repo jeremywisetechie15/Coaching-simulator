@@ -5,38 +5,7 @@ import {
     mapOrganizationRowToListItem,
     type OrganizationRow,
 } from "./organization.mapper";
-
-interface OrganizationMemberCountRow {
-    organization_id: string | null;
-}
-
-interface OrganizationGroupCountRow {
-    organization_id: string | null;
-}
-
-function countMembersByOrganizationId(rows: OrganizationMemberCountRow[]) {
-    return rows.reduce<Map<string, number>>((counts, row) => {
-        if (!row.organization_id) {
-            return counts;
-        }
-
-        counts.set(row.organization_id, (counts.get(row.organization_id) ?? 0) + 1);
-
-        return counts;
-    }, new Map<string, number>());
-}
-
-function countGroupsByOrganizationId(rows: OrganizationGroupCountRow[]) {
-    return rows.reduce<Map<string, number>>((counts, row) => {
-        if (!row.organization_id) {
-            return counts;
-        }
-
-        counts.set(row.organization_id, (counts.get(row.organization_id) ?? 0) + 1);
-
-        return counts;
-    }, new Map<string, number>());
-}
+import { listOrganizationContentScope } from "./list-organization-content-scope";
 
 export async function listOrganizations(): Promise<OrganizationListItem[]> {
     await requireAdmin();
@@ -53,34 +22,20 @@ export async function listOrganizations(): Promise<OrganizationListItem[]> {
         throw error;
     }
 
-    const [membershipsResult, groupsResult] = await Promise.all([
-        supabase
-            .from("organization_members")
-            .select("organization_id")
-            .returns<OrganizationMemberCountRow[]>(),
-        supabase
-            .from("groups")
-            .select("organization_id")
-            .eq("status", "active")
-            .returns<OrganizationGroupCountRow[]>(),
-    ]);
-
-    if (membershipsResult.error) {
-        throw membershipsResult.error;
-    }
-
-    if (groupsResult.error) {
-        throw groupsResult.error;
-    }
-
-    const memberCounts = countMembersByOrganizationId(membershipsResult.data ?? []);
-    const groupCounts = countGroupsByOrganizationId(groupsResult.data ?? []);
-
-    return (organizations ?? []).map((organization) =>
-        mapOrganizationRowToListItem({
-            ...organization,
-            group_count: groupCounts.get(organization.id) ?? 0,
-            user_count: memberCounts.get(organization.id) ?? 0,
-        })
+    const contentScope = await listOrganizationContentScope(
+        supabase,
+        (organizations ?? []).map((organization) => organization.id),
     );
+
+    return (organizations ?? []).map((organization) => {
+        const counts = contentScope.countsByOrganizationId.get(organization.id);
+
+        return mapOrganizationRowToListItem({
+            ...organization,
+            group_count: counts?.groupCount ?? 0,
+            quiz_count: counts?.quizCount ?? 0,
+            roleplay_count: counts?.roleplayCount ?? 0,
+            user_count: counts?.userCount ?? 0,
+        });
+    });
 }

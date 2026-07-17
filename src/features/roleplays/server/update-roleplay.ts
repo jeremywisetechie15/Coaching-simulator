@@ -97,6 +97,7 @@ export async function updateRoleplay(
             id: resource.id ?? randomUUID(),
         }));
         const { error } = await adminSupabase.rpc("admin_update_roleplay_aggregate", {
+            p_ai_instructions: materializedInput.aiInstructions,
             p_quizzes: createScenarioQuizRows(roleplayId, materializedInput),
             p_resources: resources,
             p_roleplay: createRoleplayUpdate(materializedInput, notationMethodId),

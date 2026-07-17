@@ -10,6 +10,10 @@ import {
     ORGANIZATION_MEMBER_STATUS,
     type OrganizationMemberStatus,
 } from "@/features/organizations/domain/organization-member";
+import {
+    listOrganizationUserAssignmentCounts,
+    type OrganizationUserAssignmentCounts,
+} from "./list-organization-user-assignment-counts";
 
 interface OrganizationExistsRow {
     id: string;
@@ -50,9 +54,14 @@ function getMemberStatus(status: string | null): OrganizationMemberStatus {
     return isOrganizationMemberStatus(status) ? status : ORGANIZATION_MEMBER_STATUS.invited;
 }
 
+export function filterOrganizationRosterMemberships(memberships: OrganizationMembershipDbRow[]) {
+    return memberships.filter((membership) => membership.status !== ORGANIZATION_MEMBER_STATUS.removed);
+}
+
 export function mapOrganizationUserRows(
     memberships: OrganizationMembershipDbRow[],
     profiles: OrganizationUserProfileDbRow[],
+    assignmentCountsByUserId: ReadonlyMap<string, OrganizationUserAssignmentCounts> = new Map(),
 ): OrganizationUserRow[] {
     const profilesById = new Map(profiles.map((profile) => [profile.id, profile]));
 
@@ -68,15 +77,16 @@ export function mapOrganizationUserRows(
             const role = isOrganizationMemberRole(membership.role)
                 ? getOrganizationMemberRoleLabel(membership.role)
                 : getOrganizationMemberRoleLabel(ORGANIZATION_MEMBER_ROLE.member);
+            const assignmentCounts = assignmentCountsByUserId.get(membership.user_id);
 
             return [{
                 email,
                 id: membership.user_id,
                 initials: getInitials(name, email),
                 name,
-                quizCount: 0,
+                quizCount: assignmentCounts?.quizCount ?? 0,
                 role,
-                roleplayCount: 0,
+                roleplayCount: assignmentCounts?.roleplayCount ?? 0,
                 status: getMemberStatus(membership.status),
             }];
         })
@@ -112,21 +122,29 @@ export async function listOrganizationUsers(organizationId: string): Promise<Org
         throw membershipsError;
     }
 
-    const userIds = uniqueValues((memberships ?? []).map((membership) => membership.user_id));
+    const rosterMemberships = filterOrganizationRosterMemberships(memberships ?? []);
+    const userIds = uniqueValues(rosterMemberships.map((membership) => membership.user_id));
 
     if (userIds.length === 0) {
         return [];
     }
 
-    const { data: profiles, error: profilesError } = await supabase
-        .from("profiles")
-        .select("id, email, name, first_name, last_name")
-        .in("id", userIds)
-        .returns<OrganizationUserProfileDbRow[]>();
+    const [profilesResult, assignmentCountsByUserId] = await Promise.all([
+        supabase
+            .from("profiles")
+            .select("id, email, name, first_name, last_name")
+            .in("id", userIds)
+            .returns<OrganizationUserProfileDbRow[]>(),
+        listOrganizationUserAssignmentCounts(supabase, {
+            kind: "organization",
+            organizationId,
+            userIds,
+        }),
+    ]);
 
-    if (profilesError) {
-        throw profilesError;
+    if (profilesResult.error) {
+        throw profilesResult.error;
     }
 
-    return mapOrganizationUserRows(memberships ?? [], profiles ?? []);
+    return mapOrganizationUserRows(rosterMemberships, profilesResult.data ?? [], assignmentCountsByUserId);
 }

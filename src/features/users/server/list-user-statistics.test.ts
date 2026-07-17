@@ -6,6 +6,7 @@ describe("buildUserStatistics", () => {
         const statistics = buildUserStatistics({
             assignedQuizzes: [
                 {
+                    assignmentSource: "visibility",
                     assignedAt: "1 janvier 2026",
                     attempts: 1,
                     id: "quiz-1",
@@ -17,6 +18,7 @@ describe("buildUserStatistics", () => {
             ],
             assignedRoleplays: [
                 {
+                    assignmentSource: "visibility",
                     assignedAt: "1 janvier 2026",
                     id: "roleplay-1",
                     index: 65,

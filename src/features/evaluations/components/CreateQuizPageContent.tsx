@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import {
     ArrowLeft,
     ChevronDown,
@@ -32,6 +33,7 @@ import {
 } from "@/features/evaluations/domain";
 import type { SaveQuizInput } from "@/features/evaluations/dto";
 import { getMethodSelectionLabel, toMethodSelectOption } from "@/features/methods/domain/method";
+import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
 import type { SkillOption } from "@/features/skills/domain/skills";
 import { CONTENT_UPLOAD_PURPOSES } from "@/lib/uploads/content-upload";
 import type { PendingDirectUpload } from "@/lib/uploads/direct-upload";
@@ -129,6 +131,7 @@ export function CreateQuizPageContent({
     skillOptions,
     userOptions,
 }: CreateQuizPageContentProps) {
+    const queryClient = useQueryClient();
     const router = useRouter();
     const isEditing = Boolean(initialQuiz);
     const isDraft = !initialQuiz || initialQuiz.status === CONTENT_STATUS.draft;
@@ -442,6 +445,7 @@ export function CreateQuizPageContent({
                 save: (payload) => saveQuiz(initialQuiz?.id, payload),
                 uploads: collectUploadFiles(),
             });
+            void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
             notifyFormSubmitSuccess();
             router.push(
                 buildPostSaveHref(`/evaluations/${savedQuiz.id}`, contextualReturnHref, isEditing),
