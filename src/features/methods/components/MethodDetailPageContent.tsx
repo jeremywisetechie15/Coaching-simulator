@@ -16,7 +16,6 @@ import {
     Minus,
     MessageSquare,
     Pencil,
-    Phone,
     Play,
     Quote,
     Target,
@@ -47,7 +46,6 @@ import {
     type MethodResource,
     type MethodStepItem,
 } from "@/features/methods/domain/method";
-import { ROLEPLAY_ROUTES } from "@/features/roleplays/domain";
 import { getStoragePathFileName } from "@/lib/uploads/content-upload";
 import { Box, Button, CardSurface, InlineIcon, Text, Tooltip } from "@/lib/ui/atoms";
 import { AlertMessage } from "@/lib/ui/molecules";
@@ -98,22 +96,17 @@ interface MethodQuizActionProps {
     associatedQuiz: QuizOption | null;
     children: ReactNode;
     className: string;
-    onMissingQuiz: () => void;
 }
 
-function MethodQuizAction({ associatedQuiz, children, className, onMissingQuiz }: MethodQuizActionProps) {
-    if (associatedQuiz) {
-        return (
-            <ContextualLink href={EVALUATION_ROUTES.app.quiz(associatedQuiz.id)} className={className}>
-                {children}
-            </ContextualLink>
-        );
+function MethodQuizAction({ associatedQuiz, children, className }: MethodQuizActionProps) {
+    if (!associatedQuiz) {
+        return null;
     }
 
     return (
-        <Button onClick={onMissingQuiz} className={className}>
+        <ContextualLink href={EVALUATION_ROUTES.app.quiz(associatedQuiz.id)} className={className}>
             {children}
-        </Button>
+        </ContextualLink>
     );
 }
 
@@ -186,11 +179,9 @@ export function mapMethodResourcesToModalDocuments(method: MethodDetail): Conten
 
 function StepAccordion({
     associatedQuiz,
-    onMissingQuiz,
     step,
 }: {
     associatedQuiz: QuizOption | null;
-    onMissingQuiz: () => void;
     step: MethodStepItem;
 }) {
     const [open, setOpen] = useState(false);
@@ -259,7 +250,10 @@ function StepAccordion({
                             items={step.objectives}
                         />
 
-                        {(step.bestPractices.length > 0 || step.pitfalls.length > 0) && (
+                        {(step.bestPractices.length > 0 ||
+                            step.verbatims.length > 0 ||
+                            step.pitfalls.length > 0 ||
+                            step.posture.length > 0) && (
                             <Box className="grid gap-4 lg:grid-cols-2">
                                 <StepBlock
                                     tone="green"
@@ -268,28 +262,23 @@ function StepAccordion({
                                     items={step.bestPractices}
                                 />
                                 <StepBlock
-                                    tone="orange"
-                                    icon={CircleAlert}
-                                    title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.pitfalls]}
-                                    items={step.pitfalls}
-                                />
-                            </Box>
-                        )}
-
-                        {(step.posture.length > 0 || step.verbatims.length > 0) && (
-                            <Box className="grid gap-4 lg:grid-cols-2">
-                                <StepBlock
-                                    tone="blue"
-                                    icon={MessageSquare}
-                                    title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.posture]}
-                                    items={step.posture}
-                                />
-                                <StepBlock
                                     tone="indigo"
                                     icon={Quote}
                                     title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.verbatims]}
                                     items={step.verbatims}
                                     italic
+                                />
+                                <StepBlock
+                                    tone="orange"
+                                    icon={CircleAlert}
+                                    title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.pitfalls]}
+                                    items={step.pitfalls}
+                                />
+                                <StepBlock
+                                    tone="blue"
+                                    icon={MessageSquare}
+                                    title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.posture]}
+                                    items={step.posture}
                                 />
                             </Box>
                         )}
@@ -297,7 +286,6 @@ function StepAccordion({
 
                     <MethodQuizAction
                         associatedQuiz={associatedQuiz}
-                        onMissingQuiz={onMissingQuiz}
                         className="mt-5 flex h-10 items-center justify-center gap-2 rounded-lg border border-[#C9C2FB] bg-white px-4 text-[13px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
                     >
                         <InlineIcon icon={FileText} className="h-4 w-4" />
@@ -337,7 +325,6 @@ export function MethodDetailPageContent({
 }) {
     const router = useRouter();
     const [archiveError, setArchiveError] = useState<string | null>(null);
-    const [quizNotice, setQuizNotice] = useState<string | null>(null);
     const [confirmArchive, setConfirmArchive] = useState(false);
     const [showResourcesModal, setShowResourcesModal] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
@@ -369,10 +356,6 @@ export function MethodDetailPageContent({
         } finally {
             setIsArchiving(false);
         }
-    }
-
-    function showMissingQuizMessage() {
-        setQuizNotice("Aucun quiz associé à cette méthode.");
     }
 
     return (
@@ -421,12 +404,6 @@ export function MethodDetailPageContent({
                 {archiveError && (
                     <Box className="mb-5">
                         <AlertMessage message={archiveError} />
-                    </Box>
-                )}
-
-                {quizNotice && (
-                    <Box className="mb-5">
-                        <AlertMessage message={quizNotice} />
                     </Box>
                 )}
 
@@ -498,7 +475,6 @@ export function MethodDetailPageContent({
                                 )}
                                 <MethodQuizAction
                                     associatedQuiz={associatedQuiz}
-                                    onMissingQuiz={showMissingQuizMessage}
                                     className="mt-3 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#5140F0] text-[13px] font-bold text-white transition hover:bg-[#4635E7]"
                                 >
                                     <InlineIcon icon={FileText} className="h-4 w-4" />
@@ -584,39 +560,11 @@ export function MethodDetailPageContent({
                             <StepAccordion
                                 key={step.title}
                                 associatedQuiz={associatedQuiz}
-                                onMissingQuiz={showMissingQuizMessage}
                                 step={step}
                             />
                         ))}
                     </Box>
 
-                    <CardSurface className="mt-6 flex flex-col gap-4 rounded-[16px] border border-[#E5E7EB] bg-[#F7F8FB] p-6 shadow-none md:flex-row md:items-center md:justify-between">
-                        <Box>
-                            <Text as="h3" className="text-[16px] font-bold text-[#111827]">
-                                Prêt à passer à l&apos;action ?
-                            </Text>
-                            <Text className="mt-1 text-[14px] font-medium text-[#6B7280]">
-                                Vérifie ta compréhension, puis entraine-toi avec un roleplay IA.
-                            </Text>
-                        </Box>
-                        <Box className="flex flex-wrap gap-3">
-                            <MethodQuizAction
-                                associatedQuiz={associatedQuiz}
-                                onMissingQuiz={showMissingQuizMessage}
-                                className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#5140F0] px-5 text-[14px] font-bold text-white transition hover:bg-[#4635E7]"
-                            >
-                                <InlineIcon icon={FileText} className="h-4 w-4" />
-                                Vérifier mes connaissances
-                            </MethodQuizAction>
-                            <ContextualLink
-                                href={ROLEPLAY_ROUTES.app.collection}
-                                className="flex h-11 items-center justify-center gap-2 rounded-xl border border-[#C9C2FB] bg-white px-5 text-[14px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
-                            >
-                                <InlineIcon icon={Phone} className="h-4 w-4" />
-                                Lancer un roleplay
-                            </ContextualLink>
-                        </Box>
-                    </CardSurface>
                 </CardSurface>
             </Box>
             {showResourcesModal && (

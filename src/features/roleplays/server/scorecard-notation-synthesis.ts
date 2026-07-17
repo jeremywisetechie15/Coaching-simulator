@@ -1,4 +1,7 @@
-import type { RoleplayNotationStepRef } from "@/features/roleplays/domain";
+import {
+    MAX_ROLEPLAY_PROGRESS_PLAN_ITEMS,
+    type RoleplayNotationStepRef,
+} from "@/features/roleplays/domain";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -57,7 +60,7 @@ export function normalizeScorecardNotationSynthesis(
             : {
                 ...value,
                 moments_cles: moments.items,
-                plan_de_progres: progress.items,
+                plan_de_progres: progress.items.slice(0, MAX_ROLEPLAY_PROGRESS_PLAN_ITEMS),
             },
     };
 }

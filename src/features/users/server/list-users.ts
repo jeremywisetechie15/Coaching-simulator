@@ -13,6 +13,7 @@ import {
     ORGANIZATION_MEMBER_ROLE,
     ORGANIZATION_MEMBER_STATUS,
 } from "@/features/organizations/domain/organization-member";
+import { formatLongDate, formatLongDateTime } from "@/lib/date/format-date-time";
 
 interface ProfileRow {
     email: string | null;
@@ -46,32 +47,6 @@ interface GroupRow {
 }
 
 const profileSelect = "id, email, name, first_name, last_name, platform_role";
-
-function formatLongDate(value: string | undefined) {
-    if (!value) {
-        return "";
-    }
-
-    return new Intl.DateTimeFormat("fr-FR", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-    }).format(new Date(value));
-}
-
-function formatDateTime(value: string | undefined) {
-    if (!value) {
-        return "Jamais connecté";
-    }
-
-    return new Intl.DateTimeFormat("fr-FR", {
-        day: "2-digit",
-        hour: "2-digit",
-        minute: "2-digit",
-        month: "2-digit",
-        year: "numeric",
-    }).format(new Date(value));
-}
 
 function getMetadataString(user: SupabaseUser | undefined, key: string) {
     const value = user?.user_metadata?.[key];
@@ -257,7 +232,7 @@ export async function listUsers(): Promise<UserListItem[]> {
                     (membership) => membership.status === ORGANIZATION_MEMBER_STATUS.suspended,
                 ),
                 joinedAt: formatLongDate(authUser?.created_at),
-                lastActiveAt: formatDateTime(authUser?.last_sign_in_at),
+                lastActiveAt: formatLongDateTime(authUser?.last_sign_in_at),
                 name,
                 organization: getOrganizationLabel(profile, memberships, organizationsById),
                 phone: authUser?.phone ?? "",

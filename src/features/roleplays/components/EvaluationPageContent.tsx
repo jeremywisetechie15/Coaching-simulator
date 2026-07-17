@@ -877,15 +877,27 @@ function MethodologieTab({
     );
 }
 
-function StepSectionList({ items, tone }: { items: string[]; tone: "green" | "orange" }) {
+function StepSectionList({
+    emptyLabel,
+    items,
+    tone,
+}: {
+    emptyLabel: string;
+    items: string[];
+    tone: "green" | "orange";
+}) {
     return (
         <Box className={uiTokens.stepBlock.list}>
-            {items.map((item) => (
-                <Box key={item} className={uiTokens.stepBlock.item}>
-                    <Box className={cn(uiTokens.stepBlock.dot, uiTokens.stepBlock.tone[tone].dot)} />
-                    <Text className={uiTokens.stepBlock.text}>{item}</Text>
-                </Box>
-            ))}
+            {items.length > 0 ? (
+                items.map((item) => (
+                    <Box key={item} className={uiTokens.stepBlock.item}>
+                        <Box className={cn(uiTokens.stepBlock.dot, uiTokens.stepBlock.tone[tone].dot)} />
+                        <Text className={uiTokens.stepBlock.text}>{item}</Text>
+                    </Box>
+                ))
+            ) : (
+                <Text className={uiTokens.stepBlock.empty}>{emptyLabel}</Text>
+            )}
         </Box>
     );
 }
@@ -1078,38 +1090,40 @@ function MethodologieStep({
                         </Box>
                     )}
 
-                    {(reussis.length > 0 || ameliorer.length > 0) && (
-                        <Box className="grid gap-4 md:grid-cols-2">
-                            {reussis.length > 0 && (
-                                <Box className={cn("rounded-[14px] border p-5", uiTokens.stepBlock.tone.green.surface)}>
-                                    <Box className="flex items-center gap-2">
-                                        <InlineIcon
-                                            icon={CheckCircle2}
-                                            className={cn("h-4 w-4", uiTokens.stepBlock.tone.green.accent)}
-                                        />
-                                        <Text as="h3" className="text-[14px] font-extrabold text-[#111827]">
-                                            Critères réussis
-                                        </Text>
-                                    </Box>
-                                    <StepSectionList items={reussis} tone="green" />
-                                </Box>
-                            )}
-                            {ameliorer.length > 0 && (
-                                <Box className={cn("rounded-[14px] border p-5", uiTokens.stepBlock.tone.orange.surface)}>
-                                    <Box className="flex items-center gap-2">
-                                        <InlineIcon
-                                            icon={CircleAlert}
-                                            className={cn("h-4 w-4", uiTokens.stepBlock.tone.orange.accent)}
-                                        />
-                                        <Text as="h3" className="text-[14px] font-extrabold text-[#111827]">
-                                            Critères à améliorer
-                                        </Text>
-                                    </Box>
-                                    <StepSectionList items={ameliorer} tone="orange" />
-                                </Box>
-                            )}
+                    <Box className="grid gap-4 md:grid-cols-2">
+                        <Box className={cn(uiTokens.stepBlock.card, uiTokens.stepBlock.tone.green.surface)}>
+                            <Box className={uiTokens.stepBlock.header}>
+                                <InlineIcon
+                                    icon={CheckCircle2}
+                                    className={cn(uiTokens.stepBlock.icon, uiTokens.stepBlock.tone.green.accent)}
+                                />
+                                <Text as="h3" className={uiTokens.stepBlock.title}>
+                                    Critères réussis
+                                </Text>
+                            </Box>
+                            <StepSectionList
+                                emptyLabel="Aucun critère réussi."
+                                items={reussis}
+                                tone="green"
+                            />
                         </Box>
-                    )}
+                        <Box className={cn(uiTokens.stepBlock.card, uiTokens.stepBlock.tone.orange.surface)}>
+                            <Box className={uiTokens.stepBlock.header}>
+                                <InlineIcon
+                                    icon={CircleAlert}
+                                    className={cn(uiTokens.stepBlock.icon, uiTokens.stepBlock.tone.orange.accent)}
+                                />
+                                <Text as="h3" className={uiTokens.stepBlock.title}>
+                                    Critères à améliorer
+                                </Text>
+                            </Box>
+                            <StepSectionList
+                                emptyLabel="Aucun critère à améliorer."
+                                items={ameliorer}
+                                tone="orange"
+                            />
+                        </Box>
+                    </Box>
 
                     <StepCriteriaTable
                         criteria={step.criteria}

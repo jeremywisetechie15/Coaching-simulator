@@ -146,14 +146,16 @@ export function RoleplayStepsPageContent({
                         })}
                     </Box>
 
-                    <Box className="mt-6 flex justify-center">
-                        <ContextualLink
-                            href={`/roleplays/${roleplay.id}`}
-                            className="flex h-10 items-center justify-center rounded-lg bg-[#5140F0] px-5 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.24)] transition hover:bg-[#4635E7]"
-                        >
-                            Commencer l&apos;entraînement complet
-                        </ContextualLink>
-                    </Box>
+                    {!isImprove && (
+                        <Box className="mt-6 flex justify-center">
+                            <ContextualLink
+                                href={`/roleplays/${roleplay.id}`}
+                                className="flex h-10 items-center justify-center rounded-lg bg-[#5140F0] px-5 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.24)] transition hover:bg-[#4635E7]"
+                            >
+                                Commencer l&apos;entraînement complet
+                            </ContextualLink>
+                        </Box>
+                    )}
                 </CardSurface>
             </Box>
         </Box>

@@ -15,6 +15,9 @@ export const ROLEPLAY_NOTATION_STATUS = {
 
 export type RoleplayNotationStatus = (typeof ROLEPLAY_NOTATION_STATUS)[keyof typeof ROLEPLAY_NOTATION_STATUS];
 
+/** Limite métier commune aux prompts, à la normalisation et aux vues de notation. */
+export const MAX_ROLEPLAY_PROGRESS_PLAN_ITEMS = 3;
+
 export function isForcedRoleplayNotationRegeneration(value: unknown): value is true {
     return value === true;
 }

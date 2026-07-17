@@ -70,6 +70,18 @@ describe("MethodDetailPageContent", () => {
         expect(html).toContain("Domaine · Communication");
         expect(html).toContain("Catégorie · Gestion des conflits");
         expect(html).not.toContain("Non testée");
+        expect(html).not.toContain("Prêt à passer à l&#x27;action ?");
+    });
+
+    it("hides knowledge-check actions when the method has no associated quiz", () => {
+        const html = renderToStaticMarkup(
+            <MethodDetailPageContent
+                associatedQuiz={null}
+                method={method}
+            />,
+        );
+
+        expect(html).not.toContain("Vérifier mes connaissances");
     });
 
     it("maps complementary method resources to the document modal", () => {

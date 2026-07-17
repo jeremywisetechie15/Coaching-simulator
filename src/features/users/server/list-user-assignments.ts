@@ -10,6 +10,8 @@ import type {
     UserAssignmentStatus,
 } from "@/features/users/domain/users";
 import { USER_CONTENT_ASSIGNMENT_SOURCE } from "@/features/users/domain/users";
+import { resolveUserAssignmentDate } from "@/features/users/domain";
+import { formatLongDate } from "@/lib/date/format-date-time";
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
     extractAssignmentScore,
@@ -28,7 +30,6 @@ import {
 import { listActiveUserAssignmentTargets } from "./user-assignment-targets";
 
 interface ScenarioRow {
-    created_at: string | null;
     id: string;
     persona_id: string | null;
     title: string;
@@ -59,7 +60,6 @@ interface RoleplaySessionResultRow {
 }
 
 interface QuizRow {
-    created_at: string | null;
     id: string;
     quiz_type: string | null;
     title: string;
@@ -82,18 +82,6 @@ function uniqueValues(values: Array<string | null | undefined>) {
 
 function uniqueRowsById<T extends { id: string }>(rows: T[]) {
     return Array.from(new Map(rows.map((row) => [row.id, row])).values());
-}
-
-function formatLongDate(value: string | null | undefined) {
-    if (!value) {
-        return "";
-    }
-
-    return new Intl.DateTimeFormat("fr-FR", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-    }).format(new Date(value));
 }
 
 function getStatus(statuses: string[]): UserAssignmentStatus {
@@ -130,10 +118,18 @@ async function getActiveUserTargetContext(userId: string): Promise<UserTargetCon
     return targetsByUserId.get(userId) ?? { groupIds: [], organizationIds: [] };
 }
 
+async function getUserAccountCreatedAt(userId: string) {
+    const adminSupabase = createAdminClient();
+    const { data, error } = await adminSupabase.auth.admin.getUserById(userId);
+
+    if (error) throw error;
+    return data.user?.created_at ?? null;
+}
+
 function buildScenarioVisibilityQuery(adminSupabase: ReturnType<typeof createAdminClient>, target: UserVisibleAssignmentScope) {
     const query = adminSupabase
         .from("scenarios")
-        .select("id, title, persona_id, created_at")
+        .select("id, title, persona_id")
         .eq("is_active", USER_VISIBLE_ASSIGNMENT_ACTIVE)
         .eq("status", USER_VISIBLE_ASSIGNMENT_STATUS)
         .eq("visibility_scope", target.scope);
@@ -153,7 +149,11 @@ function buildScenarioVisibilityQuery(adminSupabase: ReturnType<typeof createAdm
     return query.returns<ScenarioRow[]>();
 }
 
-async function fetchAssignedScenarioRows(userId: string, context: UserTargetContext) {
+async function fetchAssignedScenarioRows(
+    userId: string,
+    context: UserTargetContext,
+    userCreatedAt: string | null,
+) {
     const adminSupabase = createAdminClient();
     const queries = getUserVisibleAssignmentScopes(userId, context).map((target) =>
         buildScenarioVisibilityQuery(adminSupabase, target),
@@ -174,7 +174,7 @@ async function fetchAssignedScenarioRows(userId: string, context: UserTargetCont
     if (explicitIds.length > 0) {
         const { data, error } = await adminSupabase
             .from("scenarios")
-            .select("id, title, persona_id, created_at")
+            .select("id, title, persona_id")
             .in("id", explicitIds)
             .eq("is_active", USER_VISIBLE_ASSIGNMENT_ACTIVE)
             .eq("status", USER_VISIBLE_ASSIGNMENT_STATUS)
@@ -193,22 +193,24 @@ async function fetchAssignedScenarioRows(userId: string, context: UserTargetCont
             const explicitAssignment = explicitAssignmentById.get(row.id);
             return {
                 ...row,
-                assignmentAssignedAt: explicitAssignment?.assigned_at ?? null,
+                assignmentAssignedAt: resolveUserAssignmentDate(
+                    explicitAssignment?.assigned_at,
+                    userCreatedAt,
+                ),
                 assignmentSource: explicitAssignment
                     ? USER_CONTENT_ASSIGNMENT_SOURCE.explicit
                     : USER_CONTENT_ASSIGNMENT_SOURCE.visibility,
             };
         })
         .sort((first, second) => {
-            return (second.assignmentAssignedAt ?? second.created_at ?? "")
-                .localeCompare(first.assignmentAssignedAt ?? first.created_at ?? "");
+            return (second.assignmentAssignedAt ?? "").localeCompare(first.assignmentAssignedAt ?? "");
         });
 }
 
 function buildQuizVisibilityQuery(adminSupabase: ReturnType<typeof createAdminClient>, target: UserVisibleAssignmentScope) {
     const query = adminSupabase
         .from("quizzes")
-        .select("id, title, quiz_type, created_at")
+        .select("id, title, quiz_type")
         .eq("is_active", USER_VISIBLE_ASSIGNMENT_ACTIVE)
         .eq("status", USER_VISIBLE_ASSIGNMENT_STATUS)
         .eq("visibility_scope", target.scope);
@@ -228,7 +230,11 @@ function buildQuizVisibilityQuery(adminSupabase: ReturnType<typeof createAdminCl
     return query.returns<QuizRow[]>();
 }
 
-async function fetchAssignedQuizRows(userId: string, context: UserTargetContext) {
+async function fetchAssignedQuizRows(
+    userId: string,
+    context: UserTargetContext,
+    userCreatedAt: string | null,
+) {
     const adminSupabase = createAdminClient();
     const queries = getUserVisibleAssignmentScopes(userId, context).map((target) =>
         buildQuizVisibilityQuery(adminSupabase, target),
@@ -253,7 +259,7 @@ async function fetchAssignedQuizRows(userId: string, context: UserTargetContext)
     if (additionalIds.length > 0) {
         const { data, error } = await adminSupabase
             .from("quizzes")
-            .select("id, title, quiz_type, created_at")
+            .select("id, title, quiz_type")
             .in("id", additionalIds)
             .eq("is_active", USER_VISIBLE_ASSIGNMENT_ACTIVE)
             .eq("status", USER_VISIBLE_ASSIGNMENT_STATUS)
@@ -276,7 +282,10 @@ async function fetchAssignedQuizRows(userId: string, context: UserTargetContext)
             const roleplayAssignment = roleplayAssignmentById.get(row.id);
             return {
                 ...row,
-                assignmentAssignedAt: explicitAssignment?.assigned_at ?? roleplayAssignment?.assigned_at ?? null,
+                assignmentAssignedAt: resolveUserAssignmentDate(
+                    explicitAssignment?.assigned_at ?? roleplayAssignment?.assigned_at,
+                    userCreatedAt,
+                ),
                 assignmentSource: explicitAssignment
                     ? USER_CONTENT_ASSIGNMENT_SOURCE.explicit
                     : roleplayAssignment
@@ -285,8 +294,7 @@ async function fetchAssignedQuizRows(userId: string, context: UserTargetContext)
             };
         })
         .sort((first, second) => {
-            return (second.assignmentAssignedAt ?? second.created_at ?? "")
-                .localeCompare(first.assignmentAssignedAt ?? first.created_at ?? "");
+            return (second.assignmentAssignedAt ?? "").localeCompare(first.assignmentAssignedAt ?? "");
         });
 }
 
@@ -294,8 +302,11 @@ export async function listUserAssignedRoleplays(userId: string): Promise<UserAss
     await requireAdmin();
 
     const adminSupabase = createAdminClient();
-    const context = await getActiveUserTargetContext(userId);
-    const rows = await fetchAssignedScenarioRows(userId, context);
+    const [context, userCreatedAt] = await Promise.all([
+        getActiveUserTargetContext(userId),
+        getUserAccountCreatedAt(userId),
+    ]);
+    const rows = await fetchAssignedScenarioRows(userId, context, userCreatedAt);
     const scenarioIds = rows.map((scenario) => scenario.id);
     const personaIds = uniqueValues(rows.map((scenario) => scenario.persona_id));
     const [personasResult, sessionsResult] = await Promise.all([
@@ -362,7 +373,7 @@ export async function listUserAssignedRoleplays(userId: string): Promise<UserAss
 
         return {
             assignmentSource: scenario.assignmentSource,
-            assignedAt: formatLongDate(scenario.assignmentAssignedAt ?? scenario.created_at),
+            assignedAt: formatLongDate(scenario.assignmentAssignedAt),
             id: scenario.id,
             index,
             persona: scenario.persona_id ? personaNamesById.get(scenario.persona_id) ?? "Persona" : "Persona",
@@ -377,8 +388,11 @@ export async function listUserAssignedQuizzes(userId: string): Promise<UserAssig
     await requireAdmin();
 
     const adminSupabase = createAdminClient();
-    const context = await getActiveUserTargetContext(userId);
-    const rows = await fetchAssignedQuizRows(userId, context);
+    const [context, userCreatedAt] = await Promise.all([
+        getActiveUserTargetContext(userId),
+        getUserAccountCreatedAt(userId),
+    ]);
+    const rows = await fetchAssignedQuizRows(userId, context, userCreatedAt);
     const quizIds = rows.map((quiz) => quiz.id);
     const attemptsResult =
         quizIds.length > 0
@@ -412,7 +426,7 @@ export async function listUserAssignedQuizzes(userId: string): Promise<UserAssig
 
         return {
             assignmentSource: quiz.assignmentSource,
-            assignedAt: formatLongDate(quiz.assignmentAssignedAt ?? quiz.created_at),
+            assignedAt: formatLongDate(quiz.assignmentAssignedAt),
             attempts: attempts.length,
             id: quiz.id,
             score: scores.length > 0 ? Math.max(...scores) : null,

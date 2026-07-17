@@ -119,5 +119,20 @@ describe("RoleplayStepsPageContent", () => {
 
         expect(html).toContain('aria-label="Jannik BOA"');
         expect(html).toContain("https://cdn.example.com/coach.webp");
+        expect(html).toContain("Commencer l&#x27;entraînement complet");
+    });
+
+    it("hides the full-training action in the after-training improvement flow", () => {
+        const html = renderToStaticMarkup(
+            <RoleplayStepsPageContent
+                method={method}
+                referenceSessionId="1fef1dae-97db-4bce-9624-88bf84306db8"
+                roleplay={roleplay}
+                variant="improve"
+            />,
+        );
+
+        expect(html).toContain("S&#x27;améliorer avec le coach IA");
+        expect(html).not.toContain("Commencer l&#x27;entraînement complet");
     });
 });

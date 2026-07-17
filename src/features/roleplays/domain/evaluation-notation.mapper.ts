@@ -12,6 +12,7 @@ import {
     type StepTranscriptLine,
     type TranscriptMessage,
 } from "@/features/roleplays/data/evaluation";
+import { MAX_ROLEPLAY_PROGRESS_PLAN_ITEMS } from "./roleplay-notation";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -674,7 +675,8 @@ function mapPlanSteps(synthese: JsonRecord | null, steps: EvaluationStep[]): Non
                 if (firstScore === undefined) return 1;
                 if (secondScore === undefined) return -1;
                 return firstScore - secondScore || first.number - second.number;
-            });
+            })
+            .slice(0, MAX_ROLEPLAY_PROGRESS_PLAN_ITEMS);
     }
 
     return [fallbackPlanStep(steps)];

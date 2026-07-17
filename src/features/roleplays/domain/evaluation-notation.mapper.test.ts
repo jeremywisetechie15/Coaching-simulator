@@ -382,6 +382,33 @@ describe("evaluation notation mapper", () => {
         ]);
     });
 
+    it("keeps only the three progress plans linked to the weakest steps", () => {
+        const evaluation = mapNotationToEvaluation({
+            synthese: {
+                plan_de_progres: [
+                    { etape_numero: 1, texte: "Action étape 1." },
+                    { etape_numero: 2, texte: "Action étape 2." },
+                    { etape_numero: 3, texte: "Action étape 3." },
+                    { etape_numero: 4, texte: "Action étape 4." },
+                ],
+            },
+            methodo: {
+                etapes: [
+                    { numero: 1, score: 80, titre: "Étape 1" },
+                    { numero: 2, score: 20, titre: "Étape 2" },
+                    { numero: 3, score: 60, titre: "Étape 3" },
+                    { numero: 4, score: 40, titre: "Étape 4" },
+                ],
+            },
+        });
+
+        expect(evaluation.planEtapes).toEqual([
+            { number: 2, text: "Action étape 2.", title: "Étape 2" },
+            { number: 4, text: "Action étape 4.", title: "Étape 4" },
+            { number: 3, text: "Action étape 3.", title: "Étape 3" },
+        ]);
+    });
+
     it("keeps fallback content when notation_json is missing but maps session messages", () => {
         const evaluation = mapNotationToEvaluation(null, [
             {

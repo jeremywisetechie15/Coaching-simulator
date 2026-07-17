@@ -4,6 +4,7 @@ import { requireAdmin } from "@/features/auth/server";
 import { ORGANIZATION_MEMBER_STATUS } from "@/features/organizations/domain/organization-member";
 import type { UserGroupAssignmentDto } from "@/features/users/dto";
 import type { UserAssignedGroup, UserAvailableGroup, UserGroupsResult } from "@/features/users/domain/user-groups";
+import { formatLongDate } from "@/lib/date/format-date-time";
 
 interface ProfileExistsRow {
     id: string;
@@ -37,18 +38,6 @@ function uniqueValues(values: Array<string | null | undefined>) {
     return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
 }
 
-function formatAssignedAt(value: string | null) {
-    if (!value) {
-        return "";
-    }
-
-    return new Intl.DateTimeFormat("fr-FR", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-    }).format(new Date(value));
-}
-
 function mapAvailableGroup(row: UserGroupDbRow): UserAvailableGroup {
     return {
         description: row.description ?? "",
@@ -60,7 +49,7 @@ function mapAvailableGroup(row: UserGroupDbRow): UserAvailableGroup {
 function mapAssignedGroup(row: UserGroupDbRow, membership: UserGroupMemberDbRow): UserAssignedGroup {
     return {
         ...mapAvailableGroup(row),
-        assignedAt: formatAssignedAt(membership.assigned_at),
+        assignedAt: formatLongDate(membership.assigned_at),
     };
 }
 

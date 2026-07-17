@@ -363,6 +363,7 @@ export const uiTokens = {
     stepBlock: {
         card: "rounded-[14px] border p-5",
         dot: "mt-2 h-1.5 w-1.5 shrink-0 rounded-full",
+        empty: "text-[14px] font-medium leading-6 text-[#9CA3AF]",
         header: "flex items-center gap-2",
         icon: "h-4 w-4 shrink-0",
         item: "flex gap-2.5",
