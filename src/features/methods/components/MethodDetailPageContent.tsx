@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
     Archive,
@@ -49,6 +48,7 @@ import {
 import { getStoragePathFileName } from "@/lib/uploads/content-upload";
 import { Box, Button, CardSurface, InlineIcon, Text, Tooltip } from "@/lib/ui/atoms";
 import { AlertMessage } from "@/lib/ui/molecules";
+import { VideoModal } from "@/lib/ui/organisms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 import { getMethodStepIconPresentation } from "./method-step-icon.catalog";
@@ -169,131 +169,158 @@ export function mapMethodResourcesToModalDocuments(method: MethodDetail): Conten
             kind: getMethodResourceKind(resource),
             meta: getMethodResourceMeta(resource),
             title: resource.label || resource.storagePath || resource.externalUrl || "Ressource complémentaire",
-            url:
-                resource.externalUrl ||
-                (resource.storageBucket && resource.storagePath
-                    ? METHOD_ROUTES.api.resource(method.id, resource.id)
-                    : undefined),
+            url: getMethodResourceUrl(method.id, resource),
         }));
+}
+
+export function getMethodResourceUrl(methodId: string, resource: MethodResource) {
+    if (resource.externalUrl) return resource.externalUrl;
+
+    return resource.storageBucket && resource.storagePath
+        ? METHOD_ROUTES.api.resource(methodId, resource.id)
+        : undefined;
 }
 
 function StepAccordion({
     associatedQuiz,
+    methodId,
     step,
 }: {
     associatedQuiz: QuizOption | null;
+    methodId: string;
     step: MethodStepItem;
 }) {
     const [open, setOpen] = useState(false);
+    const [showVideoModal, setShowVideoModal] = useState(false);
     const config = getMethodStepIconPresentation(step.icon);
     const videoResource = step.resources.find((resource) => resource.resourceType === "video");
+    const videoUrl = videoResource ? getMethodResourceUrl(methodId, videoResource) : undefined;
+    const videoLabel = videoResource?.label || "Vidéo de l'étape";
 
     return (
-        <CardSurface className="overflow-hidden rounded-[14px] border border-[#E5E7EB] shadow-none">
-            <button
-                type="button"
-                aria-expanded={open}
-                onClick={() => setOpen((value) => !value)}
-                className="flex w-full items-center gap-4 px-5 py-4 text-left"
-            >
-                <Box
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
-                    style={{ backgroundColor: config.bg, color: config.color }}
+        <>
+            <CardSurface className="overflow-hidden rounded-[14px] border border-[#E5E7EB] shadow-none">
+                <button
+                    type="button"
+                    aria-expanded={open}
+                    onClick={() => setOpen((value) => !value)}
+                    className="flex w-full items-center gap-4 px-5 py-4 text-left"
                 >
-                    <InlineIcon icon={config.icon} className="h-5 w-5" />
-                </Box>
-                <Text as="h3" className="flex-1 text-[16px] font-bold text-[#111827]">
-                    {step.title}
-                </Text>
-                <InlineIcon
-                    icon={ChevronDown}
-                    className={`h-5 w-5 shrink-0 text-[#9CA3AF] transition-transform ${open ? "rotate-180" : ""}`}
-                />
-            </button>
+                    <Box
+                        className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl"
+                        style={{ backgroundColor: config.bg, color: config.color }}
+                    >
+                        <InlineIcon icon={config.icon} className="h-5 w-5" />
+                    </Box>
+                    <Text as="h3" className="flex-1 text-[16px] font-bold text-[#111827]">
+                        {step.title}
+                    </Text>
+                    <InlineIcon
+                        icon={ChevronDown}
+                        className={`h-5 w-5 shrink-0 text-[#9CA3AF] transition-transform ${open ? "rotate-180" : ""}`}
+                    />
+                </button>
 
-            {open && (
-                <Box className="border-t border-[#ECEEF3] px-5 py-5">
-                    <Text className="text-[14px] font-medium leading-6 text-[#4B5563]">{step.summary}</Text>
+                {open && (
+                    <Box className="border-t border-[#ECEEF3] px-5 py-5">
+                        <Text className="text-[14px] font-medium leading-6 text-[#4B5563]">{step.summary}</Text>
 
-                    {videoResource && (
-                        <Box className="mt-4 flex flex-col gap-3 rounded-[12px] border border-[#FBD9B4] bg-[#FFF7ED] p-4 md:flex-row md:items-center md:justify-between">
-                            <Box>
-                                <Box className="flex items-center gap-2">
-                                    <InlineIcon icon={Video} className="h-4 w-4 text-[#EA580C]" />
-                                    <Text as="p" className="text-[14px] font-bold text-[#111827]">
-                                        Capsule E-learning
-                                    </Text>
+                        {videoResource && (
+                            <Box className="mt-4 flex flex-col gap-3 rounded-[12px] border border-[#FBD9B4] bg-[#FFF7ED] p-4 md:flex-row md:items-center md:justify-between">
+                                <Box>
+                                    <Box className="flex items-center gap-2">
+                                        <InlineIcon icon={Video} className="h-4 w-4 text-[#EA580C]" />
+                                        <Text as="p" className="text-[14px] font-bold text-[#111827]">
+                                            Capsule E-learning
+                                        </Text>
+                                    </Box>
+                                    <Box className="mt-1 flex items-center gap-1.5">
+                                        <InlineIcon icon={Play} className="h-3.5 w-3.5 text-[#EA580C]" />
+                                        <Text className="text-[13px] font-medium text-[#6B7280]">{videoLabel}</Text>
+                                    </Box>
                                 </Box>
-                                <Box className="mt-1 flex items-center gap-1.5">
-                                    <InlineIcon icon={Play} className="h-3.5 w-3.5 text-[#EA580C]" />
-                                    <Text className="text-[13px] font-medium text-[#6B7280]">
-                                        {videoResource.label || videoResource.externalUrl}
-                                    </Text>
-                                </Box>
-                            </Box>
-                            <Link
-                                href={videoResource.externalUrl}
-                                target="_blank"
-                                className="flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#EA580C] px-4 text-[13px] font-bold text-white transition hover:bg-[#DC4F08]"
-                            >
-                                <InlineIcon icon={Play} className="h-4 w-4" />
-                                Voir la vidéo
-                            </Link>
-                        </Box>
-                    )}
-
-                    <Box className="mt-4 space-y-4">
-                        <StepBlock
-                            tone="violet"
-                            icon={Target}
-                            title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.objectives]}
-                            items={step.objectives}
-                        />
-
-                        {(step.bestPractices.length > 0 ||
-                            step.verbatims.length > 0 ||
-                            step.pitfalls.length > 0 ||
-                            step.posture.length > 0) && (
-                            <Box className="grid gap-4 lg:grid-cols-2">
-                                <StepBlock
-                                    tone="green"
-                                    icon={CheckCircle2}
-                                    title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.bestPractices]}
-                                    items={step.bestPractices}
-                                />
-                                <StepBlock
-                                    tone="indigo"
-                                    icon={Quote}
-                                    title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.verbatims]}
-                                    items={step.verbatims}
-                                    italic
-                                />
-                                <StepBlock
-                                    tone="orange"
-                                    icon={CircleAlert}
-                                    title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.pitfalls]}
-                                    items={step.pitfalls}
-                                />
-                                <StepBlock
-                                    tone="blue"
-                                    icon={MessageSquare}
-                                    title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.posture]}
-                                    items={step.posture}
-                                />
+                                {videoUrl ? (
+                                    <Button
+                                        aria-haspopup="dialog"
+                                        onClick={() => setShowVideoModal(true)}
+                                        className={uiTokens.videoPlayer.action}
+                                    >
+                                        <InlineIcon icon={Play} className="h-4 w-4" />
+                                        Voir la vidéo
+                                    </Button>
+                                ) : (
+                                    <Button
+                                        disabled
+                                        className={cn(uiTokens.videoPlayer.action, uiTokens.videoPlayer.actionDisabled)}
+                                    >
+                                        <InlineIcon icon={Play} className="h-4 w-4" />
+                                        Voir la vidéo
+                                    </Button>
+                                )}
                             </Box>
                         )}
-                    </Box>
 
-                    <MethodQuizAction
-                        associatedQuiz={associatedQuiz}
-                        className="mt-5 flex h-10 items-center justify-center gap-2 rounded-lg border border-[#C9C2FB] bg-white px-4 text-[13px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
-                    >
-                        <InlineIcon icon={FileText} className="h-4 w-4" />
-                        Vérifier mes connaissances sur cette étape
-                    </MethodQuizAction>
-                </Box>
+                        <Box className="mt-4 space-y-4">
+                            <StepBlock
+                                tone="violet"
+                                icon={Target}
+                                title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.objectives]}
+                                items={step.objectives}
+                            />
+
+                            {(step.bestPractices.length > 0 ||
+                                step.verbatims.length > 0 ||
+                                step.pitfalls.length > 0 ||
+                                step.posture.length > 0) && (
+                                <Box className="grid gap-4 lg:grid-cols-2">
+                                    <StepBlock
+                                        tone="green"
+                                        icon={CheckCircle2}
+                                        title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.bestPractices]}
+                                        items={step.bestPractices}
+                                    />
+                                    <StepBlock
+                                        tone="indigo"
+                                        icon={Quote}
+                                        title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.verbatims]}
+                                        items={step.verbatims}
+                                        italic
+                                    />
+                                    <StepBlock
+                                        tone="orange"
+                                        icon={CircleAlert}
+                                        title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.pitfalls]}
+                                        items={step.pitfalls}
+                                    />
+                                    <StepBlock
+                                        tone="blue"
+                                        icon={MessageSquare}
+                                        title={METHOD_STEP_SECTION_LABELS[METHOD_STEP_SECTION.posture]}
+                                        items={step.posture}
+                                    />
+                                </Box>
+                            )}
+                        </Box>
+
+                        <MethodQuizAction
+                            associatedQuiz={associatedQuiz}
+                            className="mt-5 flex h-10 items-center justify-center gap-2 rounded-lg border border-[#C9C2FB] bg-white px-4 text-[13px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
+                        >
+                            <InlineIcon icon={FileText} className="h-4 w-4" />
+                            Vérifier mes connaissances sur cette étape
+                        </MethodQuizAction>
+                    </Box>
+                )}
+            </CardSurface>
+            {showVideoModal && videoUrl && (
+                <VideoModal
+                    description={videoLabel}
+                    onClose={() => setShowVideoModal(false)}
+                    title="Capsule E-learning"
+                    url={videoUrl}
+                />
             )}
-        </CardSurface>
+        </>
     );
 }
 
@@ -560,6 +587,7 @@ export function MethodDetailPageContent({
                             <StepAccordion
                                 key={step.title}
                                 associatedQuiz={associatedQuiz}
+                                methodId={method.id}
                                 step={step}
                             />
                         ))}

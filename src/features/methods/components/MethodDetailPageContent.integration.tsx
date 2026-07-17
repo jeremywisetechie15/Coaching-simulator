@@ -3,7 +3,11 @@ import { describe, expect, it, vi } from "vitest";
 import { QUIZ_KIND } from "@/features/evaluations/domain";
 import { CONTENT_STATUS } from "@/features/content/domain";
 import { METHOD_SCOPE, type MethodDetail } from "@/features/methods/domain/method";
-import { mapMethodResourcesToModalDocuments, MethodDetailPageContent } from "./MethodDetailPageContent";
+import {
+    getMethodResourceUrl,
+    mapMethodResourcesToModalDocuments,
+    MethodDetailPageContent,
+} from "./MethodDetailPageContent";
 
 vi.mock("next/navigation", () => ({
     usePathname: () => "/methods/method-1",
@@ -143,5 +147,24 @@ describe("MethodDetailPageContent", () => {
                 url: "https://example.com/checklist",
             },
         ]);
+    });
+
+    it("routes uploaded step videos through authenticated resource access", () => {
+        expect(
+            getMethodResourceUrl(method.id, {
+                durationSeconds: null,
+                externalUrl: "",
+                id: "55555555-5555-4555-8555-555555555555",
+                label: "Capsule étape",
+                notationFileId: null,
+                resourceType: "video",
+                sortOrder: 1,
+                stepId: "66666666-6666-4666-8666-666666666666",
+                storageBucket: "notation_pdf",
+                storagePath: "methods/method-1/steps/step-1/resources/resource-2/video.mp4",
+            }),
+        ).toBe(
+            "/api/methods/11111111-1111-4111-8111-111111111100/resources/55555555-5555-4555-8555-555555555555",
+        );
     });
 });

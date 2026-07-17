@@ -31,13 +31,12 @@ export async function getMethodResourceAccess(
         .eq("method_id", methodId)
         .eq("id", resourceId)
         .eq("is_active", true)
-        .is("step_id", null)
         .maybeSingle<MethodResourceAccessRow>();
 
     if (error) throw error;
 
     if (!resource) {
-        throw new NotFoundError("Ressource complémentaire introuvable.");
+        throw new NotFoundError("Ressource de méthode introuvable.");
     }
 
     if (resource.external_url) {
@@ -45,7 +44,7 @@ export async function getMethodResourceAccess(
     }
 
     if (!resource.bucket || !resource.path) {
-        throw new NotFoundError("Ressource complémentaire introuvable.");
+        throw new NotFoundError("Ressource de méthode introuvable.");
     }
 
     const adminSupabase = createAdminClient();
@@ -56,7 +55,7 @@ export async function getMethodResourceAccess(
     if (signedUrlError) throw signedUrlError;
 
     if (!signedUrl?.signedUrl) {
-        throw new NotFoundError("Ressource complémentaire introuvable.");
+        throw new NotFoundError("Ressource de méthode introuvable.");
     }
 
     return { url: assertHttpUrl(signedUrl.signedUrl) };

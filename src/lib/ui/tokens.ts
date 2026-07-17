@@ -603,6 +603,14 @@ export const uiTokens = {
         panel: "w-full max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-[0_22px_60px_rgba(17,24,39,0.26)] md:p-7",
         title: "text-[20px] font-extrabold leading-tight",
     },
+    videoPlayer: {
+        action:
+            "flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#EA580C] px-4 text-[13px] font-bold text-white transition hover:bg-[#DC4F08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EA580C] focus-visible:ring-offset-2",
+        actionDisabled: "cursor-not-allowed opacity-60",
+        media: "aspect-video max-h-[70vh] w-full border-0 bg-[#111827]",
+        modalPanel: "max-w-[960px]",
+        shell: "overflow-hidden rounded-xl border border-[#E5E7EB] bg-[#111827]",
+    },
     /** Palettes de tons sémantiques (badges, pastilles d'icônes, textes de statut). */
     tone: {
         danger: { soft: "border-[#FECACA] bg-[#FEF2F2] text-[#DC2626]", text: "text-[#DC2626]" },

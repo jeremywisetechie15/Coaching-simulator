@@ -20,3 +20,4 @@ export * from "./SingleSelectField";
 export * from "./SubmitButton";
 export * from "./StatusMessage";
 export * from "./TextField";
+export * from "./VideoPlayer";

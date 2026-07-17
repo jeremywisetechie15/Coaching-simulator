@@ -47,16 +47,23 @@ function getPrepDocumentMeta(resource: DbRoleplayDetail["resources"][number]) {
     return undefined;
 }
 
+function getPrepDocumentUrl(roleplayId: string, resource: DbRoleplayDetail["resources"][number]) {
+    if (resource.resourceType === "video" && resource.externalUrl) {
+        return resource.externalUrl;
+    }
+
+    return resource.externalUrl || (resource.storageBucket && resource.storagePath)
+        ? ROLEPLAY_ROUTES.api.resource(roleplayId, resource.id)
+        : undefined;
+}
+
 function mapDbResourcesToPrepDocuments(roleplay: DbRoleplayDetail): PrepDocument[] {
     return roleplay.resources.map((resource) => ({
         id: resource.id,
         kind: getPrepDocumentKind(resource),
         meta: getPrepDocumentMeta(resource),
         title: resource.label,
-        url:
-            resource.externalUrl || (resource.storageBucket && resource.storagePath)
-                ? ROLEPLAY_ROUTES.api.resource(roleplay.id, resource.id)
-                : undefined,
+        url: getPrepDocumentUrl(roleplay.id, resource),
     }));
 }
 

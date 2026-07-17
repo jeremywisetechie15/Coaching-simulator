@@ -26,6 +26,7 @@ interface FilePreviewCardProps {
     href?: string;
     kind: FilePreviewKind;
     meta?: string;
+    onAction?: () => void;
     previewName?: string;
     title: string;
 }
@@ -34,10 +35,10 @@ function isPdfResource(...values: Array<string | undefined>) {
     return values.some((value) => Boolean(value && /\.pdf(?:$|[?#])/i.test(value)));
 }
 
-export function FilePreviewCard({ className, href, kind, meta, previewName, title }: FilePreviewCardProps) {
+export function FilePreviewCard({ className, href, kind, meta, onAction, previewName, title }: FilePreviewCardProps) {
     const config = filePreviewConfig[kind];
     const isPdf = isPdfResource(title, meta, previewName);
-    const canPreview = Boolean(href) && (kind === "audio" || kind === "image" || kind === "video" || isPdf);
+    const canPreview = Boolean(href) && (kind === "audio" || kind === "image" || isPdf);
 
     return (
         <Box className={cn(uiTokens.surface.rowCard, "space-y-3", className)}>
@@ -63,7 +64,16 @@ export function FilePreviewCard({ className, href, kind, meta, previewName, titl
                         )}
                     </Box>
                 </Box>
-                {href ? (
+                {href && onAction ? (
+                    <Button
+                        aria-haspopup={kind === "video" ? "dialog" : undefined}
+                        onClick={onAction}
+                        className={cn(uiTokens.action.addButton, "shrink-0")}
+                    >
+                        <InlineIcon icon={config.actionIcon} className="h-4 w-4" />
+                        {config.actionLabel}
+                    </Button>
+                ) : href ? (
                     <a href={href} target="_blank" rel="noreferrer" className={cn(uiTokens.action.addButton, "shrink-0")}>
                         <InlineIcon icon={config.actionIcon} className="h-4 w-4" />
                         {config.actionLabel}
@@ -85,11 +95,6 @@ export function FilePreviewCard({ className, href, kind, meta, previewName, titl
                             className="h-[220px] bg-contain bg-center bg-no-repeat"
                             style={{ backgroundImage: `url("${href}")` }}
                         />
-                    )}
-                    {kind === "video" && (
-                        <video className="aspect-video w-full bg-black" controls preload="metadata" src={href}>
-                            <track kind="captions" />
-                        </video>
                     )}
                     {kind === "audio" && (
                         <audio className="w-full" controls preload="metadata" src={href}>

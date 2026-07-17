@@ -2,8 +2,9 @@
 
 import { BookOpen, ExternalLink, FileText, Headphones, Image, Play, PlayCircle } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import { useState } from "react";
 import { Box, Button, InlineIcon, Text } from "@/lib/ui/atoms";
-import { Modal } from "@/lib/ui/organisms";
+import { Modal, VideoModal } from "@/lib/ui/organisms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
@@ -46,6 +47,19 @@ export function ContentResourcesModal({
     onClose,
     title,
 }: ContentResourcesModalProps) {
+    const [selectedVideo, setSelectedVideo] = useState<{ title: string; url: string } | null>(null);
+
+    if (selectedVideo) {
+        return (
+            <VideoModal
+                description="Ressource vidéo"
+                onClose={() => setSelectedVideo(null)}
+                title={selectedVideo.title}
+                url={selectedVideo.url}
+            />
+        );
+    }
+
     return (
         <Modal title={title} description={description} onClose={onClose} className="max-w-[560px]">
             <Box className="max-h-[min(58vh,520px)] space-y-3 overflow-y-auto pr-1">
@@ -59,6 +73,7 @@ export function ContentResourcesModal({
                 {documents.map((document) => {
                     const config = resourceKindConfig[document.kind];
                     const buttonClassName = cn(uiTokens.action.addButton, "shrink-0");
+                    const resourceUrl = document.url;
 
                     return (
                         <Box key={document.id} className={cn(uiTokens.surface.rowCard, "flex items-center gap-3")}>
@@ -85,8 +100,17 @@ export function ContentResourcesModal({
                                     )}
                                 </Box>
                             </Box>
-                            {document.url ? (
-                                <a href={document.url} target="_blank" rel="noreferrer" className={buttonClassName}>
+                            {resourceUrl && document.kind === "video" ? (
+                                <Button
+                                    aria-haspopup="dialog"
+                                    onClick={() => setSelectedVideo({ title: document.title, url: resourceUrl })}
+                                    className={buttonClassName}
+                                >
+                                    <InlineIcon icon={config.actionIcon} className="h-4 w-4" />
+                                    {config.actionLabel}
+                                </Button>
+                            ) : resourceUrl ? (
+                                <a href={resourceUrl} target="_blank" rel="noreferrer" className={buttonClassName}>
                                     <InlineIcon icon={config.actionIcon} className="h-4 w-4" />
                                     {config.actionLabel}
                                 </a>

@@ -114,6 +114,14 @@ describe("roleplay UI adapter", () => {
                         storageBucket: "resource_scenarios",
                         storagePath: "scenarios/scenario-1/preparation.mp4",
                     },
+                    {
+                        externalUrl: "https://youtu.be/dQw4w9WgXcQ",
+                        id: "resource-youtube",
+                        label: "Tutoriel vidéo",
+                        resourceType: "video",
+                        storageBucket: null,
+                        storagePath: null,
+                    },
                 ],
             }),
             null,
@@ -140,6 +148,13 @@ describe("roleplay UI adapter", () => {
                 meta: "preparation.mp4",
                 title: "Vidéo de préparation",
                 url: ROLEPLAY_ROUTES.api.resource("scenario-1", "resource-video"),
+            },
+            {
+                id: "resource-youtube",
+                kind: "video",
+                meta: "URL",
+                title: "Tutoriel vidéo",
+                url: "https://youtu.be/dQw4w9WgXcQ",
             },
         ]);
     });

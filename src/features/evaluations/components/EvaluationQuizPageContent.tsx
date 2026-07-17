@@ -43,6 +43,7 @@ import type { SkillOption } from "@/features/skills/domain/skills";
 import { getStoragePathFileName } from "@/lib/uploads/content-upload";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { FilePreviewCard, type FilePreviewKind } from "@/lib/ui/molecules";
+import { VideoModal } from "@/lib/ui/organisms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
@@ -993,38 +994,61 @@ function QuestionAttachments({
     attachments: QuizQuestionAttachment[];
     quizId: string;
 }) {
+    const [selectedVideo, setSelectedVideo] = useState<{ title: string; url: string } | null>(null);
+
     if (attachments.length === 0) return null;
 
     return (
-        <Box className="mt-5 space-y-2">
-            <Text className={cn("text-[13px] font-extrabold", uiTokens.text.heading)}>
-                {attachments.length === 1 ? "Pièce jointe de la question" : "Pièces jointes de la question"}
-            </Text>
-            <Box className="space-y-2">
-                {attachments.map((attachment) => {
-                    const hasLocation =
-                        Boolean(attachment.externalUrl) ||
-                        Boolean(attachment.storageBucket && attachment.storagePath);
-                    const meta = attachment.storagePath
-                        ? getStoragePathFileName(attachment.storagePath)
-                        : attachment.externalUrl
-                          ? "URL"
-                          : "";
-                    const title = attachment.label || meta || "Document";
+        <>
+            <Box className="mt-5 space-y-2">
+                <Text className={cn("text-[13px] font-extrabold", uiTokens.text.heading)}>
+                    {attachments.length === 1 ? "Pièce jointe de la question" : "Pièces jointes de la question"}
+                </Text>
+                <Box className="space-y-2">
+                    {attachments.map((attachment) => {
+                        const hasLocation =
+                            Boolean(attachment.externalUrl) ||
+                            Boolean(attachment.storageBucket && attachment.storagePath);
+                        const meta = attachment.storagePath
+                            ? getStoragePathFileName(attachment.storagePath)
+                            : attachment.externalUrl
+                              ? "URL"
+                              : "";
+                        const title = attachment.label || meta || "Document";
+                        const attachmentUrl =
+                            attachment.type === "video" && attachment.externalUrl
+                                ? attachment.externalUrl
+                                : hasLocation
+                                  ? EVALUATION_ROUTES.api.attachment(quizId, attachment.id)
+                                  : undefined;
 
-                    return (
-                        <FilePreviewCard
-                            key={attachment.id}
-                            href={hasLocation ? EVALUATION_ROUTES.api.attachment(quizId, attachment.id) : undefined}
-                            kind={attachment.type as FilePreviewKind}
-                            meta={meta}
-                            previewName={attachment.storagePath ?? attachment.externalUrl}
-                            title={title}
-                        />
-                    );
-                })}
+                        return (
+                            <FilePreviewCard
+                                key={attachment.id}
+                                href={attachmentUrl}
+                                kind={attachment.type as FilePreviewKind}
+                                meta={meta}
+                                onAction={
+                                    attachment.type === "video" && attachmentUrl
+                                        ? () => setSelectedVideo({ title, url: attachmentUrl })
+                                        : undefined
+                                }
+                                previewName={attachment.storagePath ?? attachment.externalUrl}
+                                title={title}
+                            />
+                        );
+                    })}
+                </Box>
             </Box>
-        </Box>
+            {selectedVideo && (
+                <VideoModal
+                    description="Pièce jointe vidéo du quiz"
+                    onClose={() => setSelectedVideo(null)}
+                    title={selectedVideo.title}
+                    url={selectedVideo.url}
+                />
+            )}
+        </>
     );
 }
 
