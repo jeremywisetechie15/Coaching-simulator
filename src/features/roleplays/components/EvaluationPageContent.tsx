@@ -132,6 +132,16 @@ interface EvaluationPageContentProps {
     session: RoleplaySession;
 }
 
+export function getGlobalCoachDebriefTitle(
+    roleplay: Pick<RoleplayItem, "coachName" | "name" | "title">,
+) {
+    const coachNameWithoutPrefix = roleplay.coachName?.trim().replace(/^coach\s+/i, "");
+    const coachName = coachNameWithoutPrefix || "IA";
+    const roleplayTitle = roleplay.title?.trim() || roleplay.name.trim();
+
+    return `Débrief avec mon coach ${coachName} - Roleplay ${roleplayTitle}`;
+}
+
 export function EvaluationPageContent({
     canManage = false,
     evaluation,
@@ -288,7 +298,7 @@ export function EvaluationPageContent({
                 title={
                     isPersona
                         ? `${roleplay.name} — Avis et ressenti`
-                        : `Débrief avec le coach IA — ${roleplay.name}`
+                        : getGlobalCoachDebriefTitle(roleplay)
                 }
                 liveTabLabel={isPersona ? "AI Persona" : "AI Coach"}
                 iframeSrc={iframeSrc}
@@ -590,7 +600,7 @@ export function EvaluationPageContent({
     );
 }
 
-function SyntheseTab({
+export function SyntheseTab({
     evaluation,
     onAskPersona,
     onDebrief,
@@ -615,9 +625,9 @@ function SyntheseTab({
                     </Box>
                     <Button
                         onClick={onAskPersona}
-                        className="flex h-9 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-3 text-[13px] font-semibold text-[#374151] transition hover:border-[#D5D7DE]"
+                        className={uiTokens.roleplayEvaluation.aiActionButton}
                     >
-                        <InlineIcon icon={Video} className="h-4 w-4 text-[#5140F0]" />
+                        <InlineIcon icon={Video} className={uiTokens.roleplayEvaluation.aiActionIcon} />
                         Ask AI persona
                     </Button>
                 </Box>
@@ -627,13 +637,19 @@ function SyntheseTab({
             </CardSurface>
 
             <CardSurface className="rounded-[16px] border border-[#E5E7EB] p-6 shadow-none">
-                <Box className="flex items-center gap-3">
-                    <Box className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F3E8FD]">
-                        <InlineIcon icon={Phone} className="h-[18px] w-[18px] text-[#8B2FD6]" />
+                <Box className="flex items-center justify-between gap-4">
+                    <Box className="flex items-center gap-3">
+                        <Box className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F3E8FD]">
+                            <InlineIcon icon={Phone} className="h-[18px] w-[18px] text-[#8B2FD6]" />
+                        </Box>
+                        <Text as="h3" className="text-[16px] font-bold text-[#111827]">
+                            Appréciation globale par le coach IA
+                        </Text>
                     </Box>
-                    <Text as="h3" className="text-[16px] font-bold text-[#111827]">
-                        Appréciation globale par le coach IA
-                    </Text>
+                    <Button onClick={onDebrief} className={uiTokens.roleplayEvaluation.aiActionButton}>
+                        <InlineIcon icon={Video} className={uiTokens.roleplayEvaluation.aiActionIcon} />
+                        Ask Coach IA
+                    </Button>
                 </Box>
                 <Text className="mt-4 text-[14px] font-medium leading-7 text-[#4B5563]">
                     {evaluation.coachAppreciation}

@@ -235,6 +235,11 @@ export const uiTokens = {
         quickLinkIcon: "h-4 w-4 text-[#9CA3AF]",
         title: "mt-6 text-center text-[18px] font-extrabold leading-6 text-[#5140F0]",
     },
+    roleplayEvaluation: {
+        aiActionButton:
+            "flex h-9 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-3 text-[13px] font-semibold text-[#374151] transition hover:border-[#D5D7DE] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0] focus-visible:ring-offset-2",
+        aiActionIcon: "h-4 w-4 text-[#5140F0]",
+    },
     roleplayEditor: {
         aiInstructionsDrawerContent: "flex min-h-0 flex-1 flex-col gap-3",
         aiInstructionsHeader: "mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between",
@@ -531,7 +536,7 @@ export const uiTokens = {
         rowPending: "bg-[#F7F8FB] text-[#9CA3AF]",
         title: "mt-5 text-[26px] font-extrabold text-[#111827]",
     },
-    /** Page « Détail de ma progression » : score de maîtrise, dimensions, étapes et compétences. */
+    /** Page « État de mes compétences » : score de maîtrise, dimensions, étapes et compétences. */
     progression: {
         /** Palette par niveau de score — pilote pastilles, barres et pastilles rondes. */
         level: {

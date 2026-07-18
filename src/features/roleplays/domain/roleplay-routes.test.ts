@@ -8,9 +8,9 @@ describe("roleplay iframe routes", () => {
         );
     });
 
-    it("keeps the evaluated session in coach debrief mode", () => {
+    it("keeps the evaluated session in global coach debrief mode", () => {
         expect(ROLEPLAY_ROUTES.app.sessionDebrief("scenario/1", "session/2")).toBe(
-            "/iframe?scenario_id=scenario%2F1&mode=coach&coach_mode=after_training&ref_session_id=session%2F2",
+            "/iframe?scenario_id=scenario%2F1&mode=coach&coach_mode=notation&ref_session_id=session%2F2",
         );
     });
 });

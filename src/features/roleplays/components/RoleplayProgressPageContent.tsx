@@ -371,7 +371,7 @@ export function RoleplayProgressPageContent({ backHref, progress }: RoleplayProg
                         <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
                     </ContextualBackLink>
                     <Text as="h1" className="text-[22px] font-bold text-[#111827]">
-                        Détail de ma progression
+                        État de mes compétences
                     </Text>
                 </Box>
 

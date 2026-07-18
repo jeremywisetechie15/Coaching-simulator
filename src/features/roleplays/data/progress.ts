@@ -1,5 +1,5 @@
 /**
- * Suivi pédagogique d'un roleplay — page « Détail de ma progression ».
+ * Suivi pédagogique d'un roleplay — page « État de mes compétences ».
  * Données de démonstration pour les anciens scénarios statiques.
  * Les types et calculs de progression vivent dans le domaine pour garder une SSOT.
  */

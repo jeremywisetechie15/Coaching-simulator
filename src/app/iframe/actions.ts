@@ -7,7 +7,6 @@ import { getCoachAvatarPublicUrl } from "@/features/coaches/domain/coach-list";
 import {
     buildRoleplayStepCoachReferenceTranscript,
     extractNotationPersonaFeedback,
-    MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
 } from "@/features/roleplays/domain";
 import {
     buildRoleplayPersonaSimulationInstructions,
@@ -19,6 +18,8 @@ import { buildRoleplayCoachInstructions } from "@/features/roleplays/server/buil
 import { buildRoleplayPersonaFeedbackInstructions } from "@/features/roleplays/server/build-roleplay-persona-feedback-instructions";
 import { getRoleplaySessionEvaluation } from "@/features/roleplays/server/get-roleplay-session-evaluation";
 import { resolveRoleplayCoachId } from "@/features/roleplays/server/resolve-roleplay-coach-id";
+import { findEligibleCompletedRoleplaySession } from "@/features/roleplays/server/find-eligible-completed-session";
+import { buildGlobalCoachEvaluationContext } from "@/features/roleplays/server/build-global-coach-evaluation-context";
 import { createSessionBackgroundSignedUrl } from "@/lib/uploads/session-background";
 import { DEFAULT_OPENAI_REALTIME_VOICE_ID } from "@/lib/openai/realtime-voices";
 
@@ -131,39 +132,6 @@ SOURCE DE VÉRITÉ DYNAMIQUE:
 - Le bloc JSON "CONTEXTE DYNAMIQUE DU ROLEPLAY" ci-dessous est la source de vérité pour la méthode, le persona, le scénario, les étapes et les critères de la scorecard.
 - Si le prompt générique contient un nom de méthode, de persona, d'entreprise ou d'étape différent, ignore cet exemple statique et utilise exclusivement le contexte dynamique.
 - Les variables écrites sous la forme {{variable}} dans le prompt générique ne sont pas des données réelles. Utilise les valeurs du contexte dynamique à la place.`;
-
-interface EligibleCompletedSession {
-    id: string;
-    notation_json: unknown;
-}
-
-async function findEligibleCompletedSession(
-    supabase: Awaited<ReturnType<typeof createClient>>,
-    input: {
-        scenarioId: string;
-        refSessionId?: string;
-        userId?: string | null;
-    },
-) {
-    let query = supabase
-        .from("sessions")
-        .select("id, notation_json")
-        .eq("scenario_id", input.scenarioId)
-        .eq("status", "completed")
-        .gte("duration_seconds", MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS);
-
-    if (input.refSessionId) {
-        query = query.eq("id", input.refSessionId);
-    } else {
-        query = query.order("created_at", { ascending: false }).limit(1);
-    }
-
-    if (input.userId) {
-        query = query.eq("user_id", input.userId);
-    }
-
-    return query.maybeSingle<EligibleCompletedSession>();
-}
 
 function buildAfterTrainingPerformanceContext(
     view: Awaited<ReturnType<typeof getRoleplaySessionEvaluation>>,
@@ -331,7 +299,7 @@ ${COACH_CONTEXT_GUARDRAILS}
                 const coachInstructions = buildRoleplayCoachInstructions(basePrompt, coach);
                 const { data: { user } } = await supabase.auth.getUser();
 
-                const { data: session, error: sessionError } = await findEligibleCompletedSession(supabase, {
+                const { data: session, error: sessionError } = await findEligibleCompletedRoleplaySession(supabase, {
                     refSessionId,
                     scenarioId,
                     userId: user?.id,
@@ -420,6 +388,9 @@ ${COACH_CONTEXT_GUARDRAILS}
                 if (!scenarioId) {
                     return { success: false, error: "scenario_id is required for notation mode" };
                 }
+                if (!refSessionId) {
+                    return { success: false, error: "ref_session_id is required for notation mode" };
+                }
 
                 // Fetch prompt from DB
                 const { data: promptData } = await adminSupabase
@@ -432,36 +403,19 @@ ${COACH_CONTEXT_GUARDRAILS}
                 const coachContext = await getRoleplayCoachContext(supabase, scenarioId);
                 const coachInstructions = buildRoleplayCoachInstructions(basePrompt, coach);
 
-                // Fetch the latest completed session with notation_json FOR THIS SCENARIO
-                const { data: latestSession, error: sessionError } = await supabase
-                    .from("sessions")
-                    .select("id, notation_json")
-                    .eq("scenario_id", scenarioId)
-                    .eq("status", "completed")
-                    .not("notation_json", "is", null)
-                    .order("created_at", { ascending: false })
-                    .limit(1)
-                    .single();
+                const { data: referencedSession, error: sessionError } =
+                    await findEligibleCompletedRoleplaySession(supabase, {
+                        refSessionId,
+                        scenarioId,
+                    });
 
-                if (sessionError || !latestSession) {
-                    console.error("Error fetching latest session with notation:", sessionError);
-                    return { success: false, error: "No completed session with notation found for this scenario" };
+                if (sessionError || !referencedSession || !referencedSession.notation_json) {
+                    console.error("Error fetching referenced session with notation:", sessionError);
+                    return { success: false, error: "Referenced completed session with notation not found" };
                 }
 
-                const effectiveSessionId = latestSession.id;
-                const notationJson = latestSession.notation_json as Record<string, unknown> | null;
-
-                // Extract appreciation_globale.texte from synthese
-                let appreciationGlobaleTexte = "Aucune appréciation globale disponible.";
-                if (notationJson && typeof notationJson === "object") {
-                    const synthese = notationJson.synthese as Record<string, unknown> | undefined;
-                    if (synthese && typeof synthese === "object") {
-                        const appreciationGlobale = synthese.appreciation_globale as Record<string, unknown> | undefined;
-                        if (appreciationGlobale && typeof appreciationGlobale.texte === "string") {
-                            appreciationGlobaleTexte = appreciationGlobale.texte;
-                        }
-                    }
-                }
+                const effectiveSessionId = referencedSession.id;
+                const evaluationContext = buildGlobalCoachEvaluationContext(referencedSession.notation_json);
 
                 // Fetch session messages for transcript
                 const { data: messages, error: messagesError } = await supabase
@@ -485,8 +439,11 @@ ${serializeRoleplayCoachContext(coachContext)}
 
 Ton appréciation globale de la session (c'est ce dont tu dois parler avec l'apprenant):
 ---
-${appreciationGlobaleTexte}
+${evaluationContext.appreciation}
 ---
+
+SYNTHÈSE STRUCTURÉE DE LA SESSION (réussites, axes d'amélioration, plan de progrès et score):
+${JSON.stringify({ scoreGlobal: evaluationContext.scoreGlobal, synthese: evaluationContext.synthese }, null, 2)}
 
 Pour contexte, voici le transcript de la session analysée:
 ---
@@ -498,7 +455,7 @@ Parle à la première personne ("J'ai remarqué que...", "De mon analyse...", "C
 ${COACH_CONTEXT_GUARDRAILS}
 `;
 
-                console.log("📝 Coach mode: notation, session:", effectiveSessionId, "appreciation extracted:", appreciationGlobaleTexte ? "yes" : "no");
+                console.log("📝 Coach mode: notation, session:", effectiveSessionId, "appreciation extracted:", evaluationContext.appreciation ? "yes" : "no");
 
                 return {
                     success: true,
@@ -622,7 +579,7 @@ ${COACH_CONTEXT_GUARDRAILS}
             );
 
             const { data: { user } } = await supabase.auth.getUser();
-            const { data: feedbackSession, error: feedbackSessionError } = await findEligibleCompletedSession(
+            const { data: feedbackSession, error: feedbackSessionError } = await findEligibleCompletedRoleplaySession(
                 supabase,
                 {
                     refSessionId,
