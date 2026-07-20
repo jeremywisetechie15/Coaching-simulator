@@ -4,6 +4,7 @@ import {
     canAccessAppRoute,
     canManageAppResource,
     canViewAppNavigationResource,
+    getAppHomeRoute,
     isPlatformAdmin,
     isSuspendedUserContext,
 } from "./access-control";
@@ -35,6 +36,11 @@ describe("access-control", () => {
         expect(canViewAppNavigationResource("user", APP_NAVIGATION_RESOURCE.methods)).toBe(true);
     });
 
+    it("shows the dashboard entry to learners and platform admins", () => {
+        expect(canViewAppNavigationResource("user", APP_NAVIGATION_RESOURCE.dashboard)).toBe(true);
+        expect(canViewAppNavigationResource("admin", APP_NAVIGATION_RESOURCE.dashboard)).toBe(true);
+    });
+
     it("restricts management actions to platform admins", () => {
         expect(canManageAppResource("admin", APP_NAVIGATION_RESOURCE.methods)).toBe(true);
         expect(canManageAppResource("admin", APP_NAVIGATION_RESOURCE.roleplays)).toBe(true);
@@ -47,6 +53,13 @@ describe("access-control", () => {
         expect(canAccessAppRoute("admin", APP_NAVIGATION_RESOURCE.users)).toBe(true);
         expect(canAccessAppRoute("user", APP_NAVIGATION_RESOURCE.users)).toBe(false);
         expect(canAccessAppRoute("user", APP_NAVIGATION_RESOURCE.roleplays)).toBe(true);
+        expect(canAccessAppRoute("user", APP_NAVIGATION_RESOURCE.dashboard)).toBe(true);
+        expect(canAccessAppRoute("admin", APP_NAVIGATION_RESOURCE.dashboard)).toBe(true);
+    });
+
+    it("centralizes the temporary home route for each platform role", () => {
+        expect(getAppHomeRoute("user")).toBe("/");
+        expect(getAppHomeRoute("admin")).toBe("/");
     });
 
     it("identifies suspended organization users without blocking platform admins", () => {

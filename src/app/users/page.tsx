@@ -16,7 +16,7 @@ import { getCurrentProfile } from "@/features/profile/server";
 import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
 
 interface PageProps {
-    searchParams?: Promise<{ returnTo?: string }>;
+    searchParams?: Promise<{ invite?: string; returnTo?: string }>;
 }
 
 export const metadata = {
@@ -24,7 +24,7 @@ export const metadata = {
 };
 
 export default async function Page({ searchParams }: PageProps) {
-    const { returnTo } = searchParams ? await searchParams : {};
+    const { invite, returnTo } = searchParams ? await searchParams : {};
     let profile;
     let organizations: OrganizationListItem[] = [];
     let users: UserListItem[] = [];
@@ -72,6 +72,7 @@ export default async function Page({ searchParams }: PageProps) {
         <UsersPage
             avatarUrl={profileValues.avatarUrl}
             initials={getProfileInitials(profileValues)}
+            initialInviteOpen={invite === "1"}
             initialUsers={users}
             organizations={organizations}
             platformRole={profileValues.platformRole}

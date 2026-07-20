@@ -12,6 +12,7 @@ export * from "./roleplay-pdf";
 export * from "./roleplay-progress";
 export * from "./roleplay-quiz-assignment";
 export * from "./roleplay-routes";
+export * from "./roleplay-score";
 export * from "./roleplay-session-eligibility";
 export * from "./roleplay-session-history";
 export * from "./roleplay-session-lifecycle";

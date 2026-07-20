@@ -13,6 +13,10 @@ import {
     type TranscriptMessage,
 } from "@/features/roleplays/data/evaluation";
 import { MAX_ROLEPLAY_PROGRESS_PLAN_ITEMS } from "./roleplay-notation";
+import {
+    ROLEPLAY_CONSOLIDATION_THRESHOLD_PERCENT,
+    ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
+} from "./roleplay-score";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -160,8 +164,8 @@ export function extractNotationPersonaFeedback(notationJson: unknown): string | 
 }
 
 function stepStatus(score: number): StepStatus {
-    if (score >= 80) return "À maintenir";
-    if (score >= 60) return "À consolider";
+    if (score >= ROLEPLAY_MASTERY_THRESHOLD_PERCENT) return "À maintenir";
+    if (score >= ROLEPLAY_CONSOLIDATION_THRESHOLD_PERCENT) return "À consolider";
     return "À renforcer";
 }
 

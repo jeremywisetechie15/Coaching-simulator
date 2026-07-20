@@ -15,6 +15,7 @@ import {
 import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
 import {
     EVALUATION_ROUTES,
+    QUIZ_DEFAULT_VALIDATION_THRESHOLD,
     getQuizCompetenceCount,
     getQuizKindLabel,
     getQuizQuestionCount,
@@ -46,7 +47,7 @@ export function EvaluationDetailPageContent({ canManage = false, quiz, skillOpti
     const skillNameById = new Map(skillOptions.map((skill) => [skill.id, skill.name]));
     const questionCount = getQuizQuestionCount(quiz);
     const competenceCount = getQuizCompetenceCount(quiz);
-    const threshold = quiz.validationThreshold ?? 70;
+    const threshold = quiz.validationThreshold ?? QUIZ_DEFAULT_VALIDATION_THRESHOLD;
 
     const quizHref = `/evaluations/${quiz.id}/quiz`;
     const resultHref = EVALUATION_ROUTES.app.results(quiz.id);

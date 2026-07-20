@@ -6,12 +6,14 @@ import { OrganizationsPageContent } from "./OrganizationsPageContent";
 
 interface OrganizationsPageProps {
     accessDenied?: boolean;
+    initialCreateOpen?: boolean;
     initialOrganizations: OrganizationListItem[];
     profileValues: ProfileFormValues;
 }
 
 export function OrganizationsPage({
     accessDenied = false,
+    initialCreateOpen = false,
     initialOrganizations,
     profileValues,
 }: OrganizationsPageProps) {
@@ -24,7 +26,14 @@ export function OrganizationsPage({
             fullName={`${profileValues.firstName} ${profileValues.lastName}`.trim()}
             email={profileValues.email}
         >
-            {accessDenied ? <AccessDeniedState /> : <OrganizationsPageContent initialOrganizations={initialOrganizations} />}
+            {accessDenied ? (
+                <AccessDeniedState />
+            ) : (
+                <OrganizationsPageContent
+                    initialCreateOpen={initialCreateOpen}
+                    initialOrganizations={initialOrganizations}
+                />
+            )}
         </AppShell>
     );
 }

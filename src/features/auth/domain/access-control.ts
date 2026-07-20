@@ -19,6 +19,11 @@ export const APP_NAVIGATION_RESOURCE = {
 export type AppNavigationResource =
     (typeof APP_NAVIGATION_RESOURCE)[keyof typeof APP_NAVIGATION_RESOURCE];
 
+export const APP_HOME_ROUTE_BY_PLATFORM_ROLE = {
+    [PLATFORM_ROLE.admin]: "/",
+    [PLATFORM_ROLE.user]: "/",
+} as const satisfies Record<PlatformRole, string>;
+
 const ADMIN_ONLY_APP_NAVIGATION_RESOURCES = new Set<AppNavigationResource>([
     APP_NAVIGATION_RESOURCE.organizations,
     APP_NAVIGATION_RESOURCE.permissions,
@@ -59,11 +64,11 @@ export function canViewAppNavigationResource(
     platformRole: PlatformRole | null | undefined,
     resource: AppNavigationResource,
 ): boolean {
-    if (!ADMIN_ONLY_APP_NAVIGATION_RESOURCES.has(resource)) {
-        return true;
+    if (ADMIN_ONLY_APP_NAVIGATION_RESOURCES.has(resource)) {
+        return isPlatformAdmin(platformRole);
     }
 
-    return isPlatformAdmin(platformRole);
+    return true;
 }
 
 export function canAccessAppRoute(
@@ -78,4 +83,8 @@ export function canManageAppResource(
     resource: AppNavigationResource,
 ): boolean {
     return ADMIN_MANAGED_APP_RESOURCES.has(resource) && isPlatformAdmin(platformRole);
+}
+
+export function getAppHomeRoute(platformRole: PlatformRole): string {
+    return APP_HOME_ROUTE_BY_PLATFORM_ROLE[platformRole];
 }

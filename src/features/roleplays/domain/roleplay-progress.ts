@@ -2,6 +2,11 @@ import {
     calculateRoleplayIndex,
     selectRoleplayIndexScorePositions,
 } from "./roleplay-index";
+import {
+    ROLEPLAY_CONSOLIDATION_THRESHOLD_PERCENT,
+    ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
+    ROLEPLAY_REINFORCEMENT_THRESHOLD_PERCENT,
+} from "./roleplay-score";
 
 export type DimensionKey = "savoir" | "savoir-faire" | "savoir-etre";
 
@@ -166,9 +171,9 @@ function progressDelta(current: number, initial: number) {
 }
 
 function scoreDiagnostic(score: number, label: string) {
-    if (score >= 80) return `${label} maîtrisé selon les résultats retenus.`;
-    if (score >= 60) return `${label} solide, à consolider pour atteindre la cible.`;
-    if (score >= 40) return `${label} à renforcer avec de nouveaux entraînements.`;
+    if (score >= ROLEPLAY_MASTERY_THRESHOLD_PERCENT) return `${label} maîtrisé selon les résultats retenus.`;
+    if (score >= ROLEPLAY_CONSOLIDATION_THRESHOLD_PERCENT) return `${label} solide, à consolider pour atteindre la cible.`;
+    if (score >= ROLEPLAY_REINFORCEMENT_THRESHOLD_PERCENT) return `${label} à renforcer avec de nouveaux entraînements.`;
     if (score > 0) return `${label} prioritaire dans les prochains entraînements.`;
     return `Aucune donnée exploitable pour ${label.toLowerCase()}.`;
 }
@@ -478,9 +483,9 @@ export function buildRoleplayProgress(input: BuildRoleplayProgressInput): Rolepl
 }
 
 export function scoreLevel(score: number): ScoreLevel {
-    if (score >= 80) return "green";
-    if (score >= 60) return "yellow";
-    if (score >= 40) return "orange";
+    if (score >= ROLEPLAY_MASTERY_THRESHOLD_PERCENT) return "green";
+    if (score >= ROLEPLAY_CONSOLIDATION_THRESHOLD_PERCENT) return "yellow";
+    if (score >= ROLEPLAY_REINFORCEMENT_THRESHOLD_PERCENT) return "orange";
     return "red";
 }
 

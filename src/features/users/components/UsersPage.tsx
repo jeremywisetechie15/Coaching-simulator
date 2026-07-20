@@ -37,6 +37,7 @@ interface UsersPageProps {
     avatarUrl: string | null;
     initials: string;
     initialUsers: UserListItem[];
+    initialInviteOpen?: boolean;
     organizations: OrganizationListItem[];
     platformRole: PlatformRole;
 }
@@ -194,14 +195,21 @@ function getInviteErrorMessage(status: number, payload: ApiErrorPayload | null) 
     return `Erreur ${status} : ${message}`;
 }
 
-export function UsersPage({ avatarUrl, initials, initialUsers, organizations, platformRole }: UsersPageProps) {
+export function UsersPage({
+    avatarUrl,
+    initials,
+    initialInviteOpen = false,
+    initialUsers,
+    organizations,
+    platformRole,
+}: UsersPageProps) {
     const queryClient = useQueryClient();
     const [query, setQuery] = useState("");
     const [statusFilter, setStatusFilter] = useState<"all" | UserStatus>("all");
     const [roleFilter, setRoleFilter] = useState<"all" | UserRole>("all");
     const [organizationFilter, setOrganizationFilter] = useState("all");
     const [groupFilter, setGroupFilter] = useState("all");
-    const [modalMode, setModalMode] = useState<"create" | null>(null);
+    const [modalMode, setModalMode] = useState<"create" | null>(initialInviteOpen ? "create" : null);
     const [formValues, setFormValues] = useState<UserInviteFormValues>(initialUserInviteFormValues);
     const [inviteError, setInviteError] = useState<string | null>(null);
     const [inviteStatus, setInviteStatus] = useState<string | null>(null);

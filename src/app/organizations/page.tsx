@@ -13,7 +13,7 @@ import { getCurrentProfile } from "@/features/profile/server";
 import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
 
 interface PageProps {
-    searchParams?: Promise<{ returnTo?: string }>;
+    searchParams?: Promise<{ create?: string; returnTo?: string }>;
 }
 
 export const metadata = {
@@ -21,7 +21,7 @@ export const metadata = {
 };
 
 export default async function Page({ searchParams }: PageProps) {
-    const { returnTo } = searchParams ? await searchParams : {};
+    const { create, returnTo } = searchParams ? await searchParams : {};
     let profile;
     let organizations: OrganizationListItem[] = [];
     let accessDenied = false;
@@ -55,6 +55,7 @@ export default async function Page({ searchParams }: PageProps) {
     return (
         <OrganizationsPage
             accessDenied={accessDenied}
+            initialCreateOpen={create === "1"}
             initialOrganizations={organizations}
             profileValues={profileValues}
         />

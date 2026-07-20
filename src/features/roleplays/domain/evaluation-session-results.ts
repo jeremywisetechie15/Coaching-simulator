@@ -1,4 +1,8 @@
 import type { Evaluation, EvaluationCriterion, EvaluationStep, StepStatus } from "@/features/roleplays/data/evaluation";
+import {
+    ROLEPLAY_CONSOLIDATION_THRESHOLD_PERCENT,
+    ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
+} from "./roleplay-score";
 
 export interface EvaluationSessionStepResult {
     coachComment: string | null;
@@ -40,8 +44,8 @@ function clampScore(value: number) {
 }
 
 function stepStatus(score: number): StepStatus {
-    if (score >= 80) return "À maintenir";
-    if (score >= 60) return "À consolider";
+    if (score >= ROLEPLAY_MASTERY_THRESHOLD_PERCENT) return "À maintenir";
+    if (score >= ROLEPLAY_CONSOLIDATION_THRESHOLD_PERCENT) return "À consolider";
     return "À renforcer";
 }
 

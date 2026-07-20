@@ -1,4 +1,8 @@
-import type { QuizAttemptAnswer, QuizDetail } from "@/features/evaluations/domain";
+import {
+    QUIZ_DEFAULT_VALIDATION_THRESHOLD,
+    type QuizAttemptAnswer,
+    type QuizDetail,
+} from "@/features/evaluations/domain";
 import { AppError } from "@/lib/server/errors";
 
 export interface QuizAttemptScoreStep {
@@ -100,7 +104,7 @@ export function scoreQuizAttempt(
     return {
         earnedPoints,
         maxPoints,
-        passed: scorePercent >= (quiz.validationThreshold ?? 70),
+        passed: scorePercent >= (quiz.validationThreshold ?? QUIZ_DEFAULT_VALIDATION_THRESHOLD),
         scorePercent,
         stepScores,
     };

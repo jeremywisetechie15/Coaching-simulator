@@ -9,6 +9,213 @@ export const uiTokens = {
         page: "bg-[#F7F8FB] px-5 py-8 text-[#111827]",
         title: "mt-6 text-[20px] font-extrabold tracking-normal text-[#111827] sm:text-[22px]",
     },
+    dashboard: {
+        page: "px-4 pb-12 md:px-6 lg:px-8",
+        container: "mx-auto max-w-[1440px] space-y-4",
+        panel:
+            "rounded-[14px] border border-[#E4E7EC] bg-white shadow-[0_1px_2px_rgba(17,24,39,0.03)]",
+        sectionTitle: "text-[14px] font-extrabold text-[#111827]",
+        header: {
+            title: "text-[24px] font-extrabold tracking-[-0.02em] text-[#111827]",
+            date: "mt-0.5 text-[12px] font-medium capitalize text-[#6B7280]",
+            primaryAction:
+                "inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#5140F0] px-4 text-[12px] font-bold text-white shadow-[0_8px_18px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0] focus-visible:ring-offset-2",
+            secondaryAction:
+                "inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#E4E7EC] bg-white px-4 text-[12px] font-semibold text-[#475467] transition hover:border-[#C9C2FB] hover:text-[#5140F0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:border-[#E4E7EC] disabled:hover:text-[#475467]",
+            periodControl:
+                "h-10 rounded-lg border border-[#E4E7EC] bg-white pl-3 pr-9 text-[12px] font-semibold text-[#667085] outline-none transition hover:border-[#C9C2FB] focus:border-[#5140F0] focus:ring-4 focus:ring-[#5140F0]/10",
+            periodIcon: "pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#98A2B3]",
+            infoIcon: "h-4 w-4 text-[#98A2B3]",
+            fetching: "text-[11px] font-semibold text-[#667085]",
+        },
+        metric: {
+            card: "min-h-[108px] rounded-[10px] border border-[#E4E7EC] bg-white p-4",
+            icon: "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]",
+            label: "min-w-0 text-[12px] font-medium leading-4 text-[#667085]",
+            value: "text-[20px] font-extrabold leading-none text-[#101828]",
+            detail: "text-[10px] font-semibold text-[#667085]",
+            trend:
+                "mt-3 inline-flex min-h-5 items-center rounded-md bg-[#DCFCE7] px-1.5 text-[9px] font-bold text-[#15803D]",
+            infoIcon: "flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold text-[#98A2B3]",
+            tone: {
+                blue: "bg-[#E8F1FF] text-[#2563EB]",
+                green: "bg-[#DCFCE7] text-[#16A34A]",
+                orange: "bg-[#FFEDD5] text-[#F97316]",
+            },
+        },
+        scoreCard: {
+            root: "rounded-[10px] border border-[#E4E7EC] bg-white p-4",
+            icon: "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]",
+            label: "text-[12px] font-medium text-[#667085]",
+            value: "mt-3 text-[20px] font-extrabold text-[#101828]",
+            trend:
+                "mt-1 inline-flex min-h-5 items-center rounded-md bg-[#DCFCE7] px-1.5 text-[9px] font-bold text-[#15803D]",
+            limited: "mt-1 inline-flex text-[9px] font-semibold text-[#667085]",
+            tone: {
+                roleplay: "bg-[#E8F1FF] text-[#2563EB]",
+                quiz: "bg-[#DDF8F4] text-[#009688]",
+            },
+        },
+        chart: {
+            grid: "stroke-[#E4E7EC]",
+            axisLabel: "fill-[#98A2B3] text-[10px] font-medium",
+            roleplay: "text-[#2563EB]",
+            quiz: "text-[#009688]",
+            legend: "flex items-center gap-1.5 text-[10px] font-medium text-[#667085]",
+            footnote: "mt-3 flex items-start gap-2 text-[9px] font-medium leading-4 text-[#667085]",
+            empty: "mt-5 flex min-h-[270px] items-center justify-center rounded-[10px] bg-[#F8F9FB] text-[12px] font-semibold text-[#667085]",
+        },
+        domain: {
+            table: "min-h-[394px] overflow-hidden rounded-[10px] border border-[#E4E7EC] bg-[#FCFCFD]",
+            header:
+                "grid grid-cols-[minmax(0,1fr)_130px] gap-3 border-b border-[#E4E7EC] bg-[#F8F9FB] px-4 py-3 text-[10px] font-extrabold uppercase tracking-[0.04em] text-[#667085]",
+            row:
+                "grid min-h-14 w-full grid-cols-[minmax(0,1fr)_130px] items-center gap-3 border-b border-[#EAECF0] px-4 text-left last:border-b-0",
+            childRow:
+                "grid min-h-14 grid-cols-[minmax(0,1fr)_130px] items-center gap-3 border-b border-[#EAECF0] bg-white px-4 text-left last:border-b-0",
+            label: "truncate text-[11px] font-bold text-[#344054]",
+            childLabel: "truncate text-[10px] font-semibold text-[#344054]",
+            chevron: "h-4 w-4 text-[#667085] transition-transform",
+            empty: "px-4 py-10 text-center text-[12px] font-semibold text-[#667085]",
+            score:
+                "inline-flex h-7 min-w-[78px] items-center justify-center rounded-lg border border-[#00A995] bg-[#E4FAF4] px-3 text-[11px] font-extrabold text-[#047C70]",
+        },
+        activityList: {
+            tab:
+                "inline-flex h-7 min-w-[94px] items-center justify-center rounded-md border px-3 text-[10px] font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0] focus-visible:ring-offset-2",
+            tabActive: "border-[#5140F0] bg-[#5140F0] text-white",
+            tabIdle: "border-[#E4E7EC] bg-white text-[#344054] hover:border-[#C9C2FB] hover:text-[#5140F0]",
+            list: "mt-3 overflow-hidden rounded-[14px] border border-[#E4E7EC] bg-white px-4",
+            row: "flex min-h-[94px] items-center gap-4 border-b border-[#F0F1F3] py-3 last:border-b-0",
+            avatar: "h-12 w-12 shrink-0 rounded-full border border-[#E4E7EC] bg-[#F2F4F7] bg-cover bg-center",
+            quizIcon: "flex h-12 w-12 shrink-0 items-center justify-center rounded-lg bg-[#E8F1FF] text-[#5140F0]",
+            badge: "inline-flex h-5 items-center rounded-md bg-[#F3E8FD] px-2 text-[9px] font-bold text-[#8B2FD6]",
+            statusBadge: "inline-flex h-5 items-center rounded-md bg-[#F2F4F7] px-2 text-[9px] font-bold text-[#475467]",
+            title: "truncate text-[12px] font-extrabold text-[#101828]",
+            meta: "mt-1 flex flex-wrap items-center gap-3 text-[10px] font-semibold text-[#667085]",
+            metaIcon: "h-3.5 w-3.5 text-[#98A2B3]",
+            subtitle: "mt-1 truncate text-[11px] font-bold text-[#101828]",
+            score:
+                "inline-flex h-8 min-w-[78px] items-center justify-center rounded-lg bg-[#D8F8E8] px-3 text-[12px] font-extrabold text-[#047857]",
+            scoreRetry: "bg-[#FFF0E3] text-[#C2410C]",
+            action:
+                "inline-flex h-10 min-w-[104px] items-center justify-center gap-2 rounded-lg bg-[#5140F0] px-4 text-[11px] font-bold text-white transition hover:bg-[#4635E7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0] focus-visible:ring-offset-2",
+            empty: "py-10 text-center text-[12px] font-semibold text-[#667085]",
+            viewAll: "text-[11px] font-bold text-[#5140F0] transition hover:text-[#4635E7] hover:underline",
+        },
+        state: {
+            error:
+                "rounded-[14px] border border-[#FECACA] bg-white px-6 py-10 text-center shadow-[0_1px_2px_rgba(17,24,39,0.03)]",
+            errorIcon: "mx-auto flex h-11 w-11 items-center justify-center rounded-xl bg-[#FEF2F2] text-[#DC2626]",
+            errorText: "mx-auto mt-3 max-w-[520px] text-[13px] font-medium leading-5 text-[#667085]",
+            retry:
+                "mt-5 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#5140F0] px-4 text-[12px] font-bold text-white transition hover:bg-[#4635E7]",
+            skeleton: "animate-pulse rounded-[10px] border border-[#E4E7EC] bg-[#F8F9FB]",
+        },
+    },
+    adminDashboard: {
+        page: "px-4 pb-14 md:px-6 lg:px-8",
+        container: "mx-auto max-w-[1460px] space-y-3.5",
+        panel:
+            "rounded-[13px] border border-[#E1E5EF] bg-white shadow-[0_1px_2px_rgba(24,32,95,0.025)]",
+        sectionTitle: "text-[14px] font-extrabold tracking-[-0.01em] text-[#111A64]",
+        sectionSubtitle: "mt-0.5 text-[11px] font-medium text-[#52608A]",
+        header: {
+            title: "text-[25px] font-extrabold tracking-[-0.025em] text-[#111A64]",
+            subtitle: "mt-1 text-[12px] font-medium text-[#3447B8]",
+            controls: "flex flex-wrap items-center gap-2.5",
+            button:
+                "inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#DDE2ED] bg-white px-3.5 text-[11px] font-bold text-[#18205E] transition hover:border-[#BFC7DC] hover:bg-[#FAFBFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B32FF] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60",
+            select:
+                "!h-10 min-w-[174px] !rounded-lg !border !border-[#DDE2ED] !bg-white !pl-9 !pr-9 !text-[11px] !font-bold !text-[#18205E] !shadow-none !outline-none transition hover:!border-[#BFC7DC] focus:!border-[#4B32FF] focus:!ring-4 focus:!ring-[#4B32FF]/10",
+            selectIcon: "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4B32FF]",
+            chevron: "pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4B32FF]",
+        },
+        metric: {
+            card: "min-h-[112px] rounded-[11px] border border-[#E1E5EF] bg-white p-4",
+            icon: "flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]",
+            label: "text-[11px] font-extrabold leading-4 text-[#111A64]",
+            value: "mt-3 text-center text-[23px] font-extrabold leading-none text-[#111A64]",
+            detail: "mt-2 text-center text-[9px] font-semibold text-[#52608A]",
+            tone: {
+                blue: "bg-[#E7F0FF] text-[#2563EB]",
+                green: "bg-[#E7F8ED] text-[#16A34A]",
+                orange: "bg-[#FFF0E6] text-[#F97316]",
+                purple: "bg-[#F0EBFF] text-[#5B34FF]",
+                red: "bg-[#FFF0EC] text-[#FF4B2B]",
+            },
+        },
+        mockBadge:
+            "inline-flex h-5 items-center gap-1 rounded-full border border-[#F5D08A] bg-[#FFF8E8] px-2 text-[8px] font-extrabold uppercase tracking-[0.04em] text-[#A86100]",
+        periodTabs: {
+            root: "inline-flex overflow-hidden rounded-lg border border-[#DDE2ED] bg-white",
+            button:
+                "h-8 min-w-14 px-3 text-[10px] font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#4B32FF]",
+            active: "bg-[#4B32FF] text-white",
+            idle: "text-[#46548B] hover:bg-[#F6F7FF] hover:text-[#4B32FF]",
+        },
+        chart: {
+            grid: "stroke-[#E7EAF2]",
+            axisLabel: "fill-[#61709E] text-[9px] font-medium",
+            roleplays: "text-[#FF4B1F]",
+            quizzes: "text-[#16A34A]",
+            legend: "flex items-center gap-2 text-[10px] font-medium text-[#46548B]",
+            footnote: "mt-1 flex items-center gap-2 text-[9px] font-medium text-[#61709E]",
+            empty: "flex min-h-[230px] items-center justify-center text-[11px] font-semibold text-[#61709E]",
+        },
+        quickAction: {
+            row:
+                "flex min-h-9 items-center gap-3 rounded-lg border border-[#E1E5EF] bg-white px-3 text-[10px] font-bold text-[#111A64] transition hover:border-[#C9C1FF] hover:bg-[#FAF9FF] hover:text-[#4B32FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B32FF] focus-visible:ring-offset-1",
+            icon: "flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
+            chevron: "ml-auto h-4 w-4 text-[#4B32FF]",
+        },
+        ai: {
+            section: "rounded-[13px] border border-[#E1E5EF] bg-white p-4",
+            overview: "rounded-[11px] border border-[#E1E5EF] bg-[#FDFDFF] p-4",
+            overviewCard: "min-h-[118px] rounded-[11px] border border-[#E1E5EF] bg-white p-4",
+            overviewValue: "mt-4 text-center text-[24px] font-extrabold leading-none text-[#111A64]",
+            table: "overflow-hidden rounded-[11px] border border-[#E1E5EF] bg-white",
+            header:
+                "grid grid-cols-[minmax(130px,1.2fr)_0.65fr_0.65fr_0.65fr_1fr] gap-3 border-b border-[#E1E5EF] bg-[#FBFCFF] px-3 py-2 text-[8px] font-extrabold uppercase tracking-[0.035em] text-[#52608A]",
+            row:
+                "grid min-h-10 grid-cols-[minmax(130px,1.2fr)_0.65fr_0.65fr_0.65fr_1fr] items-center gap-3 border-b border-[#EEF0F5] px-3 text-[10px] font-semibold text-[#111A64] last:border-b-0",
+            progressTrack: "h-1.5 overflow-hidden rounded-full bg-[#E4E7EC]",
+            progress: {
+                safe: "h-full rounded-full bg-[#16A34A]",
+                warning: "h-full rounded-full bg-[#F59E0B]",
+                danger: "h-full rounded-full bg-[#EF4444]",
+            },
+        },
+        table: {
+            root: "overflow-hidden rounded-[11px] border border-[#E1E5EF] bg-white",
+            header:
+                "grid min-h-8 items-center gap-3 border-b border-[#E1E5EF] bg-[#FBFCFF] px-3 text-[8px] font-extrabold uppercase tracking-[0.035em] text-[#52608A]",
+            row:
+                "grid min-h-10 items-center gap-3 border-b border-[#EEF0F5] px-3 text-[10px] font-semibold text-[#111A64] last:border-b-0",
+            rank: "flex h-5 w-5 items-center justify-center rounded-md bg-[#F0EBFF] text-[9px] font-extrabold text-[#5B34FF]",
+            scoreGood: "inline-flex min-w-[48px] justify-center rounded-md bg-[#E5F8EA] px-2 py-1 text-[9px] font-extrabold text-[#16813A]",
+            scoreWarning: "inline-flex min-w-[48px] justify-center rounded-md bg-[#FFF0E2] px-2 py-1 text-[9px] font-extrabold text-[#D26000]",
+            empty: "flex min-h-32 items-center justify-center px-4 text-center text-[10px] font-semibold text-[#61709E]",
+            link: "truncate font-bold text-[#111A64] transition hover:text-[#4B32FF] hover:underline",
+            meta: "truncate text-[#52608A]",
+        },
+        status: {
+            published: "inline-flex whitespace-nowrap justify-center rounded-md bg-[#E5F8EA] px-2 py-1 text-[9px] font-extrabold text-[#16813A]",
+            draft: "inline-flex whitespace-nowrap justify-center rounded-md bg-[#FFF0EC] px-2 py-1 text-[9px] font-extrabold text-[#E44324]",
+        },
+        recentActivity: {
+            row: "grid min-h-9 grid-cols-[minmax(0,1.7fr)_0.65fr_0.45fr_auto] items-center gap-3 border-b border-[#EEF0F5] px-3 text-[10px] text-[#111A64] last:border-b-0",
+            icon: "flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
+            date: "text-right text-[9px] font-semibold text-[#61709E]",
+            detail: "font-semibold text-[#46548B]",
+            link: "flex min-w-0 items-center gap-3 font-semibold transition hover:text-[#4B32FF]",
+        },
+        state: {
+            skeleton: "animate-pulse rounded-[11px] border border-[#E1E5EF] bg-[#F7F8FC]",
+            error: "rounded-[13px] border border-[#FECACA] bg-white px-6 py-10 text-center",
+            errorText: "mt-2 text-[12px] font-medium text-[#667085]",
+        },
+    },
     badge: {
         stepNumber:
             "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#5140F0] text-[13px] font-bold text-white",

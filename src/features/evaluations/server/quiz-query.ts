@@ -19,6 +19,7 @@ import {
     QUIZ_STEP_COMPETENCY_SELECT,
     QUIZ_STEP_SELECT,
 } from "./quiz.persistence";
+import { fetchQuizQuestionCounts } from "./quiz-question-counts";
 
 async function withMethodNames(supabase: SupabaseClient, rows: QuizRow[]) {
     const methodIds = Array.from(
@@ -64,41 +65,7 @@ export async function fetchQuizList(supabase: SupabaseClient): Promise<QuizListI
 
     const quizRows = await withMethodNames(supabase, (rows ?? []) as QuizRow[]);
     const quizIds = quizRows.map((row) => row.id);
-    const stepIdToQuizId = new Map<string, string>();
-    const questionCountByQuizId = new Map<string, number>();
-
-    if (quizIds.length > 0) {
-        const { data: stepRows, error: stepError } = await supabase
-            .from("quiz_steps")
-            .select("id, quiz_id")
-            .in("quiz_id", quizIds);
-
-        if (stepError) {
-            throw stepError;
-        }
-
-        for (const step of (stepRows ?? []) as Array<{ id: string; quiz_id: string }>) {
-            stepIdToQuizId.set(step.id, step.quiz_id);
-        }
-    }
-
-    const stepIds = Array.from(stepIdToQuizId.keys());
-    if (stepIds.length > 0) {
-        const { data: questionRows, error: questionError } = await supabase
-            .from("quiz_questions")
-            .select("step_id")
-            .in("step_id", stepIds);
-
-        if (questionError) {
-            throw questionError;
-        }
-
-        for (const question of (questionRows ?? []) as Array<{ step_id: string }>) {
-            const quizId = stepIdToQuizId.get(question.step_id);
-            if (!quizId) continue;
-            questionCountByQuizId.set(quizId, (questionCountByQuizId.get(quizId) ?? 0) + 1);
-        }
-    }
+    const questionCountByQuizId = await fetchQuizQuestionCounts(supabase, quizIds);
 
     return quizRows.map((row) => mapQuizRowToListItem(row, questionCountByQuizId.get(row.id) ?? 0));
 }

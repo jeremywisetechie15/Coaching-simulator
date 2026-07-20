@@ -117,12 +117,16 @@ function mapValidationIssuesToFieldErrors(issues: ApiValidationIssue[] | undefin
 }
 
 interface OrganizationsPageContentProps {
+    initialCreateOpen?: boolean;
     initialOrganizations: OrganizationListItem[];
 }
 
-export function OrganizationsPageContent({ initialOrganizations }: OrganizationsPageContentProps) {
+export function OrganizationsPageContent({
+    initialCreateOpen = false,
+    initialOrganizations,
+}: OrganizationsPageContentProps) {
     const queryClient = useQueryClient();
-    const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [isCreateModalOpen, setIsCreateModalOpen] = useState(initialCreateOpen);
     const [createFieldErrors, setCreateFieldErrors] = useState<CreateOrganizationFieldErrors>({});
     const [createFormError, setCreateFormError] = useState<string | null>(null);
     const [createFormValues, setCreateFormValues] = useState(initialCreateOrganizationFormValues);

@@ -23,6 +23,7 @@ import {
 import { ContextualBackLink, useContextualReturnHref } from "@/features/app-shell/components";
 import {
     EVALUATION_ROUTES,
+    QUIZ_DEFAULT_VALIDATION_THRESHOLD,
     QUIZ_KIND,
     QUIZ_DIMENSION_LABELS,
     QUIZ_DIMENSIONS,
@@ -249,7 +250,7 @@ export function EvaluationQuizPageContent({
     const completedAttempt = attempt?.status === "completed" ? attempt : null;
     const resultScore = completedAttempt?.scorePercent ?? clientScore.score;
     const resultPassed = completedAttempt?.passed ?? clientScore.passed;
-    const threshold = quiz.validationThreshold ?? 70;
+    const threshold = quiz.validationThreshold ?? QUIZ_DEFAULT_VALIDATION_THRESHOLD;
     const current = flatQuestions[currentIndex];
     const reviewing = mode === "review";
     const attemptStatus = attemptError

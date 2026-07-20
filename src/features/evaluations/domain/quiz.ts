@@ -8,6 +8,8 @@ import {
 } from "@/features/content/domain";
 import type { MethodSelectionOption } from "@/features/methods/domain/method";
 
+export const QUIZ_DEFAULT_VALIDATION_THRESHOLD = 70;
+
 export const QUIZ_KIND = {
     contextual: "contextual",
     methodKnowledge: "method_knowledge",
@@ -300,7 +302,7 @@ export function scoreQuizAnswers(
               : 0;
 
     return {
-        passed: score >= (quiz.validationThreshold ?? 70),
+        passed: score >= (quiz.validationThreshold ?? QUIZ_DEFAULT_VALIDATION_THRESHOLD),
         score,
         sections,
         totalEarnedPoints,

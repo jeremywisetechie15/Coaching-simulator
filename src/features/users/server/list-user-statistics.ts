@@ -6,11 +6,14 @@ import type {
     UserStatistics,
 } from "@/features/users/domain/users";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS } from "@/features/roleplays/domain";
+import {
+    MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
+    ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
+} from "@/features/roleplays/domain";
 import { extractAssignmentScore, normalizeAssignmentScore } from "./user-assignment-visibility";
 import { getWeightedProgressScore } from "./user-progress-score";
 
-const DEFAULT_TARGET_SCORE = 80;
+const DEFAULT_TARGET_SCORE = ROLEPLAY_MASTERY_THRESHOLD_PERCENT;
 
 interface UserSessionStatsRow {
     created_at: string | null;
