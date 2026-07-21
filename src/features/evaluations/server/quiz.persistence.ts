@@ -1,7 +1,7 @@
 import type { SaveQuizDto } from "@/features/evaluations/dto/save-quiz.dto";
 
 export const QUIZ_SELECT =
-    "id, title, description, quiz_kind, quiz_type, domain, category, method_id, duration_minutes, validation_threshold, max_attempts, tags, visibility_scope, organization_id, group_id, assigned_user_id, participation, status, is_active, created_by, created_at, updated_at";
+    "id, title, description, quiz_kind, quiz_type, domain, categories, method_id, duration_minutes, validation_threshold, max_attempts, tags, visibility_scope, organization_id, group_id, assigned_user_id, participation, status, is_active, created_by, created_at, updated_at";
 
 export const QUIZ_STEP_SELECT =
     "id, quiz_id, method_step_id, step_order, name, weight";
@@ -26,7 +26,7 @@ export function nullableText(value: string | null | undefined) {
 function createQuizBasePayload(input: SaveQuizDto) {
     return {
         assigned_user_id: input.scope === "user" ? input.assignedUserId : null,
-        category: nullableText(input.category),
+        categories: input.domain ? input.categories : [],
         description: nullableText(input.description),
         domain: nullableText(input.domain),
         duration_minutes: input.durationMinutes,

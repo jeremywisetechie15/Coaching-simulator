@@ -16,7 +16,7 @@ export async function duplicateQuiz(quizId: string) {
     });
     const input: SaveQuizDto = {
         assignedUserId: null,
-        category: source.category,
+        categories: source.categories,
         description: source.description,
         domain: source.domain,
         durationMinutes: source.durationMinutes,

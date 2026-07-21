@@ -31,7 +31,7 @@ function methodWithSteps(steps: QuizMethodOption["steps"]): QuizMethodOption {
 function quizDetail(maxAttempts: number | null): QuizDetail {
     return {
         assignedUserId: null,
-        category: "",
+        categories: [],
         createdAt: null,
         description: "Quiz",
         domain: "",
@@ -60,7 +60,7 @@ function quizDetail(maxAttempts: number | null): QuizDetail {
 function quizForm(maxAttempts: string | null): QuizFormState {
     return {
         assignedUserId: "",
-        category: null,
+        categories: [],
         description: "",
         domain: null,
         durationMinutes: "30",
@@ -200,11 +200,18 @@ describe("toSaveQuizInput", () => {
         expect(toSaveQuizInput(form, CONTENT_STATUS.draft).title).toBe("Nouveau titre du quiz");
     });
 
+    it("clears categories when the quiz has no domain", () => {
+        const form = quizForm("3");
+        form.categories = ["Prospection"];
+
+        expect(toSaveQuizInput(form, CONTENT_STATUS.draft).categories).toEqual([]);
+    });
+
     it("keeps the selected DB dimension item id in quiz questions", () => {
         const dimensionItemId = "55555555-5555-4555-8555-555555555555";
         const form: QuizFormState = {
             assignedUserId: "",
-            category: "Prospection",
+            categories: ["Prospection"],
             description: "Quiz",
             domain: "Commercial",
             durationMinutes: "30",
@@ -256,7 +263,7 @@ describe("toSaveQuizInput", () => {
     it("keeps file attachments as client file references until server submit materializes them", () => {
         const form: QuizFormState = {
             assignedUserId: "",
-            category: "Prospection",
+            categories: ["Prospection"],
             description: "Quiz",
             domain: "Commercial",
             durationMinutes: "30",

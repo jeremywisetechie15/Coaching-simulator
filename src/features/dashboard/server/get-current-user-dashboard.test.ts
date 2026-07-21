@@ -45,7 +45,7 @@ function queryResult(table: string) {
     if (table === "quizzes") {
         return {
             data: [{
-                category: "Vente",
+                categories: ["Vente", "Prospection"],
                 domain: "Commercial",
                 duration_minutes: 10,
                 id: "quiz-1",

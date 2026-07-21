@@ -198,7 +198,7 @@ export interface QuizStep {
 }
 
 export interface QuizListItem {
-    category: string;
+    categories: string[];
     description: string;
     domain: string;
     durationMinutes: number;

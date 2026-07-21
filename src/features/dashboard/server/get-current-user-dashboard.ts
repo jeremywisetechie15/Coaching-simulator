@@ -31,7 +31,7 @@ interface ScenarioRow {
 }
 
 interface QuizRow {
-    category: string | null;
+    categories: string[] | null;
     domain: string | null;
     duration_minutes: number | null;
     id: string;
@@ -114,7 +114,7 @@ export async function getCurrentUserDashboard(
             .returns<ScenarioRow[]>(),
         supabase
             .from("quizzes")
-            .select("id, title, domain, category, duration_minutes, validation_threshold, max_attempts")
+            .select("id, title, domain, categories, duration_minutes, validation_threshold, max_attempts")
             .eq("status", "published")
             .eq("is_active", true)
             .order("title", { ascending: true })
@@ -196,7 +196,7 @@ export async function getCurrentUserDashboard(
     });
     const dashboardQuizzes: DashboardQuizRecord[] = quizzes.map((quiz) => ({
         assignedAt: quizAssignmentDates.get(quiz.id) ?? userCreatedAt,
-        category: quiz.category,
+        categories: quiz.categories ?? [],
         domain: quiz.domain,
         durationMinutes: quiz.duration_minutes,
         id: quiz.id,

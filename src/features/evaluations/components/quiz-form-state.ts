@@ -22,7 +22,10 @@ import {
     inferContentUploadResourceType,
 } from "@/lib/uploads/content-upload";
 
-export const domainOptions = [...CONTENT_DOMAINS];
+export const domainOptions = [
+    { label: "Non affecté", value: "" },
+    ...CONTENT_DOMAINS.map((domain) => ({ label: domain, value: domain })),
+];
 
 export const DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE = String(DEFAULT_QUIZ_MAX_ATTEMPTS);
 
@@ -84,7 +87,7 @@ export interface QuizStepFormState {
 
 export interface QuizFormState {
     assignedUserId: string;
-    category: string | null;
+    categories: string[];
     description: string;
     domain: string | null;
     durationMinutes: string;
@@ -244,7 +247,7 @@ export function quizToFormState(
     if (!quiz) {
         return {
             assignedUserId: "",
-            category: null,
+            categories: [],
             description: "",
             domain: null,
             durationMinutes: "30",
@@ -281,7 +284,7 @@ export function quizToFormState(
 
     return {
         assignedUserId,
-        category: textOrNull(quiz.category),
+        categories: quiz.domain ? cleanList(quiz.categories) : [],
         description: quiz.description,
         domain: textOrNull(quiz.domain),
         durationMinutes: String(quiz.durationMinutes),
@@ -344,7 +347,7 @@ export function quizToFormState(
 export function toSaveQuizInput(form: QuizFormState, status: ContentStatus): SaveQuizInput {
     return {
         assignedUserId: form.scope === "user" ? textOrNull(form.assignedUserId) : null,
-        category: form.category ?? "",
+        categories: form.domain ? cleanList(form.categories) : [],
         description: form.description,
         domain: form.domain ?? "",
         durationMinutes: integerFromText(form.durationMinutes, 30),

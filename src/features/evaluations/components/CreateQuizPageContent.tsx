@@ -506,27 +506,50 @@ export function CreateQuizPageContent({
                                 />
                             </Box>
                             <Box>
-                                <FieldLabel className={uiTokens.form.label}>Domaines</FieldLabel>
+                                <FieldLabel className={uiTokens.form.label}>Domaine (optionnel)</FieldLabel>
                                 <SingleSelectField
                                     options={domainOptions}
                                     value={form.domain}
-                                    placeholder="Sélectionner un domaine"
+                                    placeholder="Non affecté"
                                     onChange={(value) =>
-                                        setForm((current) => ({ ...current, category: null, domain: value }))
+                                        setForm((current) => ({
+                                            ...current,
+                                            categories: [],
+                                            domain: value || null,
+                                        }))
                                     }
                                 />
                             </Box>
                             <Box>
-                                <FieldLabel className={uiTokens.form.label}>Catégorie</FieldLabel>
-                                <SingleSelectField
-                                    disabled={!form.domain}
-                                    options={[...getCategoriesForDomain(form.domain)]}
-                                    value={form.category}
-                                    placeholder={
-                                        form.domain ? "Sélectionner une catégorie" : "Sélectionnez d'abord un domaine"
-                                    }
-                                    onChange={(value) => patch("category", value)}
-                                />
+                                <FieldLabel className={uiTokens.form.label}>Catégories (optionnel)</FieldLabel>
+                                {form.domain ? (
+                                    <SearchableMultiSelectField
+                                        options={getCategoriesForDomain(form.domain).map((category) => ({
+                                            label: category,
+                                            value: category,
+                                        }))}
+                                        selectedValues={form.categories}
+                                        addLabel="Ajouter une catégorie"
+                                        searchPlaceholder="Rechercher une catégorie..."
+                                        emptyHint="Toutes les catégories sont sélectionnées"
+                                        onAdd={(value) =>
+                                            setForm((current) => ({
+                                                ...current,
+                                                categories: [...current.categories, value],
+                                            }))
+                                        }
+                                        onRemove={(value) =>
+                                            setForm((current) => ({
+                                                ...current,
+                                                categories: current.categories.filter((category) => category !== value),
+                                            }))
+                                        }
+                                    />
+                                ) : (
+                                    <Text className={cn("text-[13px]", uiTokens.text.muted)}>
+                                        Sélectionnez un domaine pour ajouter des catégories.
+                                    </Text>
+                                )}
                             </Box>
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Méthode associée</FieldLabel>

@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { CONTENT_STATUSES } from "@/features/content/domain";
+import {
+    CONTENT_STATUSES,
+    isContentCategoryForDomain,
+    isContentDomain,
+} from "@/features/content/domain";
 import {
     QUIZ_ATTACHMENT_TYPES,
     QUIZ_DIMENSIONS,
@@ -10,11 +14,16 @@ import {
     QUIZ_VISIBILITY_SCOPES,
 } from "@/features/evaluations/domain/quiz";
 
-const textArrayDto = z
-    .array(z.string().trim().max(120, "Un tag est trop long."))
-    .optional()
-    .default([])
-    .transform((items) => Array.from(new Set(items.filter((item) => item.length > 0))));
+function uniqueTextArrayDto(tooLongMessage: string) {
+    return z
+        .array(z.string().trim().max(120, tooLongMessage))
+        .optional()
+        .default([])
+        .transform((items) => Array.from(new Set(items.filter((item) => item.length > 0))));
+}
+
+const textArrayDto = uniqueTextArrayDto("Une valeur est trop longue.");
+const categoryArrayDto = uniqueTextArrayDto("Une catégorie est trop longue.");
 
 const attachmentDto = z
     .object({
@@ -111,7 +120,7 @@ const stepDto = z
 export const saveQuizDto = z
     .object({
         assignedUserId: z.string().uuid("L'utilisateur sélectionné est invalide.").nullable().optional().default(null),
-        category: z.string().trim().max(120, "La catégorie est trop longue.").optional().default(""),
+        categories: categoryArrayDto,
         description: z.string().trim().max(4000, "La description est trop longue.").optional().default(""),
         domain: z.string().trim().max(120, "Le domaine est trop long.").optional().default(""),
         durationMinutes: z
@@ -149,6 +158,30 @@ export const saveQuizDto = z
     })
     .strict()
     .superRefine((quiz, ctx) => {
+        if (quiz.domain && !isContentDomain(quiz.domain)) {
+            ctx.addIssue({
+                code: "custom",
+                message: "Le domaine sélectionné est invalide.",
+                path: ["domain"],
+            });
+        } else if (!quiz.domain && quiz.categories.length > 0) {
+            ctx.addIssue({
+                code: "custom",
+                message: "Sélectionnez un domaine avant d'ajouter des catégories.",
+                path: ["categories"],
+            });
+        } else {
+            quiz.categories.forEach((category, categoryIndex) => {
+                if (!isContentCategoryForDomain(quiz.domain, category)) {
+                    ctx.addIssue({
+                        code: "custom",
+                        message: `La catégorie « ${category} » n'appartient pas au domaine sélectionné.`,
+                        path: ["categories", categoryIndex],
+                    });
+                }
+            });
+        }
+
         if (quiz.quizKind === "method_knowledge" && !quiz.methodId) {
             ctx.addIssue({
                 code: "custom",

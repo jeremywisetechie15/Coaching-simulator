@@ -29,7 +29,7 @@ import {
 
 export interface QuizRow {
     assigned_user_id?: string | null;
-    category?: string | null;
+    categories?: string[] | null;
     created_at?: string | null;
     description?: string | null;
     domain?: string | null;
@@ -137,7 +137,7 @@ function normalizeAttachmentType(value: string | null | undefined): QuizAttachme
 
 export function mapQuizRowToListItem(row: QuizRow, questionCount = 0): QuizListItem {
     return {
-        category: row.category ?? "",
+        categories: cleanArray(row.categories),
         description: row.description ?? "",
         domain: row.domain ?? "",
         durationMinutes: row.duration_minutes ?? 30,

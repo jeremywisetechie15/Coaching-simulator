@@ -10,7 +10,7 @@ const groupId = "44444444-4444-4444-8444-444444444444";
 
 function publishedQuiz(overrides: Partial<SaveQuizInput> = {}): SaveQuizInput {
     return {
-        category: "Prospection",
+        categories: ["Prospection"],
         description: "Vérifier la connaissance de la méthode.",
         domain: "Commercial",
         durationMinutes: 30,
@@ -52,6 +52,7 @@ describe("saveQuizDto", () => {
     it("accepts a minimal contextual draft", () => {
         const result = saveQuizDto.parse({ title: "Quiz brouillon" });
 
+        expect(result.categories).toEqual([]);
         expect(result.maxAttempts).toBe(3);
         expect(result.status).toBe(CONTENT_STATUS.draft);
         expect(result.quizKind).toBe(QUIZ_KIND.contextual);
@@ -60,6 +61,57 @@ describe("saveQuizDto", () => {
         expect(result.groupId).toBeNull();
         expect(result.assignedUserId).toBeNull();
         expect(result.steps).toEqual([]);
+    });
+
+    it("accepts a published quiz without a domain or categories", () => {
+        const result = saveQuizDto.parse(publishedQuiz({ categories: [], domain: "" }));
+
+        expect(result.domain).toBe("");
+        expect(result.categories).toEqual([]);
+    });
+
+    it("accepts multiple categories from the selected domain", () => {
+        const result = saveQuizDto.parse(
+            publishedQuiz({ categories: ["Prospection", "Vente"] }),
+        );
+
+        expect(result.categories).toEqual(["Prospection", "Vente"]);
+    });
+
+    it("accepts a domain without categories", () => {
+        const result = saveQuizDto.parse(
+            publishedQuiz({ categories: [], domain: "Commercial" }),
+        );
+
+        expect(result.domain).toBe("Commercial");
+        expect(result.categories).toEqual([]);
+    });
+
+    it("rejects a domain outside the shared taxonomy", () => {
+        const result = saveQuizDto.safeParse(
+            publishedQuiz({ categories: [], domain: "Domaine inconnu" }),
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain("domain");
+    });
+
+    it("rejects categories without a domain", () => {
+        const result = saveQuizDto.safeParse(
+            publishedQuiz({ categories: ["Prospection"], domain: "" }),
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain("categories");
+    });
+
+    it("rejects a category from another domain", () => {
+        const result = saveQuizDto.safeParse(
+            publishedQuiz({ categories: ["Feedback"], domain: "Commercial" }),
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain("categories.0");
     });
 
     it("accepts unlimited attempts", () => {

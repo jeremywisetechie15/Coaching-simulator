@@ -35,7 +35,7 @@ export interface DashboardScenarioRecord {
 
 export interface DashboardQuizRecord {
     assignedAt: string | null;
-    category: string | null;
+    categories: string[];
     domain: string | null;
     durationMinutes: number | null;
     id: string;
@@ -236,6 +236,10 @@ function sortByDateDescending<T>(items: T[], getDate: (item: T) => string | null
 
 function dashboardCategory(category: string | null, domain: string | null, fallback: string) {
     return category?.trim() || domain?.trim() || fallback;
+}
+
+function dashboardQuizCategory(categories: string[], domain: string | null) {
+    return categories.length > 0 ? categories.join(", ") : dashboardCategory(null, domain, "Non affecté");
 }
 
 function buildScorePointsFromRoleplays(sessions: DashboardRoleplaySessionRecord[]): ScorePoint[] {
@@ -514,7 +518,7 @@ function buildQuizCollection(
         return [{
             actionLabel: "Voir le résultat",
             attemptsRemaining,
-            category: dashboardCategory(quiz.category, quiz.domain, "Quiz"),
+            category: dashboardQuizCategory(quiz.categories, quiz.domain),
             date: formatLongDate(attempt.completedAt, "Date indisponible"),
             href: EVALUATION_ROUTES.app.results(quiz.id),
             id: quiz.id,
@@ -541,7 +545,7 @@ function buildQuizCollection(
                 quiz.maxAttempts,
                 completedAttemptCountByQuizId.get(quiz.id) ?? 0,
             ),
-            category: dashboardCategory(quiz.category, quiz.domain, "Quiz"),
+            category: dashboardQuizCategory(quiz.categories, quiz.domain),
             date: formatLongDate(quiz.assignedAt, "Assignation récente"),
             href: EVALUATION_ROUTES.app.quiz(quiz.id),
             id: quiz.id,
@@ -569,7 +573,7 @@ function buildQuizCollection(
         return {
             actionLabel: attemptsExhausted ? "Voir le résultat" : "Retenter",
             attemptsRemaining,
-            category: dashboardCategory(quiz.category, quiz.domain, "Quiz"),
+            category: dashboardQuizCategory(quiz.categories, quiz.domain),
             date: attemptsExhausted ? "Tentatives épuisées" : `Score cible : ${threshold}%`,
             href: attemptsExhausted
                 ? EVALUATION_ROUTES.app.results(quiz.id)

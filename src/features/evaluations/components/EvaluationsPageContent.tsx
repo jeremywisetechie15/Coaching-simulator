@@ -14,7 +14,6 @@ import {
 import { withReturnTo, withSearchParams } from "@/features/app-shell/domain";
 import {
     EVALUATION_ROUTES,
-    getQuizKindLabel,
     getQuizStatusLabel,
     getQuizTypeLabel,
     type QuizListItem,
@@ -98,12 +97,12 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
         return quizzes.filter((quiz) => {
             const matchesTerm =
                 !term ||
-                [quiz.title, quiz.description, quiz.domain, quiz.category, quiz.methodName ?? "", ...quiz.tags]
+                [quiz.title, quiz.description, quiz.domain, ...quiz.categories, quiz.methodName ?? "", ...quiz.tags]
                     .join(" ")
                     .toLowerCase()
                     .includes(term);
             const matchesDomain = domain === "all" || quiz.domain === domain;
-            const matchesCategory = category === "all" || quiz.category === category;
+            const matchesCategory = category === "all" || quiz.categories.includes(category);
             const matchesType = type === "all" || getQuizTypeLabel(quiz.type) === type;
 
             return matchesTerm && matchesDomain && matchesCategory && matchesType;
@@ -281,7 +280,11 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                             )}
 
                             <Box className="flex flex-wrap items-center gap-2 pr-8">
-                                <Badge>{quiz.category || getQuizKindLabel(quiz.kind)}</Badge>
+                                {quiz.categories.length > 0 ? (
+                                    quiz.categories.map((category) => <Badge key={category}>{category}</Badge>)
+                                ) : (
+                                    <Badge>{quiz.domain || "Non affecté"}</Badge>
+                                )}
                                 <Badge tone="purple">{getQuizTypeLabel(quiz.type)}</Badge>
                                 <Badge tone={quiz.status === "published" ? "green" : "gray"}>{getQuizStatusLabel(quiz.status)}</Badge>
                             </Box>

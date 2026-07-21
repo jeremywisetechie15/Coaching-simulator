@@ -49,9 +49,9 @@ describe("dashboard calculations", () => {
                 { createdAt: "2026-07-17T10:00:00.000Z", durationSeconds: 300, id: "session-b1", scenarioId: "scenario-b", scorePercent: 60 },
             ],
             quizzes: [
-                { assignedAt: "2026-06-01T10:00:00.000Z", category: "Vente", domain: "Commercial", durationMinutes: 10, id: "quiz-a", maxAttempts: 3, questionCount: 5, title: "Quiz A", validationThreshold: 70 },
-                { assignedAt: "2026-06-01T10:00:00.000Z", category: "Vente", domain: "Commercial", durationMinutes: 10, id: "quiz-b", maxAttempts: null, questionCount: 7, title: "Quiz B", validationThreshold: 70 },
-                { assignedAt: "2026-07-18T10:00:00.000Z", category: "Feedback", domain: "Management", durationMinutes: 10, id: "quiz-c", maxAttempts: 3, questionCount: 9, title: "Quiz C", validationThreshold: 70 },
+                { assignedAt: "2026-06-01T10:00:00.000Z", categories: ["Vente", "Prospection"], domain: "Commercial", durationMinutes: 10, id: "quiz-a", maxAttempts: 3, questionCount: 5, title: "Quiz A", validationThreshold: 70 },
+                { assignedAt: "2026-06-01T10:00:00.000Z", categories: ["Vente"], domain: "Commercial", durationMinutes: 10, id: "quiz-b", maxAttempts: null, questionCount: 7, title: "Quiz B", validationThreshold: 70 },
+                { assignedAt: "2026-07-18T10:00:00.000Z", categories: ["Feedback"], domain: "Management", durationMinutes: 10, id: "quiz-c", maxAttempts: 3, questionCount: 9, title: "Quiz C", validationThreshold: 70 },
             ],
             quizAttempts: [
                 { attemptNumber: 1, completedAt: "2026-07-14T10:00:00.000Z", id: "attempt-a1", quizId: "quiz-a", scorePercent: 44, startedAt: "2026-07-14T09:00:00.000Z", status: "completed" },

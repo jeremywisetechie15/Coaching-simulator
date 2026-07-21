@@ -48,7 +48,7 @@ const attachmentId = "44444444-4444-4444-8444-444444444444";
 function quizInput(): SaveQuizDto {
     return {
         assignedUserId: null,
-        category: "Prospection",
+        categories: ["Prospection"],
         description: "Description",
         domain: "Commercial",
         durationMinutes: 10,

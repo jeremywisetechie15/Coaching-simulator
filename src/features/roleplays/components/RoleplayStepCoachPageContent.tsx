@@ -33,7 +33,6 @@ export type StepCoachVariant = "prepare" | "improve";
 
 interface RoleplayStepCoachPageContentProps {
     coachSessionId: string;
-    initialTranscript?: TranscriptMessage[];
     roleplay: RoleplayItem;
     method: Method;
     referenceSessionId?: string;
@@ -78,7 +77,6 @@ const stepTabs: { key: MethodStepSection; label: string; icon: LucideIcon; tone:
 
 export function RoleplayStepCoachPageContent({
     coachSessionId,
-    initialTranscript = [],
     roleplay,
     method,
     referenceSessionId,
@@ -143,16 +141,14 @@ export function RoleplayStepCoachPageContent({
         return () => window.removeEventListener("message", receiveTranscriptMessage);
     }, [coachSessionId, roleplay.scenarioId]);
 
-    const liveTranscript = useMemo<TranscriptMessage[]>(() => coachTranscript.map((message) => ({
+    // Le transcript du roleplay reste un contexte IA invisible via referenceSessionId.
+    // L'onglet Transcription affiche uniquement l'échange de la session coach courante.
+    const visibleCoachTranscript = useMemo<TranscriptMessage[]>(() => coachTranscript.map((message) => ({
         id: message.id,
         speaker: message.role === "assistant" ? "persona" : "you",
         text: message.content,
         time: formatRoleplayCoachMessageTime(message.timestamp),
     })), [coachTranscript]);
-    const transcript = useMemo(
-        () => [...initialTranscript, ...liveTranscript],
-        [initialTranscript, liveTranscript],
-    );
 
     const addedTranscriptMessageIds = useMemo(
         () => new Set(notes.flatMap((note) => note.sourceMessageId ? [note.sourceMessageId] : [])),
@@ -291,7 +287,7 @@ export function RoleplayStepCoachPageContent({
                 iframeSrc={iframeSrc}
                 onAddTranscriptMessage={addTranscriptMessageToNotes}
                 personaName={coachName}
-                transcript={transcript}
+                transcript={visibleCoachTranscript}
                 transcriptAside={(
                     <MeetingNotesPanel
                         canSave={isNotesDirty}
