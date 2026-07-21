@@ -53,11 +53,15 @@ export function SimulationView({
                         <InlineIcon icon={ArrowLeft} className="h-4 w-4" />
                         {backLabel}
                     </Button>
-                    <Box className="flex flex-wrap items-center justify-between gap-3">
-                        <Text as="h1" className={cn("text-[18px] font-extrabold", uiTokens.text.heading)}>
+                    <Box className="flex min-w-0 items-start gap-3">
+                        <Text
+                            as="h1"
+                            title={title}
+                            className={cn("min-w-0 flex-1 break-words text-[18px] font-extrabold leading-6", uiTokens.text.heading)}
+                        >
                             {title}
                         </Text>
-                        <Box role="tablist" className="flex flex-wrap gap-2">
+                        <Box role="tablist" className="flex shrink-0 flex-nowrap gap-2">
                             {tabs.map((item) => {
                                 const isActive = item.key === tab;
                                 return (
@@ -68,7 +72,7 @@ export function SimulationView({
                                         aria-selected={isActive}
                                         onClick={() => setTab(item.key)}
                                         className={cn(
-                                            "flex h-10 items-center rounded-lg px-4 text-[14px] font-bold transition",
+                                            "flex h-10 shrink-0 items-center whitespace-nowrap rounded-lg px-4 text-[14px] font-bold transition",
                                             isActive
                                                 ? "bg-[#5140F0] text-white"
                                                 : "border border-[#E5E7EB] bg-white text-[#4B5563] hover:border-[#D5D7DE]",
