@@ -21,3 +21,4 @@ export * from "./SubmitButton";
 export * from "./StatusMessage";
 export * from "./TextField";
 export * from "./VideoPlayer";
+export * from "./VoiceSelectField";

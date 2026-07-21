@@ -289,7 +289,14 @@ export const uiTokens = {
             "!border-[#FED7AA] !bg-[linear-gradient(135deg,#FFF7ED_0%,#FFFBF7_52%,#FFFFFF_100%)] !text-[#C2410C]",
     },
     voice: {
+        field: "flex min-w-0 items-center gap-2",
+        previewButton:
+            "flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border px-3 text-[13px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-60",
+        previewButtonActive: "border-[#C9C2FB] bg-[#F4F3FE] text-[#5140F0]",
+        previewButtonIdle: "border-[#E5E7EB] bg-white text-[#374151] hover:border-[#C9C2FB] hover:text-[#5140F0]",
+        previewIcon: "h-4 w-4 shrink-0",
         recommendedBadge: "inline-flex h-6 items-center rounded-lg border px-2.5 text-[11px] font-bold",
+        select: "min-w-0 flex-1",
     },
     coachCard: {
         badge: "inline-flex h-7 max-w-[190px] items-center rounded-lg border px-2.5 text-[12px] font-bold",
@@ -330,6 +337,7 @@ export const uiTokens = {
     action: {
         addButton:
             "flex h-9 items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white px-3 text-[13px] font-semibold text-[#374151] transition hover:border-[#D5D7DE]",
+        cardMenuOpen: "z-30",
         backButton:
             "flex h-10 w-fit items-center gap-2 rounded-xl border border-[#E5E7EB] bg-white px-4 text-[14px] font-semibold text-[#374151] transition hover:border-[#D5D7DE]",
         backLink:
@@ -349,6 +357,7 @@ export const uiTokens = {
         menuItem:
             "flex h-9 w-full min-w-0 items-center justify-start gap-2 rounded-md px-3 text-left text-[13px] font-semibold transition hover:bg-[#F6F7FB]",
         menuPanel: "rounded-lg border border-[#E5E7EB] bg-white shadow-[0_18px_40px_rgba(17,24,39,0.16)]",
+        menuPopover: "z-40",
         primaryButton:
             "bg-[#5140F0] shadow-[0_10px_20px_rgba(81,64,240,0.18)] hover:bg-[#4635E7]",
         primaryButtonDisabled: "cursor-not-allowed bg-[#B9B2F8]",

@@ -20,6 +20,7 @@ import {
     Target,
     TrendingDown,
     TrendingUp,
+    Users,
     Video,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -356,9 +357,22 @@ export function MethodDetailPageContent({
     const [showResourcesModal, setShowResourcesModal] = useState(false);
     const [isArchiving, setIsArchiving] = useState(false);
     const isArchived = method.status === "archived";
-    const masteryDateLabel = formatMethodMasteryDate(mastery?.completedAt);
-    const masteryTrend = getMethodMasteryTrendPresentation(mastery, Boolean(associatedQuiz));
-    const masteryLabel = getMethodMasteryLabel(Boolean(associatedQuiz), mastery);
+    const isParticipantAverage = canManage;
+    const masteryDateLabel = isParticipantAverage ? null : formatMethodMasteryDate(mastery?.completedAt);
+    const masteryTrend = isParticipantAverage
+        ? {
+              icon: Users,
+              label: mastery
+                  ? `Moyenne du dernier score terminé de ${mastery.participantCount} participant${mastery.participantCount > 1 ? "s" : ""}`
+                  : associatedQuiz
+                    ? "Aucun participant n'a terminé ce quiz"
+                    : "Aucun quiz associé",
+              tone: mastery ? "primary" as const : "neutral" as const,
+          }
+        : getMethodMasteryTrendPresentation(mastery, Boolean(associatedQuiz));
+    const masteryLabel = isParticipantAverage && associatedQuiz && !mastery
+        ? "Aucun résultat"
+        : getMethodMasteryLabel(Boolean(associatedQuiz), mastery);
     const resourceDocuments = mapMethodResourcesToModalDocuments(method);
 
     async function handleArchive() {
@@ -477,7 +491,9 @@ export function MethodDetailPageContent({
                                 Ressources complémentaires
                             </Button>
                             <CardSurface className="rounded-[16px] border border-[#E5E7EB] bg-[#F7F8FB] p-5 shadow-none">
-                                <Text className="text-[13px] font-semibold text-[#6B7280]">Maîtrise de la méthode</Text>
+                                <Text className="text-[13px] font-semibold text-[#6B7280]">
+                                    {isParticipantAverage ? "Maîtrise moyenne de la méthode" : "Maîtrise de la méthode"}
+                                </Text>
                                 <Box className="mt-2 flex items-center gap-2.5">
                                     <Tooltip content={masteryTrend.label}>
                                         <Box className={cn("flex h-9 w-9 items-center justify-center rounded-lg border", uiTokens.tone[masteryTrend.tone].soft)}>

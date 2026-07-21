@@ -45,8 +45,10 @@ import {
     type RoleplayResource,
     type RoleplayScorecardOption,
     type RoleplayUserOption,
+    ROLEPLAY_LEARNER_ROLE_MAX_LENGTH,
     ROLEPLAY_ROUTES,
     getAssignableRoleplayQuizOptions,
+    getRoleplayPublicationIssues,
 } from "@/features/roleplays/domain";
 import {
     roleplayCategoryOptions,
@@ -507,22 +509,6 @@ async function saveRoleplay(
     return payload.roleplay;
 }
 
-function buildGeneratedTitle({
-    category,
-    initialTitle,
-    persona,
-    personaOptions,
-}: {
-    category: string | null;
-    initialTitle?: string;
-    persona: string | null;
-    personaOptions: RoleplayPersonaOption[];
-}) {
-    if (initialTitle?.trim()) return initialTitle.trim();
-    const personaName = personaOptions.find((option) => option.id === persona)?.name;
-    return [personaName, category].filter(Boolean).join(" - ") || "Nouveau scénario";
-}
-
 function getInitialTargetScope(
     initialRoleplay: RoleplayEditorDetail | undefined,
     groupOptions: RoleplayGroupOption[],
@@ -596,13 +582,14 @@ export function CreateRoleplayPageContent({
     );
     const [domain, setDomain] = useState<string | null>(initialRoleplay?.domain || null);
     const [category, setCategory] = useState<string | null>(initialRoleplay?.category || null);
-    const [difficulty, setDifficulty] = useState<string | null>(initialRoleplay?.difficulty ?? null);
+    const [difficulty, setDifficulty] = useState<string | null>(initialRoleplay?.configuredDifficulty ?? null);
     const [previewTitle, setPreviewTitle] = useState(initialRoleplay?.previewTitle || initialRoleplay?.title || "");
     const [previewDescription, setPreviewDescription] = useState(
         initialRoleplay?.previewDescription || initialRoleplay?.description || "",
     );
     const [aiInstructions, setAiInstructions] = useState(initialRoleplay?.aiInstructions ?? "");
     const [context, setContext] = useState(initialRoleplay?.context ?? "");
+    const [learnerRole, setLearnerRole] = useState(initialRoleplay?.learnerRole ?? "");
     const [objective, setObjective] = useState(initialRoleplay?.objective ?? "");
     const [obstacles, setObstacles] = useState(initialRoleplay?.obstacles ?? "");
     const [backgroundImagePath, setBackgroundImagePath] = useState(initialRoleplay?.backgroundImagePath ?? "");
@@ -765,13 +752,21 @@ export function CreateRoleplayPageContent({
         );
     }
 
-    const scopeTargetReady =
-        targetScope.scope === CONTENT_VISIBILITY_SCOPE.public ||
-        (targetScope.scope === CONTENT_VISIBILITY_SCOPE.organization && Boolean(targetScope.organizationId)) ||
-        (targetScope.scope === CONTENT_VISIBILITY_SCOPE.group && Boolean(targetScope.organizationId && targetScope.groupId)) ||
-        (targetScope.scope === CONTENT_VISIBILITY_SCOPE.user && Boolean(targetScope.assignedUserId));
-    const canSave = Boolean(persona && coach && method && scorecard && domain && category && difficulty && scopeTargetReady);
-    const canPublish = canSave;
+    const canSave = previewTitle.trim().length > 0;
+    const canPublish = canSave && getRoleplayPublicationIssues({
+        assignedUserId: targetScope.assignedUserId,
+        category,
+        coachId: coach,
+        difficulty,
+        domain,
+        groupId: targetScope.groupId,
+        learnerRole,
+        methodId: method,
+        organizationId: targetScope.organizationId,
+        personaId: persona,
+        scope: targetScope.scope,
+        scorecardId: scorecard,
+    }).length === 0;
 
     function selectCreatedPersona(createdPersona: PersonaListItem) {
         setLocalPersonaOptions((current) =>
@@ -826,12 +821,7 @@ export function CreateRoleplayPageContent({
 
     function toSaveInput(status: SaveRoleplayInput["status"]): SaveRoleplayInput {
         const scope = targetScope.scope;
-        const title = buildGeneratedTitle({
-            category,
-            initialTitle: initialRoleplay?.title,
-            persona,
-            personaOptions: localPersonaOptions,
-        });
+        const title = previewTitle.trim();
         return {
             aiInstructions,
             assignedUserId: scope === CONTENT_VISIBILITY_SCOPE.user ? targetScope.assignedUserId : null,
@@ -840,10 +830,11 @@ export function CreateRoleplayPageContent({
             coachId: coach,
             context,
             description: initialRoleplay?.description || objective || context || title,
-            difficulty: (difficulty || "Moyen") as RoleplayDifficulty,
+            difficulty: difficulty as RoleplayDifficulty | null,
             disc: initialRoleplay?.disc ?? "Stable",
             domain: domain ?? "",
             groupId: scope === CONTENT_VISIBILITY_SCOPE.group ? targetScope.groupId : null,
+            learnerRole,
             methodId: method,
             objective,
             obstacles,
@@ -853,7 +844,7 @@ export function CreateRoleplayPageContent({
                     : scope === CONTENT_VISIBILITY_SCOPE.group
                       ? targetScope.organizationId
                       : null,
-            personaId: persona ?? "",
+            personaId: persona,
             previewDescription,
             previewTitle,
             quizIds,
@@ -931,6 +922,12 @@ export function CreateRoleplayPageContent({
 
                 <CardSurface className="rounded-[24px] border border-[#E9E7FB] p-7 shadow-[0_1px_2px_rgba(17,24,39,0.04)] md:p-9">
                     {formError && <AlertMessage message={formError} />}
+                    <Box className={cn("mb-5", uiTokens.surface.mutedPanel)}>
+                        <Text className={cn("text-[13px] font-medium", uiTokens.text.muted)}>
+                            <span aria-hidden="true" className={uiTokens.text.required}>*</span>{" "}
+                            Champs requis pour publier. Seul le titre est requis pour enregistrer un brouillon.
+                        </Text>
+                    </Box>
                     <Box className="space-y-5">
                         <Box>
                             <FieldLabel required className={fieldLabelClasses}>Persona IA</FieldLabel>
@@ -1062,10 +1059,12 @@ export function CreateRoleplayPageContent({
                         </Box>
 
                         <Box>
-                            <Text as="span" className={fieldLabelClasses}>
+                            <FieldLabel required className={fieldLabelClasses}>
                                 Titre du roleplay{" "}
-                                <span className="font-semibold text-[#9CA3AF]">(affiché sur la carte preview)</span>
-                            </Text>
+                                <span className={cn("font-semibold", uiTokens.text.muted)}>
+                                    (affiché sur la carte preview)
+                                </span>
+                            </FieldLabel>
                             <TextInput
                                 value={previewTitle}
                                 onChange={(event) => setPreviewTitle(event.target.value)}
@@ -1119,6 +1118,20 @@ export function CreateRoleplayPageContent({
                                 setBackgroundImagePath("");
                             }}
                         />
+
+                        <Box>
+                            <FieldLabel required className={fieldLabelClasses}>
+                                Votre rôle
+                            </FieldLabel>
+                            <TextArea
+                                value={learnerRole}
+                                onChange={(event) => setLearnerRole(event.target.value)}
+                                placeholder="Décrivez le rôle de l'apprenant dans ce roleplay..."
+                                rows={3}
+                                maxLength={ROLEPLAY_LEARNER_ROLE_MAX_LENGTH}
+                                className={uiTokens.form.textAreaMedium}
+                            />
+                        </Box>
 
                         <Box>
                             <Text as="span" className={fieldLabelClasses}>

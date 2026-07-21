@@ -19,6 +19,16 @@ const scorecardId = "77777777-7777-4777-8777-777777777777";
 const quizId = "88888888-8888-4888-8888-888888888888";
 
 describe("roleplay persistence helpers", () => {
+    it("persists a minimal draft with only its title", () => {
+        const input = saveRoleplayDto.parse({ title: "Brouillon minimal" });
+
+        expect(createRoleplayInsert(input, userId, null)).toMatchObject({
+            persona_id: null,
+            status: CONTENT_STATUS.draft,
+            title: "Brouillon minimal",
+        });
+    });
+
     it("maps a group-private roleplay to scenario fields and quiz links", () => {
         const input = saveRoleplayDto.parse({
             category: "Prise de rendez-vous",
@@ -28,6 +38,7 @@ describe("roleplay persistence helpers", () => {
             difficulty: "Moyen",
             domain: "Commercial",
             groupId,
+            learnerRole: "Vous incarnez le conseiller commercial.",
             methodId,
             objective: "Obtenir un créneau.",
             obstacles: "Standard filtrant.",
@@ -56,6 +67,7 @@ describe("roleplay persistence helpers", () => {
             coach_id: coachId,
             group_id: groupId,
             is_active: true,
+            learner_role: "Vous incarnez le conseiller commercial.",
             method_id: methodId,
             notation_method_id: "99999999-9999-4999-8999-999999999999",
             organization_id: organizationId,
@@ -117,6 +129,35 @@ describe("roleplay persistence helpers", () => {
         );
 
         expect(detail.backgroundImagePath).toBe(backgroundImagePath);
+    });
+
+    it("persists and maps the role presented to the learner", () => {
+        const learnerRole = "Vous incarnez la responsable commerciale chargée de mener l'entretien.";
+        const input = saveRoleplayDto.parse({
+            coachId,
+            learnerRole,
+            methodId,
+            personaId,
+            title: "Roleplay avec rôle apprenant",
+        });
+
+        expect(createRoleplayUpdate(input, null)).toMatchObject({
+            learner_role: learnerRole,
+        });
+
+        const detail = mapRoleplayRowsToDetail(
+            {
+                id: "scenario-learner-role",
+                learner_role: learnerRole,
+                persona_id: personaId,
+                title: "Roleplay avec rôle apprenant",
+            },
+            [],
+            [],
+            createEmptyRoleplayStats(),
+        );
+
+        expect(detail.learnerRole).toBe(learnerRole);
     });
 
     it("clears organization and group when a roleplay becomes public", () => {

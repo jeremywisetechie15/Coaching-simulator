@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
     calculateMethodMasteryTrend,
+    calculateParticipantAverageMethodMastery,
     DEFAULT_METHOD_STEP_ICON,
     formatMethodMasteryDate,
     getMethodMasteryLabel,
@@ -72,6 +73,36 @@ describe("calculateMethodMasteryTrend", () => {
             delta: null,
             trend: METHOD_MASTERY_TREND.initial,
         });
+    });
+});
+
+describe("calculateParticipantAverageMethodMastery", () => {
+    it("averages the latest completed score of each participant", () => {
+        expect(calculateParticipantAverageMethodMastery([
+            {
+                completedAt: "2026-07-20T10:00:00.000Z",
+                scorePercent: 80,
+                userId: "user-1",
+            },
+            {
+                completedAt: "2026-07-19T10:00:00.000Z",
+                scorePercent: 20,
+                userId: "user-1",
+            },
+            {
+                completedAt: "2026-07-18T10:00:00.000Z",
+                scorePercent: 60,
+                userId: "user-2",
+            },
+        ])).toMatchObject({
+            participantCount: 2,
+            scorePercent: 70,
+            scope: "participant_average",
+        });
+    });
+
+    it("returns no aggregate when nobody completed the quiz", () => {
+        expect(calculateParticipantAverageMethodMastery([])).toBeNull();
     });
 });
 

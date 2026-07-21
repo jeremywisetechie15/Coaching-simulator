@@ -8,6 +8,24 @@ import {
     type ContentVisibilityScope,
 } from "@/features/content/domain";
 
+function encodeRouteSegment(value: string) {
+    return encodeURIComponent(value);
+}
+
+export const SKILL_ROUTES = {
+    api: {
+        collection: "/api/skills",
+        detail: (skillId: string) => `/api/skills/${encodeRouteSegment(skillId)}`,
+        duplicate: (skillId: string) => `/api/skills/${encodeRouteSegment(skillId)}/duplicate`,
+    },
+    app: {
+        collection: "/skills",
+        create: "/skills/new",
+        detail: (skillId: string) => `/skills/${encodeRouteSegment(skillId)}`,
+        edit: (skillId: string) => `/skills/${encodeRouteSegment(skillId)}/edit`,
+    },
+} as const;
+
 export const SKILL_TYPES = ["Métier", "Comportementale", "Transversale"] as const;
 
 export type SkillType = (typeof SKILL_TYPES)[number];

@@ -22,6 +22,7 @@ describe("buildDuplicateRoleplayInput", () => {
                 disc: "Stable",
                 domain: "Commercial",
                 groupId: null,
+                learnerRole: "Vous incarnez la commerciale chargée d'obtenir un rendez-vous.",
                 methodId: "33333333-3333-4333-8333-333333333333",
                 objective: "Obtenir un rendez-vous.",
                 obstacles: "Manque de temps.",
@@ -35,6 +36,7 @@ describe("buildDuplicateRoleplayInput", () => {
         });
 
         expect(input.aiInstructions).toBe("Conserve cette objection jusqu'à la phase de découverte.");
+        expect(input.learnerRole).toBe("Vous incarnez la commerciale chargée d'obtenir un rendez-vous.");
         expect(input.status).toBe(CONTENT_STATUS.draft);
         expect(input.title).toBe("Scénario (copie)");
         expect(input.quizIds).toEqual(["77777777-7777-4777-8777-777777777777"]);

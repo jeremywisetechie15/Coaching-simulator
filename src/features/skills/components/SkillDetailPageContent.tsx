@@ -9,6 +9,7 @@ import {
     SKILL_DIMENSION_LABELS,
     SKILL_DIMENSION_TITLES,
     SKILL_DIMENSIONS,
+    SKILL_ROUTES,
     type SkillDetail,
     type SkillDimension,
     type SkillLevel,
@@ -83,14 +84,14 @@ export function SkillDetailPageContent({ canManage = false, skill }: SkillDetail
             <Box className="mx-auto max-w-[1080px]">
                 <Box className="mb-5 flex items-center justify-between gap-4">
                     <ContextualBackLink
-                        fallbackHref="/skills"
+                        fallbackHref={SKILL_ROUTES.app.collection}
                         showLabel
                         className={cn("flex items-center gap-2 text-[14px] font-semibold transition hover:opacity-80", uiTokens.text.muted)}
                     >
                         <InlineIcon icon={ArrowLeft} className="h-4 w-4" />
                     </ContextualBackLink>
                     {canManage && (
-                        <ContextualLink href={`/skills/${skill.id}/edit`} className={cn(uiTokens.action.addButton, "shrink-0")}>
+                        <ContextualLink href={SKILL_ROUTES.app.edit(skill.id)} className={cn(uiTokens.action.addButton, "shrink-0")}>
                             <InlineIcon icon={Edit3} className="h-4 w-4" />
                             Modifier
                         </ContextualLink>

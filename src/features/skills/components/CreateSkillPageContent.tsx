@@ -21,6 +21,7 @@ import {
 import { ContentTargetScopeField, type ContentTargetScopeValue } from "@/features/content/components";
 import type { SaveSkillInput } from "@/features/skills/dto";
 import {
+    SKILL_ROUTES,
     SKILL_TYPES,
     isSkillType,
     type SkillDetail,
@@ -57,7 +58,7 @@ interface SkillDimensionFormItem {
 }
 
 async function saveSkill(skillId: string | undefined, values: SaveSkillInput) {
-    const response = await fetch(skillId ? `/api/skills/${skillId}` : "/api/skills", {
+    const response = await fetch(skillId ? SKILL_ROUTES.api.detail(skillId) : SKILL_ROUTES.api.collection, {
         body: JSON.stringify(values),
         headers: { "Content-Type": "application/json" },
         method: skillId ? "PATCH" : "POST",
@@ -268,7 +269,7 @@ export function CreateSkillPageContent({
         try {
             await saveSkill(initialSkill?.id, buildPayload(status));
             notifyFormSubmitSuccess();
-            router.push("/skills");
+            router.push(SKILL_ROUTES.app.collection);
             router.refresh();
         } catch (error) {
             setFormError(notifyFormSubmitError(error, "Impossible d'enregistrer la compétence."));
@@ -282,7 +283,7 @@ export function CreateSkillPageContent({
             <Box className="mx-auto max-w-[1180px]">
                 <Box className="mb-6 flex items-center gap-4">
                     <ContextualBackLink
-                        fallbackHref="/skills"
+                        fallbackHref={SKILL_ROUTES.app.collection}
                         aria-label="Retour"
                         className="flex h-9 w-9 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
                     >

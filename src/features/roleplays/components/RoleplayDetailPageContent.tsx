@@ -235,6 +235,11 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
                     <Box className="mt-3">
                         <InfoBox title="Contexte">{detail.context}</InfoBox>
                     </Box>
+                    <Box className="mt-4">
+                        <InfoBox title="Votre rôle">
+                            {detail.learnerRole || "Rôle non renseigné."}
+                        </InfoBox>
+                    </Box>
                     <Box className="mt-4 grid gap-4 md:grid-cols-2">
                         <InfoBox title="Objectif">{roleplay.description}</InfoBox>
                         <InfoBox title="Objections">{detail.objections}</InfoBox>

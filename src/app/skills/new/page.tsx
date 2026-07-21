@@ -10,6 +10,7 @@ import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { UnauthorizedError } from "@/lib/server/errors";
 import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
+import { SKILL_ROUTES } from "@/features/skills/domain/skills";
 
 interface PageProps {
     searchParams?: Promise<{ returnTo?: string }>;
@@ -30,7 +31,7 @@ export default async function Page({ searchParams }: PageProps) {
             throw error;
         }
 
-        redirect(buildAuthRedirectHref(withReturnTo("/skills/new", returnTo)));
+        redirect(buildAuthRedirectHref(withReturnTo(SKILL_ROUTES.app.create, returnTo)));
     }
 
     const profileValues = toProfileFormValues(profile);

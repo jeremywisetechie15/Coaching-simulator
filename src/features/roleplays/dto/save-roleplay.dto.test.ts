@@ -19,11 +19,13 @@ function roleplay(overrides: Partial<SaveRoleplayInput> = {}): SaveRoleplayInput
         description: "Décrocher un rendez-vous.",
         difficulty: "Moyen",
         domain: "Commercial",
+        learnerRole: "Vous incarnez le conseiller chargé d'obtenir un rendez-vous.",
         methodId,
         objective: "Obtenir un créneau.",
         personaId,
         previewDescription: "Résumé court sur la carte.",
         previewTitle: "Décrocher un premier rendez-vous",
+        scorecardId,
         scope: CONTENT_VISIBILITY_SCOPE.public,
         status: CONTENT_STATUS.published,
         title: "Rendez-vous prospect",
@@ -32,6 +34,17 @@ function roleplay(overrides: Partial<SaveRoleplayInput> = {}): SaveRoleplayInput
 }
 
 describe("saveRoleplayDto", () => {
+    it("accepts a draft with only its title", () => {
+        const result = saveRoleplayDto.parse({ title: "Brouillon minimal" });
+
+        expect(result).toMatchObject({
+            personaId: null,
+            difficulty: null,
+            status: CONTENT_STATUS.draft,
+            title: "Brouillon minimal",
+        });
+    });
+
     it("normalizes optional scenario AI instructions", () => {
         const result = saveRoleplayDto.parse(
             roleplay({ aiInstructions: "  Reste réservé jusqu'à ce que le besoin soit clarifié.  " }),
@@ -42,6 +55,47 @@ describe("saveRoleplayDto", () => {
 
     it("defaults scenario AI instructions to an empty value", () => {
         expect(saveRoleplayDto.parse(roleplay()).aiInstructions).toBe("");
+    });
+
+    it("accepts an empty learner role while saving a draft", () => {
+        const result = saveRoleplayDto.parse(
+            roleplay({ learnerRole: "", status: CONTENT_STATUS.draft }),
+        );
+
+        expect(result.learnerRole).toBe("");
+    });
+
+    it("requires the learner role before publishing", () => {
+        const result = saveRoleplayDto.safeParse(roleplay({ learnerRole: "" }));
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues).toContainEqual(
+            expect.objectContaining({
+                message: "Votre rôle est requis pour publier le roleplay.",
+                path: ["learnerRole"],
+            }),
+        );
+    });
+
+    it("requires the publication fields only when publishing", () => {
+        const result = saveRoleplayDto.safeParse({
+            status: CONTENT_STATUS.published,
+            title: "Roleplay incomplet",
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.path[0])).toEqual(
+            expect.arrayContaining([
+                "personaId",
+                "coachId",
+                "difficulty",
+                "methodId",
+                "scorecardId",
+                "domain",
+                "category",
+                "learnerRole",
+            ]),
+        );
     });
 
     it("rejects scenario AI instructions above the shared limit", () => {

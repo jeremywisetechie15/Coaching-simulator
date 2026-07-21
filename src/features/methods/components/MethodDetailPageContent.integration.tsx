@@ -57,7 +57,9 @@ describe("MethodDetailPageContent", () => {
                 mastery={{
                     completedAt: "2026-07-09T15:25:38.909Z",
                     delta: 12,
+                    participantCount: 1,
                     scorePercent: 72,
+                    scope: "personal",
                     trend: "up",
                 }}
                 method={method}
@@ -75,6 +77,36 @@ describe("MethodDetailPageContent", () => {
         expect(html).toContain("Catégorie · Gestion des conflits");
         expect(html).not.toContain("Non testée");
         expect(html).not.toContain("Prêt à passer à l&#x27;action ?");
+    });
+
+    it("shows the participants' average to administrators", () => {
+        const html = renderToStaticMarkup(
+            <MethodDetailPageContent
+                associatedQuiz={{
+                    id: "22222222-2222-4222-8222-222222222222",
+                    kind: QUIZ_KIND.methodKnowledge,
+                    methodId: method.id,
+                    questionCount: 3,
+                    title: "Quiz DAGO",
+                }}
+                canManage
+                mastery={{
+                    completedAt: "2026-07-09T15:25:38.909Z",
+                    delta: null,
+                    participantCount: 2,
+                    scorePercent: 70,
+                    scope: "participant_average",
+                    trend: "initial",
+                }}
+                method={method}
+            />,
+        );
+
+        expect(html).toContain("Maîtrise moyenne de la méthode");
+        expect(html).toContain("70%");
+        expect(html).toContain("Moyenne du dernier score terminé de 2 participants");
+        expect(html).not.toContain("09/07/2026");
+        expect(html).not.toContain("Progression de");
     });
 
     it("hides knowledge-check actions when the method has no associated quiz", () => {

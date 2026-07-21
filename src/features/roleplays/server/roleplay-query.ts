@@ -353,7 +353,7 @@ async function withRoleplayRelations(rows: RoleplayRow[]) {
 
     return rows.map((row) => {
         const coach = row.coach_id ? coachesById.get(row.coach_id) : null;
-        const persona = personasById.get(row.persona_id);
+        const persona = row.persona_id ? personasById.get(row.persona_id) : null;
         const method = row.method_id ? methodsById.get(row.method_id) : null;
 
         return {

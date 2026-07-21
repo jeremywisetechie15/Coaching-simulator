@@ -14,6 +14,8 @@ import type { RoleplayIndexSession, RoleplayIndexTrend } from "./roleplay-index"
 
 export const ROLEPLAY_DIFFICULTIES = ["Facile", "Moyen", "Difficile"] as const;
 
+export const ROLEPLAY_LEARNER_ROLE_MAX_LENGTH = 2500;
+
 export type RoleplayDifficulty = (typeof ROLEPLAY_DIFFICULTIES)[number];
 
 export const ROLEPLAY_DISC_PROFILES = DISC_PROFILES;
@@ -134,7 +136,7 @@ export interface RoleplayListItem {
     organizationId: string | null;
     organizationName: string | null;
     personaAvatarUrl: string | null;
-    personaId: string;
+    personaId: string | null;
     quizCount: number;
     role: string;
     scope: RoleplayVisibilityScope;
@@ -147,8 +149,10 @@ export interface RoleplayListItem {
 
 export interface RoleplayDetail extends RoleplayListItem {
     coachingSteps: string;
+    configuredDifficulty: RoleplayDifficulty | null;
     context: string;
     createdAt: string | null;
+    learnerRole: string;
     methodStepCount: number;
     objective: string;
     obstacles: string;

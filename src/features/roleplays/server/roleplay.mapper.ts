@@ -11,6 +11,7 @@ import {
     type QuizType,
 } from "@/features/evaluations/domain";
 import {
+    isRoleplayDifficulty,
     normalizeRoleplayDifficulty,
     normalizeRoleplayDiscProfile,
     normalizeRoleplayVisibilityScope,
@@ -41,6 +42,7 @@ export interface RoleplayRow {
     group_name?: string | null;
     id: string;
     is_active?: boolean | null;
+    learner_role?: string | null;
     method_id?: string | null;
     method_name?: string | null;
     method_step_count?: number | null;
@@ -51,7 +53,7 @@ export interface RoleplayRow {
     organization_name?: string | null;
     persona_avatar_url?: string | null;
     persona_company?: string | null;
-    persona_id: string;
+    persona_id?: string | null;
     persona_name?: string | null;
     persona_role?: string | null;
     preview_description?: string | null;
@@ -168,7 +170,7 @@ export function mapRoleplayRowToListItem(row: RoleplayRow, quizCount = 0, attemp
         organizationId: row.organization_id ?? null,
         organizationName: row.organization_name ?? null,
         personaAvatarUrl: getPersonaAvatarPublicUrl(row.persona_avatar_url),
-        personaId: row.persona_id,
+        personaId: row.persona_id ?? null,
         quizCount,
         role: row.persona_role ?? "",
         scope: normalizeRoleplayVisibilityScope(row.visibility_scope),
@@ -192,8 +194,10 @@ export function mapRoleplayRowsToDetail(
     return {
         ...mapRoleplayRowToListItem(row, sortedQuizRows.length),
         coachingSteps: row.coaching_steps ?? "",
+        configuredDifficulty: isRoleplayDifficulty(row.difficulty_level) ? row.difficulty_level : null,
         context: row.context ?? "",
         createdAt: row.created_at ?? null,
+        learnerRole: row.learner_role ?? "",
         methodStepCount: row.method_step_count ?? 0,
         objective: row.objective ?? "",
         obstacles: row.obstacles ?? "",

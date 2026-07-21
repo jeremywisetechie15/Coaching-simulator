@@ -28,6 +28,7 @@ export interface RoleplayDetail {
     meilleurScore: number;
     simulations: number;
     context: string;
+    learnerRole: string;
     objections: string;
     method: string;
 }
@@ -90,6 +91,7 @@ export const roleplays: RoleplayItem[] = [
             simulations: 3,
             context:
                 "Préparez un appel de prospection réaliste face à un dirigeant exigeant. Votre objectif est de capter son attention rapidement, de traiter ses objections avec précision et de décrocher un rendez-vous à forte valeur.",
+            learnerRole: "Vous incarnez le conseiller commercial chargé d'obtenir un rendez-vous qualifié.",
             objections:
                 "Rachid peut invoquer un manque de temps pour un RDV, une satisfaction avec sa banque actuelle, ou des doutes sur la valeur ajoutée de nouveaux services bancaires pour son entreprise.",
             method: "DAGO - Méthode DAGO",
@@ -122,6 +124,7 @@ export const roleplays: RoleplayItem[] = [
             simulations: 5,
             context:
                 "Conduisez un entretien de remobilisation avec un commercial senior en perte de motivation. Votre objectif est de comprendre les causes de la baisse de performance et de reconstruire son engagement.",
+            learnerRole: "Vous incarnez le manager chargé de conduire l'entretien de remobilisation.",
             objections:
                 "Claude peut exprimer un sentiment d'injustice sur ses objectifs, un manque de reconnaissance ou une remise en question de la stratégie commerciale de l'entreprise.",
             method: "4C - Méthode 4C",
@@ -153,6 +156,7 @@ export const roleplays: RoleplayItem[] = [
             simulations: 2,
             context:
                 "Menez une négociation commerciale face à une directrice des achats expérimentée. Votre objectif est de défendre la valeur de votre offre tout en préservant votre marge.",
+            learnerRole: "Vous incarnez le commercial responsable de la négociation de l'offre.",
             objections:
                 "Sophie peut demander une remise importante, comparer votre offre à la concurrence ou conditionner l'accord à des engagements de volume.",
             method: "ACDC - Méthode ACDC",
@@ -185,6 +189,7 @@ export const roleplays: RoleplayItem[] = [
             simulations: 4,
             context:
                 "Présentez la solution « Trainer IA » à un directeur commercial exigeant. Votre objectif est de démontrer la valeur concrète de l'outil et d'obtenir l'accord pour une démonstration.",
+            learnerRole: "Vous incarnez le commercial qui présente la solution et propose une démonstration.",
             objections:
                 "Marc peut douter du retour sur investissement, craindre la conduite du changement dans ses équipes ou évoquer un budget déjà engagé ailleurs.",
             method: "DAGO - Méthode DAGO",
@@ -217,6 +222,7 @@ export const roleplays: RoleplayItem[] = [
             simulations: 3,
             context:
                 "Conduisez un entretien de découverte avec le CEO d'une entreprise technologique. Votre objectif est d'identifier ses besoins de formation et de vous positionner comme le partenaire idéal.",
+            learnerRole: "Vous incarnez le consultant chargé de qualifier les besoins de formation.",
             objections:
                 "Thomas peut demander des preuves chiffrées, comparer plusieurs prestataires ou repousser la décision à un prochain comité de direction.",
             method: "4C - Méthode 4C",

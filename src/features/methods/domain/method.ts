@@ -73,10 +73,25 @@ export const METHOD_MASTERY_TREND = {
 
 export type MethodMasteryTrend = (typeof METHOD_MASTERY_TREND)[keyof typeof METHOD_MASTERY_TREND];
 
+export const METHOD_MASTERY_SCOPE = {
+    participantAverage: "participant_average",
+    personal: "personal",
+} as const;
+
+export type MethodMasteryScope = (typeof METHOD_MASTERY_SCOPE)[keyof typeof METHOD_MASTERY_SCOPE];
+
+export interface MethodMasteryAttemptScore {
+    completedAt: string | null;
+    scorePercent: number;
+    userId: string;
+}
+
 export interface MethodMastery {
     completedAt: string | null;
     delta: number | null;
+    participantCount: number;
     scorePercent: number;
+    scope: MethodMasteryScope;
     trend: MethodMasteryTrend;
 }
 
@@ -101,6 +116,44 @@ export function calculateMethodMasteryTrend(latestScore: number, previousScore: 
     if (delta < 0) return { delta, trend: METHOD_MASTERY_TREND.down } as const;
 
     return { delta: 0, trend: METHOD_MASTERY_TREND.stable } as const;
+}
+
+function masteryAttemptTimestamp(value: string | null) {
+    if (!value) return 0;
+
+    const timestamp = new Date(value).getTime();
+    return Number.isNaN(timestamp) ? 0 : timestamp;
+}
+
+/** Each participant contributes exactly one value: their latest completed attempt. */
+export function calculateParticipantAverageMethodMastery(
+    attempts: MethodMasteryAttemptScore[],
+): MethodMastery | null {
+    const orderedAttempts = [...attempts].sort(
+        (first, second) => masteryAttemptTimestamp(second.completedAt) - masteryAttemptTimestamp(first.completedAt),
+    );
+    const latestAttemptByUserId = new Map<string, MethodMasteryAttemptScore>();
+
+    for (const attempt of orderedAttempts) {
+        if (!latestAttemptByUserId.has(attempt.userId)) {
+            latestAttemptByUserId.set(attempt.userId, attempt);
+        }
+    }
+
+    const latestAttempts = [...latestAttemptByUserId.values()];
+    if (latestAttempts.length === 0) return null;
+
+    const scorePercent = latestAttempts.reduce((total, attempt) => total + attempt.scorePercent, 0)
+        / latestAttempts.length;
+
+    return {
+        completedAt: latestAttempts[0]?.completedAt ?? null,
+        delta: null,
+        participantCount: latestAttempts.length,
+        scorePercent,
+        scope: METHOD_MASTERY_SCOPE.participantAverage,
+        trend: METHOD_MASTERY_TREND.initial,
+    };
 }
 
 export interface MethodOrganizationOption {

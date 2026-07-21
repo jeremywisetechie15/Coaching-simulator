@@ -7,6 +7,7 @@ import { mapDbRoleplayListToUi, mapDbRoleplayToUi, mergeRoleplayListWithMocks } 
 function createRoleplayDetail({
     description = "Objectif",
     id = "scenario-1",
+    learnerRole = "Vous incarnez le conseiller commercial.",
     name = "Rachid HAMRANI",
     previewDescription = "",
     previewTitle = "",
@@ -16,6 +17,7 @@ function createRoleplayDetail({
 }: {
     description?: string;
     id?: string;
+    learnerRole?: string;
     name?: string;
     previewDescription?: string;
     previewTitle?: string;
@@ -34,6 +36,7 @@ function createRoleplayDetail({
         coachName: null,
         coachingSteps: "",
         company: "CLEANTECH",
+        configuredDifficulty: "Moyen",
         context: "Contexte",
         createdAt: null,
         description,
@@ -46,6 +49,7 @@ function createRoleplayDetail({
         groupName: null,
         id,
         isActive: true,
+        learnerRole,
         methodId: "method-1",
         methodName: "DAGO",
         methodStepCount: 4,
@@ -86,6 +90,18 @@ function createRoleplayDetail({
 }
 
 describe("roleplay UI adapter", () => {
+    it("exposes the learner role on the roleplay detail page model", () => {
+        const roleplay = mapDbRoleplayToUi(createRoleplayDetail(), null);
+
+        expect(roleplay.detail.learnerRole).toBe("Vous incarnez le conseiller commercial.");
+    });
+
+    it("keeps a legacy missing learner role empty instead of using mock content", () => {
+        const roleplay = mapDbRoleplayToUi(createRoleplayDetail({ learnerRole: "" }));
+
+        expect(roleplay.detail.learnerRole).toBe("");
+    });
+
     it("maps DB scenario resources to preparation documents with access routes", () => {
         const roleplay = mapDbRoleplayToUi(
             createRoleplayDetail({

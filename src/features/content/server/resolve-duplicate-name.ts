@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { getDuplicateBaseName, getNextDuplicateName } from "@/features/content/domain";
 
 type DuplicateNameColumn = "name" | "preview_title" | "title";
-type DuplicateNameTable = "coaches" | "methods" | "personas" | "quizzes" | "scenarios" | "scorecards";
+type DuplicateNameTable = "coaches" | "methods" | "personas" | "quizzes" | "scenarios" | "scorecards" | "skills";
 
 interface ResolveDuplicateNameOptions {
     column: DuplicateNameColumn;

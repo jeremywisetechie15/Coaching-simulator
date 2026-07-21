@@ -25,6 +25,7 @@ type DuplicateRoleplaySource = Pick<
     | "disc"
     | "domain"
     | "groupId"
+    | "learnerRole"
     | "methodId"
     | "objective"
     | "obstacles"
@@ -67,6 +68,7 @@ export function buildDuplicateRoleplayInput({
         disc: source.disc,
         domain: source.domain,
         groupId: source.groupId,
+        learnerRole: source.learnerRole,
         methodId: source.methodId,
         objective: source.objective,
         obstacles: source.obstacles,

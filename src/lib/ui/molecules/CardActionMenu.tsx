@@ -11,7 +11,11 @@ interface CardActionMenuProps {
 
 export function CardActionMenu({ children }: CardActionMenuProps) {
     return (
-        <Box className={cn("absolute right-0 top-9 z-20 w-[168px] overflow-hidden p-1.5", uiTokens.action.menuPanel)}>
+        <Box className={cn(
+            "absolute right-0 top-9 w-[168px] overflow-hidden p-1.5",
+            uiTokens.action.menuPanel,
+            uiTokens.action.menuPopover,
+        )}>
             {children}
         </Box>
     );

@@ -193,11 +193,8 @@ export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageCon
                                     }}
                                     className="relative cursor-pointer rounded-[14px] border border-[#E1E4EB] px-5 pb-6 pt-5 text-center shadow-none transition duration-200 hover:-translate-y-0.5 hover:border-[#D8DCE6] hover:shadow-[0_14px_34px_rgba(17,24,39,0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0]/40"
                                 >
-                                    <Box className="flex items-start justify-between">
-                                        <Box className="inline-flex h-7 items-center rounded-full bg-[#5140F0] px-3.5 text-[12px] font-bold text-white">
-                                            Mon Coach
-                                        </Box>
-                                        {canManage && (
+                                    {canManage && (
+                                        <Box className="flex justify-end">
                                             <Box
                                                 className="relative z-10"
                                                 onClick={(event) => event.stopPropagation()}
@@ -237,8 +234,8 @@ export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageCon
                                                     </CardActionMenu>
                                                 )}
                                             </Box>
-                                        )}
-                                    </Box>
+                                        </Box>
+                                    )}
 
                                     <Box className="mx-auto mt-2 flex h-[110px] w-[110px] items-center justify-center overflow-hidden rounded-full border-[3px] border-[#E7EAFF] bg-[#F1F2F6]">
                                         {coach.avatarSrc ? (

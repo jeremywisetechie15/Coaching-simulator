@@ -51,6 +51,7 @@ const roleplay: RoleplayItem = {
         infoChips: [],
         lastDate: "Aucune session",
         lastDuration: "0s",
+        learnerRole: "Vous incarnez le commercial chargé de mener l'entretien.",
         meilleurScore: 0,
         method: "Méthode test",
         objections: "",

@@ -5,13 +5,9 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { useState, type FormEvent } from "react";
 import { ContextualBackLink } from "@/features/app-shell/components";
-import {
-    ContentEditorSubmitActions,
-    DiscProfileSelector,
-    VoiceRecommendationBadge,
-} from "@/features/content/components";
-import { AlertMessage, SingleSelectField } from "@/lib/ui/molecules";
-import { Box, CardSurface, FieldLabel, InlineIcon, SelectInput, Text, TextArea, TextInput } from "@/lib/ui/atoms";
+import { ContentEditorSubmitActions, DiscProfileSelector } from "@/features/content/components";
+import { AlertMessage, SingleSelectField, VoiceSelectField } from "@/lib/ui/molecules";
+import { Box, CardSurface, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import {
     createFormSubmitApiError,
     notifyFormSubmitError,
@@ -19,7 +15,6 @@ import {
 } from "@/lib/ui/feedback/form-submit-feedback";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
-import { OPENAI_REALTIME_VOICES } from "@/lib/openai/realtime-voices";
 import {
     EMPTY_PERSONA_EDITOR_VALUES,
     type PersonaEditorValues,
@@ -481,20 +476,12 @@ export function CreatePersonaPageContent({
 
                     <FormSection title="Voix">
                         <Field label="Voix du persona" htmlFor="persona-voice">
-                            <SelectInput
-                                density="sm"
+                            <VoiceSelectField
                                 id="persona-voice"
                                 value={form.voiceId}
-                                onChange={(event) => patch("voiceId", event.target.value as PersonaEditorValues["voiceId"])}
-                            >
-                                {OPENAI_REALTIME_VOICES.map((voice) => (
-                                    <option key={voice.id} value={voice.id}>
-                                        {voice.name} ({voice.id})
-                                        {voice.characteristic ? ` - ${voice.characteristic}` : ""}
-                                    </option>
-                                ))}
-                            </SelectInput>
-                            <VoiceRecommendationBadge className="mt-2" voiceId={form.voiceId} />
+                                disabled={mutation.isPending}
+                                onChange={(voiceId) => patch("voiceId", voiceId)}
+                            />
                         </Field>
                     </FormSection>
 

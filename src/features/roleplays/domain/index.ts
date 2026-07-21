@@ -10,6 +10,7 @@ export * from "./roleplay-notation-tabs";
 export * from "./roleplay-notation-transcript";
 export * from "./roleplay-pdf";
 export * from "./roleplay-progress";
+export * from "./roleplay-publication";
 export * from "./roleplay-quiz-assignment";
 export * from "./roleplay-routes";
 export * from "./roleplay-score";

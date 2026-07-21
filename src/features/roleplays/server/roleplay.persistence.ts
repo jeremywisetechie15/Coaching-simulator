@@ -1,7 +1,7 @@
 import type { SaveRoleplayDto } from "@/features/roleplays/dto";
 
 export const ROLEPLAY_SELECT =
-    "id, title, description, preview_title, preview_description, background_image_path, persona_id, coach_id, method_id, scorecard_id, coaching_steps, difficulty_level, created_by, notation_method_id, status, domain, category, disc_profile, context, objective, obstacles, visibility_scope, organization_id, group_id, assigned_user_id, is_active, created_at, updated_at";
+    "id, title, description, preview_title, preview_description, background_image_path, persona_id, coach_id, method_id, scorecard_id, coaching_steps, difficulty_level, created_by, notation_method_id, status, domain, category, disc_profile, context, learner_role, objective, obstacles, visibility_scope, organization_id, group_id, assigned_user_id, is_active, created_at, updated_at";
 
 export const SCENARIO_QUIZ_SELECT = "scenario_id, quiz_id, sort_order, participation";
 export const SCENARIO_RESOURCE_SELECT =
@@ -36,6 +36,7 @@ function createRoleplayBasePayload(input: SaveRoleplayDto, notationMethodId: str
         domain: nullableText(input.domain),
         group_id: input.scope === "group" ? input.groupId : null,
         is_active: input.status !== "archived",
+        learner_role: nullableText(input.learnerRole),
         method_id: input.methodId,
         notation_method_id: notationMethodId,
         objective: nullableText(input.objective),

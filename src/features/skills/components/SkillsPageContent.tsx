@@ -1,6 +1,13 @@
 "use client";
 
-import { ArrowLeft, Plus, Search, SlidersHorizontal, Star, X } from "lucide-react";
+import {
+    ArrowLeft,
+    Plus,
+    Search,
+    SlidersHorizontal,
+    Star,
+    X,
+} from "lucide-react";
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -9,6 +16,8 @@ import {
     useCurrentAppHref,
 } from "@/features/app-shell/components";
 import { withSearchParams } from "@/features/app-shell/domain";
+import { ArchiveContentConfirmationModal } from "@/features/content/components";
+import { requestContentCardAction } from "@/features/content/data/content-card-action.request";
 import {
     CONTENT_DOMAINS,
     getCategoriesForDomain,
@@ -16,16 +25,21 @@ import {
     isContentDomain,
 } from "@/features/content/domain";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
-import { FilterSelect, type FilterSelectOption } from "@/lib/ui/molecules";
+import {
+    FilterSelect,
+    type FilterSelectOption,
+} from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 import {
     SKILL_TYPES,
+    SKILL_ROUTES,
     isSkillType,
     skillTypeOptions,
     type SkillListItem,
 } from "@/features/skills/domain/skills";
 import { SKILL_TYPE_TONES } from "./skill-ui";
+import { SkillCardActions } from "./SkillCardActions";
 
 interface FilterState {
     category: string;
@@ -70,6 +84,10 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
     const [filtersOpen, setFiltersOpen] = useState(false);
     const [appliedFilters, setAppliedFilters] = useState<FilterState>(initialFilters);
     const [draftFilters, setDraftFilters] = useState<FilterState>(initialFilters);
+    const [actionError, setActionError] = useState<string | null>(null);
+    const [busySkillId, setBusySkillId] = useState<string | null>(null);
+    const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [skillToArchive, setSkillToArchive] = useState<SkillListItem | null>(null);
 
     const filteredSkills = useMemo(() => {
         const normalized = query.trim().toLowerCase();
@@ -119,6 +137,46 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
         router.replace(withSearchParams(currentHref, { q: value.trim() || null }), { scroll: false });
     }
 
+    async function handleDuplicate(skillId: string) {
+        setActionError(null);
+        setBusySkillId(skillId);
+
+        try {
+            await requestContentCardAction(
+                SKILL_ROUTES.api.duplicate(skillId),
+                "POST",
+                "Impossible de dupliquer la compétence.",
+            );
+            setOpenMenuId(null);
+            router.refresh();
+        } catch (error) {
+            setActionError(error instanceof Error ? error.message : "Impossible de dupliquer la compétence.");
+        } finally {
+            setBusySkillId(null);
+        }
+    }
+
+    async function handleArchive() {
+        if (!skillToArchive) return;
+
+        setActionError(null);
+        setBusySkillId(skillToArchive.id);
+
+        try {
+            await requestContentCardAction(
+                SKILL_ROUTES.api.detail(skillToArchive.id),
+                "DELETE",
+                "Impossible d'archiver la compétence.",
+            );
+            setSkillToArchive(null);
+            router.refresh();
+        } catch (error) {
+            setActionError(error instanceof Error ? error.message : "Impossible d'archiver la compétence.");
+        } finally {
+            setBusySkillId(null);
+        }
+    }
+
     return (
         <Box as="main" className="px-5 pb-12 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1260px]">
@@ -143,7 +201,7 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
 
                     {canManage && (
                         <ContextualLink
-                            href="/skills/new"
+                            href={SKILL_ROUTES.app.create}
                             className="mt-1 flex h-9 items-center justify-center gap-2.5 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7] md:mt-2"
                         >
                             <InlineIcon icon={Plus} className="h-4 w-4" />
@@ -183,36 +241,68 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
                     </Button>
                 </Box>
 
+                {actionError && !skillToArchive && (
+                    <CardSurface className={cn("mb-5 rounded-xl border px-4 py-3 shadow-none", uiTokens.tone.danger.soft)}>
+                        <Text className="text-[13px] font-semibold">{actionError}</Text>
+                    </CardSurface>
+                )}
+
                 {filteredSkills.length > 0 ? (
                     <Box className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                         {filteredSkills.map((skill) => {
                             const typeTone = SKILL_TYPE_TONES[skill.type];
                             return (
-                                <ContextualLink
+                                <CardSurface
                                     key={skill.id}
-                                    href={`/skills/${skill.id}`}
-                                    className="relative flex min-h-[132px] flex-col rounded-[14px] border border-[#E5E7EB] bg-white p-6 transition duration-200 hover:-translate-y-0.5 hover:border-[#D8DCE6] hover:shadow-[0_14px_34px_rgba(17,24,39,0.10)]"
+                                    className={cn(
+                                        "relative min-h-[132px] rounded-[14px] border border-[#E5E7EB] bg-white p-0 shadow-none transition duration-200 hover:-translate-y-0.5 hover:border-[#D8DCE6] hover:shadow-[0_14px_34px_rgba(17,24,39,0.10)]",
+                                        openMenuId === skill.id && uiTokens.action.cardMenuOpen,
+                                    )}
                                 >
-                                    <Box className="absolute right-5 top-5 h-2.5 w-2.5 rounded-full bg-[#22C55E]" />
-                                    <Text as="h3" className="max-w-[85%] text-[17px] font-bold leading-6 text-[#111827]">
-                                        {skill.name}
-                                    </Text>
-                                    <Box className="mt-3 flex flex-wrap gap-2">
-                                        <Box className={cn("inline-flex min-h-6 w-fit items-center rounded-md border px-2 py-0.5 text-[12px] font-semibold", typeTone.soft)}>
-                                            Type · {skill.type}
+                                    {canManage && (
+                                        <SkillCardActions
+                                            busy={busySkillId === skill.id}
+                                            currentHref={currentHref}
+                                            isMenuOpen={openMenuId === skill.id}
+                                            onArchive={() => {
+                                                setActionError(null);
+                                                setOpenMenuId(null);
+                                                setSkillToArchive(skill);
+                                            }}
+                                            onDuplicate={() => void handleDuplicate(skill.id)}
+                                            onToggleMenu={() => setOpenMenuId(openMenuId === skill.id ? null : skill.id)}
+                                            skill={skill}
+                                        />
+                                    )}
+                                    <Box className={cn(
+                                        "absolute top-6 h-2.5 w-2.5 rounded-full bg-[#22C55E]",
+                                        canManage ? "right-16" : "right-5",
+                                    )} />
+                                    <ContextualLink
+                                        href={SKILL_ROUTES.app.detail(skill.id)}
+                                        aria-label={`Voir la compétence ${skill.name}`}
+                                        className="flex min-h-[132px] flex-col rounded-[14px] p-6 pr-14 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-[#5140F0]/15"
+                                    >
+                                        <Text as="h3" className="max-w-[85%] text-[17px] font-bold leading-6 text-[#111827]">
+                                            {skill.name}
+                                        </Text>
+                                        <Box className="mt-3 flex flex-wrap gap-2">
+                                            <Box className={cn("inline-flex min-h-6 w-fit items-center rounded-md border px-2 py-0.5 text-[12px] font-semibold", typeTone.soft)}>
+                                                Type · {skill.type}
+                                            </Box>
+                                            {skill.domain && (
+                                                <Box className={cn("inline-flex min-h-6 w-fit items-center rounded-md border px-2 py-0.5 text-[12px] font-semibold", uiTokens.tone.info.soft)}>
+                                                    Domaine · {skill.domain}
+                                                </Box>
+                                            )}
+                                            {skill.category && (
+                                                <Box className={cn("inline-flex min-h-6 w-fit items-center rounded-md border px-2 py-0.5 text-[12px] font-semibold", uiTokens.tone.primary.soft)}>
+                                                    Catégorie · {skill.category}
+                                                </Box>
+                                            )}
                                         </Box>
-                                        {skill.domain && (
-                                            <Box className={cn("inline-flex min-h-6 w-fit items-center rounded-md border px-2 py-0.5 text-[12px] font-semibold", uiTokens.tone.info.soft)}>
-                                                Domaine · {skill.domain}
-                                            </Box>
-                                        )}
-                                        {skill.category && (
-                                            <Box className={cn("inline-flex min-h-6 w-fit items-center rounded-md border px-2 py-0.5 text-[12px] font-semibold", uiTokens.tone.primary.soft)}>
-                                                Catégorie · {skill.category}
-                                            </Box>
-                                        )}
-                                    </Box>
-                                </ContextualLink>
+                                    </ContextualLink>
+                                </CardSurface>
                             );
                         })}
                     </Box>
@@ -226,6 +316,20 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
                     </CardSurface>
                 )}
             </Box>
+
+            {skillToArchive && (
+                <ArchiveContentConfirmationModal
+                    busy={busySkillId === skillToArchive.id}
+                    entityLabel="la compétence"
+                    error={actionError}
+                    name={skillToArchive.name}
+                    onCancel={() => {
+                        setActionError(null);
+                        setSkillToArchive(null);
+                    }}
+                    onConfirm={() => void handleArchive()}
+                />
+            )}
 
             {filtersOpen && (
                 <Box className="fixed inset-0 z-40">

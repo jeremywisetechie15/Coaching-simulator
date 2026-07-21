@@ -3,6 +3,7 @@ import { SkillsPage } from "@/features/skills/components";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { listSkills } from "@/features/skills/server";
+import { SKILL_ROUTES } from "@/features/skills/domain/skills";
 import { UnauthorizedError } from "@/lib/server/errors";
 import { buildAuthRedirectHref, withReturnTo, withSearchParams } from "@/features/app-shell/domain";
 
@@ -34,7 +35,7 @@ export default async function Page({ searchParams }: PageProps) {
         redirect(
             buildAuthRedirectHref(
                 withReturnTo(
-                    withSearchParams("/skills", {
+                    withSearchParams(SKILL_ROUTES.app.collection, {
                         category: filters.category,
                         domain: filters.domain,
                         q: filters.q,

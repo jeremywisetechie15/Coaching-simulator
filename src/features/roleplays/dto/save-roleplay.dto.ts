@@ -9,6 +9,8 @@ import {
     ROLEPLAY_AI_INSTRUCTIONS_MAX_LENGTH,
     ROLEPLAY_DIFFICULTIES,
     ROLEPLAY_DISC_PROFILES,
+    ROLEPLAY_LEARNER_ROLE_MAX_LENGTH,
+    getRoleplayPublicationIssues,
 } from "@/features/roleplays/domain";
 import { CONTENT_UPLOAD_RESOURCE_TYPES } from "@/lib/uploads/content-upload";
 
@@ -72,15 +74,26 @@ export const saveRoleplayDto = z
         coachId: z.string().uuid("Le coach sélectionné est invalide.").nullable().optional().default(null),
         context: z.string().trim().max(4000, "Le contexte est trop long.").optional().default(""),
         description: z.string().trim().max(1200, "La description est trop longue.").optional().default(""),
-        difficulty: z.enum(ROLEPLAY_DIFFICULTIES).optional().default("Moyen"),
+        difficulty: z.enum(ROLEPLAY_DIFFICULTIES).nullable().optional().default(null),
         disc: z.enum(ROLEPLAY_DISC_PROFILES).optional().default("Stable"),
         domain: z.string().trim().max(120, "Le domaine est trop long.").optional().default(""),
         groupId: optionalUuid,
+        learnerRole: z
+            .string()
+            .trim()
+            .max(ROLEPLAY_LEARNER_ROLE_MAX_LENGTH, "Votre rôle est trop long.")
+            .optional()
+            .default(""),
         methodId: z.string().uuid("La méthode sélectionnée est invalide.").nullable().optional().default(null),
         objective: z.string().trim().max(2500, "L'objectif est trop long.").optional().default(""),
         obstacles: z.string().trim().max(2500, "Les objections sont trop longues.").optional().default(""),
         organizationId: optionalUuid,
-        personaId: z.string().uuid("Le persona sélectionné est invalide."),
+        personaId: z
+            .string()
+            .uuid("Le persona sélectionné est invalide.")
+            .nullable()
+            .optional()
+            .default(null),
         previewDescription: z
             .string()
             .trim()
@@ -111,38 +124,14 @@ export const saveRoleplayDto = z
     })
     .strict()
     .superRefine((roleplay, ctx) => {
-        if (roleplay.scope === CONTENT_VISIBILITY_SCOPE.organization && !roleplay.organizationId) {
-            ctx.addIssue({
-                code: "custom",
-                message: "Un roleplay privé organisation doit être lié à une organisation.",
-                path: ["organizationId"],
-            });
-        }
-
-        if (roleplay.scope === CONTENT_VISIBILITY_SCOPE.group) {
-            if (!roleplay.organizationId) {
+        if (roleplay.status === "published") {
+            for (const issue of getRoleplayPublicationIssues(roleplay)) {
                 ctx.addIssue({
                     code: "custom",
-                    message: "Un roleplay privé groupe doit être lié à une organisation.",
-                    path: ["organizationId"],
+                    message: issue.message,
+                    path: [issue.field],
                 });
             }
-
-            if (!roleplay.groupId) {
-                ctx.addIssue({
-                    code: "custom",
-                    message: "Un roleplay privé groupe doit être lié à un groupe.",
-                    path: ["groupId"],
-                });
-            }
-        }
-
-        if (roleplay.scope === CONTENT_VISIBILITY_SCOPE.user && !roleplay.assignedUserId) {
-            ctx.addIssue({
-                code: "custom",
-                message: "Un roleplay privé utilisateur doit être lié à un utilisateur.",
-                path: ["assignedUserId"],
-            });
         }
 
         if (roleplay.scorecardId && !roleplay.methodId) {
