@@ -17,6 +17,7 @@ import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import type { RoleplaySession } from "@/features/roleplays/data/sessions";
 import {
     buildEvaluationScoreDetails,
+    ROLEPLAY_PROGRESS_PLAN_SECTION_TITLE,
     scoreLevel,
 } from "@/features/roleplays/domain";
 
@@ -275,12 +276,6 @@ function Synthesis({ evaluation }: { evaluation: Evaluation }) {
                     </Box>
                 </Box>
             </Box>
-            <Box className="mt-4 rounded-[14px] border border-[#E9E7FB] bg-[#F8F7FF] p-4">
-                <Text className="text-[14px] font-extrabold text-[#5140F0]">Priorité stratégique</Text>
-                <Text className="mt-2 text-[13px] font-medium leading-6 text-[#4B5563]">
-                    {evaluation.prioriteStrategique}
-                </Text>
-            </Box>
         </Section>
     );
 }
@@ -289,7 +284,7 @@ function PlanProgress({ evaluation }: { evaluation: Evaluation }) {
     const plans = evaluation.planEtapes ?? [evaluation.planEtape];
 
     return (
-        <Section eyebrow="Plan" title="Plan de progrès">
+        <Section eyebrow="Plan" title={ROLEPLAY_PROGRESS_PLAN_SECTION_TITLE}>
             <Box className="space-y-4">
                 {plans.map((plan) => (
                     <Box key={`${plan.number}-${plan.title}`} className="rounded-[14px] border border-[#E9E7FB] bg-[#F8F7FF] p-4">
@@ -299,6 +294,14 @@ function PlanProgress({ evaluation }: { evaluation: Evaluation }) {
                         <Text className="mt-2 text-[13px] font-medium leading-6 text-[#4B5563]">{plan.text}</Text>
                     </Box>
                 ))}
+                <Box className="rounded-[14px] border border-[#E9E7FB] bg-[#F8F7FF] p-4">
+                    <Text className="text-[12px] font-extrabold uppercase tracking-wide text-[#5140F0]">
+                        Priorité stratégique
+                    </Text>
+                    <Text className="mt-2 text-[13px] font-medium leading-6 text-[#4B5563]">
+                        {evaluation.prioriteStrategique}
+                    </Text>
+                </Box>
             </Box>
         </Section>
     );

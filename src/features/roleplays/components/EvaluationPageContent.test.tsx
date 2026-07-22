@@ -27,6 +27,8 @@ describe("SyntheseTab", () => {
         expect(html).toContain("Ask AI persona");
         expect(html).toContain("Appréciation globale par le coach IA");
         expect(html).toContain("Ask Coach IA");
+        expect(html).toContain("Plan de progrès et priorité stratégique");
+        expect(html).toContain("Priorité stratégique");
     });
 
     it("builds the global coach page title from the associated coach and roleplay", () => {

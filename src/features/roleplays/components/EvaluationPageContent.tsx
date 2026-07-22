@@ -49,6 +49,7 @@ import {
     getRoleplayNotationApiErrorMessage,
     ROLEPLAY_NOTATION_FEEDBACK_MESSAGES,
     ROLEPLAY_PDF_TEMPLATES,
+    ROLEPLAY_PROGRESS_PLAN_SECTION_TITLE,
     ROLEPLAY_ROUTES,
     scoreLevel,
     type RoleplayPdfTemplate,
@@ -701,12 +702,6 @@ export function SyntheseTab({
                             </Box>
                         ))}
                     </Box>
-                    <Text as="p" className="mt-5 text-[12px] font-extrabold uppercase tracking-wide text-[#E11D48]">
-                        Priorité stratégique
-                    </Text>
-                    <Text className="mt-2 text-[14px] font-medium leading-6 text-[#4B5563]">
-                        {evaluation.prioriteStrategique}
-                    </Text>
                 </CardSurface>
             </Box>
 
@@ -717,7 +712,7 @@ export function SyntheseTab({
                             <InlineIcon icon={Sparkles} className="h-[18px] w-[18px] text-[#5140F0]" />
                         </Box>
                         <Text as="h3" className="text-[16px] font-bold text-[#111827]">
-                            Plan de progrès
+                            {ROLEPLAY_PROGRESS_PLAN_SECTION_TITLE}
                         </Text>
                     </Box>
                     <ContextualLink
@@ -742,6 +737,14 @@ export function SyntheseTab({
                             </Box>
                         </Box>
                     ))}
+                </Box>
+                <Box className="mt-5 border-t border-[#ECEEF3] pt-5">
+                    <Text as="p" className="text-[12px] font-extrabold uppercase tracking-wide text-[#5140F0]">
+                        Priorité stratégique
+                    </Text>
+                    <Text className="mt-2 text-[14px] font-medium leading-6 text-[#4B5563]">
+                        {evaluation.prioriteStrategique}
+                    </Text>
                 </Box>
             </CardSurface>
 
@@ -858,11 +861,14 @@ function CoachDebriefPanel({ evaluation }: { evaluation: Evaluation }) {
                 },
                 {
                     icon: Sparkles,
-                    items: progressPlans.map(
-                        (plan) => `Étape ${plan.number} • ${plan.title} — ${plan.text}`,
-                    ),
+                    items: [
+                        ...progressPlans.map(
+                            (plan) => `Étape ${plan.number} • ${plan.title} — ${plan.text}`,
+                        ),
+                        `Priorité stratégique — ${evaluation.prioriteStrategique}`,
+                    ],
                     key: "progress-plan",
-                    label: "Plan de progrès",
+                    label: ROLEPLAY_PROGRESS_PLAN_SECTION_TITLE,
                     tone: "indigo",
                 },
             ]}

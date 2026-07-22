@@ -12,7 +12,7 @@ import {
     type StepTranscriptLine,
     type TranscriptMessage,
 } from "@/features/roleplays/data/evaluation";
-import { MAX_ROLEPLAY_PROGRESS_PLAN_ITEMS } from "./roleplay-notation";
+import { limitRoleplaySynthesisItems } from "./roleplay-notation";
 import {
     ROLEPLAY_CONSOLIDATION_THRESHOLD_PERCENT,
     ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
@@ -669,18 +669,19 @@ function mapPlanSteps(synthese: JsonRecord | null, steps: EvaluationStep[]): Non
 
     if (planRecords.length > 0) {
         const scoreByStepNumber = new Map(steps.map((step) => [step.number, step.score]));
-        return planRecords
-            .map((plan) => mapPlanStepRecord(plan, steps))
-            .sort((first, second) => {
-                const firstScore = scoreByStepNumber.get(first.number);
-                const secondScore = scoreByStepNumber.get(second.number);
+        return limitRoleplaySynthesisItems(
+            planRecords
+                .map((plan) => mapPlanStepRecord(plan, steps))
+                .sort((first, second) => {
+                    const firstScore = scoreByStepNumber.get(first.number);
+                    const secondScore = scoreByStepNumber.get(second.number);
 
-                if (firstScore === undefined && secondScore === undefined) return first.number - second.number;
-                if (firstScore === undefined) return 1;
-                if (secondScore === undefined) return -1;
-                return firstScore - secondScore || first.number - second.number;
-            })
-            .slice(0, MAX_ROLEPLAY_PROGRESS_PLAN_ITEMS);
+                    if (firstScore === undefined && secondScore === undefined) return first.number - second.number;
+                    if (firstScore === undefined) return 1;
+                    if (secondScore === undefined) return -1;
+                    return firstScore - secondScore || first.number - second.number;
+                }),
+        );
     }
 
     return [fallbackPlanStep(steps)];
@@ -755,7 +756,7 @@ function mapKeyMoments(synthese: JsonRecord | null): EvaluationKeyMoment[] {
         }];
     });
 
-    return moments.length > 0 ? moments : demoEvaluationKeyMoments;
+    return limitRoleplaySynthesisItems(moments.length > 0 ? moments : demoEvaluationKeyMoments);
 }
 
 export function mapNotationToEvaluation(
@@ -777,15 +778,17 @@ export function mapNotationToEvaluation(
     const planEtapes = mapPlanSteps(synthese, steps);
 
     return {
-        axesAmelioration: firstList(
-            synthese,
-            [
-                ["axes_amelioration"],
-                ["axes_d_amelioration"],
-                ["points_a_ameliorer"],
-                ["ameliorations"],
-            ],
-            fallbackEvaluation.axesAmelioration,
+        axesAmelioration: limitRoleplaySynthesisItems(
+            firstList(
+                synthese,
+                [
+                    ["axes_amelioration"],
+                    ["axes_d_amelioration"],
+                    ["points_a_ameliorer"],
+                    ["ameliorations"],
+                ],
+                fallbackEvaluation.axesAmelioration,
+            ),
         ),
         coachAppreciation:
             firstString(synthese, [["appreciation_globale"], ["coach_appreciation"], ["synthese"], ["resume"]]) ??
@@ -796,10 +799,12 @@ export function mapNotationToEvaluation(
         personaAvis: extractNotationPersonaFeedback(notation) ?? fallbackEvaluation.personaAvis,
         planEtape: planEtapes[0] ?? fallbackEvaluation.planEtape,
         planEtapes,
-        pointsPositifs: firstList(
-            synthese,
-            [["points_positifs"], ["reussites_observees"], ["forces"], ["points_forts"]],
-            fallbackEvaluation.pointsPositifs,
+        pointsPositifs: limitRoleplaySynthesisItems(
+            firstList(
+                synthese,
+                [["points_positifs"], ["reussites_observees"], ["forces"], ["points_forts"]],
+                fallbackEvaluation.pointsPositifs,
+            ),
         ),
         prioriteStrategique:
             firstString(synthese, [["priorite_strategique"], ["priorite"], ["recommandation_prioritaire"]]) ??

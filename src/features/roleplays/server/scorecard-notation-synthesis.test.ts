@@ -57,19 +57,29 @@ describe("scorecard notation synthesis", () => {
         expect(normalized.errors).toContain("moments_cles[0] contient une etape_ref inconnue: A.");
     });
 
-    it("keeps at most the first three prioritized progress actions", () => {
+    it("keeps at most the first three prioritized items in every synthesis list", () => {
         const normalized = normalizeScorecardNotationSynthesis({
-            moments_cles: [],
+            axes_amelioration: ["Axe 1", "Axe 2", "Axe 3", "Axe 4"],
+            moments_cles: [
+                { etape_ref: "S1", titre: "Moment 1" },
+                { etape_ref: "S2", titre: "Moment 2" },
+                { etape_ref: "S1", titre: "Moment 3" },
+                { etape_ref: "S2", titre: "Moment 4" },
+            ],
             plan_de_progres: [
                 { etape_ref: "S1", texte: "Priorité 1" },
                 { etape_ref: "S2", texte: "Priorité 2" },
                 { etape_ref: "S1", texte: "Priorité 3" },
                 { etape_ref: "S2", texte: "Priorité 4" },
             ],
+            points_positifs: ["Point 1", "Point 2", "Point 3", "Point 4"],
         }, steps);
 
         expect(normalized.errors).toEqual([]);
+        expect(normalized.result?.axes_amelioration).toHaveLength(3);
+        expect(normalized.result?.moments_cles).toHaveLength(3);
         expect(normalized.result?.plan_de_progres).toHaveLength(3);
+        expect(normalized.result?.points_positifs).toHaveLength(3);
         expect(normalized.result?.plan_de_progres).toEqual(expect.arrayContaining([
             expect.objectContaining({ texte: "Priorité 1" }),
             expect.objectContaining({ texte: "Priorité 2" }),

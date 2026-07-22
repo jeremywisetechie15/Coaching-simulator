@@ -1,3 +1,5 @@
+import { ROLEPLAY_PROGRESS_PLAN_SECTION_TITLE } from "@/features/roleplays/domain/roleplay-notation";
+
 /**
  * Sections produites par le coach IA pendant l'analyse d'une session terminée.
  * Source unique pour le loader « Analyse en cours » (et, à terme, la page de notation).
@@ -7,7 +9,7 @@ export const ROLEPLAY_ANALYSIS_STEPS = [
     "Appréciation globale par le coach IA",
     "Points positifs",
     "Axes d'amélioration",
-    "Plan de progrès",
+    ROLEPLAY_PROGRESS_PLAN_SECTION_TITLE,
     "Analyse méthodologique",
     "Analyse discours",
     "Transcription",

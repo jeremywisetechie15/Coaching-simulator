@@ -1,5 +1,5 @@
 import {
-    MAX_ROLEPLAY_PROGRESS_PLAN_ITEMS,
+    limitRoleplaySynthesisLists,
     type RoleplayNotationStepRef,
 } from "@/features/roleplays/domain";
 
@@ -57,10 +57,10 @@ export function normalizeScorecardNotationSynthesis(
         errors,
         result: errors.length > 0
             ? null
-            : {
+            : limitRoleplaySynthesisLists<Record<string, unknown>>({
                 ...value,
                 moments_cles: moments.items,
-                plan_de_progres: progress.items.slice(0, MAX_ROLEPLAY_PROGRESS_PLAN_ITEMS),
-            },
+                plan_de_progres: progress.items,
+            }),
     };
 }

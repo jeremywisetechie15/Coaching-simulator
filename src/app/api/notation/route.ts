@@ -11,6 +11,7 @@ import {
     ROLEPLAY_NOTATION_STATUS,
     ROLEPLAY_NOTATION_TABS,
     isForcedRoleplayNotationRegeneration,
+    limitRoleplaySynthesisLists,
     shouldReuseCompletedRoleplayNotation,
     ROLEPLAY_NOTATION_FEEDBACK_MESSAGES,
     type RoleplayNotationCriterionRef,
@@ -1332,7 +1333,9 @@ Analyse cet appel et réponds uniquement avec un JSON valide.`
             }
 
             if (tabResult?.result) {
-                notation[tab] = tabResult.result;
+                notation[tab] = tab === "synthese"
+                    ? limitRoleplaySynthesisLists(tabResult.result)
+                    : tabResult.result;
             } else {
                 const tabError = error || `Réponse ${tab} absente, invalide ou incomplète.`;
                 errors.push(`${tab}: ${tabError}`);

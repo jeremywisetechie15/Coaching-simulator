@@ -409,6 +409,25 @@ describe("evaluation notation mapper", () => {
         ]);
     });
 
+    it("limits legacy synthesis feedback lists to three displayed items", () => {
+        const evaluation = mapNotationToEvaluation({
+            synthese: {
+                axes_amelioration: ["A1", "A2", "A3", "A4"],
+                moments_cles: [
+                    { titre: "M1" },
+                    { titre: "M2" },
+                    { titre: "M3" },
+                    { titre: "M4" },
+                ],
+                points_positifs: ["F1", "F2", "F3", "F4"],
+            },
+        });
+
+        expect(evaluation.axesAmelioration).toEqual(["A1", "A2", "A3"]);
+        expect(evaluation.momentsCles).toHaveLength(3);
+        expect(evaluation.pointsPositifs).toEqual(["F1", "F2", "F3"]);
+    });
+
     it("keeps fallback content when notation_json is missing but maps session messages", () => {
         const evaluation = mapNotationToEvaluation(null, [
             {
