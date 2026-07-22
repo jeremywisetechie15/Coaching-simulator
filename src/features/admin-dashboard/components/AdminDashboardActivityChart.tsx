@@ -11,6 +11,7 @@ const CHART_HEIGHT = 244;
 const CHART_PADDING = { bottom: 34, left: 42, right: 14, top: 12 } as const;
 
 const seriesClasses: Record<AdminDashboardActivitySeriesId, string> = {
+    [ADMIN_DASHBOARD_ACTIVITY_SERIES_ID.connections]: uiTokens.adminDashboard.chart.connections,
     [ADMIN_DASHBOARD_ACTIVITY_SERIES_ID.quizzes]: uiTokens.adminDashboard.chart.quizzes,
     [ADMIN_DASHBOARD_ACTIVITY_SERIES_ID.roleplays]: uiTokens.adminDashboard.chart.roleplays,
 };

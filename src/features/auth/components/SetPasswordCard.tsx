@@ -4,6 +4,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import { useSearchParams } from "next/navigation";
 import type { EmailOtpType } from "@supabase/supabase-js";
 import { resolveInternalHref } from "@/features/app-shell/domain";
+import { recordSuccessfulLogin } from "@/features/activity-tracking/client";
 import { createClient } from "@/lib/supabase/client";
 import { validateNewPassword } from "@/features/auth/domain/password-recovery";
 import { FormRoot } from "@/lib/ui/atoms";
@@ -131,6 +132,9 @@ export function SetPasswordCard() {
             return;
         }
 
+        await recordSuccessfulLogin().catch((loginEventError) => {
+            console.warn("Unable to persist first login activity:", loginEventError);
+        });
         notifyFormSubmitSuccess();
         window.location.assign(redirectTo);
     };

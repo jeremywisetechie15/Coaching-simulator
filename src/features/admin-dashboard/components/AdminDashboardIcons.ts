@@ -1,7 +1,7 @@
 import {
     BarChart3,
+    Bot,
     BookOpen,
-    Boxes,
     Building2,
     CalendarDays,
     ChevronDown,
@@ -9,12 +9,11 @@ import {
     CircleGauge,
     Clock3,
     Cpu,
-    Database,
     FileCheck2,
     Gamepad2,
     Info,
+    MessageCircleMore,
     RefreshCw,
-    TriangleAlert,
     UserPlus,
     UsersRound,
 } from "lucide-react";
@@ -34,13 +33,13 @@ export const adminDashboardMetricIcons = {
     [ADMIN_DASHBOARD_METRIC_ID.publishedMethods]: BookOpen,
     [ADMIN_DASHBOARD_METRIC_ID.publishedQuizzes]: FileCheck2,
     [ADMIN_DASHBOARD_METRIC_ID.publishedRoleplays]: Gamepad2,
-    [ADMIN_DASHBOARD_METRIC_ID.skills]: Boxes,
 } satisfies Record<AdminDashboardMetricId, typeof UsersRound>;
 
 export const adminDashboardAiIcons = {
-    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.alerts]: TriangleAlert,
-    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.consumed]: Cpu,
-    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.remaining]: Database,
+    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.askPersona]: MessageCircleMore,
+    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.coach]: Bot,
+    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.simulations]: Gamepad2,
+    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.total]: Clock3,
 } satisfies Record<AdminDashboardAiOverviewId, typeof Cpu>;
 
 export const adminDashboardQuickActionIcons = {

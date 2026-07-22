@@ -2,6 +2,8 @@ import type { PostgrestError } from "@supabase/supabase-js";
 import {
     buildAdminDashboardViewData,
     type AdminDashboardContentRecord,
+    type AdminDashboardAiConversationRecord,
+    type AdminDashboardLoginEventRecord,
     type AdminDashboardMembershipRecord,
     type AdminDashboardOrganizationRecord,
     type AdminDashboardProfileRecord,
@@ -13,10 +15,12 @@ import type { AdminDashboardQueryDto } from "@/features/admin-dashboard/dto";
 import { isPlatformRole } from "@/features/auth/domain/user-context";
 import { requireAdmin } from "@/features/auth/server";
 import { normalizeContentStatus } from "@/features/content/domain";
+import { getDashboardPeriodRange } from "@/features/dashboard/domain";
 import {
     isOrganizationMemberStatus,
 } from "@/features/organizations/domain/organization-member";
 import { ORGANIZATION_STATUS } from "@/features/organizations/domain/organization-list";
+import { MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS } from "@/features/roleplays/domain";
 import {
     extractAssignmentScore,
 } from "@/features/users/server/user-assignment-visibility";
@@ -24,6 +28,7 @@ import { PLATFORM_ROLE } from "@/features/users/domain/users";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 const PAGE_SIZE = 1_000;
+const RELATED_ID_BATCH_SIZE = 100;
 
 interface PageResult<T> {
     data: T[] | null;
@@ -76,11 +81,13 @@ interface ProfileRow {
 interface SessionRow {
     created_at: string | null;
     duration_seconds: number | null;
+    ended_at: string | null;
     id: string;
     notation_json: unknown;
     organization_id: string | null;
     scenario_id: string | null;
     status: string | null;
+    technical_error: boolean | null;
     user_id: string | null;
 }
 
@@ -90,13 +97,40 @@ interface RoleplayResultRow {
 }
 
 interface QuizAttemptRow {
+    active_duration_seconds: number | null;
     completed_at: string | null;
     id: string;
+    organization_id: string | null;
     quiz_id: string;
     score_percent: number | null;
     started_at: string;
     status: string;
     user_id: string;
+}
+
+interface MessageRow {
+    role: string;
+    session_id: string;
+}
+
+interface AiConversationRow {
+    active_duration_seconds: number;
+    ai_message_count: number;
+    ended_at: string | null;
+    id: string;
+    interaction_type: "ask_persona" | "coach";
+    organization_id: string | null;
+    status: string;
+    technical_error: boolean;
+    user_id: string;
+    user_message_count: number;
+}
+
+interface LoginEventRow {
+    id: string;
+    occurred_at: string;
+    organization_id: string | null;
+    user_id: string | null;
 }
 
 async function fetchAllRows<T>(
@@ -112,6 +146,20 @@ async function fetchAllRows<T>(
         rows.push(...page);
         if (page.length < PAGE_SIZE) return rows;
     }
+}
+
+async function fetchAllRowsByIds<T>(
+    ids: string[],
+    fetchPage: (ids: string[], from: number, to: number) => PromiseLike<PageResult<T>>,
+) {
+    const rows: T[] = [];
+
+    for (let index = 0; index < ids.length; index += RELATED_ID_BATCH_SIZE) {
+        const idBatch = ids.slice(index, index + RELATED_ID_BATCH_SIZE);
+        rows.push(...await fetchAllRows<T>((from, to) => fetchPage(idBatch, from, to)));
+    }
+
+    return rows;
 }
 
 function parseScore(value: number | string | null | undefined) {
@@ -145,17 +193,21 @@ export async function getAdminDashboard(
     await requireAdmin();
 
     const supabase = createAdminClient();
+    const dashboardNow = new Date();
+    const periodRange = getDashboardPeriodRange(input.period, dashboardNow);
+    const periodStart = periodRange.currentStart.toISOString();
+    const periodEnd = periodRange.currentEndExclusive.toISOString();
     const [
         organizationRows,
         membershipRows,
         scenarioRows,
         quizRows,
         methodRows,
-        skillRows,
         sessionRows,
-        roleplayResultRows,
         quizAttemptRows,
         profileRows,
+        aiConversationRows,
+        loginEventRows,
     ] = await Promise.all([
         fetchAllRows<OrganizationRow>((from, to) => supabase
             .from("organizations")
@@ -188,27 +240,22 @@ export async function getAdminDashboard(
             .order("id")
             .range(from, to)
             .returns<MethodRow[]>()),
-        fetchAllRows<ContentRow>((from, to) => supabase
-            .from("skills")
-            .select("id, title:name, status, is_active, organization_id, created_at, updated_at")
-            .order("id")
-            .range(from, to)
-            .returns<ContentRow[]>()),
         fetchAllRows<SessionRow>((from, to) => supabase
             .from("sessions")
-            .select("id, scenario_id, user_id, organization_id, status, duration_seconds, created_at, notation_json")
+            .select("id, scenario_id, user_id, organization_id, status, duration_seconds, created_at, ended_at, technical_error, notation_json")
+            .eq("status", "completed")
+            .eq("technical_error", false)
+            .gte("duration_seconds", MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS)
+            .or(`and(ended_at.gte.${periodStart},ended_at.lt.${periodEnd}),and(ended_at.is.null,created_at.gte.${periodStart},created_at.lt.${periodEnd})`)
             .order("id")
             .range(from, to)
             .returns<SessionRow[]>()),
-        fetchAllRows<RoleplayResultRow>((from, to) => supabase
-            .from("roleplay_session_results")
-            .select("session_id, score_percent")
-            .order("session_id")
-            .range(from, to)
-            .returns<RoleplayResultRow[]>()),
         fetchAllRows<QuizAttemptRow>((from, to) => supabase
             .from("quiz_attempts")
-            .select("id, quiz_id, user_id, status, started_at, completed_at, score_percent")
+            .select("id, quiz_id, user_id, organization_id, status, started_at, completed_at, active_duration_seconds, score_percent")
+            .eq("status", "completed")
+            .gte("completed_at", periodStart)
+            .lt("completed_at", periodEnd)
             .order("id")
             .range(from, to)
             .returns<QuizAttemptRow[]>()),
@@ -218,6 +265,41 @@ export async function getAdminDashboard(
             .order("id")
             .range(from, to)
             .returns<ProfileRow[]>()),
+        fetchAllRows<AiConversationRow>((from, to) => supabase
+            .from("ai_conversation_sessions")
+            .select("id, user_id, organization_id, interaction_type, status, ended_at, active_duration_seconds, user_message_count, ai_message_count, technical_error")
+            .eq("status", "completed")
+            .eq("technical_error", false)
+            .gte("ended_at", periodStart)
+            .lt("ended_at", periodEnd)
+            .order("id")
+            .range(from, to)
+            .returns<AiConversationRow[]>()),
+        fetchAllRows<LoginEventRow>((from, to) => supabase
+            .from("user_login_events")
+            .select("id, user_id, organization_id, occurred_at")
+            .gte("occurred_at", periodStart)
+            .lt("occurred_at", periodEnd)
+            .order("id")
+            .range(from, to)
+            .returns<LoginEventRow[]>()),
+    ]);
+    const sessionIds = sessionRows.map((session) => session.id);
+    const [roleplayResultRows, messageRows] = await Promise.all([
+        fetchAllRowsByIds<RoleplayResultRow>(sessionIds, (ids, from, to) => supabase
+            .from("roleplay_session_results")
+            .select("session_id, score_percent")
+            .in("session_id", ids)
+            .order("session_id")
+            .range(from, to)
+            .returns<RoleplayResultRow[]>()),
+        fetchAllRowsByIds<MessageRow>(sessionIds, (ids, from, to) => supabase
+            .from("messages")
+            .select("session_id, role")
+            .in("session_id", ids)
+            .order("id")
+            .range(from, to)
+            .returns<MessageRow[]>()),
     ]);
 
     const organizations: AdminDashboardOrganizationRecord[] = organizationRows.map((organization) => ({
@@ -247,27 +329,57 @@ export async function getAdminDashboard(
             return score === null ? [] : [[result.session_id, score] as const];
         }),
     );
+    const sessionIdsWithUserMessages = new Set(
+        messageRows.filter((message) => message.role === "user").map((message) => message.session_id),
+    );
+    const sessionIdsWithAiMessages = new Set(
+        messageRows.filter((message) => message.role === "assistant").map((message) => message.session_id),
+    );
     const sessions: AdminDashboardSessionRecord[] = sessionRows.flatMap((session) => {
         if (!session.created_at || !session.scenario_id || !session.user_id) return [];
         return [{
             createdAt: session.created_at,
             durationSeconds: session.duration_seconds ?? 0,
+            endedAt: session.ended_at,
+            hasAiMessage: sessionIdsWithAiMessages.has(session.id),
+            hasUserMessage: sessionIdsWithUserMessages.has(session.id),
             id: session.id,
             organizationId: session.organization_id,
             scenarioId: session.scenario_id,
             scorePercent: scoresBySessionId.get(session.id) ?? extractAssignmentScore(session.notation_json),
             status: session.status ?? "",
+            technicalError: session.technical_error === true,
             userId: session.user_id,
         }];
     });
     const quizAttempts: AdminDashboardQuizAttemptRecord[] = quizAttemptRows.map((attempt) => ({
+        activeDurationSeconds: attempt.active_duration_seconds,
         completedAt: attempt.completed_at,
         id: attempt.id,
+        organizationId: attempt.organization_id,
         quizId: attempt.quiz_id,
         scorePercent: parseScore(attempt.score_percent),
         startedAt: attempt.started_at,
         status: attempt.status,
         userId: attempt.user_id,
+    }));
+    const aiConversations: AdminDashboardAiConversationRecord[] = aiConversationRows.map((conversation) => ({
+        activeDurationSeconds: conversation.active_duration_seconds,
+        aiMessageCount: conversation.ai_message_count,
+        endedAt: conversation.ended_at,
+        id: conversation.id,
+        interactionType: conversation.interaction_type,
+        organizationId: conversation.organization_id,
+        status: conversation.status,
+        technicalError: conversation.technical_error,
+        userId: conversation.user_id,
+        userMessageCount: conversation.user_message_count,
+    }));
+    const loginEvents: AdminDashboardLoginEventRecord[] = loginEventRows.map((event) => ({
+        id: event.id,
+        occurredAt: event.occurred_at,
+        organizationId: event.organization_id,
+        userId: event.user_id,
     }));
     const profiles: AdminDashboardProfileRecord[] = profileRows.map((profile) => ({
         id: profile.id,
@@ -278,8 +390,11 @@ export async function getAdminDashboard(
     }));
 
     return buildAdminDashboardViewData({
+        aiConversations,
+        loginEvents,
         methods,
         memberships,
+        now: dashboardNow,
         organizationFilter: input.organization,
         organizations,
         periodDays: input.period,
@@ -288,6 +403,5 @@ export async function getAdminDashboard(
         quizzes: quizRows.map(mapContent),
         scenarios: scenarioRows.map(mapContent),
         sessions,
-        skills: skillRows.map(mapContent),
     });
 }

@@ -1,9 +1,8 @@
 "use client";
 
 import { useState, useRef, useCallback, useEffect } from "react";
-import { Phone, PhoneOff, Loader2, AlertCircle, Waves, Volume2, Camera, VideoOff, MicOff } from "lucide-react";
+import { Phone, PhoneOff, Loader2, AlertCircle, Volume2, Camera, VideoOff, MicOff } from "lucide-react";
 import { prepareIframeSession, type IframeSessionConfig } from "./actions";
-import type { VoiceId } from "@/types";
 import { extractRealtimeAssistantTranscript } from "@/lib/openai/realtime-transcript";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -20,6 +19,11 @@ import {
     getRoleplayNotationApiErrorMessage,
     ROLEPLAY_NOTATION_FEEDBACK_MESSAGES,
 } from "@/features/roleplays/domain/roleplay-notation-feedback";
+import { useAiConversationTracking } from "@/features/activity-tracking/client";
+import {
+    AI_CONVERSATION_STATUS,
+    AI_CONVERSATION_TYPE,
+} from "@/features/activity-tracking/domain";
 
 type SessionStatus = "loading" | "ready" | "connecting" | "connected" | "error" | "ended";
 
@@ -71,6 +75,16 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
     const [isCameraOff, setIsCameraOff] = useState(false);
     const [liveMessages, setLiveMessages] = useState<ConversationMessage[]>([]);
     const transcriptEndRef = useRef<HTMLDivElement | null>(null);
+    const trackedInteractionType = mode === "coach"
+        ? AI_CONVERSATION_TYPE.coach
+        : variant === "coach"
+          ? AI_CONVERSATION_TYPE.askPersona
+          : null;
+    const {
+        end: endTrackedConversation,
+        markActivity: markTrackedConversationActivity,
+        start: startTrackedConversation,
+    } = useAiConversationTracking(trackedInteractionType);
 
     // WebRTC refs
     const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -87,7 +101,6 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
     const processedEventIds = useRef<Set<string>>(new Set());
     const sessionDurationRef = useRef<number>(0);
     const initCalledRef = useRef(false);
-    const speakingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     // Generate realistic European phone ringtone using Web Audio API
     const playRingtone = useCallback(() => {
@@ -268,6 +281,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
         };
 
         conversationRef.current.push(newMessage);
+        markTrackedConversationActivity(role);
 
         if (
             mode === "coach" &&
@@ -291,7 +305,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
         setTimeout(() => {
             transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
         }, 50);
-    }, [coachSessionId, mode, scenarioId]);
+    }, [coachSessionId, markTrackedConversationActivity, mode, scenarioId]);
 
     const handleRealtimeEvent = useCallback((event: { type: string;[key: string]: unknown }) => {
         const eventId = (event as { event_id?: string }).event_id;
@@ -321,6 +335,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
             // === AI SPEAKING EVENTS (WebRTC) ===
             case "output_audio_buffer.started":
                 console.log("🟢 AI STARTED SPEAKING (output_audio_buffer.started)");
+                markTrackedConversationActivity();
                 setIsAiSpeaking(true);
                 break;
 
@@ -357,6 +372,9 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
             // === ERROR ===
             case "error":
                 console.error("Realtime server error:", event);
+                void endTrackedConversation(AI_CONVERSATION_STATUS.error).catch((trackingError) => {
+                    console.warn("Unable to close failed AI conversation tracking:", trackingError);
+                });
                 setError(String((event as { error?: { message?: string } }).error?.message) || "Realtime error");
                 setStatus("error");
                 break;
@@ -367,7 +385,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                     console.log("📡 Other audio event:", event.type);
                 }
         }
-    }, [addMessageToRef]);
+    }, [addMessageToRef, endTrackedConversation, markTrackedConversationActivity]);
 
     const startSession = async () => {
         if (!config) return;
@@ -396,7 +414,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                 const videoStream = await navigator.mediaDevices.getUserMedia({ video: true });
                 videoStreamRef.current = videoStream;
                 setHasVideoStream(true);
-            } catch (videoErr) {
+            } catch {
                 console.log("Camera not available, continuing without video preview");
                 setHasVideoStream(false);
             }
@@ -527,6 +545,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                     ringtoneRef.current = null;
 
                     setStatus("connected");
+                    void startTrackedConversation();
 
                     // Mark connection as established and trigger AI greeting
                     connectionEstablished = true;
@@ -547,6 +566,9 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                     ringtoneRef.current = null;
 
                     setError("Connection lost");
+                    void endTrackedConversation(AI_CONVERSATION_STATUS.error).catch((trackingError) => {
+                        console.warn("Unable to close disconnected AI conversation tracking:", trackingError);
+                    });
                     setStatus("error");
                 }
             };
@@ -618,6 +640,12 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
     const endSession = async () => {
         const duration = sessionDurationRef.current;
         const messages = [...conversationRef.current];
+
+        if (trackedInteractionType) {
+            await endTrackedConversation(AI_CONVERSATION_STATUS.completed).catch((trackingError) => {
+                console.warn("Unable to complete AI conversation tracking:", trackingError);
+            });
+        }
 
         cleanup();
         setStatus("ended");

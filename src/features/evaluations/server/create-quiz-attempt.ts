@@ -58,7 +58,10 @@ export async function createQuizAttempt(quizId: string): Promise<QuizAttemptSess
     const { data: attemptRow, error: insertError } = await adminSupabase
         .from("quiz_attempts")
         .insert({
+            active_duration_seconds: 0,
             attempt_number: attemptsUsed + 1,
+            last_activity_at: new Date().toISOString(),
+            organization_id: context.activeOrganizationId,
             quiz_id: quizId,
             status: "in_progress",
             user_id: context.userId,

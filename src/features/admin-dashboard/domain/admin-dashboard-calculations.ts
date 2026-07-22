@@ -22,7 +22,6 @@ import {
     ADMIN_DASHBOARD_ACTIVITY_SERIES_ID,
     ADMIN_DASHBOARD_AI_OVERVIEW_ID,
     ADMIN_DASHBOARD_METRIC_ID,
-    ADMIN_DASHBOARD_MOCK_SECTION,
     ADMIN_DASHBOARD_ORGANIZATION_ALL,
     type AdminDashboardAiOrganizationUsage,
     type AdminDashboardAiUsage,
@@ -69,17 +68,23 @@ export interface AdminDashboardProfileRecord {
 export interface AdminDashboardSessionRecord {
     createdAt: string;
     durationSeconds: number;
+    endedAt: string | null;
+    hasAiMessage: boolean;
+    hasUserMessage: boolean;
     id: string;
     organizationId: string | null;
     scenarioId: string;
     scorePercent: number | null;
     status: string;
+    technicalError: boolean;
     userId: string;
 }
 
 export interface AdminDashboardQuizAttemptRecord {
+    activeDurationSeconds: number | null;
     completedAt: string | null;
     id: string;
+    organizationId: string | null;
     quizId: string;
     scorePercent: number | null;
     startedAt: string;
@@ -87,7 +92,29 @@ export interface AdminDashboardQuizAttemptRecord {
     userId: string;
 }
 
+export interface AdminDashboardAiConversationRecord {
+    activeDurationSeconds: number;
+    aiMessageCount: number;
+    endedAt: string | null;
+    id: string;
+    interactionType: "ask_persona" | "coach";
+    organizationId: string | null;
+    status: string;
+    technicalError: boolean;
+    userId: string;
+    userMessageCount: number;
+}
+
+export interface AdminDashboardLoginEventRecord {
+    id: string;
+    occurredAt: string;
+    organizationId: string | null;
+    userId: string | null;
+}
+
 export interface BuildAdminDashboardInput {
+    aiConversations: AdminDashboardAiConversationRecord[];
+    loginEvents: AdminDashboardLoginEventRecord[];
     methods: AdminDashboardContentRecord[];
     memberships: AdminDashboardMembershipRecord[];
     now?: Date;
@@ -99,7 +126,6 @@ export interface BuildAdminDashboardInput {
     quizzes: AdminDashboardContentRecord[];
     scenarios: AdminDashboardContentRecord[];
     sessions: AdminDashboardSessionRecord[];
-    skills: AdminDashboardContentRecord[];
 }
 
 function timestamp(value: string | null | undefined) {
@@ -121,16 +147,6 @@ function average(values: number[]) {
 function normalizedScore(value: number | null | undefined) {
     if (typeof value !== "number" || !Number.isFinite(value)) return null;
     return Math.max(0, Math.min(100, value));
-}
-
-function formatCompactNumber(value: number) {
-    if (value >= 1_000_000) {
-        return `${(value / 1_000_000).toLocaleString("fr-FR", { maximumFractionDigits: 2 })}M`;
-    }
-    if (value >= 1_000) {
-        return `${Math.round(value / 1_000)}k`;
-    }
-    return String(Math.round(value));
 }
 
 export function formatAdminDashboardDuration(totalSeconds: number) {
@@ -203,7 +219,9 @@ function contentMatchesOrganization(
     content: AdminDashboardContentRecord,
     filter: AdminDashboardOrganizationFilter,
 ) {
-    return filter === ADMIN_DASHBOARD_ORGANIZATION_ALL || content.organizationId === filter;
+    return filter === ADMIN_DASHBOARD_ORGANIZATION_ALL
+        || content.organizationId === null
+        || content.organizationId === filter;
 }
 
 function organizationIdsForSession(
@@ -221,7 +239,10 @@ function eligibleSessions(input: BuildAdminDashboardInput) {
     return input.sessions.filter(
         (session) =>
             session.status === "completed"
-            && session.durationSeconds >= MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
+            && session.durationSeconds >= MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS
+            && !session.technicalError
+            && session.hasUserMessage
+            && session.hasAiMessage,
     );
 }
 
@@ -237,27 +258,14 @@ function buildMetrics(
     currentQuizAttempts: AdminDashboardQuizAttemptRecord[],
     activeMemberships: AdminDashboardMembershipRecord[],
     activeOrganizations: AdminDashboardOrganizationRecord[],
-    sessionOrganizationIds: (session: AdminDashboardSessionRecord) => string[],
-    quizOrganizationIds: (attempt: AdminDashboardQuizAttemptRecord) => string[],
-    currentStart: Date,
-    currentEndExclusive: Date,
 ): AdminDashboardMetric[] {
     const scopedMemberships = activeMemberships.filter((membership) =>
         matchesOrganizationFilter([membership.organizationId], input.organizationFilter),
     );
     const activeUserIds = new Set(scopedMemberships.map((membership) => membership.userId));
-    const recentlyAddedUserIds = new Set(
-        scopedMemberships
-            .filter((membership) => inRange(membership.createdAt, currentStart, currentEndExclusive))
-            .map((membership) => membership.userId),
-    );
     const scopedOrganizations = activeOrganizations.filter((organization) =>
         matchesOrganizationFilter([organization.id], input.organizationFilter),
     );
-    const organizationsWithActivity = new Set([
-        ...currentSessions.flatMap(sessionOrganizationIds),
-        ...currentQuizAttempts.flatMap(quizOrganizationIds),
-    ]);
     const scopedScenarios = input.scenarios.filter((content) =>
         contentMatchesOrganization(content, input.organizationFilter),
     );
@@ -267,9 +275,6 @@ function buildMetrics(
     const scopedMethods = input.methods.filter((content) =>
         contentMatchesOrganization(content, input.organizationFilter),
     );
-    const scopedSkills = input.skills.filter((content) =>
-        contentMatchesOrganization(content, input.organizationFilter),
-    );
     const publishedCount = (contents: AdminDashboardContentRecord[]) => contents.filter(
         (content) => content.status === CONTENT_STATUS.published && content.isActive,
     ).length;
@@ -277,27 +282,24 @@ function buildMetrics(
         (content) => content.status === CONTENT_STATUS.draft && content.isActive,
     ).length;
     const roleplaySeconds = currentSessions.reduce((sum, session) => sum + session.durationSeconds, 0);
-    const quizSeconds = currentQuizAttempts.reduce((sum, attempt) => {
-        if (!attempt.completedAt) return sum;
-        return sum + Math.max(0, (timestamp(attempt.completedAt) - timestamp(attempt.startedAt)) / 1000);
-    }, 0);
-    const currentSkills = scopedSkills.filter(
-        (skill) => skill.status !== CONTENT_STATUS.archived && skill.isActive,
+    const quizSeconds = currentQuizAttempts.reduce(
+        (sum, attempt) => sum + Math.max(0, attempt.activeDurationSeconds ?? 0),
+        0,
     );
-    const newSkills = currentSkills.filter((skill) =>
-        inRange(skill.createdAt, currentStart, currentEndExclusive),
-    ).length;
+    const hasUnmeasuredQuizDuration = currentQuizAttempts.some(
+        (attempt) => attempt.activeDurationSeconds === null,
+    );
 
     return [
         {
-            detail: `+${recentlyAddedUserIds.size} sur ${input.periodDays} derniers jours`,
+            detail: "Apprenants au statut actif",
             id: ADMIN_DASHBOARD_METRIC_ID.activeUsers,
             label: "Utilisateurs actifs",
             tone: "green",
             value: String(activeUserIds.size),
         },
         {
-            detail: `${organizationsWithActivity.size} avec activité récente`,
+            detail: "Organisations au statut actif",
             id: ADMIN_DASHBOARD_METRIC_ID.activeOrganizations,
             label: "Entreprises actives",
             tone: "blue",
@@ -325,14 +327,7 @@ function buildMetrics(
             value: String(publishedCount(scopedMethods)),
         },
         {
-            detail: `${newSkills} nouvelle${newSkills > 1 ? "s" : ""}`,
-            id: ADMIN_DASHBOARD_METRIC_ID.skills,
-            label: "Compétences ajoutées",
-            tone: "red",
-            value: String(currentSkills.length),
-        },
-        {
-            detail: `${formatAdminDashboardDuration(roleplaySeconds)} roleplay · ${formatAdminDashboardDuration(quizSeconds)} quiz`,
+            detail: `${formatAdminDashboardDuration(roleplaySeconds)} roleplay · ${formatAdminDashboardDuration(quizSeconds)} quiz${hasUnmeasuredQuizDuration ? " · historique quiz non mesuré" : ""}`,
             id: ADMIN_DASHBOARD_METRIC_ID.learningTime,
             label: "Temps total d’apprentissage",
             tone: "green",
@@ -345,73 +340,97 @@ function buildActivity(
     input: BuildAdminDashboardInput,
     sessions: AdminDashboardSessionRecord[],
     attempts: AdminDashboardQuizAttemptRecord[],
+    loginEvents: AdminDashboardLoginEventRecord[],
     range: ReturnType<typeof getDashboardPeriodRange>,
 ) {
     const buckets = getDashboardChartBuckets(input.periodDays, range);
     const countByBucket = (dates: string[]) => buckets.map((bucket) => dates.filter((date) =>
         inRange(date, bucket.start, bucket.endExclusive),
     ).length);
-    const roleplayValues = countByBucket(sessions.map((session) => session.createdAt));
+    const connectionValues = countByBucket(loginEvents.map((event) => event.occurredAt));
+    const roleplayValues = countByBucket(sessions.map((session) => session.endedAt ?? session.createdAt));
     const quizValues = countByBucket(attempts.flatMap((attempt) => attempt.completedAt ? [attempt.completedAt] : []));
 
     return {
         labels: buckets.map((bucket) => bucket.label),
         series: [
+            { id: ADMIN_DASHBOARD_ACTIVITY_SERIES_ID.connections, label: "Connexions", values: connectionValues },
             { id: ADMIN_DASHBOARD_ACTIVITY_SERIES_ID.roleplays, label: "Roleplays joués", values: roleplayValues },
             { id: ADMIN_DASHBOARD_ACTIVITY_SERIES_ID.quizzes, label: "Quiz joués", values: quizValues },
         ],
     };
 }
 
-function buildMockAiUsage(
+function buildAiUsage(
     organizations: AdminDashboardOrganizationRecord[],
+    activeMemberships: AdminDashboardMembershipRecord[],
+    sessions: AdminDashboardSessionRecord[],
+    conversations: AdminDashboardAiConversationRecord[],
+    sessionOrganizationIds: (session: AdminDashboardSessionRecord) => string[],
 ): AdminDashboardAiUsage {
-    const allocationPattern = [100_000, 150_000, 80_000, 50_000, 60_000];
-    const consumptionPattern = [0.72, 0.88, 0.39, 0.98, 0.7];
-    const rows: AdminDashboardAiOrganizationUsage[] = organizations.slice(0, 5).map((organization, index) => {
-        const allocated = allocationPattern[index % allocationPattern.length] ?? 100_000;
-        const ratio = consumptionPattern[index % consumptionPattern.length] ?? 0.72;
-        const consumed = Math.round(allocated * ratio);
+    const allRows: AdminDashboardAiOrganizationUsage[] = organizations.map((organization) => {
+        const simulationSeconds = sessions
+            .filter((session) => sessionOrganizationIds(session).includes(organization.id))
+            .reduce((sum, session) => sum + session.durationSeconds, 0);
+        const organizationConversations = conversations.filter(
+            (conversation) => conversation.organizationId === organization.id,
+        );
+        const askPersonaSeconds = organizationConversations
+            .filter((conversation) => conversation.interactionType === "ask_persona")
+            .reduce((sum, conversation) => sum + conversation.activeDurationSeconds, 0);
+        const coachSeconds = organizationConversations
+            .filter((conversation) => conversation.interactionType === "coach")
+            .reduce((sum, conversation) => sum + conversation.activeDurationSeconds, 0);
 
         return {
-            allocated,
-            consumed,
+            activeLearnerCount: new Set(activeMemberships
+                .filter((membership) => membership.organizationId === organization.id)
+                .map((membership) => membership.userId)).size,
+            askPersonaSeconds,
+            coachSeconds,
             id: organization.id,
             name: organization.name,
-            percentConsumed: Math.round(ratio * 100),
-            remaining: allocated - consumed,
+            simulationSeconds,
+            totalSeconds: simulationSeconds + askPersonaSeconds + coachSeconds,
         };
     });
-    const allocatedTotal = rows.reduce((sum, row) => sum + row.allocated, 0);
-    const consumedTotal = rows.reduce((sum, row) => sum + row.consumed, 0);
-    const remainingTotal = allocatedTotal - consumedTotal;
-    const alertCount = rows.filter((row) => row.percentConsumed >= 80).length;
+    const rows = allRows.slice().sort((first, second) =>
+        second.totalSeconds - first.totalSeconds || first.name.localeCompare(second.name, "fr-FR"),
+    ).slice(0, 5);
+    const simulationSeconds = allRows.reduce((sum, row) => sum + row.simulationSeconds, 0);
+    const askPersonaSeconds = allRows.reduce((sum, row) => sum + row.askPersonaSeconds, 0);
+    const coachSeconds = allRows.reduce((sum, row) => sum + row.coachSeconds, 0);
 
     return {
         organizations: rows,
         overview: [
             {
-                detail: `Simulation temporaire sur ${rows.length} entreprise${rows.length > 1 ? "s" : ""}`,
-                id: ADMIN_DASHBOARD_AI_OVERVIEW_ID.consumed,
-                label: "Crédits IA consommés",
+                detail: "Somme des trois usages IA",
+                id: ADMIN_DASHBOARD_AI_OVERVIEW_ID.total,
+                label: "Temps total d’interaction IA",
                 tone: "purple",
-                value: formatCompactNumber(consumedTotal),
+                value: formatAdminDashboardDuration(simulationSeconds + askPersonaSeconds + coachSeconds),
             },
             {
-                detail: allocatedTotal > 0
-                    ? `${Math.round((remainingTotal / allocatedTotal) * 100)}% du quota global`
-                    : "Aucun quota simulé",
-                id: ADMIN_DASHBOARD_AI_OVERVIEW_ID.remaining,
-                label: "Crédits IA restants",
+                detail: "Roleplays éligibles",
+                id: ADMIN_DASHBOARD_AI_OVERVIEW_ID.simulations,
+                label: "Simulations IA",
                 tone: "blue",
-                value: formatCompactNumber(remainingTotal),
+                value: formatAdminDashboardDuration(simulationSeconds),
             },
             {
-                detail: "≥80% du quota consommé",
-                id: ADMIN_DASHBOARD_AI_OVERVIEW_ID.alerts,
-                label: "Entreprises en alerte",
-                tone: "red",
-                value: String(alertCount),
+                detail: "Conversations avec les personas",
+                id: ADMIN_DASHBOARD_AI_OVERVIEW_ID.askPersona,
+                label: "Ask IA persona",
+                tone: "orange",
+                value: formatAdminDashboardDuration(askPersonaSeconds),
+            },
+            {
+                detail: "Débriefs et accompagnements",
+                id: ADMIN_DASHBOARD_AI_OVERVIEW_ID.coach,
+                label: "Coach IA",
+                tone: "green",
+                value: formatAdminDashboardDuration(coachSeconds),
             },
         ],
     };
@@ -445,7 +464,9 @@ function buildTopRoleplays(
             title: scenariosById.get(scenarioId)?.title ?? "Roleplay",
         }))
         .sort((first, second) =>
-            second.sessionCount - first.sessionCount || second.durationSeconds - first.durationSeconds,
+            second.sessionCount - first.sessionCount
+            || second.learnerCount - first.learnerCount
+            || first.title.localeCompare(second.title, "fr-FR"),
         )
         .slice(0, 5);
 }
@@ -485,7 +506,7 @@ function buildOrganizationPerformance(
             quizScore: average([...quizScores.values()]),
             roleplayScore: average([...roleplayScores.values()]),
         };
-    }).sort((first, second) => second.activeLearnerCount - first.activeLearnerCount).slice(0, 5);
+    }).sort((first, second) => first.name.localeCompare(second.name, "fr-FR")).slice(0, 5);
 }
 
 function buildRecentContent(
@@ -590,8 +611,12 @@ export function buildAdminDashboardViewData(input: BuildAdminDashboardInput): Ad
     );
     const sessionOrganizationIds = (session: AdminDashboardSessionRecord) =>
         organizationIdsForSession(session, activeOrganizationIds, organizationIdsByUserId);
-    const quizOrganizationIds = (attempt: AdminDashboardQuizAttemptRecord) =>
-        organizationIdsByUserId.get(attempt.userId) ?? [];
+    const quizOrganizationIds = (attempt: AdminDashboardQuizAttemptRecord) => {
+        if (attempt.organizationId && activeOrganizationIds.has(attempt.organizationId)) {
+            return [attempt.organizationId];
+        }
+        return organizationIdsByUserId.get(attempt.userId) ?? [];
+    };
     const learnerUserIds = new Set(input.profiles
         .filter((profile) => profile.platformRole === PLATFORM_ROLE.user)
         .map((profile) => profile.id));
@@ -604,10 +629,36 @@ export function buildAdminDashboardViewData(input: BuildAdminDashboardInput): Ad
         && matchesOrganizationFilter(quizOrganizationIds(attempt), input.organizationFilter),
     );
     const currentSessions = allScopedSessions.filter((session) =>
-        inRange(session.createdAt, range.currentStart, range.currentEndExclusive),
+        inRange(session.endedAt ?? session.createdAt, range.currentStart, range.currentEndExclusive),
     );
     const currentQuizAttempts = allScopedQuizAttempts.filter((attempt) =>
         Boolean(attempt.completedAt && inRange(attempt.completedAt, range.currentStart, range.currentEndExclusive)),
+    );
+    const currentLoginEvents = input.loginEvents.filter((event) =>
+        Boolean(event.userId && learnerUserIds.has(event.userId))
+        && matchesOrganizationFilter(
+            event.organizationId ? [event.organizationId] : [],
+            input.organizationFilter,
+        )
+        && inRange(event.occurredAt, range.currentStart, range.currentEndExclusive),
+    );
+    const currentAiConversations = input.aiConversations.filter((conversation) =>
+        learnerUserIds.has(conversation.userId)
+        && conversation.status === "completed"
+        && !conversation.technicalError
+        && conversation.userMessageCount > 0
+        && conversation.aiMessageCount > 0
+        && conversation.activeDurationSeconds > 0
+        && Boolean(conversation.endedAt)
+        && matchesOrganizationFilter(
+            conversation.organizationId ? [conversation.organizationId] : [],
+            input.organizationFilter,
+        )
+        && Boolean(conversation.endedAt && inRange(
+            conversation.endedAt,
+            range.currentStart,
+            range.currentEndExclusive,
+        )),
     );
     const scopedScenarios = input.scenarios.filter((scenario) =>
         contentMatchesOrganization(scenario, input.organizationFilter),
@@ -622,9 +673,16 @@ export function buildAdminDashboardViewData(input: BuildAdminDashboardInput): Ad
             input,
             currentSessions,
             currentQuizAttempts,
+            currentLoginEvents,
             range,
         ),
-        aiUsage: buildMockAiUsage(scopedOrganizations),
+        aiUsage: buildAiUsage(
+            scopedOrganizations,
+            activeMemberships,
+            currentSessions,
+            currentAiConversations,
+            sessionOrganizationIds,
+        ),
         generatedAt: now.toISOString(),
         metrics: buildMetrics(
             input,
@@ -632,17 +690,7 @@ export function buildAdminDashboardViewData(input: BuildAdminDashboardInput): Ad
             currentQuizAttempts,
             activeMemberships,
             activeOrganizations,
-            sessionOrganizationIds,
-            quizOrganizationIds,
-            range.currentStart,
-            range.currentEndExclusive,
         ),
-        mockedSections: [
-            {
-                id: ADMIN_DASHBOARD_MOCK_SECTION.aiCredits,
-                reason: "Aucun ledger de crédits ou de tokens IA n’existe encore dans la base.",
-            },
-        ],
         organizationFilter: input.organizationFilter,
         organizationPerformance: buildOrganizationPerformance(
             scopedOrganizations,

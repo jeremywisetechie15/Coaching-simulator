@@ -17,6 +17,11 @@ import {
     ROLEPLAY_COACH_TRANSCRIPT_EVENT,
     type RoleplayCoachTranscriptEvent,
 } from "@/features/roleplays/domain/coach-session-notes";
+import { useAiConversationTracking } from "@/features/activity-tracking/client";
+import {
+    AI_CONVERSATION_STATUS,
+    AI_CONVERSATION_TYPE,
+} from "@/features/activity-tracking/domain";
 
 type CoachSessionStatus = "loading" | "ready" | "connecting" | "connected" | "error" | "ended";
 
@@ -77,6 +82,11 @@ export default function CoachHeygenClient({
     const initCalledRef = useRef(false);
     const isManuallyStoppingRef = useRef(false);
     const isMountedRef = useRef(true);
+    const {
+        end: endTrackedConversation,
+        markActivity: markTrackedConversationActivity,
+        start: startTrackedConversation,
+    } = useAiConversationTracking(AI_CONVERSATION_TYPE.coach);
 
     const coachDisplayName = useMemo(() => {
         if (!config) {
@@ -217,6 +227,7 @@ export default function CoachHeygenClient({
 
         const newMessage = createMessage(role, trimmed, eventId);
         lastMessageRef.current = newMessage;
+        markTrackedConversationActivity(role);
         setLiveMessages((previous) => [...previous, newMessage]);
 
         if (coachSessionId && scenarioId && window.parent !== window) {
@@ -228,7 +239,7 @@ export default function CoachHeygenClient({
             };
             window.parent.postMessage(messageEvent, window.location.origin);
         }
-    }, [coachSessionId, scenarioId]);
+    }, [coachSessionId, markTrackedConversationActivity, scenarioId]);
 
     const syncLocalPreview = useCallback(() => {
         if (localPreviewRef.current && localVideoStreamRef.current && !isCameraOff) {
@@ -292,12 +303,16 @@ export default function CoachHeygenClient({
                 return;
             }
 
+            void endTrackedConversation(AI_CONVERSATION_STATUS.error).catch((trackingError) => {
+                console.warn("Unable to close disconnected coach tracking:", trackingError);
+            });
             setError("La session avatar a été interrompue.");
             setStatus("error");
         });
 
         session.on(AgentEventsEnum.AVATAR_SPEAK_STARTED, () => {
             if (isMountedRef.current) {
+                markTrackedConversationActivity();
                 setIsAiSpeaking(true);
             }
         });
@@ -318,6 +333,7 @@ export default function CoachHeygenClient({
 
         session.on(AgentEventsEnum.USER_SPEAK_STARTED, () => {
             if (isMountedRef.current) {
+                markTrackedConversationActivity();
                 setIsUserSpeaking(true);
             }
         });
@@ -375,7 +391,7 @@ export default function CoachHeygenClient({
                 setIsMicMuted(false);
             }
         });
-    }, [addMessage, resetIntervals, stopLocalPreview]);
+    }, [addMessage, endTrackedConversation, markTrackedConversationActivity, resetIntervals, stopLocalPreview]);
 
     const startSession = useCallback(async () => {
         if (!config) {
@@ -426,6 +442,7 @@ export default function CoachHeygenClient({
             sessionRef.current = liveAvatarSession;
 
             await liveAvatarSession.start();
+            await startTrackedConversation();
 
             try {
                 liveAvatarSession.startListening();
@@ -450,6 +467,7 @@ export default function CoachHeygenClient({
                 liveAvatarSession.attach(avatarVideoRef.current);
             }
         } catch (startError) {
+            await endTrackedConversation(AI_CONVERSATION_STATUS.error).catch(() => undefined);
             await teardownSession();
 
             if (!isMountedRef.current) {
@@ -459,10 +477,13 @@ export default function CoachHeygenClient({
             setError(startError instanceof Error ? startError.message : "Failed to start session");
             setStatus("error");
         }
-    }, [bindSessionEvents, config, startLocalPreview, teardownSession]);
+    }, [bindSessionEvents, config, endTrackedConversation, startLocalPreview, startTrackedConversation, teardownSession]);
 
     const endSession = useCallback(async () => {
         isManuallyStoppingRef.current = true;
+        await endTrackedConversation(AI_CONVERSATION_STATUS.completed).catch((trackingError) => {
+            console.warn("Unable to complete coach tracking:", trackingError);
+        });
         await teardownSession();
 
         if (!isMountedRef.current) {
@@ -470,7 +491,7 @@ export default function CoachHeygenClient({
         }
 
         setStatus("ended");
-    }, [teardownSession]);
+    }, [endTrackedConversation, teardownSession]);
 
     const toggleMic = useCallback(async () => {
         const activeSession = sessionRef.current;

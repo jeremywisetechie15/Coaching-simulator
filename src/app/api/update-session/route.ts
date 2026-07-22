@@ -3,7 +3,10 @@ import {
     getRoleplaySessionEvaluationDecision,
     ROLEPLAY_NOTATION_STATUS,
 } from "@/features/roleplays/domain";
-import { createClient } from "@/lib/supabase/server";
+import { requireAuth } from "@/features/auth/server";
+import { NotFoundError } from "@/lib/server/errors";
+import { jsonError } from "@/lib/server/http";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 interface Message {
     role: "user" | "assistant";
@@ -31,29 +34,38 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const supabase = await createClient();
-        const {
-            data: { user },
-        } = await supabase.auth.getUser();
+        const context = await requireAuth();
+        const supabase = createAdminClient();
         const sessionUpdate = {
             duration_seconds: duration_seconds || 0,
+            ended_at: new Date().toISOString(),
             notation_error: null,
             notation_status: evaluationDecision.eligible
                 ? ROLEPLAY_NOTATION_STATUS.notStarted
                 : ROLEPLAY_NOTATION_STATUS.skipped,
+            organization_id: context.activeOrganizationId,
             status: "completed",
-            ...(user?.id ? { user_id: user.id } : {}),
+            technical_error: false,
+            user_id: context.userId,
         };
 
         // Update session status and duration
-        const { error: sessionError } = await supabase
+        const { data: updatedSession, error: sessionError } = await supabase
             .from("sessions")
             .update(sessionUpdate)
-            .eq("id", session_id);
+            .eq("id", session_id)
+            .eq("user_id", context.userId)
+            .select("id")
+            .maybeSingle<{ id: string }>();
 
         if (sessionError) {
             console.error("Error updating session:", sessionError);
+            return NextResponse.json(
+                { error: "Impossible de terminer la session." },
+                { status: 500 },
+            );
         }
+        if (!updatedSession) throw new NotFoundError("Session introuvable.");
 
         // Insert messages if any
         if (messages.length > 0) {
@@ -70,6 +82,15 @@ export async function POST(request: NextRequest) {
 
             if (messagesError) {
                 console.error("Error saving messages:", messagesError);
+                await supabase
+                    .from("sessions")
+                    .update({ technical_error: true })
+                    .eq("id", session_id)
+                    .eq("user_id", context.userId);
+                return NextResponse.json(
+                    { error: "Impossible de sauvegarder la transcription de la session." },
+                    { status: 500 },
+                );
             }
         }
 
@@ -82,10 +103,6 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error) {
-        console.error("Error updating session:", error);
-        return NextResponse.json(
-            { error: error instanceof Error ? error.message : "Internal server error" },
-            { status: 500 }
-        );
+        return jsonError(error);
     }
 }

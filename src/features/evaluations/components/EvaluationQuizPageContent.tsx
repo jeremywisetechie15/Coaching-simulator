@@ -22,6 +22,10 @@ import {
 } from "lucide-react";
 import { ContextualBackLink, useContextualReturnHref } from "@/features/app-shell/components";
 import {
+    recordQuizActiveDuration,
+    useActiveDurationTracker,
+} from "@/features/activity-tracking/client";
+import {
     EVALUATION_ROUTES,
     QUIZ_DEFAULT_VALIDATION_THRESHOLD,
     QUIZ_KIND,
@@ -235,6 +239,7 @@ export function EvaluationQuizPageContent({
     const [openStepId, setOpenStepId] = useState<string | null>(null);
     const [openCompetenceKey, setOpenCompetenceKey] = useState<string | null>(null);
     const [attempt, setAttempt] = useState<QuizAttemptDetail | null>(initialAttempt);
+    const attemptRef = useRef<QuizAttemptDetail | null>(initialAttempt);
     const [attemptsRemaining, setAttemptsRemaining] = useState(initialAttemptSession.attemptsRemaining);
     const [canStartNewAttempt, setCanStartNewAttempt] = useState(initialAttemptSession.canStartNewAttempt);
     const [attemptError, setAttemptError] = useState<string | null>(null);
@@ -243,8 +248,17 @@ export function EvaluationQuizPageContent({
     const [showSavedFeedback, setShowSavedFeedback] = useState(false);
     const [submittingAttempt, setSubmittingAttempt] = useState(false);
     const saveQueueRef = useRef(Promise.resolve());
+    const attemptStartPromiseRef = useRef<Promise<QuizAttemptDetail | null> | null>(null);
     const savedFeedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const skipInitialAttemptFetchRef = useRef(true);
+    const { flush: flushActiveDuration } = useActiveDurationTracker({
+        enabled: mode === "quiz" && !submittingAttempt,
+        onFlush: async (heartbeat, options) => {
+            const currentAttempt = await ensureEditableAttempt();
+            if (!currentAttempt) throw new Error("Impossible de démarrer le suivi du temps actif.");
+            await recordQuizActiveDuration(quiz.id, currentAttempt.id, heartbeat, options);
+        },
+    });
 
     const clientScore = useMemo(() => scoreQuizAnswers(quiz, answers), [answers, quiz]);
     const completedAttempt = attempt?.status === "completed" ? attempt : null;
@@ -304,6 +318,7 @@ export function EvaluationQuizPageContent({
 
                 if (!active) return;
 
+                attemptRef.current = session.attempt;
                 setAttempt(session.attempt);
                 setAttemptsRemaining(session.attemptsRemaining);
                 setCanStartNewAttempt(session.canStartNewAttempt);
@@ -385,12 +400,26 @@ export function EvaluationQuizPageContent({
         current.question.type === "QCM" ? "QCM - Plusieurs réponses possibles" : "QCU - Une seule réponse";
 
     function applyAttemptSession(session: QuizAttemptSession) {
+        attemptRef.current = session.attempt;
         setAttempt(session.attempt);
         setAttemptsRemaining(session.attemptsRemaining);
         setCanStartNewAttempt(session.canStartNewAttempt);
     }
 
     async function startAttempt() {
+        if (attemptStartPromiseRef.current) return attemptStartPromiseRef.current;
+
+        const startPromise = startAttemptRequest();
+        attemptStartPromiseRef.current = startPromise;
+
+        try {
+            return await startPromise;
+        } finally {
+            attemptStartPromiseRef.current = null;
+        }
+    }
+
+    async function startAttemptRequest() {
         setSavingAttempt(true);
         setAttemptError(null);
 
@@ -413,7 +442,7 @@ export function EvaluationQuizPageContent({
     }
 
     async function ensureEditableAttempt() {
-        if (attempt?.status === "in_progress") return attempt;
+        if (attemptRef.current?.status === "in_progress") return attemptRef.current;
         return startAttempt();
     }
 
@@ -446,6 +475,7 @@ export function EvaluationQuizPageContent({
                 "Impossible d'enregistrer les réponses.",
             );
 
+            attemptRef.current = payload.attempt;
             setAttempt(payload.attempt);
             showAnswersSavedFeedback();
 
@@ -473,6 +503,7 @@ export function EvaluationQuizPageContent({
         setAttemptError(null);
 
         try {
+            await flushActiveDuration();
             const response = await fetch(EVALUATION_ROUTES.api.attemptSubmit(quiz.id, currentAttempt.id), {
                 body: JSON.stringify({ answers: recordToAnswers(answers) }),
                 headers: { "Content-Type": "application/json" },

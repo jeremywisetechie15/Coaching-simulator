@@ -4,11 +4,9 @@ import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
     ADMIN_DASHBOARD_FEATURES,
-    ADMIN_DASHBOARD_MOCK_SECTION,
     ADMIN_DASHBOARD_ORGANIZATION_ALL,
     ADMIN_DASHBOARD_QUICK_ACTIONS,
     formatAdminDashboardDuration,
-    type AdminDashboardMockSection,
     type AdminDashboardOrganizationFilter,
     type AdminDashboardPeriodDays,
     type AdminDashboardTone,
@@ -32,26 +30,17 @@ import {
     adminDashboardQuickActionIcons,
 } from "./AdminDashboardIcons";
 import { AdminDashboardMetricCard } from "./AdminDashboardMetricCard";
-import { AdminDashboardMockBadge } from "./AdminDashboardMockBadge";
 
 interface AdminDashboardPageContentProps {
     initialDashboardData?: AdminDashboardViewData;
 }
 
-function compactNumber(value: number) {
-    if (value >= 1_000_000) return `${(value / 1_000_000).toLocaleString("fr-FR", { maximumFractionDigits: 2 })}M`;
-    if (value >= 1_000) return `${Math.round(value / 1_000)}k`;
-    return String(Math.round(value));
-}
-
 function SectionHeader({
     action,
-    mockNotice,
     subtitle,
     title,
 }: {
     action?: ReactNode;
-    mockNotice?: ReturnType<typeof getMockNotice>;
     subtitle?: string;
     title: string;
 }) {
@@ -60,20 +49,12 @@ function SectionHeader({
             <Box>
                 <Box className="flex flex-wrap items-center gap-2">
                     <Text as="h2" className={uiTokens.adminDashboard.sectionTitle}>{title}</Text>
-                    <AdminDashboardMockBadge notice={mockNotice} />
                 </Box>
                 {subtitle && <Text className={uiTokens.adminDashboard.sectionSubtitle}>{subtitle}</Text>}
             </Box>
             {action}
         </Box>
     );
-}
-
-function getMockNotice(
-    dashboard: AdminDashboardViewData | undefined,
-    id: AdminDashboardMockSection,
-) {
-    return dashboard?.mockedSections.find((notice) => notice.id === id);
 }
 
 function PeriodTabs({
@@ -107,8 +88,8 @@ function PeriodTabs({
 function LoadingState() {
     return (
         <Box className="space-y-3.5" aria-label="Chargement du dashboard administrateur">
-            <Box className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
-                {Array.from({ length: 7 }, (_, index) => (
+            <Box className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+                {Array.from({ length: 6 }, (_, index) => (
                     <Box className={`${uiTokens.adminDashboard.state.skeleton} h-28`} key={index} />
                 ))}
             </Box>
@@ -135,18 +116,13 @@ function ErrorState({ message, onRetry }: { message: string; onRetry: () => void
 }
 
 function scoreClass(score: number | null) {
-    if (score === null || score >= 70) return uiTokens.adminDashboard.table.scoreGood;
+    if (score === null || score >= 75) return uiTokens.adminDashboard.table.scoreGood;
+    if (score < 50) return uiTokens.adminDashboard.table.scoreDanger;
     return uiTokens.adminDashboard.table.scoreWarning;
 }
 
 function scoreLabel(score: number | null) {
     return score === null ? "-" : `${Math.round(score)}%`;
-}
-
-function progressClass(percent: number) {
-    if (percent >= 90) return uiTokens.adminDashboard.ai.progress.danger;
-    if (percent >= 70) return uiTokens.adminDashboard.ai.progress.warning;
-    return uiTokens.adminDashboard.ai.progress.safe;
 }
 
 function QuickActions() {
@@ -175,15 +151,13 @@ function QuickActions() {
 }
 
 function AiUsage({ dashboard }: { dashboard: AdminDashboardViewData }) {
-    const mockNotice = getMockNotice(dashboard, ADMIN_DASHBOARD_MOCK_SECTION.aiCredits);
-
     return (
         <CardSurface className={uiTokens.adminDashboard.ai.section}>
-            <SectionHeader mockNotice={mockNotice} title="Usage IA / Consommation de crédits" />
+            <SectionHeader title="Usage des interactions IA" />
             <Box className="mt-3 grid gap-3 xl:grid-cols-[0.85fr_1.15fr]">
                 <Box className={uiTokens.adminDashboard.ai.overview}>
                     <Text as="h3" className={uiTokens.adminDashboard.sectionTitle}>Vue globale IA</Text>
-                    <Box className="mt-3 grid gap-3 sm:grid-cols-3">
+                    <Box className="mt-3 grid gap-3 sm:grid-cols-2">
                         {dashboard.aiUsage.overview.map((item) => {
                             const Icon = adminDashboardAiIcons[item.id];
                             return (
@@ -205,30 +179,23 @@ function AiUsage({ dashboard }: { dashboard: AdminDashboardViewData }) {
                 <Box className="min-w-0">
                     <SectionHeader
                         action={<ContextualLink className={uiTokens.adminDashboard.table.link} href="/organizations">Voir toutes</ContextualLink>}
-                        title="Consommation IA par organisation"
+                        title="Interactions IA par organisation"
                     />
                     <Box className="mt-3 overflow-x-auto">
-                        <Box className={`${uiTokens.adminDashboard.ai.table} min-w-[620px]`}>
+                        <Box className={`${uiTokens.adminDashboard.ai.table} min-w-[700px]`}>
                             <Box className={uiTokens.adminDashboard.ai.header}>
-                                <span>Organisation</span><span>Alloués</span><span>Consommés</span><span>Restants</span><span>% consommé</span>
+                                <span>Organisation</span><span>Apprenants</span><span>Simulations IA</span><span>Ask IA persona</span><span>Coach IA</span><span>Total IA</span>
                             </Box>
                             {dashboard.aiUsage.organizations.length === 0 ? (
                                 <Box className={uiTokens.adminDashboard.table.empty}>Aucune organisation active.</Box>
                             ) : dashboard.aiUsage.organizations.map((organization) => (
                                 <Box className={uiTokens.adminDashboard.ai.row} key={organization.id}>
                                     <Text className="truncate font-bold">{organization.name}</Text>
-                                    <Text>{compactNumber(organization.allocated)}</Text>
-                                    <Text>{compactNumber(organization.consumed)}</Text>
-                                    <Text>{compactNumber(organization.remaining)}</Text>
-                                    <Box className="flex items-center gap-3">
-                                        <Text className="w-8 font-extrabold">{organization.percentConsumed}%</Text>
-                                        <Box className={`${uiTokens.adminDashboard.ai.progressTrack} flex-1`}>
-                                            <Box
-                                                className={progressClass(organization.percentConsumed)}
-                                                style={{ width: `${Math.min(100, organization.percentConsumed)}%` }}
-                                            />
-                                        </Box>
-                                    </Box>
+                                    <Text>{organization.activeLearnerCount}</Text>
+                                    <Text>{formatAdminDashboardDuration(organization.simulationSeconds)}</Text>
+                                    <Text>{formatAdminDashboardDuration(organization.askPersonaSeconds)}</Text>
+                                    <Text>{formatAdminDashboardDuration(organization.coachSeconds)}</Text>
+                                    <Text className="font-extrabold">{formatAdminDashboardDuration(organization.totalSeconds)}</Text>
                                 </Box>
                             ))}
                         </Box>
@@ -440,7 +407,7 @@ export function AdminDashboardPageContent({ initialDashboardData }: AdminDashboa
                     />
                 ) : (
                     <>
-                        <Box className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
+                        <Box className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
                             {dashboard.metrics.map((metric) => <AdminDashboardMetricCard key={metric.id} metric={metric} />)}
                         </Box>
 
@@ -453,7 +420,7 @@ export function AdminDashboardPageContent({ initialDashboardData }: AdminDashboa
                                 />
                                 <AdminDashboardActivityChart data={dashboard.activity} />
                                 <Box className={uiTokens.adminDashboard.chart.footnote}>
-                                    <Tooltip content="Chaque point indique le nombre de roleplays éligibles et de quiz terminés pendant l’intervalle affiché.">
+                                    <Tooltip content="Chaque point indique le nombre de connexions réussies, de roleplays éligibles et de quiz terminés pendant l’intervalle affiché.">
                                         <span className="inline-flex">
                                             <InlineIcon icon={adminDashboardControlIcons.info} className="h-3.5 w-3.5" />
                                         </span>

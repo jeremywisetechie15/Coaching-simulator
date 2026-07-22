@@ -1,58 +1,153 @@
 import { describe, expect, it } from "vitest";
-import { buildAdminDashboardViewData } from "./admin-dashboard-calculations";
+import {
+    buildAdminDashboardViewData,
+    type AdminDashboardAiConversationRecord,
+    type AdminDashboardContentRecord,
+    type AdminDashboardQuizAttemptRecord,
+    type AdminDashboardSessionRecord,
+    type BuildAdminDashboardInput,
+} from "./admin-dashboard-calculations";
 
-const now = new Date("2026-07-20T12:00:00.000Z");
+const NOW = new Date("2026-07-20T12:00:00.000Z");
 
 function content(
     id: string,
     title: string,
-    overrides: Partial<Parameters<typeof buildAdminDashboardViewData>[0]["scenarios"][number]> = {},
-) {
+    overrides: Partial<AdminDashboardContentRecord> = {},
+): AdminDashboardContentRecord {
     return {
         createdAt: "2026-07-10T10:00:00.000Z",
         id,
         isActive: true,
         organizationId: "org-a",
-        status: "published" as const,
+        status: "published",
         title,
         updatedAt: "2026-07-19T10:00:00.000Z",
         ...overrides,
     };
 }
 
+function session(
+    id: string,
+    overrides: Partial<AdminDashboardSessionRecord> = {},
+): AdminDashboardSessionRecord {
+    return {
+        createdAt: "2026-07-19T10:00:00.000Z",
+        durationSeconds: 120,
+        endedAt: "2026-07-19T10:02:00.000Z",
+        hasAiMessage: true,
+        hasUserMessage: true,
+        id,
+        organizationId: "org-a",
+        scenarioId: "scenario-a",
+        scorePercent: 80,
+        status: "completed",
+        technicalError: false,
+        userId: "user-a",
+        ...overrides,
+    };
+}
+
+function attempt(
+    id: string,
+    overrides: Partial<AdminDashboardQuizAttemptRecord> = {},
+): AdminDashboardQuizAttemptRecord {
+    return {
+        activeDurationSeconds: 600,
+        completedAt: "2026-07-19T10:10:00.000Z",
+        id,
+        organizationId: "org-a",
+        quizId: "quiz-a",
+        scorePercent: 60,
+        startedAt: "2026-07-19T10:00:00.000Z",
+        status: "completed",
+        userId: "user-a",
+        ...overrides,
+    };
+}
+
+function conversation(
+    id: string,
+    overrides: Partial<AdminDashboardAiConversationRecord> = {},
+): AdminDashboardAiConversationRecord {
+    return {
+        activeDurationSeconds: 90,
+        aiMessageCount: 1,
+        endedAt: "2026-07-19T10:20:00.000Z",
+        id,
+        interactionType: "ask_persona",
+        organizationId: "org-a",
+        status: "completed",
+        technicalError: false,
+        userId: "user-a",
+        userMessageCount: 1,
+        ...overrides,
+    };
+}
+
+function buildInput(overrides: Partial<BuildAdminDashboardInput> = {}): BuildAdminDashboardInput {
+    return {
+        aiConversations: [],
+        loginEvents: [],
+        methods: [],
+        memberships: [
+            { createdAt: "2026-01-01T10:00:00.000Z", organizationId: "org-a", status: "active", userId: "user-a" },
+        ],
+        now: NOW,
+        organizationFilter: "all",
+        organizations: [
+            { createdAt: "2026-01-01T10:00:00.000Z", id: "org-a", name: "Organisation A", status: "active" },
+        ],
+        periodDays: 30,
+        profiles: [
+            { id: "user-a", name: "Alice", platformRole: "user" },
+        ],
+        quizAttempts: [],
+        quizzes: [],
+        scenarios: [],
+        sessions: [],
+        ...overrides,
+    };
+}
+
+function seriesTotal(
+    dashboard: ReturnType<typeof buildAdminDashboardViewData>,
+    id: "connections" | "quizzes" | "roleplays",
+) {
+    return dashboard.activity.series
+        .find((series) => series.id === id)
+        ?.values.reduce((sum, value) => sum + value, 0);
+}
+
 describe("admin dashboard calculations", () => {
-    it("combines real platform data while excluding short sessions and suspended organizations", () => {
-        const dashboard = buildAdminDashboardViewData({
+    it("combines measured platform activity and excludes ineligible learners and sessions", () => {
+        const dashboard = buildAdminDashboardViewData(buildInput({
+            aiConversations: [
+                conversation("ask-persona"),
+                conversation("coach", { activeDurationSeconds: 60, interactionType: "coach" }),
+                conversation("failed", { activeDurationSeconds: 999, technicalError: true }),
+            ],
+            loginEvents: [
+                { id: "login-a", occurredAt: "2026-07-19T09:00:00.000Z", organizationId: "org-a", userId: "user-a" },
+                { id: "login-admin", occurredAt: "2026-07-19T09:00:00.000Z", organizationId: "org-a", userId: "user-admin" },
+            ],
             methods: [content("method-a", "Méthode A")],
             memberships: [
                 { createdAt: "2026-07-18T10:00:00.000Z", organizationId: "org-a", status: "active", userId: "user-a" },
                 { createdAt: "2026-06-01T10:00:00.000Z", organizationId: "org-a", status: "active", userId: "user-b" },
                 { createdAt: "2026-07-18T10:00:00.000Z", organizationId: "org-b", status: "active", userId: "user-c" },
             ],
-            now,
-            organizationFilter: "all",
             organizations: [
                 { createdAt: "2026-01-01T10:00:00.000Z", id: "org-a", name: "Organisation A", status: "active" },
                 { createdAt: "2026-01-01T10:00:00.000Z", id: "org-b", name: "Organisation B", status: "suspended" },
             ],
-            periodDays: 30,
             profiles: [
                 { id: "user-a", name: "Alice", platformRole: "user" },
                 { id: "user-b", name: "Bob", platformRole: "user" },
                 { id: "user-c", name: "Charlie", platformRole: "user" },
                 { id: "user-admin", name: "Admin", platformRole: "admin" },
             ],
-            quizAttempts: [
-                {
-                    completedAt: "2026-07-19T10:10:00.000Z",
-                    id: "attempt-a",
-                    quizId: "quiz-a",
-                    scorePercent: 60,
-                    startedAt: "2026-07-19T10:00:00.000Z",
-                    status: "completed",
-                    userId: "user-a",
-                },
-            ],
+            quizAttempts: [attempt("attempt-a")],
             quizzes: [content("quiz-a", "Quiz A")],
             scenarios: [
                 content("scenario-a", "Scénario A"),
@@ -60,49 +155,12 @@ describe("admin dashboard calculations", () => {
                 content("scenario-public", "Scénario public", { organizationId: null }),
             ],
             sessions: [
-                {
-                    createdAt: "2026-07-19T10:00:00.000Z",
-                    durationSeconds: 120,
-                    id: "session-a",
-                    organizationId: "org-a",
-                    scenarioId: "scenario-a",
-                    scorePercent: 80,
-                    status: "completed",
-                    userId: "user-a",
-                },
-                {
-                    createdAt: "2026-07-19T11:00:00.000Z",
-                    durationSeconds: 20,
-                    id: "session-short",
-                    organizationId: "org-a",
-                    scenarioId: "scenario-a",
-                    scorePercent: 99,
-                    status: "completed",
-                    userId: "user-b",
-                },
-                {
-                    createdAt: "2026-07-19T12:00:00.000Z",
-                    durationSeconds: 200,
-                    id: "session-suspended",
-                    organizationId: "org-b",
-                    scenarioId: "scenario-a",
-                    scorePercent: 90,
-                    status: "completed",
-                    userId: "user-c",
-                },
-                {
-                    createdAt: "2026-07-19T13:00:00.000Z",
-                    durationSeconds: 180,
-                    id: "session-admin",
-                    organizationId: "org-a",
-                    scenarioId: "scenario-a",
-                    scorePercent: 100,
-                    status: "completed",
-                    userId: "user-admin",
-                },
+                session("session-a"),
+                session("session-short", { durationSeconds: 20, userId: "user-b" }),
+                session("session-suspended", { durationSeconds: 200, organizationId: "org-b", userId: "user-c" }),
+                session("session-admin", { durationSeconds: 180, userId: "user-admin" }),
             ],
-            skills: [content("skill-a", "Compétence A", { createdAt: "2026-07-18T10:00:00.000Z" })],
-        });
+        }));
 
         expect(dashboard.metrics).toEqual(expect.arrayContaining([
             expect.objectContaining({ id: "active-users", value: "2" }),
@@ -110,8 +168,9 @@ describe("admin dashboard calculations", () => {
             expect.objectContaining({ id: "published-roleplays", value: "2" }),
             expect.objectContaining({ id: "learning-time", value: "12min" }),
         ]));
-        expect(dashboard.activity.series.find((series) => series.id === "roleplays")?.values.reduce((sum, value) => sum + value, 0)).toBe(1);
-        expect(dashboard.activity.series.find((series) => series.id === "quizzes")?.values.reduce((sum, value) => sum + value, 0)).toBe(1);
+        expect(seriesTotal(dashboard, "connections")).toBe(1);
+        expect(seriesTotal(dashboard, "roleplays")).toBe(1);
+        expect(seriesTotal(dashboard, "quizzes")).toBe(1);
         expect(dashboard.topRoleplays).toEqual([
             expect.objectContaining({ id: "scenario-a", learnerCount: 1, sessionCount: 1 }),
         ]);
@@ -121,39 +180,69 @@ describe("admin dashboard calculations", () => {
             quizScore: 60,
             roleplayScore: 80,
         });
-        expect(dashboard.mockedSections.map((section) => section.id)).toEqual([
-            "ai-credits",
-        ]);
+        expect(dashboard.aiUsage.organizations[0]).toMatchObject({
+            askPersonaSeconds: 90,
+            coachSeconds: 60,
+            id: "org-a",
+            simulationSeconds: 120,
+            totalSeconds: 270,
+        });
     });
 
-    it("applies the organization filter to activity and organization-owned content", () => {
-        const dashboard = buildAdminDashboardViewData({
-            methods: [],
+    it("requires thirty seconds, a two-way exchange and no technical error for a roleplay", () => {
+        const dashboard = buildAdminDashboardViewData(buildInput({
+            scenarios: [content("scenario-a", "Scénario A")],
+            sessions: [
+                session("eligible", { durationSeconds: 30 }),
+                session("too-short", { durationSeconds: 29 }),
+                session("technical-error", { technicalError: true }),
+                session("no-user-message", { hasUserMessage: false }),
+                session("no-ai-message", { hasAiMessage: false }),
+            ],
+        }));
+
+        expect(seriesTotal(dashboard, "roleplays")).toBe(1);
+        expect(dashboard.topRoleplays[0]).toMatchObject({ sessionCount: 1 });
+    });
+
+    it("keeps historical quiz duration unknown instead of inventing elapsed time", () => {
+        const dashboard = buildAdminDashboardViewData(buildInput({
+            quizAttempts: [attempt("legacy", { activeDurationSeconds: null })],
+            quizzes: [content("quiz-a", "Quiz A")],
+        }));
+        const learningTime = dashboard.metrics.find((metric) => metric.id === "learning-time");
+
+        expect(learningTime).toMatchObject({ value: "0min" });
+        expect(learningTime?.detail).toContain("historique quiz non mesuré");
+        expect(seriesTotal(dashboard, "quizzes")).toBe(1);
+    });
+
+    it("applies the organization filter while keeping public content visible", () => {
+        const dashboard = buildAdminDashboardViewData(buildInput({
             memberships: [
                 { createdAt: "2026-01-01T10:00:00.000Z", organizationId: "org-a", status: "active", userId: "user-a" },
                 { createdAt: "2026-01-01T10:00:00.000Z", organizationId: "org-b", status: "active", userId: "user-b" },
             ],
-            now,
             organizationFilter: "org-a",
             organizations: [
                 { createdAt: "2026-01-01T10:00:00.000Z", id: "org-a", name: "Organisation A", status: "active" },
                 { createdAt: "2026-01-01T10:00:00.000Z", id: "org-b", name: "Organisation B", status: "active" },
             ],
-            periodDays: 7,
-            profiles: [],
-            quizAttempts: [],
-            quizzes: [],
+            profiles: [
+                { id: "user-a", name: "Alice", platformRole: "user" },
+                { id: "user-b", name: "Bob", platformRole: "user" },
+            ],
             scenarios: [
                 content("scenario-a", "A"),
                 content("scenario-b", "B", { organizationId: "org-b" }),
                 content("scenario-public", "Public", { organizationId: null }),
             ],
-            sessions: [],
-            skills: [],
-        });
+        }));
 
         expect(dashboard.organizationPerformance.map((organization) => organization.id)).toEqual(["org-a"]);
-        expect(dashboard.recentContent.map((item) => item.id)).toEqual(["scenario-a"]);
-        expect(dashboard.metrics.find((metric) => metric.id === "published-roleplays")?.value).toBe("1");
+        expect(new Set(dashboard.recentContent.map((item) => item.id))).toEqual(
+            new Set(["scenario-a", "scenario-public"]),
+        );
+        expect(dashboard.metrics.find((metric) => metric.id === "published-roleplays")?.value).toBe("2");
     });
 });

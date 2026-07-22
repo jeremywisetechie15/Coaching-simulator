@@ -4,7 +4,7 @@ import type { DashboardPeriodDays } from "@/features/dashboard/domain";
 export const ADMIN_DASHBOARD_ORGANIZATION_ALL = "all" as const;
 
 export const ADMIN_DASHBOARD_FEATURES = {
-    aiUsage: false,
+    aiUsage: true,
 } as const;
 
 export type AdminDashboardOrganizationFilter =
@@ -20,7 +20,6 @@ export const ADMIN_DASHBOARD_METRIC_ID = {
     publishedMethods: "published-methods",
     publishedQuizzes: "published-quizzes",
     publishedRoleplays: "published-roleplays",
-    skills: "skills",
 } as const;
 
 export type AdminDashboardMetricId =
@@ -37,6 +36,7 @@ export interface AdminDashboardMetric {
 }
 
 export const ADMIN_DASHBOARD_ACTIVITY_SERIES_ID = {
+    connections: "connections",
     quizzes: "quizzes",
     roleplays: "roleplays",
 } as const;
@@ -53,18 +53,6 @@ export interface AdminDashboardActivitySeries {
 export interface AdminDashboardActivityChart {
     labels: string[];
     series: AdminDashboardActivitySeries[];
-}
-
-export const ADMIN_DASHBOARD_MOCK_SECTION = {
-    aiCredits: "ai-credits",
-} as const;
-
-export type AdminDashboardMockSection =
-    (typeof ADMIN_DASHBOARD_MOCK_SECTION)[keyof typeof ADMIN_DASHBOARD_MOCK_SECTION];
-
-export interface AdminDashboardMockNotice {
-    id: AdminDashboardMockSection;
-    reason: string;
 }
 
 export interface AdminDashboardOrganizationOption {
@@ -85,9 +73,10 @@ export type AdminDashboardQuickActionId =
     (typeof ADMIN_DASHBOARD_QUICK_ACTIONS)[number]["id"];
 
 export const ADMIN_DASHBOARD_AI_OVERVIEW_ID = {
-    alerts: "alerts",
-    consumed: "consumed",
-    remaining: "remaining",
+    askPersona: "ask-persona",
+    coach: "coach",
+    simulations: "simulations",
+    total: "total",
 } as const;
 
 export type AdminDashboardAiOverviewId =
@@ -102,12 +91,13 @@ export interface AdminDashboardAiOverview {
 }
 
 export interface AdminDashboardAiOrganizationUsage {
-    allocated: number;
-    consumed: number;
+    activeLearnerCount: number;
+    askPersonaSeconds: number;
+    coachSeconds: number;
     id: string;
     name: string;
-    percentConsumed: number;
-    remaining: number;
+    simulationSeconds: number;
+    totalSeconds: number;
 }
 
 export interface AdminDashboardAiUsage {
@@ -157,7 +147,6 @@ export interface AdminDashboardViewData {
     aiUsage: AdminDashboardAiUsage;
     generatedAt: string;
     metrics: AdminDashboardMetric[];
-    mockedSections: AdminDashboardMockNotice[];
     organizationFilter: AdminDashboardOrganizationFilter;
     organizationPerformance: AdminDashboardOrganizationPerformance[];
     organizations: AdminDashboardOrganizationOption[];

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
+import { recordSuccessfulLogin } from "@/features/activity-tracking/client";
 import { resolveInternalHref } from "@/features/app-shell/domain";
 import { AUTH_PATHS, buildAuthPath } from "@/features/auth/domain/password-recovery";
 import { FormRoot } from "@/lib/ui/atoms";
@@ -52,6 +53,9 @@ export function SignInCard() {
             return;
         }
 
+        await recordSuccessfulLogin().catch((loginEventError) => {
+            console.warn("Unable to persist login activity:", loginEventError);
+        });
         notifyFormSubmitSuccess();
         window.location.assign(redirectTo);
     };

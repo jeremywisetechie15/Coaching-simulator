@@ -3,6 +3,10 @@ import {
     getRoleplaySessionEvaluationDecision,
     ROLEPLAY_NOTATION_STATUS,
 } from "@/features/roleplays/domain";
+import { requireAuth } from "@/features/auth/server";
+import { NotFoundError } from "@/lib/server/errors";
+import { jsonError } from "@/lib/server/http";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
 
 interface Message {
@@ -30,10 +34,19 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const supabase = await createClient();
-        const {
-            data: { user },
-        } = await supabase.auth.getUser();
+        const context = await requireAuth();
+        const authenticatedSupabase = await createClient();
+        const { data: accessibleScenario, error: scenarioError } = await authenticatedSupabase
+            .from("scenarios")
+            .select("id")
+            .eq("id", scenario_id)
+            .maybeSingle<{ id: string }>();
+
+        if (scenarioError) throw scenarioError;
+        if (!accessibleScenario) throw new NotFoundError("Roleplay introuvable.");
+
+        const supabase = createAdminClient();
+        const endedAt = new Date().toISOString();
 
         // Create the session
         const { data: session, error: sessionError } = await supabase
@@ -41,11 +54,14 @@ export async function POST(request: NextRequest) {
             .insert({
                 scenario_id,
                 duration_seconds: duration_seconds || 0,
+                ended_at: endedAt,
                 notation_status: evaluationDecision.eligible
                     ? ROLEPLAY_NOTATION_STATUS.notStarted
                     : ROLEPLAY_NOTATION_STATUS.skipped,
+                organization_id: context.activeOrganizationId,
                 status: "completed",
-                user_id: user?.id ?? null,
+                technical_error: false,
+                user_id: context.userId,
             })
             .select()
             .single();
@@ -72,7 +88,15 @@ export async function POST(request: NextRequest) {
 
         if (messagesError) {
             console.error("Error saving messages:", messagesError);
-            // Still return success for session, just log the error
+            await supabase
+                .from("sessions")
+                .update({ technical_error: true })
+                .eq("id", session.id)
+                .eq("user_id", context.userId);
+            return NextResponse.json(
+                { error: "Impossible de sauvegarder la transcription de la session." },
+                { status: 500 },
+            );
         }
 
         return NextResponse.json({
@@ -85,10 +109,6 @@ export async function POST(request: NextRequest) {
         });
 
     } catch (error) {
-        console.error("Error saving session:", error);
-        return NextResponse.json(
-            { error: error instanceof Error ? error.message : "Internal server error" },
-            { status: 500 }
-        );
+        return jsonError(error);
     }
 }

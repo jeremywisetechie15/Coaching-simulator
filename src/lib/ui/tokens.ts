@@ -157,6 +157,7 @@ export const uiTokens = {
         chart: {
             grid: "stroke-[#E7EAF2]",
             axisLabel: "fill-[#61709E] text-[9px] font-medium",
+            connections: "text-[#4B32FF]",
             roleplays: "text-[#FF4B1F]",
             quizzes: "text-[#16A34A]",
             legend: "flex items-center gap-2 text-[10px] font-medium text-[#46548B]",
@@ -176,9 +177,9 @@ export const uiTokens = {
             overviewValue: "mt-4 text-center text-[24px] font-extrabold leading-none text-[#111A64]",
             table: "overflow-hidden rounded-[11px] border border-[#E1E5EF] bg-white",
             header:
-                "grid grid-cols-[minmax(130px,1.2fr)_0.65fr_0.65fr_0.65fr_1fr] gap-3 border-b border-[#E1E5EF] bg-[#FBFCFF] px-3 py-2 text-[8px] font-extrabold uppercase tracking-[0.035em] text-[#52608A]",
+                "grid grid-cols-[minmax(130px,1.2fr)_0.55fr_0.7fr_0.7fr_0.7fr_0.65fr] gap-3 border-b border-[#E1E5EF] bg-[#FBFCFF] px-3 py-2 text-[8px] font-extrabold uppercase tracking-[0.035em] text-[#52608A]",
             row:
-                "grid min-h-10 grid-cols-[minmax(130px,1.2fr)_0.65fr_0.65fr_0.65fr_1fr] items-center gap-3 border-b border-[#EEF0F5] px-3 text-[10px] font-semibold text-[#111A64] last:border-b-0",
+                "grid min-h-10 grid-cols-[minmax(130px,1.2fr)_0.55fr_0.7fr_0.7fr_0.7fr_0.65fr] items-center gap-3 border-b border-[#EEF0F5] px-3 text-[10px] font-semibold text-[#111A64] last:border-b-0",
             progressTrack: "h-1.5 overflow-hidden rounded-full bg-[#E4E7EC]",
             progress: {
                 safe: "h-full rounded-full bg-[#16A34A]",
@@ -195,6 +196,7 @@ export const uiTokens = {
             rank: "flex h-5 w-5 items-center justify-center rounded-md bg-[#F0EBFF] text-[9px] font-extrabold text-[#5B34FF]",
             scoreGood: "inline-flex min-w-[48px] justify-center rounded-md bg-[#E5F8EA] px-2 py-1 text-[9px] font-extrabold text-[#16813A]",
             scoreWarning: "inline-flex min-w-[48px] justify-center rounded-md bg-[#FFF0E2] px-2 py-1 text-[9px] font-extrabold text-[#D26000]",
+            scoreDanger: "inline-flex min-w-[48px] justify-center rounded-md bg-[#FEE2E2] px-2 py-1 text-[9px] font-extrabold text-[#DC2626]",
             empty: "flex min-h-32 items-center justify-center px-4 text-center text-[10px] font-semibold text-[#61709E]",
             link: "truncate font-bold text-[#111A64] transition hover:text-[#4B32FF] hover:underline",
             meta: "truncate text-[#52608A]",
