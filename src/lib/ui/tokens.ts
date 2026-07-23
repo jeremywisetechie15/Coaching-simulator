@@ -114,29 +114,53 @@ export const uiTokens = {
         },
     },
     adminDashboard: {
-        page: "px-4 pb-14 md:px-6 lg:px-8",
-        container: "mx-auto max-w-[1460px] space-y-3.5",
-        panel:
-            "rounded-[13px] border border-[#E1E5EF] bg-white shadow-[0_1px_2px_rgba(24,32,95,0.025)]",
-        sectionTitle: "text-[14px] font-extrabold tracking-[-0.01em] text-[#111A64]",
-        sectionSubtitle: "mt-0.5 text-[11px] font-medium text-[#52608A]",
+        page: "px-4 pb-14 md:px-6 lg:px-8 print:px-0",
+        container: "mx-auto max-w-[1460px] space-y-4",
+        panelContent:
+            "rounded-[13px] border border-[#E1E5EF] bg-white p-5 shadow-[0_1px_2px_rgba(24,32,95,0.025)]",
+        sectionHeader: "flex min-h-6 flex-wrap items-start justify-between gap-3",
+        sectionTitle: "text-[15px] font-extrabold tracking-[-0.015em] text-[#101828]",
+        summary: {
+            panel:
+                "rounded-[13px] border border-[#E1E5EF] bg-white p-6 shadow-[0_1px_2px_rgba(24,32,95,0.025)]",
+            metricsGrid: "grid gap-3 sm:grid-cols-2 xl:grid-cols-6",
+            aiTitle: "mb-3 mt-5 text-[15px] font-extrabold tracking-[-0.015em] text-[#101828]",
+            aiGrid: "grid gap-3 sm:grid-cols-2 xl:grid-cols-5",
+        },
+        layout: {
+            middle: "grid gap-4 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]",
+            bottom: "grid gap-4 xl:grid-cols-2",
+        },
+        loading: {
+            layout: "space-y-4",
+            summary:
+                "space-y-5 rounded-[13px] border border-[#E1E5EF] bg-white p-6 shadow-[0_1px_2px_rgba(24,32,95,0.025)]",
+            aiGrid: "grid gap-3 sm:grid-cols-2 xl:grid-cols-5",
+        },
         header: {
-            title: "text-[25px] font-extrabold tracking-[-0.025em] text-[#111A64]",
-            subtitle: "mt-1 text-[12px] font-medium text-[#3447B8]",
-            controls: "flex flex-wrap items-center gap-2.5",
+            layout: "flex flex-col gap-5 py-1 xl:flex-row xl:items-end xl:justify-between",
+            title: "text-[26px] font-extrabold tracking-[-0.03em] text-[#101828]",
+            date: "mt-1 text-[12px] font-medium text-[#667085]",
+            controls: "flex flex-wrap items-center gap-3 print:hidden",
+            controlWrapper: "relative inline-flex",
             button:
-                "inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#DDE2ED] bg-white px-3.5 text-[11px] font-bold text-[#18205E] transition hover:border-[#BFC7DC] hover:bg-[#FAFBFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B32FF] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60",
-            select:
-                "!h-10 min-w-[174px] !rounded-lg !border !border-[#DDE2ED] !bg-white !pl-9 !pr-9 !text-[11px] !font-bold !text-[#18205E] !shadow-none !outline-none transition hover:!border-[#BFC7DC] focus:!border-[#4B32FF] focus:!ring-4 focus:!ring-[#4B32FF]/10",
-            selectIcon: "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4B32FF]",
-            chevron: "pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#4B32FF]",
+                "inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-[#DDE2ED] bg-white px-3.5 text-[11px] font-bold text-[#344054] transition hover:border-[#BFC7DC] hover:bg-[#FAFBFF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B32FF] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60",
+            periodSelect:
+                "!h-10 min-w-[200px] !appearance-none !rounded-lg !border !border-[#DDE2ED] !bg-white !pl-3 !pr-16 !text-[11px] !font-bold !text-[#344054] !shadow-none !outline-none transition hover:!border-[#BFC7DC] focus:!border-[#4B32FF] focus:!ring-4 focus:!ring-[#4B32FF]/10",
+            organizationSelect:
+                "!h-10 min-w-[190px] !appearance-none !rounded-lg !border !border-[#DDE2ED] !bg-white !pl-3 !pr-9 !text-[11px] !font-bold !text-[#344054] !shadow-none !outline-none transition hover:!border-[#BFC7DC] focus:!border-[#4B32FF] focus:!ring-4 focus:!ring-[#4B32FF]/10",
+            selectIcon: "pointer-events-none absolute right-9 top-1/2 h-4 w-4 -translate-y-1/2 text-[#667085]",
+            chevron: "pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#667085]",
         },
         metric: {
-            card: "min-h-[112px] rounded-[11px] border border-[#E1E5EF] bg-white p-4",
-            icon: "flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]",
-            label: "text-[11px] font-extrabold leading-4 text-[#111A64]",
-            value: "mt-3 text-center text-[23px] font-extrabold leading-none text-[#111A64]",
-            detail: "mt-2 text-center text-[9px] font-semibold text-[#52608A]",
+            card: "min-h-[120px] rounded-[11px] border border-[#E1E5EF] bg-white p-4",
+            header: "flex items-start justify-between gap-2",
+            heading: "flex min-w-0 items-center gap-2.5",
+            icon: "flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px]",
+            label: "text-[11px] font-bold leading-4 text-[#667085]",
+            infoIcon: "shrink-0 cursor-help text-[13px] leading-none text-[#98A2B3]",
+            value: "mt-4 text-[21px] font-extrabold leading-none text-[#101828]",
+            detail: "mt-2 line-clamp-2 text-[9px] font-semibold leading-4 text-[#667085]",
             tone: {
                 blue: "bg-[#E7F0FF] text-[#2563EB]",
                 green: "bg-[#E7F8ED] text-[#16A34A]",
@@ -145,15 +169,6 @@ export const uiTokens = {
                 red: "bg-[#FFF0EC] text-[#FF4B2B]",
             },
         },
-        mockBadge:
-            "inline-flex h-5 items-center gap-1 rounded-full border border-[#F5D08A] bg-[#FFF8E8] px-2 text-[8px] font-extrabold uppercase tracking-[0.04em] text-[#A86100]",
-        periodTabs: {
-            root: "inline-flex overflow-hidden rounded-lg border border-[#DDE2ED] bg-white",
-            button:
-                "h-8 min-w-14 px-3 text-[10px] font-bold transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#4B32FF]",
-            active: "bg-[#4B32FF] text-white",
-            idle: "text-[#46548B] hover:bg-[#F6F7FF] hover:text-[#4B32FF]",
-        },
         chart: {
             grid: "stroke-[#E7EAF2]",
             axisLabel: "fill-[#61709E] text-[9px] font-medium",
@@ -161,56 +176,38 @@ export const uiTokens = {
             roleplays: "text-[#FF4B1F]",
             quizzes: "text-[#16A34A]",
             legend: "flex items-center gap-2 text-[10px] font-medium text-[#46548B]",
-            footnote: "mt-1 flex items-center gap-2 text-[9px] font-medium text-[#61709E]",
+            footnote: "mt-3 flex items-center gap-2 text-[9px] font-medium text-[#667085]",
             empty: "flex min-h-[230px] items-center justify-center text-[11px] font-semibold text-[#61709E]",
         },
-        quickAction: {
-            row:
-                "flex min-h-9 items-center gap-3 rounded-lg border border-[#E1E5EF] bg-white px-3 text-[10px] font-bold text-[#111A64] transition hover:border-[#C9C1FF] hover:bg-[#FAF9FF] hover:text-[#4B32FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4B32FF] focus-visible:ring-offset-1",
-            icon: "flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
-            chevron: "ml-auto h-4 w-4 text-[#4B32FF]",
-        },
         ai: {
-            section: "rounded-[13px] border border-[#E1E5EF] bg-white p-4",
-            overview: "rounded-[11px] border border-[#E1E5EF] bg-[#FDFDFF] p-4",
-            overviewCard: "min-h-[118px] rounded-[11px] border border-[#E1E5EF] bg-white p-4",
-            overviewValue: "mt-4 text-center text-[24px] font-extrabold leading-none text-[#111A64]",
             table: "overflow-hidden rounded-[11px] border border-[#E1E5EF] bg-white",
+            tableMinWidth: "min-w-[720px]",
             header:
                 "grid grid-cols-[minmax(130px,1.2fr)_0.55fr_0.7fr_0.7fr_0.7fr_0.65fr] gap-3 border-b border-[#E1E5EF] bg-[#FBFCFF] px-3 py-2 text-[8px] font-extrabold uppercase tracking-[0.035em] text-[#52608A]",
             row:
-                "grid min-h-10 grid-cols-[minmax(130px,1.2fr)_0.55fr_0.7fr_0.7fr_0.7fr_0.65fr] items-center gap-3 border-b border-[#EEF0F5] px-3 text-[10px] font-semibold text-[#111A64] last:border-b-0",
-            progressTrack: "h-1.5 overflow-hidden rounded-full bg-[#E4E7EC]",
-            progress: {
-                safe: "h-full rounded-full bg-[#16A34A]",
-                warning: "h-full rounded-full bg-[#F59E0B]",
-                danger: "h-full rounded-full bg-[#EF4444]",
-            },
+                "grid min-h-12 grid-cols-[minmax(130px,1.2fr)_0.55fr_0.7fr_0.7fr_0.7fr_0.65fr] items-center gap-3 border-b border-[#EEF0F5] px-3 text-[10px] font-semibold text-[#344054] last:border-b-0",
         },
         table: {
             root: "overflow-hidden rounded-[11px] border border-[#E1E5EF] bg-white",
+            scrollArea: "mt-3 overflow-x-auto",
+            topRoleplaysMinWidth: "min-w-[520px]",
+            performanceMinWidth: "min-w-[500px]",
+            topRoleplaysColumns: "grid-cols-[28px_minmax(150px,1fr)_76px_64px_78px]",
+            performanceColumns: "grid-cols-[minmax(150px,1fr)_92px_92px_78px]",
             header:
-                "grid min-h-8 items-center gap-3 border-b border-[#E1E5EF] bg-[#FBFCFF] px-3 text-[8px] font-extrabold uppercase tracking-[0.035em] text-[#52608A]",
+                "grid min-h-8 items-center gap-3 border-b border-[#E1E5EF] bg-[#FBFCFF] px-3 text-[8px] font-extrabold uppercase tracking-[0.035em] text-[#667085]",
             row:
-                "grid min-h-10 items-center gap-3 border-b border-[#EEF0F5] px-3 text-[10px] font-semibold text-[#111A64] last:border-b-0",
-            rank: "flex h-5 w-5 items-center justify-center rounded-md bg-[#F0EBFF] text-[9px] font-extrabold text-[#5B34FF]",
+                "grid min-h-12 items-center gap-3 border-b border-[#EEF0F5] px-3 text-[10px] font-semibold text-[#344054] last:border-b-0",
+            rank: "flex h-6 w-6 items-center justify-center rounded-md bg-[#E7F0FF] text-[9px] font-extrabold text-[#2563EB]",
             scoreGood: "inline-flex min-w-[48px] justify-center rounded-md bg-[#E5F8EA] px-2 py-1 text-[9px] font-extrabold text-[#16813A]",
             scoreWarning: "inline-flex min-w-[48px] justify-center rounded-md bg-[#FFF0E2] px-2 py-1 text-[9px] font-extrabold text-[#D26000]",
             scoreDanger: "inline-flex min-w-[48px] justify-center rounded-md bg-[#FEE2E2] px-2 py-1 text-[9px] font-extrabold text-[#DC2626]",
             empty: "flex min-h-32 items-center justify-center px-4 text-center text-[10px] font-semibold text-[#61709E]",
-            link: "truncate font-bold text-[#111A64] transition hover:text-[#4B32FF] hover:underline",
-            meta: "truncate text-[#52608A]",
-        },
-        status: {
-            published: "inline-flex whitespace-nowrap justify-center rounded-md bg-[#E5F8EA] px-2 py-1 text-[9px] font-extrabold text-[#16813A]",
-            draft: "inline-flex whitespace-nowrap justify-center rounded-md bg-[#FFF0EC] px-2 py-1 text-[9px] font-extrabold text-[#E44324]",
-        },
-        recentActivity: {
-            row: "grid min-h-9 grid-cols-[minmax(0,1.7fr)_0.65fr_0.45fr_auto] items-center gap-3 border-b border-[#EEF0F5] px-3 text-[10px] text-[#111A64] last:border-b-0",
-            icon: "flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
-            date: "text-right text-[9px] font-semibold text-[#61709E]",
-            detail: "font-semibold text-[#46548B]",
-            link: "flex min-w-0 items-center gap-3 font-semibold transition hover:text-[#4B32FF]",
+            link: "truncate font-bold text-[#344054] transition hover:text-[#4B32FF] hover:underline",
+            viewAll: "text-[10px] font-bold text-[#5140F0] transition hover:text-[#4635E7] hover:underline",
+            centerStrong: "text-center font-extrabold",
+            rightStrong: "text-right font-extrabold",
+            strong: "font-extrabold",
         },
         state: {
             skeleton: "animate-pulse rounded-[11px] border border-[#E1E5EF] bg-[#F7F8FC]",

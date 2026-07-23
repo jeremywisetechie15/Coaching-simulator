@@ -292,10 +292,17 @@ function buildMetrics(
 
     return [
         {
+            detail: `${formatAdminDashboardDuration(roleplaySeconds)} roleplay · ${formatAdminDashboardDuration(quizSeconds)} quiz${hasUnmeasuredQuizDuration ? " · historique quiz non mesuré" : ""}`,
+            id: ADMIN_DASHBOARD_METRIC_ID.learningTime,
+            label: "Temps total d’apprentissage",
+            tone: "blue",
+            value: formatAdminDashboardDuration(roleplaySeconds + quizSeconds),
+        },
+        {
             detail: "Apprenants au statut actif",
             id: ADMIN_DASHBOARD_METRIC_ID.activeUsers,
             label: "Utilisateurs actifs",
-            tone: "green",
+            tone: "blue",
             value: String(activeUserIds.size),
         },
         {
@@ -309,7 +316,7 @@ function buildMetrics(
             detail: `${draftCount(scopedScenarios)} brouillon${draftCount(scopedScenarios) > 1 ? "s" : ""}`,
             id: ADMIN_DASHBOARD_METRIC_ID.publishedRoleplays,
             label: "Roleplays publiés",
-            tone: "purple",
+            tone: "blue",
             value: String(publishedCount(scopedScenarios)),
         },
         {
@@ -323,15 +330,8 @@ function buildMetrics(
             detail: `${draftCount(scopedMethods)} brouillon${draftCount(scopedMethods) > 1 ? "s" : ""}`,
             id: ADMIN_DASHBOARD_METRIC_ID.publishedMethods,
             label: "Méthodes publiées",
-            tone: "purple",
+            tone: "blue",
             value: String(publishedCount(scopedMethods)),
-        },
-        {
-            detail: `${formatAdminDashboardDuration(roleplaySeconds)} roleplay · ${formatAdminDashboardDuration(quizSeconds)} quiz${hasUnmeasuredQuizDuration ? " · historique quiz non mesuré" : ""}`,
-            id: ADMIN_DASHBOARD_METRIC_ID.learningTime,
-            label: "Temps total d’apprentissage",
-            tone: "green",
-            value: formatAdminDashboardDuration(roleplaySeconds + quizSeconds),
         },
     ];
 }
@@ -400,36 +400,38 @@ function buildAiUsage(
     const simulationSeconds = allRows.reduce((sum, row) => sum + row.simulationSeconds, 0);
     const askPersonaSeconds = allRows.reduce((sum, row) => sum + row.askPersonaSeconds, 0);
     const coachSeconds = allRows.reduce((sum, row) => sum + row.coachSeconds, 0);
+    const totalSeconds = simulationSeconds + askPersonaSeconds + coachSeconds;
+    const share = (value: number) => `${totalSeconds === 0 ? 0 : Math.round((value / totalSeconds) * 100)}% du temps IA`;
 
     return {
         organizations: rows,
         overview: [
             {
-                detail: "Somme des trois usages IA",
+                detail: "Sur la période sélectionnée",
                 id: ADMIN_DASHBOARD_AI_OVERVIEW_ID.total,
                 label: "Temps total d’interaction IA",
-                tone: "purple",
-                value: formatAdminDashboardDuration(simulationSeconds + askPersonaSeconds + coachSeconds),
+                tone: "blue",
+                value: formatAdminDashboardDuration(totalSeconds),
             },
             {
-                detail: "Roleplays éligibles",
+                detail: share(simulationSeconds),
                 id: ADMIN_DASHBOARD_AI_OVERVIEW_ID.simulations,
                 label: "Simulations IA",
                 tone: "blue",
                 value: formatAdminDashboardDuration(simulationSeconds),
             },
             {
-                detail: "Conversations avec les personas",
+                detail: share(askPersonaSeconds),
                 id: ADMIN_DASHBOARD_AI_OVERVIEW_ID.askPersona,
                 label: "Ask IA persona",
-                tone: "orange",
+                tone: "blue",
                 value: formatAdminDashboardDuration(askPersonaSeconds),
             },
             {
-                detail: "Débriefs et accompagnements",
+                detail: share(coachSeconds),
                 id: ADMIN_DASHBOARD_AI_OVERVIEW_ID.coach,
                 label: "Coach IA",
-                tone: "green",
+                tone: "blue",
                 value: formatAdminDashboardDuration(coachSeconds),
             },
         ],

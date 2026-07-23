@@ -20,7 +20,10 @@ export function AdminDashboardPage({ initialDashboardData, profileValues }: Admi
             platformRole={profileValues.platformRole}
             searchPlaceholder="Rechercher..."
         >
-            <AdminDashboardPageContent initialDashboardData={initialDashboardData} />
+            <AdminDashboardPageContent
+                firstName={profileValues.firstName}
+                initialDashboardData={initialDashboardData}
+            />
         </AppShell>
     );
 }

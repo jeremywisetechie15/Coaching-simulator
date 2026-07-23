@@ -168,6 +168,7 @@ describe("admin dashboard calculations", () => {
             expect.objectContaining({ id: "published-roleplays", value: "2" }),
             expect.objectContaining({ id: "learning-time", value: "12min" }),
         ]));
+        expect(dashboard.metrics[0]?.id).toBe("learning-time");
         expect(seriesTotal(dashboard, "connections")).toBe(1);
         expect(seriesTotal(dashboard, "roleplays")).toBe(1);
         expect(seriesTotal(dashboard, "quizzes")).toBe(1);
@@ -187,6 +188,11 @@ describe("admin dashboard calculations", () => {
             simulationSeconds: 120,
             totalSeconds: 270,
         });
+        expect(dashboard.aiUsage.overview).toEqual(expect.arrayContaining([
+            expect.objectContaining({ detail: "44% du temps IA", id: "simulations" }),
+            expect.objectContaining({ detail: "33% du temps IA", id: "ask-persona" }),
+            expect.objectContaining({ detail: "22% du temps IA", id: "coach" }),
+        ]));
     });
 
     it("requires thirty seconds, a two-way exchange and no technical error for a roleplay", () => {

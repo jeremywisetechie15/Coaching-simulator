@@ -25,6 +25,21 @@ export const ADMIN_DASHBOARD_METRIC_ID = {
 export type AdminDashboardMetricId =
     (typeof ADMIN_DASHBOARD_METRIC_ID)[keyof typeof ADMIN_DASHBOARD_METRIC_ID];
 
+export const ADMIN_DASHBOARD_METRIC_HELP: Record<AdminDashboardMetricId, string> = {
+    [ADMIN_DASHBOARD_METRIC_ID.activeOrganizations]:
+        "Nombre d’organisations actuellement actives.",
+    [ADMIN_DASHBOARD_METRIC_ID.activeUsers]:
+        "Nombre d’apprenants rattachés activement aux organisations affichées.",
+    [ADMIN_DASHBOARD_METRIC_ID.learningTime]:
+        "Temps cumulé des simulations éligibles et du temps actif mesuré dans les quiz terminés.",
+    [ADMIN_DASHBOARD_METRIC_ID.publishedMethods]:
+        "Nombre de méthodes actives actuellement publiées.",
+    [ADMIN_DASHBOARD_METRIC_ID.publishedQuizzes]:
+        "Nombre de quiz actifs actuellement publiés.",
+    [ADMIN_DASHBOARD_METRIC_ID.publishedRoleplays]:
+        "Nombre de roleplays actifs actuellement publiés.",
+};
+
 export type AdminDashboardTone = "blue" | "green" | "orange" | "purple" | "red";
 
 export interface AdminDashboardMetric {
@@ -60,18 +75,6 @@ export interface AdminDashboardOrganizationOption {
     name: string;
 }
 
-export const ADMIN_DASHBOARD_QUICK_ACTIONS = [
-    { href: "/organizations?create=1", id: "organization", label: "Ajouter une organisation" },
-    { href: "/users?invite=1", id: "user", label: "Ajouter un utilisateur" },
-    { href: "/methods/new", id: "method", label: "Créer une méthode" },
-    { href: "/scorecards/new", id: "scorecard", label: "Créer une scorecard" },
-    { href: "/roleplays/new", id: "roleplay", label: "Créer un scénario" },
-    { href: "/evaluations/new", id: "quiz", label: "Créer un quiz" },
-] as const;
-
-export type AdminDashboardQuickActionId =
-    (typeof ADMIN_DASHBOARD_QUICK_ACTIONS)[number]["id"];
-
 export const ADMIN_DASHBOARD_AI_OVERVIEW_ID = {
     askPersona: "ask-persona",
     coach: "coach",
@@ -81,6 +84,17 @@ export const ADMIN_DASHBOARD_AI_OVERVIEW_ID = {
 
 export type AdminDashboardAiOverviewId =
     (typeof ADMIN_DASHBOARD_AI_OVERVIEW_ID)[keyof typeof ADMIN_DASHBOARD_AI_OVERVIEW_ID];
+
+export const ADMIN_DASHBOARD_AI_OVERVIEW_HELP: Record<AdminDashboardAiOverviewId, string> = {
+    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.askPersona]:
+        "Temps actif des échanges après session avec un persona IA.",
+    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.coach]:
+        "Temps actif des débriefs et accompagnements avec le coach IA.",
+    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.simulations]:
+        "Temps cumulé des simulations roleplay éligibles.",
+    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.total]:
+        "Somme des simulations, des échanges persona et des accompagnements coach IA.",
+};
 
 export interface AdminDashboardAiOverview {
     detail: string;
