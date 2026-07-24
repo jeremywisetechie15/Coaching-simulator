@@ -109,4 +109,10 @@ describe("form submit feedback", () => {
 
         expect(notify.success).toHaveBeenCalledWith("Enregistrement effectué avec succès");
     });
+
+    it("accepts a contextual success message", () => {
+        notifyFormSubmitSuccess("Mot de passe modifié avec succès");
+
+        expect(notify.success).toHaveBeenCalledWith("Mot de passe modifié avec succès");
+    });
 });

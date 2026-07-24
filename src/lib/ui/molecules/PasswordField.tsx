@@ -4,6 +4,7 @@ import { FieldLabel, IconButton, InlineIcon, InputIcon, InputShell, Stack, TextI
 
 interface PasswordFieldProps {
     autoComplete?: HTMLInputAutoCompleteAttribute;
+    disabled?: boolean;
     id: string;
     isVisible: boolean;
     label?: string;
@@ -15,6 +16,7 @@ interface PasswordFieldProps {
 
 export function PasswordField({
     autoComplete = "current-password",
+    disabled = false,
     id,
     isVisible,
     label = "Password",
@@ -33,6 +35,7 @@ export function PasswordField({
                     name={name}
                     type={isVisible ? "text" : "password"}
                     autoComplete={autoComplete}
+                    disabled={disabled}
                     required
                     value={value}
                     onChange={onChange}
@@ -40,6 +43,7 @@ export function PasswordField({
                     hasTrailingAction
                 />
                 <IconButton
+                    disabled={disabled}
                     onClick={onToggleVisibility}
                     aria-label={isVisible ? "Masquer le mot de passe" : "Afficher le mot de passe"}
                 >

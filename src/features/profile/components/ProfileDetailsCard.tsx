@@ -3,16 +3,24 @@ import type { ProfileEditableField, ProfileFormValues } from "@/features/profile
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import { ProfileAvatar } from "./ProfileAvatar";
 import { ProfileField } from "./ProfileField";
+import { ProfilePasswordControl } from "./ProfilePasswordControl";
 import { ProfileSectionTitle } from "./ProfileSectionTitle";
 
 interface ProfileDetailsCardProps {
     isEditing: boolean;
     onAvatarChange: (file: File) => void;
+    onChangePassword: () => void;
     onChange: (field: ProfileEditableField, value: string) => void;
     values: ProfileFormValues;
 }
 
-export function ProfileDetailsCard({ isEditing, onAvatarChange, onChange, values }: ProfileDetailsCardProps) {
+export function ProfileDetailsCard({
+    isEditing,
+    onAvatarChange,
+    onChange,
+    onChangePassword,
+    values,
+}: ProfileDetailsCardProps) {
     return (
         <CardSurface className="rounded-[18px] border border-[#E1E4EB] px-6 py-6 shadow-none md:px-9">
             <ProfileSectionTitle title="Informations de base" />
@@ -61,7 +69,7 @@ export function ProfileDetailsCard({ isEditing, onAvatarChange, onChange, values
                     <Box />
                     <Box className="space-y-5">
                         <ProfileField id="email-login" label="Email" value={values.email} required />
-                        <ProfileField id="password" label="Mot de passe" value={values.password} required />
+                        <ProfilePasswordControl onChangePassword={onChangePassword} />
                     </Box>
                 </Box>
             </Box>

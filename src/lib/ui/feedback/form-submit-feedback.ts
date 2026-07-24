@@ -138,6 +138,8 @@ export function notifyFormSubmitError(error: unknown, fallback: string) {
     return detail;
 }
 
-export function notifyFormSubmitSuccess() {
-    notify.success(FORM_SUBMIT_FEEDBACK_MESSAGES.success);
+export function notifyFormSubmitSuccess(
+    message: string = FORM_SUBMIT_FEEDBACK_MESSAGES.success,
+) {
+    notify.success(message);
 }

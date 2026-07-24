@@ -823,6 +823,30 @@ export const uiTokens = {
         panel: "w-full max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-[0_22px_60px_rgba(17,24,39,0.26)] md:p-7",
         title: "text-[20px] font-extrabold leading-tight",
     },
+    profile: {
+        security: {
+            action: "h-9 shrink-0 px-4",
+            description: "text-[12px] font-medium leading-5 text-[#7A7F8B]",
+            icon: "h-4 w-4",
+            iconShell:
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F4F3FE] text-[#5140F0]",
+            label: "text-[14px] font-bold leading-5 text-[#171B2A]",
+            mask: "font-mono text-[15px] font-semibold tracking-[0.14em] text-[#4B5563]",
+            row:
+                "flex min-h-[64px] items-center justify-between gap-4 rounded-xl border border-[#E8EAF0] bg-[#FCFCFD] px-4 py-3",
+            summary: "flex min-w-0 items-center gap-3",
+        },
+        passwordModal: {
+            actions: "grid gap-3 pt-1 sm:grid-cols-2",
+            body: "space-y-5",
+            field: "space-y-2",
+            forgotLink: "inline-flex w-fit text-[13px]",
+            loaderIcon: "h-4 w-4 animate-spin",
+            panel: "max-w-[520px]",
+            submitButton:
+                "flex h-11 items-center justify-center gap-2 rounded-xl px-6 text-[14px] font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-70",
+        },
+    },
     videoPlayer: {
         action:
             "flex h-9 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#EA580C] px-4 text-[13px] font-bold text-white transition hover:bg-[#DC4F08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#EA580C] focus-visible:ring-offset-2",

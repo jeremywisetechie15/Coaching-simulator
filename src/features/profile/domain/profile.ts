@@ -7,7 +7,6 @@ export interface ProfileFormValues {
     email: string;
     firstName: string;
     lastName: string;
-    password: string;
     platformRole: PlatformRole;
 }
 
@@ -31,7 +30,6 @@ export function toProfileFormValues(profile: ProfileView): ProfileFormValues {
         email: profile.email,
         firstName: profile.firstName,
         lastName: profile.lastName,
-        password: "••••••••••••",
         platformRole: profile.platformRole,
     };
 }

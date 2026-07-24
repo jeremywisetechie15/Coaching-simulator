@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Box } from "@/lib/ui/atoms";
 import { AlertMessage } from "@/lib/ui/molecules";
+import { ChangePasswordModal } from "@/features/auth/components";
 import {
     createFormSubmitError,
     notifyFormSubmitError,
@@ -22,6 +23,7 @@ export function ProfilePageContent({ initialProfileValues }: ProfilePageContentP
     const [avatarFile, setAvatarFile] = useState<File | null>(null);
     const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null);
     const [isEditing, setIsEditing] = useState(false);
+    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
     const [isSaving, setIsSaving] = useState(false);
     const [saveError, setSaveError] = useState<string | null>(null);
 
@@ -151,8 +153,12 @@ export function ProfilePageContent({ initialProfileValues }: ProfilePageContentP
                     }
                     onAvatarChange={updateDraftAvatar}
                     onChange={updateDraftValue}
+                    onChangePassword={() => setIsPasswordModalOpen(true)}
                 />
             </Box>
+            {isPasswordModalOpen && (
+                <ChangePasswordModal onClose={() => setIsPasswordModalOpen(false)} />
+            )}
         </Box>
     );
 }
