@@ -286,13 +286,13 @@ function buildMetrics(
         (sum, attempt) => sum + Math.max(0, attempt.activeDurationSeconds ?? 0),
         0,
     );
-    const hasUnmeasuredQuizDuration = currentQuizAttempts.some(
-        (attempt) => attempt.activeDurationSeconds === null,
-    );
-
     return [
         {
-            detail: `${formatAdminDashboardDuration(roleplaySeconds)} roleplay · ${formatAdminDashboardDuration(quizSeconds)} quiz${hasUnmeasuredQuizDuration ? " · historique quiz non mesuré" : ""}`,
+            detail: "",
+            valueLines: [
+                `${formatAdminDashboardDuration(roleplaySeconds)} roleplay`,
+                `${formatAdminDashboardDuration(quizSeconds)} quiz`,
+            ],
             id: ADMIN_DASHBOARD_METRIC_ID.learningTime,
             label: "Temps total d’apprentissage",
             tone: "blue",

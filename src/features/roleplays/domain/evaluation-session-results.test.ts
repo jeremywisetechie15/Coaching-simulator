@@ -123,7 +123,7 @@ describe("evaluation session results", () => {
                 points: "2/2",
                 preuvesAttendues: "Nom, société et fonction.",
                 preuvesObservees: [{ quote: "Alexandre Vita d'AlexTech.", speaker: "Apprenant", time: "" }],
-                verbatim: "Bonjour, je suis [Nom] de [Société].",
+                verbatim: "-",
             },
         ]);
     });
@@ -144,5 +144,92 @@ describe("evaluation session results", () => {
 
         expect(evaluation.steps[0].criteria).toEqual(baseEvaluation.steps[0].criteria);
         expect(evaluation.steps[0].commentaireCoach).toBe("Commentaire normalisé.");
+    });
+
+    it("hides the recommended verbatim when a criterion has all available points", () => {
+        const evaluation = applyEvaluationSessionResults(baseEvaluation, {
+            criteria: [
+                {
+                    advice: null,
+                    coachComment: null,
+                    criterionKey: "Critère 1 point",
+                    criterionOrder: 1,
+                    criterionRef: "C1",
+                    dimensionItemLabel: null,
+                    evidence: null,
+                    expectedEvidence: null,
+                    pointsAwarded: 1,
+                    pointsMax: 1,
+                    scorePercent: 100,
+                    scorecardStepId: "step-1",
+                    skillName: null,
+                    verbatim: "Verbatim 1/1",
+                },
+                {
+                    advice: null,
+                    coachComment: null,
+                    criterionKey: "Critère 2 points",
+                    criterionOrder: 2,
+                    criterionRef: "C2",
+                    dimensionItemLabel: null,
+                    evidence: null,
+                    expectedEvidence: null,
+                    pointsAwarded: 2,
+                    pointsMax: 2,
+                    scorePercent: 100,
+                    scorecardStepId: "step-1",
+                    skillName: null,
+                    verbatim: "Verbatim 2/2",
+                },
+                {
+                    advice: null,
+                    coachComment: null,
+                    criterionKey: "Critère 3 points",
+                    criterionOrder: 3,
+                    criterionRef: "C3",
+                    dimensionItemLabel: null,
+                    evidence: null,
+                    expectedEvidence: null,
+                    pointsAwarded: 3,
+                    pointsMax: 3,
+                    scorePercent: 100,
+                    scorecardStepId: "step-1",
+                    skillName: null,
+                    verbatim: "Verbatim 3/3",
+                },
+                {
+                    advice: null,
+                    coachComment: null,
+                    criterionKey: "Critère partiel",
+                    criterionOrder: 4,
+                    criterionRef: "C4",
+                    dimensionItemLabel: null,
+                    evidence: null,
+                    expectedEvidence: null,
+                    pointsAwarded: 2,
+                    pointsMax: 3,
+                    scorePercent: 67,
+                    scorecardStepId: "step-1",
+                    skillName: null,
+                    verbatim: "Verbatim utile",
+                },
+            ],
+            steps: [{
+                coachComment: null,
+                pointsAwarded: 8,
+                pointsMax: 9,
+                scorePercent: 89,
+                scorecardStepId: "step-1",
+                stepOrder: 1,
+                title: "Étape test",
+            }],
+        });
+
+        expect(evaluation.steps[0].criteria.map((criterion) => criterion.verbatim)).toEqual([
+            "-",
+            "-",
+            "-",
+            "Verbatim utile",
+        ]);
     });
 });

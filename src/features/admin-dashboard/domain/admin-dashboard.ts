@@ -48,6 +48,7 @@ export interface AdminDashboardMetric {
     label: string;
     tone: AdminDashboardTone;
     value: string;
+    valueLines?: string[];
 }
 
 export const ADMIN_DASHBOARD_ACTIVITY_SERIES_ID = {

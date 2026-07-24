@@ -10,6 +10,7 @@ interface AdminDashboardStatCardProps {
     label: string;
     tone: AdminDashboardTone;
     value: string;
+    valueLines?: string[];
 }
 
 export function AdminDashboardStatCard({
@@ -19,6 +20,7 @@ export function AdminDashboardStatCard({
     label,
     tone,
     value,
+    valueLines,
 }: AdminDashboardStatCardProps) {
     return (
         <CardSurface className={uiTokens.adminDashboard.metric.card}>
@@ -39,7 +41,17 @@ export function AdminDashboardStatCard({
                     </span>
                 </Tooltip>
             </Box>
-            <Text className={uiTokens.adminDashboard.metric.value}>{value}</Text>
+            {valueLines && valueLines.length > 0 ? (
+                <Box className="mt-4 space-y-1">
+                    {valueLines.map((line) => (
+                        <Text className={uiTokens.adminDashboard.metric.value} key={line}>
+                            {line}
+                        </Text>
+                    ))}
+                </Box>
+            ) : (
+                <Text className={uiTokens.adminDashboard.metric.value}>{value}</Text>
+            )}
             {detail && <Text className={uiTokens.adminDashboard.metric.detail}>{detail}</Text>}
         </CardSurface>
     );

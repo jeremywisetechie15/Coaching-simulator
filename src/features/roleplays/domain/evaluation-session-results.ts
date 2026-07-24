@@ -87,6 +87,13 @@ function criterionTitle(row: EvaluationSessionCriterionResult) {
     return row.criterionKey || row.dimensionItemLabel || row.criterionRef;
 }
 
+function hasFullCriterionScore(row: EvaluationSessionCriterionResult) {
+    return Number.isFinite(row.pointsAwarded)
+        && Number.isFinite(row.pointsMax)
+        && row.pointsMax > 0
+        && row.pointsAwarded >= row.pointsMax;
+}
+
 function mapCriterion(row: EvaluationSessionCriterionResult): EvaluationCriterion {
     return {
         analyse: row.coachComment || "-",
@@ -96,7 +103,7 @@ function mapCriterion(row: EvaluationSessionCriterionResult): EvaluationCriterio
         points: formatPoints(row.pointsAwarded, row.pointsMax, row.scorePercent),
         preuvesAttendues: row.expectedEvidence || "-",
         preuvesObservees: splitEvidence(row.evidence),
-        verbatim: row.verbatim || "-",
+        verbatim: hasFullCriterionScore(row) ? "-" : row.verbatim || "-",
     };
 }
 

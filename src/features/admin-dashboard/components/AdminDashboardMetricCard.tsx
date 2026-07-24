@@ -15,5 +15,6 @@ export function AdminDashboardMetricCard({ metric }: { metric: AdminDashboardMet
         label={metric.label}
         tone={metric.tone}
         value={metric.value}
+        valueLines={metric.valueLines}
     />;
 }

@@ -219,7 +219,8 @@ describe("admin dashboard calculations", () => {
         const learningTime = dashboard.metrics.find((metric) => metric.id === "learning-time");
 
         expect(learningTime).toMatchObject({ value: "0min" });
-        expect(learningTime?.detail).toContain("historique quiz non mesuré");
+        expect(learningTime?.detail).toBe("");
+        expect(learningTime?.valueLines).toEqual(["0min roleplay", "0min quiz"]);
         expect(seriesTotal(dashboard, "quizzes")).toBe(1);
     });
 

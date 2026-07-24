@@ -944,6 +944,22 @@ function criterionScoreTone(points: string): { bg: string; text: string } {
     return { bg: "#FEE2E2", text: "#DC2626" };
 }
 
+function CriterionVerbatim({ verbatim, compact = false }: { verbatim: string; compact?: boolean }) {
+    if (verbatim.trim() === "-") {
+        return <Text className={compact ? "text-[12px] text-[#9CA3AF]" : "text-[#9CA3AF]"}>-</Text>;
+    }
+
+    return compact ? (
+        <Text className="block rounded-lg bg-[#E7F9ED] px-2 py-1 text-[12px] italic leading-relaxed text-[#1F7A3D]">
+            « {verbatim} »
+        </Text>
+    ) : (
+        <Box className="rounded-lg bg-[#E7F9ED] px-3 py-2 font-medium italic leading-6 text-[#1F7A3D]">
+            « {verbatim} »
+        </Box>
+    );
+}
+
 /** Tableau « Analyse des critères » affiché dans l'accordéon d'une étape. */
 function StepCriteriaTable({
     criteria,
@@ -1021,9 +1037,7 @@ function StepCriteriaTable({
                                         </Text>
                                     </td>
                                     <td className="px-4 py-3">
-                                        <Text className="block rounded-lg bg-[#E7F9ED] px-2 py-1 text-[12px] italic leading-relaxed text-[#1F7A3D]">
-                                            « {criterion.verbatim} »
-                                        </Text>
+                                        <CriterionVerbatim compact verbatim={criterion.verbatim} />
                                     </td>
                                 </tr>
                             );
@@ -1290,9 +1304,7 @@ function StepDetailModal({ step, onClose }: { step: EvaluationStep; onClose: () 
                                 <td className="px-4 py-4 font-medium leading-6 text-[#4B5563]">{criterion.analyse}</td>
                                 <td className="px-4 py-4 font-medium leading-6 text-[#5140F0]">{criterion.conseils}</td>
                                 <td className="px-4 py-4">
-                                    <Box className="rounded-lg bg-[#E7F9ED] px-3 py-2 font-medium italic leading-6 text-[#1F7A3D]">
-                                        « {criterion.verbatim} »
-                                    </Box>
+                                    <CriterionVerbatim verbatim={criterion.verbatim} />
                                 </td>
                             </tr>
                         ))}
