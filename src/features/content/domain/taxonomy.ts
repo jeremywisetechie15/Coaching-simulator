@@ -7,6 +7,7 @@
 
 export const CONTENT_DOMAINS = [
     "Commercial",
+    "Relation client",
     "Management",
     "Communication",
     "Ressources humaines",
@@ -17,6 +18,7 @@ export type ContentDomain = (typeof CONTENT_DOMAINS)[number];
 /** Catégories disponibles pour chaque domaine. */
 export const CONTENT_CATEGORIES_BY_DOMAIN = {
     Commercial: ["Prospection", "Négociation", "Vente", "Recommandation", "Prise de rendez-vous"],
+    "Relation client": ["Gestion des conflits", "Accueil client"],
     Communication: ["Prise de parole", "Communication écrite", "Gestion des conflits"],
     Management: ["Entretien de Remobilisation", "Feedback", "Pilotage"],
     "Ressources humaines": ["Recrutement", "Onboarding"],
