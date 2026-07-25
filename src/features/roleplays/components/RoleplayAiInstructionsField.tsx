@@ -27,12 +27,15 @@ export function RoleplayAiInstructionsField({
     value,
 }: RoleplayAiInstructionsFieldProps) {
     const drawerId = useId();
+    const drawerCounterId = useId();
     const drawerNoteId = useId();
     const drawerTextAreaId = useId();
+    const fieldCounterId = useId();
     const fieldHelpId = useId();
     const fieldId = useId();
     const editorTextAreaRef = useRef<HTMLTextAreaElement>(null);
     const [isEditorOpen, setIsEditorOpen] = useState(false);
+    const characterCountLabel = `${value.length.toLocaleString("fr-FR")} / ${ROLEPLAY_AI_INSTRUCTIONS_MAX_LENGTH.toLocaleString("fr-FR")} caractères`;
 
     return (
         <Box>
@@ -61,7 +64,7 @@ export function RoleplayAiInstructionsField({
             <TextArea
                 id={fieldId}
                 name="aiInstructions"
-                aria-describedby={fieldHelpId}
+                aria-describedby={`${fieldHelpId} ${fieldCounterId}`}
                 className={uiTokens.form.textAreaLarge}
                 disabled={disabled}
                 maxLength={ROLEPLAY_AI_INSTRUCTIONS_MAX_LENGTH}
@@ -70,6 +73,11 @@ export function RoleplayAiInstructionsField({
                 rows={8}
                 value={value}
             />
+            <Box className={uiTokens.roleplayEditor.aiInstructionsCounterRow}>
+                <Text id={fieldCounterId} className={uiTokens.roleplayEditor.aiInstructionsCounter}>
+                    {characterCountLabel}
+                </Text>
+            </Box>
 
             {isEditorOpen && (
                 <Drawer
@@ -88,7 +96,7 @@ export function RoleplayAiInstructionsField({
                         <TextArea
                             id={drawerTextAreaId}
                             ref={editorTextAreaRef}
-                            aria-describedby={drawerNoteId}
+                            aria-describedby={`${drawerNoteId} ${drawerCounterId}`}
                             className={uiTokens.form.textAreaEditor}
                             disabled={disabled}
                             maxLength={ROLEPLAY_AI_INSTRUCTIONS_MAX_LENGTH}
@@ -96,9 +104,17 @@ export function RoleplayAiInstructionsField({
                             placeholder={AI_INSTRUCTIONS_PLACEHOLDER}
                             value={value}
                         />
-                        <Text id={drawerNoteId} className={uiTokens.form.helpText}>
-                            Les modifications seront enregistrées avec le scénario.
-                        </Text>
+                        <Box className={uiTokens.roleplayEditor.aiInstructionsFooter}>
+                            <Text id={drawerNoteId} className={uiTokens.form.helpText}>
+                                Les modifications seront enregistrées avec le scénario.
+                            </Text>
+                            <Text
+                                id={drawerCounterId}
+                                className={uiTokens.roleplayEditor.aiInstructionsCounter}
+                            >
+                                {characterCountLabel}
+                            </Text>
+                        </Box>
                     </Box>
                 </Drawer>
             )}

@@ -473,7 +473,10 @@ export const uiTokens = {
             "text-[12px] font-extrabold uppercase tracking-wide text-[#B45309]",
     },
     roleplayEditor: {
+        aiInstructionsCounter: "text-right text-[12px] font-medium tabular-nums text-[#6B7280]",
+        aiInstructionsCounterRow: "mt-1.5 flex justify-end",
         aiInstructionsDrawerContent: "flex min-h-0 flex-1 flex-col gap-3",
+        aiInstructionsFooter: "flex flex-wrap items-center justify-between gap-2",
         aiInstructionsHeader: "mb-3 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between",
         aiInstructionsHeading: "min-w-0 flex-1",
     },

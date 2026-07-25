@@ -5,10 +5,11 @@ import { RoleplayAiInstructionsField } from "./RoleplayAiInstructionsField";
 
 describe("RoleplayAiInstructionsField", () => {
     it("renders the private AI instructions field with its accessible editor trigger", () => {
+        const value = "Reste prudent au début de l'échange.";
         const html = renderToStaticMarkup(
             <RoleplayAiInstructionsField
                 onChange={() => undefined}
-                value="Reste prudent au début de l'échange."
+                value={value}
             />,
         );
 
@@ -19,5 +20,8 @@ describe("RoleplayAiInstructionsField", () => {
         expect(html).toContain("Ouvrir l&#x27;éditeur");
         expect(html).toContain(`maxLength="${ROLEPLAY_AI_INSTRUCTIONS_MAX_LENGTH}"`);
         expect(html).toContain("Reste prudent au début de l&#x27;échange.");
+        expect(html).toContain(
+            `${value.length.toLocaleString("fr-FR")} / ${ROLEPLAY_AI_INSTRUCTIONS_MAX_LENGTH.toLocaleString("fr-FR")} caractères`,
+        );
     });
 });
