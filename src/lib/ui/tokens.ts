@@ -454,6 +454,21 @@ export const uiTokens = {
         aiActionButton:
             "flex h-9 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-3 text-[13px] font-semibold text-[#374151] transition hover:border-[#D5D7DE] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0] focus-visible:ring-offset-2",
         aiActionIcon: "h-4 w-4 text-[#5140F0]",
+        transcriptCorrection: {
+            divider: "border-[#FDE68A]",
+            highlight: "bg-[#FDE68A]",
+            panel: "border-[#FCD34D] bg-[#FFFBEB]",
+            reasonLabel: "text-[#92400E]",
+            reasonText: "text-[#4B5563]",
+            suggestionLabel: "text-[#166534]",
+            suggestionText: "text-[#166534]",
+            title: "text-[#92400E]",
+            titleIcon: "text-[#B45309]",
+            toggleActive:
+                "border-[#FCD34D] bg-[#FDE68A]/40 text-[#B45309] hover:bg-[#FDE68A]/55",
+            toggleIdle:
+                "border-[#FDE68A] bg-[#FDE68A]/15 text-[#92400E] hover:bg-[#FDE68A]/30",
+        },
     },
     roleplayEditor: {
         aiInstructionsDrawerContent: "flex min-h-0 flex-1 flex-col gap-3",

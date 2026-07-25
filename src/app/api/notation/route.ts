@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/features/auth/server';
 import { PUBLISHED_CONTENT_STATUS } from '@/features/content/domain';
-import { SCORECARD_STEP_WEIGHT_TOTAL_PERCENT } from '@/features/scorecards/domain';
 import {
     getRoleplaySessionEvaluationDecision,
     MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
@@ -14,13 +13,12 @@ import {
     limitRoleplaySynthesisLists,
     shouldReuseCompletedRoleplayNotation,
     ROLEPLAY_NOTATION_FEEDBACK_MESSAGES,
-    type RoleplayNotationCriterionRef,
-    type RoleplayNotationScoreResult,
     type RoleplayNotationSource,
     type RoleplayNotationTab,
 } from '@/features/roleplays/domain';
 import {
     SCORECARD_NOTATION_TABS,
+    buildScorecardMethodoPayload,
     buildScorecardMethodoInput,
     buildScorecardSynthesisInput,
     buildRoleplayScorecardNotationContext,
@@ -133,39 +131,6 @@ type OpenAIJsonSchemaFormat = {
     schema: Record<string, unknown>;
 };
 
-const SCORECARD_METHODO_OUTPUT_SCHEMA: OpenAIJsonSchemaFormat = {
-    type: "json_schema",
-    name: "notation_scorecard_methodo",
-    strict: true,
-    schema: {
-        type: "object",
-        additionalProperties: false,
-        required: ["onglet", "criteres"],
-        properties: {
-            onglet: {
-                type: "string",
-                enum: ["AnalyseMethodologique"],
-            },
-            criteres: {
-                type: "array",
-                items: {
-                    type: "object",
-                    additionalProperties: false,
-                    required: ["ref", "points_obtenus", "points_max", "preuve", "commentaire", "conseil"],
-                    properties: {
-                        ref: { type: "string" },
-                        points_obtenus: { type: "number" },
-                        points_max: { type: "number" },
-                        preuve: { type: "string" },
-                        commentaire: { type: "string" },
-                        conseil: { type: "string" },
-                    },
-                },
-            },
-        },
-    },
-};
-
 const DEFAULT_STEP_TITLES: Record<string, string> = {
     accueillir: "Accueillir",
     cadrer: "Cadrer",
@@ -209,12 +174,6 @@ const SCORECARD_NOTATION_CONFIG: NotationMethodConfig = {
     promptIds: {},
     source: "supabase",
 };
-
-// --- Fonctions utilitaires pour le calcul de score ---
-function clamp0_100(n: number) {
-    if (typeof n !== "number" || Number.isNaN(n)) return 0;
-    return Math.max(0, Math.min(100, n));
-}
 
 function round2(n: number) {
     return Math.round(n * 100) / 100;
@@ -769,53 +728,6 @@ async function callOpenAIJson(
     }
 }
 
-function buildScorecardMethodoPayload(
-    rawMethodo: Record<string, unknown> | null,
-    scoreResult: RoleplayNotationScoreResult,
-    criterionRefs: RoleplayNotationCriterionRef[],
-): NotationPayload["methodo"] {
-    const refsByRef = new Map(criterionRefs.map((criterionRef) => [criterionRef.ref, criterionRef]));
-    const raw = rawMethodo && typeof rawMethodo === "object" ? rawMethodo : {};
-
-    return {
-        ...raw,
-        onglet: raw.onglet ?? "AnalyseMethodologique",
-        etapes: scoreResult.steps.map((step) => ({
-            numero: step.stepOrder,
-            titre: step.title,
-            score: step.scorePercent,
-            score_max: 100,
-            points_obtenus: step.pointsAwarded,
-            points_max: step.pointsMax,
-            poids: round2(step.weightPercent / SCORECARD_STEP_WEIGHT_TOTAL_PERCENT),
-            contribution_score_global: round2(
-                step.scorePercent *
-                    (step.weightPercent / SCORECARD_STEP_WEIGHT_TOTAL_PERCENT),
-            ),
-            commentaire_coach: step.coachComment,
-            criteres: step.criteria.map((criterion) => {
-                const criterionRef = refsByRef.get(criterion.ref);
-
-                return {
-                    ref: criterion.ref,
-                    critere: criterionRef?.criterionKey ?? criterion.ref,
-                    competence: criterionRef?.skillName,
-                    dimension: criterionRef?.dimension,
-                    item_dimension: criterionRef?.dimensionItemLabel,
-                    points_obtenus: criterion.pointsAwarded,
-                    points_max: criterion.pointsMax,
-                    score: criterion.scorePercent,
-                    preuve: criterion.evidence,
-                    commentaire: criterion.coachComment,
-                    conseil: criterion.advice,
-                    preuves_attendues: criterionRef?.expectedEvidence,
-                    verbatim: criterionRef?.verbatim,
-                };
-            }),
-        })),
-    };
-}
-
 async function runScorecardNotation(
     supabase: SupabaseClient,
     context: RoleplayScorecardNotationContext,
@@ -833,10 +745,11 @@ async function runScorecardNotation(
         ROLEPLAY_NOTATION_SOURCE.scorecard,
         SCORECARD_NOTATION_TABS,
     );
-    const scorecardMethodoOutputSchema = outputSchemasMap.get("methodo") ?? SCORECARD_METHODO_OUTPUT_SCHEMA;
+    const scorecardMethodoOutputSchema = outputSchemasMap.get("methodo");
     const scorecardSynthesisOutputSchema = outputSchemasMap.get("synthese");
-    if (!scorecardSynthesisOutputSchema) {
-        throw new Error("Schema JSON scorecard synthese manquant.");
+    if (!scorecardMethodoOutputSchema || !scorecardSynthesisOutputSchema) {
+        const missingSchemas = SCORECARD_NOTATION_TABS.filter((tab) => !outputSchemasMap.has(tab));
+        throw new Error(`Schemas JSON scorecard manquants: ${missingSchemas.join(", ")}.`);
     }
 
     const notation: NotationPayload = {};
@@ -867,7 +780,12 @@ async function runScorecardNotation(
         context.criterionRefs,
         context.stepRefs,
     );
-    notation.methodo = buildScorecardMethodoPayload(methodoResult.result, scoreResult, context.criterionRefs);
+    notation.methodo = buildScorecardMethodoPayload(
+        methodoResult.result,
+        scoreResult,
+        context.criterionRefs,
+        context.transcription,
+    );
     notation.score_global = buildScoreGlobalFromScorecard(scoreResult);
 
     const synthesisPrompt = promptsMap.get("synthese");
@@ -1073,9 +991,10 @@ export async function POST(req: Request) {
         // 2. RÉCUPÉRER LE TRANSCRIPT DEPUIS LA TABLE MESSAGES
         const { data: messages, error: messagesError } = await supabase
             .from('messages')
-            .select('role, content, timestamp')
+            .select('id, role, content, timestamp')
             .eq('session_id', effectiveSessionId)
-            .order('timestamp', { ascending: true });
+            .order('timestamp', { ascending: true })
+            .order('id', { ascending: true });
 
         if (messagesError || !messages || messages.length === 0) {
             return setCorsHeaders(

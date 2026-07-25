@@ -10,18 +10,25 @@ import {
     type StepReformulation,
     type StepStatus,
     type StepTranscriptLine,
+    type TranscriptCorrection,
     type TranscriptMessage,
 } from "@/features/roleplays/data/evaluation";
 import { limitRoleplaySynthesisItems } from "./roleplay-notation";
+import { buildRoleplayNotationTranscript } from "./roleplay-notation-transcript";
 import {
     ROLEPLAY_CONSOLIDATION_THRESHOLD_PERCENT,
     ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
 } from "./roleplay-score";
+import {
+    createRoleplayTranscriptCorrectionLimiter,
+    normalizeRoleplayTranscriptCorrection,
+} from "./transcript-correction";
 
 type JsonRecord = Record<string, unknown>;
 
 export interface NotationTranscriptMessage {
     content: string | null;
+    id?: string | null;
     role: string | null;
     timestamp: string | null;
 }
@@ -556,13 +563,78 @@ function formatTime(value: string | null) {
 function mapTranscript(messages: NotationTranscriptMessage[]): TranscriptMessage[] {
     const transcript = messages
         .filter((message) => asString(message.content))
-        .map((message) => ({
+        .map((message, index) => ({
+            id: `M${index + 1}`,
             speaker: message.role === "assistant" ? ("persona" as const) : ("you" as const),
             text: message.content?.trim() ?? "",
             time: formatTime(message.timestamp),
         }));
 
     return transcript.length > 0 ? transcript : fallbackEvaluation.transcript;
+}
+
+function mapTranscriptCorrections(
+    notation: JsonRecord,
+    messages: NotationTranscriptMessage[],
+): Map<string, TranscriptCorrection[]> {
+    const methodo = asRecord(notation.methodo);
+    const rawSteps = getValuePath(methodo, ["etapes"]);
+    if (!Array.isArray(rawSteps)) return new Map();
+
+    const transcript = buildRoleplayNotationTranscript(messages).conversation;
+    const correctionsByMessageRef = new Map<string, TranscriptCorrection[]>();
+    const limitTranscriptCorrection = createRoleplayTranscriptCorrectionLimiter();
+
+    for (const rawStep of rawSteps) {
+        if (!isRecord(rawStep)) continue;
+
+        for (const criterion of detailedCriteriaFromStep(rawStep)) {
+            const ref = criterionRef(criterion);
+            const pointsAwarded =
+                asNumber(criterion.points_obtenus) ??
+                asNumber(criterion.score_obtenu) ??
+                asNumber(criterion.points_awarded);
+            const pointsMax =
+                asNumber(criterion.points_max) ??
+                asNumber(criterion.score_max) ??
+                asNumber(criterion.max_points);
+
+            if (!ref || pointsAwarded === null || pointsMax === null) continue;
+
+            const correction = limitTranscriptCorrection(
+                normalizeRoleplayTranscriptCorrection({
+                    correction: criterion.correction,
+                    pointsAwarded,
+                    pointsMax,
+                    transcript,
+                }),
+            );
+            if (!correction) continue;
+
+            const current = correctionsByMessageRef.get(correction.message_ref) ?? [];
+            current.push({
+                criterionRef: ref,
+                original: correction.phrase_originale,
+                reason: correction.pourquoi,
+                suggestion: correction.verbatim_preconise,
+            });
+            correctionsByMessageRef.set(correction.message_ref, current);
+        }
+    }
+
+    return correctionsByMessageRef;
+}
+
+function mapTranscriptWithCorrections(
+    notation: JsonRecord,
+    messages: NotationTranscriptMessage[],
+): TranscriptMessage[] {
+    const correctionsByMessageRef = mapTranscriptCorrections(notation, messages);
+
+    return mapTranscript(messages).map((message) => {
+        const corrections = message.id ? correctionsByMessageRef.get(message.id) : undefined;
+        return corrections?.length ? { ...message, corrections } : message;
+    });
 }
 
 function percentFromWeight(value: unknown): number | null {
@@ -811,6 +883,6 @@ export function mapNotationToEvaluation(
             fallbackEvaluation.prioriteStrategique,
         scoreDetails: mapScoreDetails(notation, steps),
         steps,
-        transcript: mapTranscript(messages),
+        transcript: mapTranscriptWithCorrections(notation, messages),
     };
 }

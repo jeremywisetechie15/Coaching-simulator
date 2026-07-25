@@ -1,4 +1,7 @@
-import type { RoleplayNotationCriterionRef } from "@/features/roleplays/domain";
+import {
+    ROLEPLAY_TRANSCRIPT_VERBATIM_LIMIT_PER_MESSAGE,
+    type RoleplayNotationCriterionRef,
+} from "@/features/roleplays/domain";
 import type { RoleplayScorecardNotationContext } from "./build-roleplay-notation-context";
 
 function criterionRefToPrompt(ref: RoleplayNotationCriterionRef) {
@@ -46,6 +49,13 @@ REGLES:
 - Pour le champ preuve, utilise uniquement les paroles de l'Utilisateur / Apprenant dans la TRANSCRIPTION.
 - Cite si possible un extrait exact avec sa reference M et son horodatage.
 - Si aucune parole utilisateur ne prouve le critere, retourne "Aucune preuve utilisateur observee" et zero point.
+- Pour chaque critere, correction doit toujours etre present: retourne null si aucune reformulation precise et utile n'est necessaire.
+- Si points_obtenus est egal a points_max, correction doit obligatoirement etre null.
+- Si le critere n'obtient pas tous ses points, propose au maximum une correction, uniquement lorsqu'une phrase precise de l'Apprenant doit etre amelioree.
+- Dans correction, message_ref doit viser une reference M de l'Apprenant et phrase_originale doit recopier exactement un extrait continu de ce message.
+- Pour un meme message_ref de l'Apprenant, meme si plusieurs extraits phrase_originale se chevauchent, retourne au maximum ${ROLEPLAY_TRANSCRIPT_VERBATIM_LIMIT_PER_MESSAGE} corrections non nulles sur l'ensemble des criteres. Selectionne les ${ROLEPLAY_TRANSCRIPT_VERBATIM_LIMIT_PER_MESSAGE} verbatims les plus coherents et efficaces, et retourne correction: null pour les autres criteres concernes.
+- Construis verbatim_preconise a partir du verbatim_conformes du critere et des verbatims de la methode, en l'adaptant au contexte sans changer leur intention metier.
+- pourquoi doit expliquer concretement et brievement l'amelioration apportee.
 - La transcription peut contenir des erreurs sur les noms et prenoms. Ne penalise pas une transcription approximative si l'intention est claire.
 
 TRANSCRIPTION:

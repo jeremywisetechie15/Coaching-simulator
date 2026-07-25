@@ -59,6 +59,11 @@ import { notify, notifyHttpError } from "@/lib/ui/feedback/toast";
 import { SimulationView } from "./SimulationView";
 import { EvaluationKeyMomentsSection } from "./EvaluationKeyMomentsSection";
 import { RoleplayGuidanceTabsPanel } from "./RoleplayGuidanceTabsPanel";
+import {
+    TranscriptCorrectionPanel,
+    TranscriptCorrectionToggle,
+    TranscriptMessageText,
+} from "./TranscriptCorrectionPanel";
 
 const stepIcons: Record<EvaluationStep["icon"], { icon: LucideIcon; bg: string; color: string }> = {
     phone: { icon: Phone, bg: "#E7EDFD", color: "#3B6FD0" },
@@ -564,6 +569,9 @@ export function EvaluationPageContent({
                         )}
                         {activeTab === "Transcription" && (
                             <TranscriptionTab
+                                hasCorrections={evaluationData.transcript.some(
+                                    (message) => Boolean(message.corrections?.length),
+                                )}
                                 query={transcriptQuery}
                                 onQueryChange={setTranscriptQuery}
                                 messages={filteredTranscript}
@@ -1217,7 +1225,7 @@ function MethodologieStep({
                                     </Box>
                                     <Box>
                                         <Text as="span" className="text-[12px] font-bold text-[#16A34A]">
-                                            Suggestion prioritaire
+                                            Verbatim préconisé
                                         </Text>
                                         <Text className="text-[14px] italic leading-6 text-[#1F7A3D]">
                                             « {reformulation.suggestion} »
@@ -1328,33 +1336,48 @@ function StepDetailModal({ step, onClose }: { step: EvaluationStep; onClose: () 
 }
 
 function TranscriptionTab({
+    hasCorrections,
     query,
     onQueryChange,
     messages,
     personaName,
 }: {
+    hasCorrections: boolean;
     query: string;
     onQueryChange: (value: string) => void;
     messages: Evaluation["transcript"];
     personaName: string;
 }) {
+    const [correctionsVisible, setCorrectionsVisible] = useState(true);
+
     return (
         <Box>
-            <Box className="relative mb-5">
-                <InlineIcon
-                    icon={Search}
-                    className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#9CA3AF]"
-                />
-                <input
-                    value={query}
-                    onChange={(event) => onQueryChange(event.target.value)}
-                    placeholder="Rechercher dans la transcription..."
-                    aria-label="Rechercher dans la transcription"
-                    className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white pl-11 pr-4 text-[14px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#5140F0] focus:ring-4 focus:ring-[#5140F0]/10"
-                />
+            <Box className="mb-5 flex flex-col gap-3 sm:flex-row">
+                <Box className="relative min-w-0 flex-1">
+                    <InlineIcon
+                        icon={Search}
+                        className="pointer-events-none absolute left-4 top-1/2 h-[18px] w-[18px] -translate-y-1/2 text-[#9CA3AF]"
+                    />
+                    <input
+                        value={query}
+                        onChange={(event) => onQueryChange(event.target.value)}
+                        placeholder="Rechercher dans la transcription..."
+                        aria-label="Rechercher dans la transcription"
+                        className="h-12 w-full rounded-xl border border-[#E5E7EB] bg-white pl-11 pr-4 text-[14px] text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#5140F0] focus:ring-4 focus:ring-[#5140F0]/10"
+                    />
+                </Box>
+                {hasCorrections && (
+                    <TranscriptCorrectionToggle
+                        enabled={correctionsVisible}
+                        onToggle={() => setCorrectionsVisible((visible) => !visible)}
+                    />
+                )}
             </Box>
 
-            <CardSurface className="space-y-5 rounded-[16px] border border-[#E5E7EB] p-6 shadow-none">
+            <CardSurface
+                id="roleplay-transcript-messages"
+                className="space-y-5 rounded-[16px] border border-[#E5E7EB] p-6 shadow-none"
+            >
                 {messages.length === 0 ? (
                     <Text className="py-6 text-center text-[14px] font-semibold text-[#9CA3AF]">
                         Aucun résultat dans la transcription.
@@ -1362,6 +1385,9 @@ function TranscriptionTab({
                 ) : (
                     messages.map((message, index) => {
                         const isPersona = message.speaker === "persona";
+                        const corrections = !isPersona && correctionsVisible
+                            ? (message.corrections ?? [])
+                            : [];
                         return (
                             <Box
                                 key={index}
@@ -1390,8 +1416,12 @@ function TranscriptionTab({
                                                 : "bg-[#F3F4F6] text-[#1F2433]"
                                         }`}
                                     >
-                                        {message.text}
+                                        <TranscriptMessageText
+                                            corrections={corrections}
+                                            text={message.text}
+                                        />
                                     </Box>
+                                    <TranscriptCorrectionPanel corrections={corrections} />
                                 </Box>
                             </Box>
                         );

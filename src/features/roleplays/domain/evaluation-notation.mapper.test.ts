@@ -226,8 +226,156 @@ describe("evaluation notation mapper", () => {
             value: "75%",
         });
         expect(evaluation.transcript).toEqual([
-            { speaker: "you", text: "Bonjour", time: "10:15:30" },
-            { speaker: "persona", text: "Bonjour, je vous écoute.", time: "10:15:35" },
+            { id: "M1", speaker: "you", text: "Bonjour", time: "10:15:30" },
+            { id: "M2", speaker: "persona", text: "Bonjour, je vous écoute.", time: "10:15:35" },
+        ]);
+    });
+
+    it("links one validated correction to the referenced learner message", () => {
+        const evaluation = mapNotationToEvaluation(
+            {
+                methodo: {
+                    etapes: [{
+                        criteres: [{
+                            correction: {
+                                message_ref: "M1",
+                                phrase_originale: "parlons de vos priorités",
+                                pourquoi: "La formulation doit annoncer plus clairement l'objectif.",
+                                verbatim_preconise: "Pour cadrer notre échange, quelles sont vos priorités ?",
+                            },
+                            points_max: 2,
+                            points_obtenus: 1,
+                            ref: "C1",
+                        }],
+                    }],
+                },
+            },
+            [
+                {
+                    content: "Avant de commencer, parlons de vos priorités.",
+                    role: "user",
+                    timestamp: "2026-06-30T10:15:30",
+                },
+                {
+                    content: "Je vous écoute.",
+                    role: "assistant",
+                    timestamp: "2026-06-30T10:15:35",
+                },
+            ],
+        );
+
+        expect(evaluation.transcript[0]).toMatchObject({
+            corrections: [{
+                criterionRef: "C1",
+                original: "parlons de vos priorités",
+                reason: "La formulation doit annoncer plus clairement l'objectif.",
+                suggestion: "Pour cadrer notre échange, quelles sont vos priorités ?",
+            }],
+            id: "M1",
+            speaker: "you",
+        });
+        expect(evaluation.transcript[1].corrections).toBeUndefined();
+    });
+
+    it("does not expose an AI correction for a fully awarded criterion", () => {
+        const evaluation = mapNotationToEvaluation(
+            {
+                methodo: {
+                    etapes: [{
+                        criteres: [{
+                            correction: {
+                                message_ref: "M1",
+                                phrase_originale: "parlons de vos priorités",
+                                pourquoi: "Cette correction ne doit pas être affichée.",
+                                verbatim_preconise: "Pour cadrer notre échange, quelles sont vos priorités ?",
+                            },
+                            points_max: 2,
+                            points_obtenus: 2,
+                            ref: "C1",
+                        }],
+                    }],
+                },
+            },
+            [{
+                content: "Avant de commencer, parlons de vos priorités.",
+                role: "user",
+                timestamp: "2026-06-30T10:15:30",
+            }],
+        );
+
+        expect(evaluation.transcript[0].corrections).toBeUndefined();
+    });
+
+    it("shows at most two verbatims per phrase while preserving every scored criterion", () => {
+        const sharedCorrection = {
+            message_ref: "M1",
+            phrase_originale: "parlons de vos priorités",
+        };
+        const notation = {
+            methodo: {
+                etapes: [{
+                    criteres: [
+                        {
+                            correction: {
+                                ...sharedCorrection,
+                                pourquoi: "Pourquoi 1",
+                                verbatim_preconise: "Verbatim recommandé 1",
+                            },
+                            critere: "Critère 1",
+                            ref: "C1",
+                            score_max: 2,
+                            score_obtenu: 1,
+                        },
+                        {
+                            correction: {
+                                ...sharedCorrection,
+                                pourquoi: "Pourquoi 2",
+                                verbatim_preconise: "Verbatim recommandé 2",
+                            },
+                            critere: "Critère 2",
+                            ref: "C2",
+                            score_max: 2,
+                            score_obtenu: 1,
+                        },
+                        {
+                            correction: {
+                                ...sharedCorrection,
+                                phrase_originale: "Avant de commencer, parlons de vos priorités.",
+                                pourquoi: "Pourquoi 3",
+                                verbatim_preconise: "Verbatim recommandé 3",
+                            },
+                            critere: "Critère 3",
+                            ref: "C3",
+                            score_max: 2,
+                            score_obtenu: 1,
+                        },
+                    ],
+                    numero: 1,
+                    score: 50,
+                    titre: "Cadrer",
+                }],
+            },
+            score_global: {
+                valeur: 50,
+            },
+        };
+        const evaluation = mapNotationToEvaluation(notation, [{
+            content: "Avant de commencer, parlons de vos priorités.",
+            role: "user",
+            timestamp: "2026-06-30T10:15:30",
+        }]);
+
+        expect(extractNotationScore(notation)).toBe(50);
+        expect(evaluation.steps[0].criteria).toHaveLength(3);
+        expect(evaluation.steps[0].criteria.map((criterion) => criterion.points)).toEqual([
+            "1/2",
+            "1/2",
+            "1/2",
+        ]);
+        expect(evaluation.transcript[0].corrections).toHaveLength(2);
+        expect(evaluation.transcript[0].corrections?.map((correction) => correction.suggestion)).toEqual([
+            "Verbatim recommandé 1",
+            "Verbatim recommandé 2",
         ]);
     });
 
@@ -439,7 +587,7 @@ describe("evaluation notation mapper", () => {
 
         expect(evaluation.coachAppreciation).toContain("L'appel démontre");
         expect(evaluation.transcript).toEqual([
-            { speaker: "you", text: "Message sauvegardé", time: "invalid-date" },
+            { id: "M1", speaker: "you", text: "Message sauvegardé", time: "invalid-date" },
         ]);
     });
 });

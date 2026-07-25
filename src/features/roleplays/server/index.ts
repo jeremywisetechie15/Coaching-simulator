@@ -1,6 +1,7 @@
 export * from "./archive-roleplay";
 export * from "./assert-roleplay-lifecycle";
 export * from "./build-roleplay-notation-context";
+export * from "./build-scorecard-methodo-payload";
 export * from "./create-roleplay";
 export * from "./duplicate-roleplay";
 export * from "./resolve-roleplay-coach-id";

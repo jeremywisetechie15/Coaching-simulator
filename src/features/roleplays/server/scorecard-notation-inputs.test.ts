@@ -143,6 +143,13 @@ describe("scorecard notation inputs", () => {
         expect(input).toContain('"weightPercent": 100');
         expect(input).toContain('"ref": "C1"');
         expect(input).toContain("points_obtenus peut etre nuance");
+        expect(input).toContain("correction doit toujours etre present");
+        expect(input).toContain("correction doit obligatoirement etre null");
+        expect(input).toContain("phrase_originale doit recopier exactement un extrait continu");
+        expect(input).toContain("Pour un meme message_ref de l'Apprenant");
+        expect(input).toContain("au maximum 2 corrections non nulles");
+        expect(input).toContain("les 2 verbatims les plus coherents et efficaces");
+        expect(input).toContain("verbatim_conformes du critere et des verbatims de la methode");
         expect(input).toContain("[M1] [12:00:00] Utilisateur");
     });
 

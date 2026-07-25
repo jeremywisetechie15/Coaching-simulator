@@ -232,9 +232,10 @@ export async function getRoleplaySessionEvaluation(sessionId: string, userId?: s
         }),
         supabase
             .from("messages")
-            .select("role, content, timestamp")
+            .select("id, role, content, timestamp")
             .eq("session_id", session.id)
             .order("timestamp", { ascending: true })
+            .order("id", { ascending: true })
             .returns<NotationTranscriptMessage[]>(),
         fetchEvaluationSessionResults(supabase, session.id),
         fetchSessionAttemptNumber(supabase, session),

@@ -22,6 +22,13 @@ export interface StepReformulation {
     suggestion: string;
 }
 
+export interface TranscriptCorrection {
+    criterionRef: string;
+    original: string;
+    reason: string;
+    suggestion: string;
+}
+
 export interface EvaluationStep {
     number: number;
     title: string;
@@ -47,6 +54,7 @@ export interface DiscourseMetric {
 }
 
 export interface TranscriptMessage {
+    corrections?: TranscriptCorrection[];
     id?: string;
     speaker: "you" | "persona";
     time: string;
