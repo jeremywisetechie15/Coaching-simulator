@@ -53,6 +53,11 @@ describe("coach.mapper", () => {
         });
     });
 
+    it("uses the canonical coach voice for missing or unsupported legacy values", () => {
+        expect(mapCoachRowToEditorValues({ ...baseCoachRow, voice_id: null }).voiceId).toBe("cedar");
+        expect(mapCoachRowToEditorValues({ ...baseCoachRow, voice_id: "unsupported" }).voiceId).toBe("cedar");
+    });
+
     it("maps persisted profile fields to the coach card", () => {
         const item = mapCoachRowToListItem({
             ...baseCoachRow,

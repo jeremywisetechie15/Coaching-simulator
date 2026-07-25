@@ -21,7 +21,10 @@ import { resolveRoleplayCoachId } from "@/features/roleplays/server/resolve-role
 import { findEligibleCompletedRoleplaySession } from "@/features/roleplays/server/find-eligible-completed-session";
 import { buildGlobalCoachEvaluationContext } from "@/features/roleplays/server/build-global-coach-evaluation-context";
 import { createSessionBackgroundSignedUrl } from "@/lib/uploads/session-background";
-import { DEFAULT_OPENAI_REALTIME_VOICE_ID } from "@/lib/openai/realtime-voices";
+import {
+    DEFAULT_COACH_VOICE_ID,
+    resolveOpenAIRealtimeVoiceId,
+} from "@/lib/openai/realtime-voices";
 
 export interface IframeSessionConfig {
     scenarioId: string;
@@ -266,7 +269,7 @@ ${COACH_CONTEXT_GUARDRAILS}
                         scenarioId: coachContext.scenario.id,
                         scenarioTitle: coachContext.scenario.title,
                         systemInstructions,
-                        voiceId: coach.voice_id ?? DEFAULT_OPENAI_REALTIME_VOICE_ID,
+                        voiceId: resolveOpenAIRealtimeVoiceId(coach.voice_id, DEFAULT_COACH_VOICE_ID),
                         mode: "coach",
                         coachMode: "before_training",
                         model,
@@ -369,7 +372,7 @@ ${COACH_CONTEXT_GUARDRAILS}
                         scenarioId: coachContext.scenario.id,
                         scenarioTitle: coachContext.scenario.title,
                         systemInstructions,
-                        voiceId: coach.voice_id ?? DEFAULT_OPENAI_REALTIME_VOICE_ID,
+                        voiceId: resolveOpenAIRealtimeVoiceId(coach.voice_id, DEFAULT_COACH_VOICE_ID),
                         mode: "coach",
                         coachMode: "after_training",
                         model,
@@ -463,7 +466,7 @@ ${COACH_CONTEXT_GUARDRAILS}
                         scenarioId: coachContext.scenario.id,
                         scenarioTitle: coachContext.scenario.title,
                         systemInstructions,
-                        voiceId: coach.voice_id ?? DEFAULT_OPENAI_REALTIME_VOICE_ID,
+                        voiceId: resolveOpenAIRealtimeVoiceId(coach.voice_id, DEFAULT_COACH_VOICE_ID),
                         mode: "coach",
                         coachMode: "notation",
                         model,
@@ -551,7 +554,7 @@ ${COACH_CONTEXT_GUARDRAILS}
                     scenarioId: scenario.id,
                     scenarioTitle: scenario.title,
                     systemInstructions,
-                    voiceId: coach.voice_id ?? DEFAULT_OPENAI_REALTIME_VOICE_ID,
+                    voiceId: resolveOpenAIRealtimeVoiceId(coach.voice_id, DEFAULT_COACH_VOICE_ID),
                     mode: "coach",
                     coachMode: "default",
                     model,
@@ -636,7 +639,7 @@ ${COACH_CONTEXT_GUARDRAILS}
                     scenarioId: roleplayContext.scenario.id,
                     scenarioTitle: roleplayContext.scenario.title,
                     systemInstructions,
-                    voiceId: persona.voiceId ?? DEFAULT_OPENAI_REALTIME_VOICE_ID,
+                    voiceId: resolveOpenAIRealtimeVoiceId(persona.voiceId),
                     mode: "standard", // Use persona UI (not coach UI)
                     coachMode: "persona_variant",
                     model,
@@ -672,7 +675,7 @@ ${COACH_CONTEXT_GUARDRAILS}
                 scenarioId: roleplayContext.scenario.id,
                 scenarioTitle: roleplayContext.scenario.title,
                 systemInstructions,
-                voiceId: persona.voiceId ?? DEFAULT_OPENAI_REALTIME_VOICE_ID,
+                voiceId: resolveOpenAIRealtimeVoiceId(persona.voiceId),
                 mode: "standard",
                 model,
                 personaName: persona.name,

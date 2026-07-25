@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import { OPENAI_REALTIME_VOICES } from "@/lib/openai/realtime-voices";
 import { VoiceSelectField } from "./VoiceSelectField";
 
 describe("VoiceSelectField", () => {
@@ -16,5 +17,9 @@ describe("VoiceSelectField", () => {
         expect(html).not.toContain("Vive et enjouée");
         expect(html).toContain("Écouter");
         expect(html).toContain("voix Shimmer");
+
+        for (const voice of OPENAI_REALTIME_VOICES) {
+            expect(html).toContain(`<option value="${voice.id}"`);
+        }
     });
 });

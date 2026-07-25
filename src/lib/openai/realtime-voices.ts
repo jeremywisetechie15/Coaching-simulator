@@ -89,3 +89,10 @@ export function getOpenAIRealtimeVoice(voiceId: string | null | undefined) {
 export function isOpenAIRealtimeVoiceId(voiceId: string): voiceId is VoiceId {
     return OPENAI_REALTIME_VOICES.some((voice) => voice.id === voiceId);
 }
+
+export function resolveOpenAIRealtimeVoiceId(
+    voiceId: string | null | undefined,
+    fallback: VoiceId = DEFAULT_OPENAI_REALTIME_VOICE_ID,
+): VoiceId {
+    return voiceId && isOpenAIRealtimeVoiceId(voiceId) ? voiceId : fallback;
+}

@@ -69,6 +69,11 @@ describe("persona.mapper", () => {
         expect(values.industry).toBe("");
     });
 
+    it("uses the canonical persona voice for missing or unsupported legacy values", () => {
+        expect(mapPersonaRowToEditorValues({ ...basePersonaRow, voice_id: null }).voiceId).toBe("alloy");
+        expect(mapPersonaRowToEditorValues({ ...basePersonaRow, voice_id: "unsupported" }).voiceId).toBe("alloy");
+    });
+
     it("converts empty form numbers to null for persistence", () => {
         expect(toNullableInteger("")).toBeNull();
         expect(toNullableInteger(" 50 ")).toBe(50);

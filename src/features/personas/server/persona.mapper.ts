@@ -12,7 +12,10 @@ import {
     type PersonaBusinessSector,
     type PersonaDiscProfile,
 } from "@/features/personas/domain/persona-profile";
-import { getOpenAIRealtimeVoice, isOpenAIRealtimeVoiceId } from "@/lib/openai/realtime-voices";
+import {
+    getOpenAIRealtimeVoice,
+    resolveOpenAIRealtimeVoiceId,
+} from "@/lib/openai/realtime-voices";
 
 export const PERSONA_SELECT =
     "id, name, role, company, industry, employee_count, annual_revenue, company_description, disc_profile, age, children_count, diploma, marital_status, nationality, net_income_before_tax, residence_country, voice_id, system_instructions, avatar_url, created_at, updated_at, status";
@@ -81,7 +84,7 @@ export function mapPersonaRowToListItem(row: PersonaRow): PersonaListItem {
 }
 
 export function mapPersonaRowToEditorValues(row: PersonaRow): PersonaEditorValues {
-    const voiceId = row.voice_id && isOpenAIRealtimeVoiceId(row.voice_id) ? row.voice_id : "alloy";
+    const voiceId = resolveOpenAIRealtimeVoiceId(row.voice_id);
 
     return {
         age: formatOptionalNumber(row.age),

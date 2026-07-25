@@ -19,7 +19,11 @@ import {
     type ContentDomain,
     type ContentStatus,
 } from "@/features/content/domain";
-import { getOpenAIRealtimeVoice, isOpenAIRealtimeVoiceId } from "@/lib/openai/realtime-voices";
+import {
+    DEFAULT_COACH_VOICE_ID,
+    getOpenAIRealtimeVoice,
+    resolveOpenAIRealtimeVoiceId,
+} from "@/lib/openai/realtime-voices";
 
 export const COACH_SELECT =
     "id, name, voice_id, system_instructions, avatar_url, background_image_path, expertise_domain, coaching_style, disc_profile, diploma, certifications, created_at, updated_at, status";
@@ -89,7 +93,7 @@ export function mapCoachRowToListItem(row: CoachRow): CoachListItem {
 }
 
 export function mapCoachRowToEditorValues(row: CoachRow): CoachEditorValues {
-    const voiceId = row.voice_id && isOpenAIRealtimeVoiceId(row.voice_id) ? row.voice_id : "cedar";
+    const voiceId = resolveOpenAIRealtimeVoiceId(row.voice_id, DEFAULT_COACH_VOICE_ID);
 
     return {
         avatarSrc: row.avatar_url ?? "",
