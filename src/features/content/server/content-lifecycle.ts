@@ -5,6 +5,7 @@ import {
     CONTENT_VISIBILITY_SCOPE,
     contentAudienceCoversDependency,
     getContentTransitionBlock,
+    isSelectableContent,
     type ContentAudience,
     type ContentStatus,
     type ContentVisibilityScope,
@@ -12,7 +13,9 @@ import {
 import { ConflictError } from "@/lib/server/errors";
 
 export const CONTENT_DEPENDENCY_KIND = {
+    coach: "coach",
     method: "method",
+    persona: "persona",
     quiz: "quiz",
     scorecard: "scorecard",
     skill: "skill",
@@ -31,7 +34,9 @@ interface DependencyRow {
     assigned_user_id?: string | null;
     group_id?: string | null;
     id: string;
+    is_active?: boolean | null;
     organization_id?: string | null;
+    status?: ContentStatus | null;
     scope?: string | null;
     visibility_scope?: string | null;
 }
@@ -44,27 +49,39 @@ interface DependencyDefinition {
 }
 
 const DEPENDENCY_DEFINITIONS: Record<ContentDependencyKind, DependencyDefinition> = {
+    [CONTENT_DEPENDENCY_KIND.coach]: {
+        defaultLabel: "le coach associé",
+        select: "id, status",
+        scopeColumn: "visibility_scope",
+        table: "coaches",
+    },
     [CONTENT_DEPENDENCY_KIND.method]: {
         defaultLabel: "la méthode associée",
-        select: "id, scope, organization_id",
+        select: "id, scope, organization_id, status, is_active",
         scopeColumn: "scope",
         table: "methods",
     },
+    [CONTENT_DEPENDENCY_KIND.persona]: {
+        defaultLabel: "le persona associé",
+        select: "id, status",
+        scopeColumn: "visibility_scope",
+        table: "personas",
+    },
     [CONTENT_DEPENDENCY_KIND.quiz]: {
         defaultLabel: "le quiz associé",
-        select: "id, visibility_scope, organization_id, group_id, assigned_user_id",
+        select: "id, visibility_scope, organization_id, group_id, assigned_user_id, status, is_active",
         scopeColumn: "visibility_scope",
         table: "quizzes",
     },
     [CONTENT_DEPENDENCY_KIND.scorecard]: {
         defaultLabel: "la scorecard associée",
-        select: "id, visibility_scope, organization_id",
+        select: "id, visibility_scope, organization_id, status, is_active",
         scopeColumn: "visibility_scope",
         table: "scorecards",
     },
     [CONTENT_DEPENDENCY_KIND.skill]: {
         defaultLabel: "la compétence associée",
-        select: "id, visibility_scope, organization_id, group_id, assigned_user_id",
+        select: "id, visibility_scope, organization_id, group_id, assigned_user_id, status, is_active",
         scopeColumn: "visibility_scope",
         table: "skills",
     },
@@ -125,8 +142,8 @@ async function enrichUserAudience(
 }
 
 /**
- * Lifecycle status is deliberately ignored here. Only audience compatibility
- * remains enforced.
+ * Every relation must target a published, active entity. Audience compatibility
+ * is additionally enforced when the parent itself is published.
  */
 export async function assertContentDependencyScopes(
     supabase: SupabaseClient,
@@ -134,12 +151,12 @@ export async function assertContentDependencyScopes(
     references: ContentDependencyReference[],
     parentAudience: ContentAudience,
 ) {
-    if (parentStatus !== CONTENT_STATUS.published) return;
-
     const unique = uniqueReferences(references);
     if (unique.length === 0) return;
 
-    const resolvedParentAudience = await enrichUserAudience(supabase, parentAudience);
+    const resolvedParentAudience = parentStatus === CONTENT_STATUS.published
+        ? await enrichUserAudience(supabase, parentAudience)
+        : parentAudience;
     const referencesByKind = new Map<ContentDependencyKind, ContentDependencyReference[]>();
 
     for (const reference of unique) {
@@ -167,10 +184,19 @@ export async function assertContentDependencyScopes(
         const label = reference.label ?? definition.defaultLabel;
 
         if (!row) {
-            throw new ConflictError(`Impossible de publier : ${label} est introuvable.`);
+            throw new ConflictError(`Impossible d'enregistrer : ${label} est introuvable.`);
         }
 
-        if (!contentAudienceCoversDependency(resolvedParentAudience, dependencyAudience(definition, row))) {
+        if (!row.status || !isSelectableContent(row.status, row.is_active !== false)) {
+            throw new ConflictError(
+                `Impossible d'enregistrer : ${label} doit être publié et actif.`,
+            );
+        }
+
+        if (
+            parentStatus === CONTENT_STATUS.published
+            && !contentAudienceCoversDependency(resolvedParentAudience, dependencyAudience(definition, row))
+        ) {
             throw new ConflictError(
                 `Impossible de publier : la portée de ${label} ne couvre pas tous les destinataires.`,
             );

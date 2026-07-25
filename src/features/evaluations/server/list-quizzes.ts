@@ -1,11 +1,40 @@
 import { requireAuth } from "@/features/auth/server";
+import { isSelectableContent } from "@/features/content/domain";
 import { QUIZ_KIND, type QuizListItem, type QuizOption } from "@/features/evaluations/domain/quiz";
 import { createClient } from "@/lib/supabase/server";
 import { fetchQuizList } from "./quiz-query";
+import { getQuizById } from "./get-quiz-by-id";
 
 interface ListQuizOptionsParams {
     availableForMethodId?: string;
     unassignedOnly?: boolean;
+}
+
+interface ListQuizSelectionOptionsParams extends ListQuizOptionsParams {
+    includeUnavailableIds?: readonly string[];
+}
+
+function filterQuizOptions(quizzes: QuizListItem[], params: ListQuizOptionsParams) {
+    return quizzes.filter((quiz) => {
+        const isCurrentMethodQuiz = Boolean(
+            params.availableForMethodId
+            && quiz.methodId === params.availableForMethodId
+            && quiz.kind === QUIZ_KIND.methodKnowledge
+        );
+
+        if (params.unassignedOnly && quiz.methodId && !isCurrentMethodQuiz) return false;
+        return !params.availableForMethodId || !quiz.methodId || quiz.methodId === params.availableForMethodId;
+    });
+}
+
+function mapQuizOption(quiz: QuizListItem): QuizOption {
+    return {
+        id: quiz.id,
+        kind: quiz.kind,
+        methodId: quiz.methodId,
+        questionCount: quiz.questionCount,
+        title: quiz.title,
+    };
 }
 
 export async function listQuizzes(): Promise<QuizListItem[]> {
@@ -18,30 +47,55 @@ export async function listQuizzes(): Promise<QuizListItem[]> {
 export async function listQuizOptions(params: ListQuizOptionsParams = {}): Promise<QuizOption[]> {
     const quizzes = await listQuizzes();
 
-    return quizzes
-        .filter((quiz) => {
-            const isCurrentMethodQuiz = Boolean(
-                params.availableForMethodId
-                && quiz.methodId === params.availableForMethodId
-                && quiz.kind === QUIZ_KIND.methodKnowledge
-            );
+    return filterQuizOptions(quizzes, params).map(mapQuizOption);
+}
 
-            if (params.unassignedOnly && quiz.methodId && !isCurrentMethodQuiz) return false;
-            return !params.availableForMethodId || !quiz.methodId || quiz.methodId === params.availableForMethodId;
-        })
+export async function listQuizSelectionOptions({
+    includeUnavailableIds = [],
+    ...params
+}: ListQuizSelectionOptionsParams = {}): Promise<QuizOption[]> {
+    const quizzes = await listQuizzes();
+    const quizById = new Map(quizzes.map((quiz) => [quiz.id, quiz]));
+    let currentIds = [...includeUnavailableIds];
+
+    if (params.availableForMethodId) {
+        const supabase = await createClient();
+        const { data, error } = await supabase
+            .from("quizzes")
+            .select("id")
+            .eq("method_id", params.availableForMethodId)
+            .eq("quiz_kind", QUIZ_KIND.methodKnowledge);
+
+        if (error) throw error;
+        currentIds = [
+            ...currentIds,
+            ...(data ?? []).flatMap((quiz: { id?: string | null }) => quiz.id ? [quiz.id] : []),
+        ];
+    }
+
+    const uniqueCurrentIds = [...new Set(currentIds)];
+    const missingCurrentIds = uniqueCurrentIds
+        .filter((quizId) => quizId && !quizById.has(quizId));
+
+    if (missingCurrentIds.length > 0) {
+        const currentQuizzes = await Promise.all(missingCurrentIds.map((quizId) => getQuizById(quizId)));
+        currentQuizzes.forEach((quiz) => quizById.set(quiz.id, quiz));
+    }
+
+    return filterQuizOptions([...quizById.values()], params)
+        .filter((quiz) =>
+            isSelectableContent(quiz.status, quiz.isActive) || uniqueCurrentIds.includes(quiz.id)
+        )
         .map((quiz) => ({
-            id: quiz.id,
-            kind: quiz.kind,
-            methodId: quiz.methodId,
-            questionCount: quiz.questionCount,
-            title: quiz.title,
+            ...mapQuizOption(quiz),
+            isSelectable: isSelectableContent(quiz.status, quiz.isActive),
         }));
 }
 
 export async function getMethodAssociatedQuizOption(
     methodId: string,
 ): Promise<QuizOption | null> {
-    const quizzes = await listQuizOptions();
+    const quizzes = await listQuizSelectionOptions();
 
     return quizzes.find((quiz) => quiz.methodId === methodId && quiz.kind === QUIZ_KIND.methodKnowledge) ?? null;
 }

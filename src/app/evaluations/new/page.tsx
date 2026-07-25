@@ -6,16 +6,18 @@ import {
 } from "@/features/auth/domain/access-control";
 import { CreateQuizPage } from "@/features/evaluations/components";
 import {
-    listQuizGroupOptions,
     listQuizMethodOptions,
-    listQuizOrganizationOptions,
-    listQuizUserOptions,
+    listQuizTargetOptions,
 } from "@/features/evaluations/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
-import { listSkillOptions } from "@/features/skills/server";
+import { listSkillSelectionOptions } from "@/features/skills/server";
 import { UnauthorizedError } from "@/lib/server/errors";
-import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
+import {
+    APP_NAVIGATION_LABEL,
+    buildAuthRedirectHref,
+    withReturnTo,
+} from "@/features/app-shell/domain";
 
 interface PageProps {
     searchParams?: Promise<{ returnTo?: string }>;
@@ -44,29 +46,27 @@ export default async function Page({ searchParams }: PageProps) {
     if (!canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.evaluations)) {
         return (
             <AccessDeniedPage
-                activePrimaryItem="Évaluations"
+                activePrimaryItem={APP_NAVIGATION_LABEL.evaluations}
                 profileValues={profileValues}
                 searchPlaceholder="Rechercher..."
             />
         );
     }
 
-    const [methodOptions, organizationOptions, groupOptions, userOptions, skillOptions] = await Promise.all([
+    const [methodOptions, targetOptions, skillOptions] = await Promise.all([
         listQuizMethodOptions(),
-        listQuizOrganizationOptions(),
-        listQuizGroupOptions(),
-        listQuizUserOptions(),
-        listSkillOptions(),
+        listQuizTargetOptions(),
+        listSkillSelectionOptions(),
     ]);
 
     return (
         <CreateQuizPage
-            groupOptions={groupOptions}
+            groupOptions={targetOptions.groups}
             methodOptions={methodOptions}
-            organizationOptions={organizationOptions}
+            organizationOptions={targetOptions.organizations}
             profileValues={profileValues}
             skillOptions={skillOptions}
-            userOptions={userOptions}
+            userOptions={targetOptions.users}
         />
     );
 }

@@ -2,6 +2,8 @@ import { AppError, NotFoundError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { requireAdmin } from "@/features/auth/server";
 import type { InviteOrganizationUserDto } from "@/features/organizations/dto/invite-organization-user.dto";
+import { ORGANIZATION_GROUP_STATUS } from "@/features/organizations/domain/organization-detail";
+import { ORGANIZATION_STATUS } from "@/features/organizations/domain/organization-list";
 import { ORGANIZATION_MEMBER_STATUS } from "@/features/organizations/domain/organization-member";
 import { PLATFORM_ROLE } from "@/features/users/domain/users";
 
@@ -36,6 +38,7 @@ export async function inviteOrganizationUser(
         .from("organizations")
         .select("id, name")
         .eq("id", organizationId)
+        .eq("status", ORGANIZATION_STATUS.active)
         .maybeSingle<OrganizationRow>();
 
     if (organizationError) {
@@ -52,6 +55,7 @@ export async function inviteOrganizationUser(
             .select("id, organization_id")
             .eq("id", input.groupId)
             .eq("organization_id", organizationId)
+            .eq("status", ORGANIZATION_GROUP_STATUS.active)
             .maybeSingle<OrganizationGroupRow>();
 
         if (groupError) {
@@ -88,6 +92,8 @@ export async function inviteOrganizationUser(
         throw new AppError("Invitation créée sans utilisateur.", 500, "INVITE_USER_MISSING");
     }
 
+    const invitationSentAt = new Date().toISOString();
+
     const { error: profileError } = await adminSupabase
         .from("profiles")
         .upsert(
@@ -98,7 +104,7 @@ export async function inviteOrganizationUser(
                 last_name: input.lastName,
                 name: fullName,
                 platform_role: PLATFORM_ROLE.user,
-                updated_at: new Date().toISOString(),
+                updated_at: invitationSentAt,
             },
             { onConflict: "id" }
         );
@@ -122,9 +128,10 @@ export async function inviteOrganizationUser(
         const { error: membershipUpdateError } = await adminSupabase
             .from("organization_members")
             .update({
+                invitation_sent_at: invitationSentAt,
                 role: input.role,
                 status: ORGANIZATION_MEMBER_STATUS.invited,
-                updated_at: new Date().toISOString(),
+                updated_at: invitationSentAt,
             })
             .eq("user_id", invitedUser.id)
             .eq("organization_id", organizationId);
@@ -136,6 +143,7 @@ export async function inviteOrganizationUser(
         const { error: membershipInsertError } = await adminSupabase
             .from("organization_members")
             .insert({
+                invitation_sent_at: invitationSentAt,
                 organization_id: organizationId,
                 role: input.role,
                 status: ORGANIZATION_MEMBER_STATUS.invited,

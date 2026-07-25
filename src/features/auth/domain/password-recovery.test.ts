@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
     AUTH_PATHS,
+    PASSWORD_RECOVERY_PURPOSE,
     buildAuthPath,
     buildPasswordRecoveryRedirectUrl,
     resolvePasswordRecoveryCredential,
+    resolvePasswordRecoveryIntent,
     validateNewPassword,
 } from "./password-recovery";
 
@@ -19,6 +21,7 @@ describe("password recovery", () => {
     });
 
     it("preserves only internal post-login redirects", () => {
+        expect(buildAuthPath(AUTH_PATHS.signIn, "/")).toBe("/auth");
         expect(buildAuthPath(AUTH_PATHS.forgotPassword, "/roleplays")).toBe(
             "/auth/forgot-password?redirect=%2Froleplays",
         );
@@ -36,6 +39,35 @@ describe("password recovery", () => {
         expect(url.pathname).toBe("/auth/callback");
         expect(url.searchParams.get("flow")).toBe("recovery");
         expect(url.searchParams.get("redirect")).toBe("/evaluations");
+    });
+
+    it("builds and resolves an invitation-completion recovery callback", () => {
+        const organizationId = "11111111-1111-4111-8111-111111111111";
+        const url = new URL(buildPasswordRecoveryRedirectUrl(
+            "https://staging.maiacoach.fr",
+            "/profile",
+            {
+                organizationId,
+                purpose: PASSWORD_RECOVERY_PURPOSE.invitation,
+            },
+        ));
+
+        expect(url.searchParams.get("flow")).toBe("recovery");
+        expect(url.searchParams.get("purpose")).toBe("invitation");
+        expect(url.searchParams.get("organization_id")).toBe(organizationId);
+        expect(resolvePasswordRecoveryIntent(url.searchParams)).toEqual({
+            kind: "invitation",
+            organizationId,
+        });
+    });
+
+    it("rejects a malformed invitation-completion intent", () => {
+        expect(resolvePasswordRecoveryIntent(new URLSearchParams(
+            "purpose=invitation&organization_id=not-a-uuid",
+        ))).toEqual({ kind: "invalid" });
+        expect(resolvePasswordRecoveryIntent(new URLSearchParams())).toEqual({
+            kind: "password_reset",
+        });
     });
 
     it("prioritizes a valid token hash and rejects mixed invalid recovery parameters", () => {

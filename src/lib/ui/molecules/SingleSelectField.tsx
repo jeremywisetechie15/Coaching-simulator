@@ -7,7 +7,12 @@ import { Button, CardSurface, InlineIcon, Text, Tooltip } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
-export type SingleSelectOption = string | { icon?: LucideIcon; label: string; value: string };
+export type SingleSelectOption = string | {
+    disabled?: boolean;
+    icon?: LucideIcon;
+    label: string;
+    value: string;
+};
 
 function getSelectOptionValue(option: SingleSelectOption) {
     return typeof option === "string" ? option : option.value;
@@ -19,6 +24,10 @@ function getSelectOptionLabel(option: SingleSelectOption) {
 
 function getSelectOptionIcon(option: SingleSelectOption) {
     return typeof option === "string" ? undefined : option.icon;
+}
+
+function isSelectOptionDisabled(option: SingleSelectOption) {
+    return typeof option === "string" ? false : option.disabled === true;
 }
 
 function useOutsideClose(onClose: () => void) {
@@ -87,17 +96,24 @@ export function SingleSelectField({
                         const optionLabel = getSelectOptionLabel(option);
                         const OptionIcon = getSelectOptionIcon(option);
                         const isSelected = optionValue === value;
+                        const optionDisabled = isSelectOptionDisabled(option);
 
                         return (
                             <Button
+                                disabled={optionDisabled}
                                 key={optionValue}
                                 onClick={() => {
+                                    if (optionDisabled) return;
                                     onChange(optionValue);
                                     setOpen(false);
                                 }}
                                 className={cn(
                                     uiTokens.select.option,
-                                    isSelected ? uiTokens.select.optionActive : uiTokens.select.optionIdle,
+                                    optionDisabled
+                                        ? uiTokens.select.optionDisabled
+                                        : isSelected
+                                          ? uiTokens.select.optionActive
+                                          : uiTokens.select.optionIdle,
                                 )}
                             >
                                 {OptionIcon && <InlineIcon icon={OptionIcon} className={uiTokens.select.optionIcon} />}

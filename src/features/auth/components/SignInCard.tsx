@@ -7,7 +7,11 @@ import { Mail } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { recordSuccessfulLogin } from "@/features/activity-tracking/client";
 import { resolveInternalHref } from "@/features/app-shell/domain";
-import { AUTH_PATHS, buildAuthPath } from "@/features/auth/domain/password-recovery";
+import {
+    AUTH_PATHS,
+    DEFAULT_AUTH_REDIRECT,
+    buildAuthPath,
+} from "@/features/auth/domain/password-recovery";
 import { FormRoot } from "@/lib/ui/atoms";
 import {
     createFormSubmitError,
@@ -21,7 +25,7 @@ import { AuthCardFrame } from "./AuthCardFrame";
 export function SignInCard() {
     const searchParams = useSearchParams();
     const redirectTo = useMemo(
-        () => resolveInternalHref(searchParams.get("redirect"), "/profile"),
+        () => resolveInternalHref(searchParams.get("redirect"), DEFAULT_AUTH_REDIRECT),
         [searchParams],
     );
     const forgotPasswordHref = buildAuthPath(AUTH_PATHS.forgotPassword, redirectTo);

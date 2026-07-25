@@ -1,4 +1,5 @@
 export * from "./content-status";
+export * from "./entity-selection";
 export * from "./disc-profile";
 export * from "./duplicate-name";
 export * from "./publication-rules";

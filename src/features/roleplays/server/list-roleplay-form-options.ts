@@ -1,10 +1,13 @@
 import { requireAdmin } from "@/features/auth/server";
-import { CONTENT_STATUS } from "@/features/content/domain";
-import { listQuizGroupOptions, listQuizUserOptions, listQuizOptions } from "@/features/evaluations/server";
-import { listMethods } from "@/features/methods/server";
-import { listOrganizations } from "@/features/organizations/server";
-import { listCoaches } from "@/features/coaches/server";
-import { listPersonas } from "@/features/personas/server";
+import { isSelectableContent, type ContentStatus } from "@/features/content/domain";
+import {
+    listContentTargetOptions,
+    type ContentTargetCurrentSelection,
+} from "@/features/content/server";
+import { listQuizSelectionOptions } from "@/features/evaluations/server";
+import { listMethodSelectionOptions } from "@/features/methods/server";
+import { getCoachDetailById, listCoaches } from "@/features/coaches/server";
+import { getPersonaDetailById, listPersonas } from "@/features/personas/server";
 import type {
     RoleplayCoachOption,
     RoleplayGroupOption,
@@ -17,47 +20,89 @@ import type {
 } from "@/features/roleplays/domain";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-interface ScorecardOptionRow {
-    id: string;
-    method_id: string;
-    name: string;
+interface IncludeUnavailableIdsParams {
+    includeUnavailableIds?: readonly string[];
 }
 
-export async function listRoleplayPersonaOptions(): Promise<RoleplayPersonaOption[]> {
-    const personas = await listPersonas();
+interface ScorecardOptionRow {
+    id: string;
+    is_active: boolean | null;
+    method_id: string;
+    name: string;
+    status: ContentStatus;
+}
 
-    return personas.map((persona) => ({
+export async function listRoleplayPersonaOptions({
+    includeUnavailableIds = [],
+}: IncludeUnavailableIdsParams = {}): Promise<RoleplayPersonaOption[]> {
+    const personas = await listPersonas();
+    const personaById = new Map(personas.map((persona) => [persona.id, persona]));
+    const missingIds = [...new Set(includeUnavailableIds)]
+        .filter((personaId) => personaId && !personaById.has(personaId));
+
+    if (missingIds.length > 0) {
+        const currentPersonas = await Promise.all(missingIds.map((personaId) => getPersonaDetailById(personaId)));
+        currentPersonas.forEach((persona) => {
+            if (persona) personaById.set(persona.id, persona);
+        });
+    }
+
+    return [...personaById.values()]
+        .filter((persona) =>
+            isSelectableContent(persona.status) || includeUnavailableIds.includes(persona.id)
+        )
+        .map((persona) => ({
             avatarUrl: persona.avatarUrl,
             company: persona.company,
             id: persona.id,
+            isSelectable: isSelectableContent(persona.status),
             name: persona.name,
             role: persona.role,
         }));
 }
 
-export async function listRoleplayCoachOptions(): Promise<RoleplayCoachOption[]> {
+export async function listRoleplayCoachOptions({
+    includeUnavailableIds = [],
+}: IncludeUnavailableIdsParams = {}): Promise<RoleplayCoachOption[]> {
     const coaches = await listCoaches();
+    const coachById = new Map<string, Pick<(typeof coaches)[number], "id" | "name" | "status">>(
+        coaches.map((coach) => [coach.id, coach]),
+    );
+    const missingIds = [...new Set(includeUnavailableIds)]
+        .filter((coachId) => coachId && !coachById.has(coachId));
 
-    return coaches.map((coach) => ({
+    if (missingIds.length > 0) {
+        const currentCoaches = await Promise.all(missingIds.map((coachId) => getCoachDetailById(coachId)));
+        currentCoaches.forEach((coach) => {
+            if (coach) coachById.set(coach.id, coach);
+        });
+    }
+
+    return [...coachById.values()]
+        .filter((coach) =>
+            isSelectableContent(coach.status) || includeUnavailableIds.includes(coach.id)
+        )
+        .map((coach) => ({
             id: coach.id,
+            isSelectable: isSelectableContent(coach.status),
             name: coach.name,
         }));
 }
 
-export async function listRoleplayMethodOptions(): Promise<RoleplayMethodOption[]> {
-    const methods = await listMethods();
-
-    return methods.map((method) => ({
-            id: method.id,
-            name: method.name,
-        }));
+export async function listRoleplayMethodOptions(
+    params: IncludeUnavailableIdsParams = {},
+): Promise<RoleplayMethodOption[]> {
+    return listMethodSelectionOptions(params);
 }
 
-export async function listRoleplayQuizOptions(): Promise<RoleplayQuizOption[]> {
-    const quizzes = await listQuizOptions();
+export async function listRoleplayQuizOptions({
+    includeUnavailableIds = [],
+}: IncludeUnavailableIdsParams = {}): Promise<RoleplayQuizOption[]> {
+    const quizzes = await listQuizSelectionOptions({ includeUnavailableIds });
 
     return quizzes.map((quiz) => ({
         id: quiz.id,
+        isSelectable: quiz.isSelectable,
         kind: quiz.kind,
         methodId: quiz.methodId,
         questionCount: quiz.questionCount,
@@ -65,53 +110,39 @@ export async function listRoleplayQuizOptions(): Promise<RoleplayQuizOption[]> {
     }));
 }
 
-export async function listRoleplayScorecardOptions(): Promise<RoleplayScorecardOption[]> {
+export async function listRoleplayScorecardOptions({
+    includeUnavailableIds = [],
+}: IncludeUnavailableIdsParams = {}): Promise<RoleplayScorecardOption[]> {
     await requireAdmin();
-    const adminSupabase = createAdminClient();
-    const query = adminSupabase
+    const supabase = createAdminClient();
+    const { data, error } = await supabase
         .from("scorecards")
-        .select("id, name, method_id")
-        .neq("status", CONTENT_STATUS.archived)
-        .eq("is_active", true)
-        .order("name", { ascending: true });
-
-    const { data, error } = await query.returns<ScorecardOptionRow[]>();
+        .select("id, name, method_id, status, is_active")
+        .order("name", { ascending: true })
+        .returns<ScorecardOptionRow[]>();
 
     if (error) throw error;
 
-    return (data ?? []).map((scorecard) => ({
+    return (data ?? [])
+        .filter((scorecard) =>
+            isSelectableContent(scorecard.status, scorecard.is_active !== false)
+            || includeUnavailableIds.includes(scorecard.id)
+        )
+        .map((scorecard) => ({
             id: scorecard.id,
+            isSelectable: isSelectableContent(scorecard.status, scorecard.is_active !== false),
             methodId: scorecard.method_id,
             name: scorecard.name,
-        }));
+        }))
+        .sort((first, second) => first.name.localeCompare(second.name, "fr-FR"));
 }
 
-export async function listRoleplayOrganizationOptions(): Promise<RoleplayOrganizationOption[]> {
-    const organizations = await listOrganizations();
-
-    return organizations.map((organization) => ({
-        id: organization.id,
-        name: organization.name,
-    }));
-}
-
-export async function listRoleplayGroupOptions(): Promise<RoleplayGroupOption[]> {
-    const groups = await listQuizGroupOptions();
-
-    return groups.map((group) => ({
-        id: group.id,
-        name: group.name,
-        organizationId: group.organizationId,
-    }));
-}
-
-export async function listRoleplayUserOptions(): Promise<RoleplayUserOption[]> {
-    const users = await listQuizUserOptions();
-
-    return users.map((user) => ({
-        groupIds: user.groupIds,
-        id: user.id,
-        name: user.name,
-        organizationIds: user.organizationIds,
-    }));
+export async function listRoleplayTargetOptions(
+    current: ContentTargetCurrentSelection = {},
+): Promise<{
+    groups: RoleplayGroupOption[];
+    organizations: RoleplayOrganizationOption[];
+    users: RoleplayUserOption[];
+}> {
+    return listContentTargetOptions(current);
 }

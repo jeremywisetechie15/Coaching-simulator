@@ -4,6 +4,7 @@ import {
     type AiConversationStatus,
     type AiConversationType,
 } from "@/features/activity-tracking/domain";
+import type { RoleplayCoachMode } from "@/features/roleplays/domain";
 
 interface ApiErrorPayload {
     error?: string;
@@ -15,9 +16,15 @@ async function expectSuccessfulResponse(response: Response, fallbackMessage: str
     throw new Error(payload?.error ?? fallbackMessage);
 }
 
-export async function createTrackedAiConversation(interactionType: AiConversationType) {
+export async function createTrackedAiConversation(
+    interactionType: AiConversationType,
+    coachMode?: RoleplayCoachMode,
+) {
     const response = await fetch(ACTIVITY_TRACKING_ROUTES.aiConversations, {
-        body: JSON.stringify({ interactionType }),
+        body: JSON.stringify({
+            ...(coachMode ? { coachMode } : {}),
+            interactionType,
+        }),
         headers: { "Content-Type": "application/json" },
         method: "POST",
     });

@@ -15,6 +15,7 @@ import { prepareIframeSession, type IframeSessionConfig } from "../actions";
 import CoachRealtimePanel, { type CoachRealtimeMessage } from "./CoachRealtimePanel";
 import {
     ROLEPLAY_COACH_TRANSCRIPT_EVENT,
+    type RoleplayCoachMode,
     type RoleplayCoachTranscriptEvent,
 } from "@/features/roleplays/domain/coach-session-notes";
 import { useAiConversationTracking } from "@/features/activity-tracking/client";
@@ -31,7 +32,7 @@ interface CoachHeygenClientProps {
     refSessionId?: string;
     model: string;
     coachId?: string;
-    coachMode?: "before_training" | "after_training" | "notation";
+    coachMode?: RoleplayCoachMode;
     coachSessionId?: string;
     step?: number;
 }
@@ -86,7 +87,7 @@ export default function CoachHeygenClient({
         end: endTrackedConversation,
         markActivity: markTrackedConversationActivity,
         start: startTrackedConversation,
-    } = useAiConversationTracking(AI_CONVERSATION_TYPE.coach);
+    } = useAiConversationTracking(AI_CONVERSATION_TYPE.coach, coachMode);
 
     const coachDisplayName = useMemo(() => {
         if (!config) {

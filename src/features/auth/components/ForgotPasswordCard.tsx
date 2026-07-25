@@ -7,6 +7,7 @@ import { ArrowLeft, Mail } from "lucide-react";
 import { resolveInternalHref } from "@/features/app-shell/domain";
 import {
     AUTH_PATHS,
+    DEFAULT_AUTH_REDIRECT,
     buildAuthPath,
     buildPasswordRecoveryRedirectUrl,
 } from "@/features/auth/domain/password-recovery";
@@ -27,7 +28,7 @@ const confirmationMessage =
 export function ForgotPasswordCard() {
     const searchParams = useSearchParams();
     const redirectTo = useMemo(
-        () => resolveInternalHref(searchParams.get("redirect"), "/profile"),
+        () => resolveInternalHref(searchParams.get("redirect"), DEFAULT_AUTH_REDIRECT),
         [searchParams],
     );
     const signInHref = buildAuthPath(AUTH_PATHS.signIn, redirectTo);

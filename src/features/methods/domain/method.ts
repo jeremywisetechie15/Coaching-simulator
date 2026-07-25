@@ -4,6 +4,8 @@ import {
     ORGANIZATION_CONTENT_VISIBILITY_SCOPES,
     type ContentStatus,
     type OrganizationContentVisibilityScope,
+    type EntitySelectionAvailability,
+    getEntitySelectionLabel,
 } from "@/features/content/domain";
 
 function encodeRouteSegment(value: string) {
@@ -156,12 +158,12 @@ export function calculateParticipantAverageMethodMastery(
     };
 }
 
-export interface MethodOrganizationOption {
+export interface MethodOrganizationOption extends EntitySelectionAvailability {
     id: string;
     name: string;
 }
 
-export interface MethodSelectionOption {
+export interface MethodSelectionOption extends EntitySelectionAvailability {
     id: string;
     name: string;
 }
@@ -173,7 +175,8 @@ export function getMethodSelectionLabel(method: Pick<MethodSelectionOption, "nam
 
 export function toMethodSelectOption(method: MethodSelectionOption) {
     return {
-        label: getMethodSelectionLabel(method),
+        ...(method.isSelectable === false ? { disabled: true } : {}),
+        label: getEntitySelectionLabel(getMethodSelectionLabel(method), method),
         value: method.id,
     };
 }

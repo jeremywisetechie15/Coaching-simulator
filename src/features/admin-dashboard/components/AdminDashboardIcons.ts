@@ -4,6 +4,7 @@ import {
     Building2,
     CalendarDays,
     ChevronDown,
+    ClipboardCheck,
     Clock3,
     Cpu,
     Download,
@@ -12,6 +13,7 @@ import {
     Info,
     MessageCircleMore,
     RefreshCw,
+    Sparkles,
     UsersRound,
 } from "lucide-react";
 import {
@@ -31,8 +33,10 @@ export const adminDashboardMetricIcons = {
 } satisfies Record<AdminDashboardMetricId, typeof UsersRound>;
 
 export const adminDashboardAiIcons = {
+    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.askCoach]: Bot,
     [ADMIN_DASHBOARD_AI_OVERVIEW_ID.askPersona]: MessageCircleMore,
-    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.coach]: Bot,
+    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.debrief]: ClipboardCheck,
+    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.improve]: Sparkles,
     [ADMIN_DASHBOARD_AI_OVERVIEW_ID.simulations]: Gamepad2,
     [ADMIN_DASHBOARD_AI_OVERVIEW_ID.total]: Clock3,
 } satisfies Record<AdminDashboardAiOverviewId, typeof Cpu>;

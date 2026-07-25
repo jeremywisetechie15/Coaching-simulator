@@ -34,6 +34,10 @@ import {
 import { getUserInvitationSuccessMessage } from "@/features/users/domain/users";
 import { getUserDetailHref } from "@/features/users/domain/user-navigation";
 import { USERS_QUERY_KEY } from "@/features/users/domain/user-query";
+import {
+    getOrganizationInvitationResendSuccessMessage,
+} from "@/features/organizations/domain/organization-invitation";
+import { OrganizationInvitationResendAction } from "./OrganizationInvitationResendAction";
 
 const columns = ["Utilisateur", "Email", "Rôle", "Statut", "Roleplays", "Quizzes", "Actions"];
 
@@ -54,6 +58,12 @@ interface GroupsPayload {
 
 interface UsersPayload {
     users?: OrganizationUserRow[];
+}
+
+interface InvitationResendPayload {
+    invitation?: {
+        email?: string;
+    };
 }
 
 function getInitialCreateUserValues(organizationId: string): UserInviteFormValues {
@@ -95,6 +105,7 @@ export function OrganizationDetailUsers({
     const [isLoadingUsers, setIsLoadingUsers] = useState(true);
     const [isInviting, setIsInviting] = useState(false);
     const [isRemovingUser, setIsRemovingUser] = useState(false);
+    const [resendingInvitationUserId, setResendingInvitationUserId] = useState<string | null>(null);
     const [listError, setListError] = useState<string | null>(null);
     const [inviteError, setInviteError] = useState<string | null>(null);
     const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
@@ -279,6 +290,43 @@ export function OrganizationDetailUsers({
         }
     };
 
+    const resendInvitation = async (user: OrganizationUserRow) => {
+        if (resendingInvitationUserId) {
+            return;
+        }
+
+        setResendingInvitationUserId(user.id);
+
+        try {
+            const response = await fetch(
+                `/api/organizations/${organizationId}/users/${user.id}/resend-invitation`,
+                { method: "POST" },
+            );
+            const payload = (await response.json().catch(() => null)) as
+                | ApiErrorPayload
+                | InvitationResendPayload
+                | null;
+
+            if (!response.ok) {
+                notify.error(getApiErrorMessage(
+                    payload as ApiErrorPayload | null,
+                    "Impossible de renvoyer l’invitation.",
+                ));
+                return;
+            }
+
+            const recipientEmail =
+                (payload as InvitationResendPayload | null)?.invitation?.email ?? user.email;
+            notify.success(getOrganizationInvitationResendSuccessMessage(recipientEmail));
+            void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
+            void queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY });
+        } catch {
+            notify.error("Impossible de renvoyer l’invitation.");
+        } finally {
+            setResendingInvitationUserId(null);
+        }
+    };
+
     return (
         <Box className="px-7 py-7">
             <Box className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -390,6 +438,13 @@ export function OrganizationDetailUsers({
                                             >
                                                 <InlineIcon icon={Pencil} className="h-5 w-5" />
                                             </ContextualLink>
+                                            <OrganizationInvitationResendAction
+                                                isDisabled={Boolean(resendingInvitationUserId)}
+                                                isSending={resendingInvitationUserId === user.id}
+                                                onResend={() => void resendInvitation(user)}
+                                                status={user.status}
+                                                userName={user.name}
+                                            />
                                             <Button
                                                 aria-label={`Retirer ${user.name} de l'organisation`}
                                                 className={uiTokens.action.dangerIconButton}

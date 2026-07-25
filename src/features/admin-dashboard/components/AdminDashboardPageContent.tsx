@@ -66,7 +66,7 @@ function LoadingState() {
                     ))}
                 </Box>
                 <Box className={uiTokens.adminDashboard.loading.aiGrid}>
-                    {Array.from({ length: 4 }, (_, index) => (
+                    {Array.from({ length: 6 }, (_, index) => (
                         <Box className={`${uiTokens.adminDashboard.state.skeleton} h-28`} key={index} />
                     ))}
                 </Box>
@@ -139,7 +139,14 @@ function AiOrganizationUsage({ dashboard }: { dashboard: AdminDashboardViewData 
             <Box className={uiTokens.adminDashboard.table.scrollArea}>
                 <Box className={`${uiTokens.adminDashboard.ai.table} ${uiTokens.adminDashboard.ai.tableMinWidth}`}>
                     <Box className={uiTokens.adminDashboard.ai.header}>
-                        <span>Organisation</span><span>Learners actifs</span><span>Simulations IA</span><span>Ask IA persona</span><span>Coach IA</span><span>Total IA</span>
+                        <span>Organisation</span>
+                        <span>Learners actifs</span>
+                        <span>Simulations IA</span>
+                        <span>Ask IA persona</span>
+                        <span>Ask Coach IA</span>
+                        <span>Débriefing IA</span>
+                        <span>Améliorer IA</span>
+                        <span>Total IA</span>
                     </Box>
                     {dashboard.aiUsage.organizations.length === 0 ? (
                         <Box className={uiTokens.adminDashboard.table.empty}>Aucune organisation active.</Box>
@@ -151,7 +158,9 @@ function AiOrganizationUsage({ dashboard }: { dashboard: AdminDashboardViewData 
                             <Text>{organization.activeLearnerCount}</Text>
                             <Text>{formatAdminDashboardDuration(organization.simulationSeconds)}</Text>
                             <Text>{formatAdminDashboardDuration(organization.askPersonaSeconds)}</Text>
-                            <Text>{formatAdminDashboardDuration(organization.coachSeconds)}</Text>
+                            <Text>{formatAdminDashboardDuration(organization.askCoachSeconds)}</Text>
+                            <Text>{formatAdminDashboardDuration(organization.debriefSeconds)}</Text>
+                            <Text>{formatAdminDashboardDuration(organization.improvementSeconds)}</Text>
                             <Text className={uiTokens.adminDashboard.table.strong}>{formatAdminDashboardDuration(organization.totalSeconds)}</Text>
                         </Box>
                     ))}

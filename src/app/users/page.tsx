@@ -6,8 +6,8 @@ import {
     canAccessAppRoute,
 } from "@/features/auth/domain/access-control";
 import { UsersPage } from "@/features/users/components";
-import type { OrganizationListItem } from "@/features/organizations/domain/organization-list";
-import { listOrganizations } from "@/features/organizations/server";
+import type { OrganizationSelectionOption } from "@/features/organizations/domain/organization-list";
+import { listOrganizationSelectionOptions } from "@/features/organizations/server";
 import type { UserListItem } from "@/features/users/domain/users";
 import { listUsers } from "@/features/users/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
@@ -26,7 +26,7 @@ export const metadata = {
 export default async function Page({ searchParams }: PageProps) {
     const { invite, returnTo } = searchParams ? await searchParams : {};
     let profile;
-    let organizations: OrganizationListItem[] = [];
+    let organizations: OrganizationSelectionOption[] = [];
     let users: UserListItem[] = [];
 
     try {
@@ -52,7 +52,7 @@ export default async function Page({ searchParams }: PageProps) {
     }
 
     try {
-        organizations = await listOrganizations();
+        organizations = await listOrganizationSelectionOptions();
         users = await listUsers();
     } catch (error) {
         if (!(error instanceof ForbiddenError)) {

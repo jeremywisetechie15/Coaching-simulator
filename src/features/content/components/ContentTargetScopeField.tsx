@@ -2,6 +2,7 @@
 
 import {
     CONTENT_VISIBILITY_SCOPE,
+    getEntitySelectionLabel,
     type ContentTargetGroupOption,
     type ContentTargetOrganizationOption,
     type ContentTargetUserOption,
@@ -75,16 +76,28 @@ export function ContentTargetScopeField({
     const groupSelectOptions = value.organizationId
         ? groupOptions
               .filter((group) => group.organizationId === value.organizationId)
-              .map((group) => ({ label: group.name, value: group.id }))
+              .map((group) => ({
+                  disabled: group.isSelectable === false,
+                  label: getEntitySelectionLabel(group.name, group),
+                  value: group.id,
+              }))
         : [];
     const userSelectOptions = value.groupId
         ? userOptions
               .filter((user) => user.groupIds.includes(value.groupId))
-              .map((user) => ({ label: user.name, value: user.id }))
+              .map((user) => ({
+                  disabled: user.isSelectable === false,
+                  label: getEntitySelectionLabel(user.name, user),
+                  value: user.id,
+              }))
         : value.organizationId
           ? userOptions
                 .filter((user) => user.organizationIds.includes(value.organizationId ?? ""))
-                .map((user) => ({ label: user.name, value: user.id }))
+                .map((user) => ({
+                    disabled: user.isSelectable === false,
+                    label: getEntitySelectionLabel(user.name, user),
+                    value: user.id,
+                }))
           : [];
 
     function selectPublic() {
@@ -153,7 +166,8 @@ export function ContentTargetScopeField({
                         <FieldLabel required className={uiTokens.form.label}>Organisation</FieldLabel>
                         <SingleSelectField
                             options={organizationOptions.map((organization) => ({
-                                label: organization.name,
+                                disabled: organization.isSelectable === false,
+                                label: getEntitySelectionLabel(organization.name, organization),
                                 value: organization.id,
                             }))}
                             value={value.organizationId}

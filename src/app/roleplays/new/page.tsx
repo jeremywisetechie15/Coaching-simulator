@@ -7,13 +7,11 @@ import {
 import { CreateRoleplayPage } from "@/features/roleplays/components";
 import {
     listRoleplayCoachOptions,
-    listRoleplayGroupOptions,
     listRoleplayMethodOptions,
-    listRoleplayOrganizationOptions,
     listRoleplayPersonaOptions,
     listRoleplayQuizOptions,
     listRoleplayScorecardOptions,
-    listRoleplayUserOptions,
+    listRoleplayTargetOptions,
 } from "@/features/roleplays/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
@@ -60,31 +58,27 @@ export default async function Page({ searchParams }: PageProps) {
         methodOptions,
         quizOptions,
         scorecardOptions,
-        organizationOptions,
-        groupOptions,
-        userOptions,
+        targetOptions,
     ] = await Promise.all([
         listRoleplayPersonaOptions(),
         listRoleplayCoachOptions(),
         listRoleplayMethodOptions(),
         listRoleplayQuizOptions(),
         listRoleplayScorecardOptions(),
-        listRoleplayOrganizationOptions(),
-        listRoleplayGroupOptions(),
-        listRoleplayUserOptions(),
+        listRoleplayTargetOptions(),
     ]);
 
     return (
         <CreateRoleplayPage
             coachOptions={coachOptions}
-            groupOptions={groupOptions}
+            groupOptions={targetOptions.groups}
             methodOptions={methodOptions}
-            organizationOptions={organizationOptions}
+            organizationOptions={targetOptions.organizations}
             personaOptions={personaOptions}
             profileValues={profileValues}
             quizOptions={quizOptions}
             scorecardOptions={scorecardOptions}
-            userOptions={userOptions}
+            userOptions={targetOptions.users}
         />
     );
 }

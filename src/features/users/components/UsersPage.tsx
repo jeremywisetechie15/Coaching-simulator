@@ -25,7 +25,7 @@ import {
 } from "@/features/users/domain/users";
 import { USERS_QUERY_KEY } from "@/features/users/domain/user-query";
 import { getUserDetailHref } from "@/features/users/domain/user-navigation";
-import type { OrganizationListItem } from "@/features/organizations/domain/organization-list";
+import type { OrganizationSelectionOption } from "@/features/organizations/domain/organization-list";
 import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
 import {
     initialUserInviteFormValues,
@@ -38,7 +38,7 @@ interface UsersPageProps {
     initials: string;
     initialUsers: UserListItem[];
     initialInviteOpen?: boolean;
-    organizations: OrganizationListItem[];
+    organizations: OrganizationSelectionOption[];
     platformRole: PlatformRole;
 }
 

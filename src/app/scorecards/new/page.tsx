@@ -9,7 +9,7 @@ import { SCORECARD_ROUTES } from "@/features/scorecards/domain";
 import { listScorecardMethodOptions, listScorecardOrganizationOptions } from "@/features/scorecards/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
-import { listSkillOptions } from "@/features/skills/server";
+import { listSkillSelectionOptions } from "@/features/skills/server";
 import { UnauthorizedError } from "@/lib/server/errors";
 import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
 
@@ -50,7 +50,7 @@ export default async function Page({ searchParams }: PageProps) {
     const [methodOptions, organizationOptions, skillOptions] = await Promise.all([
         listScorecardMethodOptions(),
         listScorecardOrganizationOptions(),
-        listSkillOptions(),
+        listSkillSelectionOptions(),
     ]);
 
     return (

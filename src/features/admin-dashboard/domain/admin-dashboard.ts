@@ -77,8 +77,10 @@ export interface AdminDashboardOrganizationOption {
 }
 
 export const ADMIN_DASHBOARD_AI_OVERVIEW_ID = {
+    askCoach: "ask-coach",
     askPersona: "ask-persona",
-    coach: "coach",
+    debrief: "debrief",
+    improve: "improve",
     simulations: "simulations",
     total: "total",
 } as const;
@@ -87,14 +89,18 @@ export type AdminDashboardAiOverviewId =
     (typeof ADMIN_DASHBOARD_AI_OVERVIEW_ID)[keyof typeof ADMIN_DASHBOARD_AI_OVERVIEW_ID];
 
 export const ADMIN_DASHBOARD_AI_OVERVIEW_HELP: Record<AdminDashboardAiOverviewId, string> = {
+    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.askCoach]:
+        "Temps actif des échanges « Ask Coach IA » après une simulation.",
     [ADMIN_DASHBOARD_AI_OVERVIEW_ID.askPersona]:
         "Temps actif des échanges après session avec un persona IA.",
-    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.coach]:
-        "Temps actif des débriefs et accompagnements avec le coach IA.",
+    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.debrief]:
+        "Temps actif des débriefings globaux avec le coach IA.",
+    [ADMIN_DASHBOARD_AI_OVERVIEW_ID.improve]:
+        "Temps actif des entraînements d’amélioration réalisés avec le coach IA.",
     [ADMIN_DASHBOARD_AI_OVERVIEW_ID.simulations]:
         "Temps cumulé des simulations roleplay éligibles.",
     [ADMIN_DASHBOARD_AI_OVERVIEW_ID.total]:
-        "Somme des simulations, des échanges persona et des accompagnements coach IA.",
+        "Somme des simulations et de toutes les interactions Persona et Coach IA, y compris les préparations et l’historique non ventilé.",
 };
 
 export interface AdminDashboardAiOverview {
@@ -107,10 +113,14 @@ export interface AdminDashboardAiOverview {
 
 export interface AdminDashboardAiOrganizationUsage {
     activeLearnerCount: number;
+    askCoachSeconds: number;
     askPersonaSeconds: number;
-    coachSeconds: number;
+    debriefSeconds: number;
     id: string;
+    improvementSeconds: number;
+    legacyCoachSeconds: number;
     name: string;
+    preparationSeconds: number;
     simulationSeconds: number;
     totalSeconds: number;
 }

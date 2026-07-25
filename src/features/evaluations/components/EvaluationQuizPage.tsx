@@ -1,4 +1,5 @@
 import { AppShell } from "@/features/app-shell/components";
+import { APP_NAVIGATION_LABEL } from "@/features/app-shell/domain";
 import type { QuizAttemptSession, QuizDetail } from "@/features/evaluations/domain";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
@@ -24,7 +25,7 @@ export function EvaluationQuizPage({
 }: EvaluationQuizPageProps) {
     return (
         <AppShell
-            activePrimaryItem="Évaluations"
+            activePrimaryItem={APP_NAVIGATION_LABEL.evaluations}
             avatarUrl={profileValues.avatarUrl}
             platformRole={profileValues.platformRole}
             initials={getProfileInitials(profileValues)}

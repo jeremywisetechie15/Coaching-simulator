@@ -4,6 +4,7 @@ import { MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS } from "@/features/
 export interface EligibleCompletedRoleplaySession {
     id: string;
     notation_json: unknown;
+    user_id: string | null;
 }
 
 /**
@@ -20,7 +21,7 @@ export async function findEligibleCompletedRoleplaySession(
 ) {
     let query = supabase
         .from("sessions")
-        .select("id, notation_json")
+        .select("id, notation_json, user_id")
         .eq("scenario_id", input.scenarioId)
         .eq("status", "completed")
         .gte("duration_seconds", MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS);

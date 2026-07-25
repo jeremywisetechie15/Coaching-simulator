@@ -3,9 +3,25 @@ import type { Evaluation, TranscriptMessage } from "@/features/roleplays/data/ev
 export const ROLEPLAY_COACH_MODE = {
     afterTraining: "after_training",
     beforeTraining: "before_training",
+    feedback: "feedback",
+    notation: "notation",
 } as const;
 
 export type RoleplayCoachMode = (typeof ROLEPLAY_COACH_MODE)[keyof typeof ROLEPLAY_COACH_MODE];
+
+export const ROLEPLAY_COACH_MODES = Object.values(ROLEPLAY_COACH_MODE);
+
+export function isRoleplayCoachMode(value: unknown): value is RoleplayCoachMode {
+    return typeof value === "string" && ROLEPLAY_COACH_MODES.includes(value as RoleplayCoachMode);
+}
+
+export const ROLEPLAY_COACH_PROMPT_TITLE = {
+    afterTraining: "coach.after_training",
+    beforeTraining: "coach.before_training",
+    feedback: "coach.variant.feedback",
+    notation: "coach.notation.synthese",
+    personaFeedback: "persona.variant.feedback",
+} as const;
 
 export const ROLEPLAY_COACH_NOTE_TYPE = {
     example: "example",

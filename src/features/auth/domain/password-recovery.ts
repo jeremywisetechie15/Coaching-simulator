@@ -4,11 +4,24 @@ export const AUTH_PATHS = {
     callback: "/auth/callback",
     forgotPassword: "/auth/forgot-password",
     resetPassword: "/auth/reset-password",
+    setPassword: "/auth/set-password",
     signIn: "/auth",
 } as const;
 
+export const DEFAULT_AUTH_REDIRECT = "/";
 export const PASSWORD_MIN_LENGTH = 8;
 export const PASSWORD_RECOVERY_TYPE = "recovery" as const;
+export const PASSWORD_RECOVERY_PURPOSE = {
+    invitation: "invitation",
+} as const;
+
+export type PasswordRecoveryPurpose =
+    (typeof PASSWORD_RECOVERY_PURPOSE)[keyof typeof PASSWORD_RECOVERY_PURPOSE];
+
+export type PasswordRecoveryIntent =
+    | { kind: "invitation"; organizationId: string }
+    | { kind: "password_reset" }
+    | { kind: "invalid" };
 
 export type PasswordRecoveryCredential =
     | { kind: "pkce"; value: string }
@@ -45,6 +58,31 @@ export function resolvePasswordRecoveryCredential(
     return null;
 }
 
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+export function resolvePasswordRecoveryIntent(searchParams: URLSearchParams): PasswordRecoveryIntent {
+    const purpose = searchParams.get("purpose");
+
+    if (!purpose) {
+        return { kind: "password_reset" };
+    }
+
+    const organizationId = searchParams.get("organization_id");
+
+    if (
+        purpose !== PASSWORD_RECOVERY_PURPOSE.invitation
+        || !organizationId
+        || !uuidPattern.test(organizationId)
+    ) {
+        return { kind: "invalid" };
+    }
+
+    return {
+        kind: "invitation",
+        organizationId,
+    };
+}
+
 export function validateNewPassword(password: string, confirmation: string) {
     if (password.length < PASSWORD_MIN_LENGTH) {
         return `Le mot de passe doit contenir au moins ${PASSWORD_MIN_LENGTH} caractères.`;
@@ -59,9 +97,9 @@ export function validateNewPassword(password: string, confirmation: string) {
 
 export function buildAuthPath(path: string, redirect: string, status?: string) {
     const url = new URL(path, "https://maiacoach.local");
-    const safeRedirect = resolveInternalHref(redirect, "/profile");
+    const safeRedirect = resolveInternalHref(redirect, DEFAULT_AUTH_REDIRECT);
 
-    if (safeRedirect !== "/profile") {
+    if (safeRedirect !== DEFAULT_AUTH_REDIRECT) {
         url.searchParams.set("redirect", safeRedirect);
     }
 
@@ -72,15 +110,33 @@ export function buildAuthPath(path: string, redirect: string, status?: string) {
     return `${url.pathname}${url.search}`;
 }
 
-export function buildPasswordRecoveryRedirectUrl(origin: string, redirect: string) {
-    const callbackUrl = new URL(AUTH_PATHS.callback, origin);
-    const safeRedirect = resolveInternalHref(redirect, "/profile");
+interface PasswordRecoveryRedirectOptions {
+    organizationId?: string;
+    purpose?: PasswordRecoveryPurpose;
+}
 
-    if (safeRedirect !== "/profile") {
+export function buildPasswordRecoveryRedirectUrl(
+    origin: string,
+    redirect: string,
+    options: PasswordRecoveryRedirectOptions = {},
+) {
+    const callbackUrl = new URL(AUTH_PATHS.callback, origin);
+    const safeRedirect = resolveInternalHref(redirect, DEFAULT_AUTH_REDIRECT);
+
+    if (safeRedirect !== DEFAULT_AUTH_REDIRECT) {
         callbackUrl.searchParams.set("redirect", safeRedirect);
     }
 
     callbackUrl.searchParams.set("flow", PASSWORD_RECOVERY_TYPE);
+
+    if (options.purpose === PASSWORD_RECOVERY_PURPOSE.invitation) {
+        if (!options.organizationId || !uuidPattern.test(options.organizationId)) {
+            throw new Error("Identifiant d’organisation invalide pour la finalisation d’invitation.");
+        }
+
+        callbackUrl.searchParams.set("organization_id", options.organizationId);
+        callbackUrl.searchParams.set("purpose", options.purpose);
+    }
 
     return callbackUrl.toString();
 }

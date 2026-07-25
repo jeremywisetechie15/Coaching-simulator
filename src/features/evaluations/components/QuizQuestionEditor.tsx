@@ -12,6 +12,7 @@ import {
     type QuizDimension,
     type QuizQuestionType,
 } from "@/features/evaluations/domain";
+import { getEntitySelectionLabel } from "@/features/content/domain";
 import type { SkillOption } from "@/features/skills/domain/skills";
 import { CONTENT_UPLOAD_PURPOSES } from "@/lib/uploads/content-upload";
 import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
@@ -78,7 +79,8 @@ export function QuizQuestionEditor({
     const questionCompetenceOptions = skillOptions
         .filter((skill) => stepCompetenceIds.includes(skill.id))
         .map((skill) => ({
-            label: skill.name,
+            disabled: skill.isSelectable === false,
+            label: getEntitySelectionLabel(skill.name, skill),
             value: skill.id,
         }));
     const dimensionLabel = QUIZ_DIMENSION_LABELS[question.dimension];

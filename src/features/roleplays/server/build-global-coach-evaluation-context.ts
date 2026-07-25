@@ -1,4 +1,4 @@
-interface GlobalCoachEvaluationContext {
+export interface GlobalCoachEvaluationContext {
     appreciation: string;
     scoreGlobal: Record<string, unknown> | null;
     synthese: Record<string, unknown> | null;

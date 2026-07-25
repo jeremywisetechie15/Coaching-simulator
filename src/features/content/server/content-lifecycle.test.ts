@@ -51,21 +51,26 @@ function createFakeSupabase(rowsByTable: Record<string, FakeRow[]>) {
 }
 
 describe("content lifecycle server guards", () => {
-    it("does not inspect dependency statuses for a draft parent", async () => {
+    it("rejects missing dependencies even for a draft parent", async () => {
         await expect(assertContentDependencyScopes(
             createFakeSupabase({}) as never,
             CONTENT_STATUS.draft,
             [{ id: "method-missing", kind: CONTENT_DEPENDENCY_KIND.method }],
             { scope: CONTENT_VISIBILITY_SCOPE.public },
-        )).resolves.toBeUndefined();
+        )).rejects.toMatchObject({
+            message: expect.stringContaining("introuvable"),
+            status: 409,
+        });
     });
 
     it("rejects a published parent that exposes a narrower dependency", async () => {
         const supabase = createFakeSupabase({
             methods: [{
                 id: "method-1",
+                is_active: true,
                 organization_id: "org-1",
                 scope: CONTENT_VISIBILITY_SCOPE.organization,
+                status: CONTENT_STATUS.published,
             }],
         });
 
@@ -85,8 +90,10 @@ describe("content lifecycle server guards", () => {
             group_members: [],
             methods: [{
                 id: "method-1",
+                is_active: true,
                 organization_id: "org-1",
                 scope: CONTENT_VISIBILITY_SCOPE.organization,
+                status: CONTENT_STATUS.published,
             }],
             organization_members: [{
                 organization_id: "org-1",

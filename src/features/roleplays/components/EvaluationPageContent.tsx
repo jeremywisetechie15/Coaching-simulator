@@ -130,6 +130,7 @@ function Ring({ score, size = 110, stroke = 11 }: { score: number; size?: number
 
 const TABS = ["Synthèse globale", "Analyse méthodologique", "Transcription"] as const;
 type TabName = (typeof TABS)[number];
+type SimulationViewMode = "coachDebrief" | "coachFeedback" | "persona";
 
 interface EvaluationPageContentProps {
     canManage?: boolean;
@@ -148,6 +149,16 @@ export function getGlobalCoachDebriefTitle(
     return `Débrief avec mon coach ${coachName} - Roleplay ${roleplayTitle}`;
 }
 
+export function getCoachFeedbackTitle(
+    roleplay: Pick<RoleplayItem, "coachName" | "name" | "title">,
+) {
+    const coachNameWithoutPrefix = roleplay.coachName?.trim().replace(/^coach\s+/i, "");
+    const coachName = coachNameWithoutPrefix || "IA";
+    const roleplayTitle = roleplay.title?.trim() || roleplay.name.trim();
+
+    return `Avis de mon coach ${coachName} - Roleplay ${roleplayTitle}`;
+}
+
 export function EvaluationPageContent({
     canManage = false,
     evaluation,
@@ -161,7 +172,7 @@ export function EvaluationPageContent({
     const [scoreInfoOpen, setScoreInfoOpen] = useState(false);
     const [openStep, setOpenStep] = useState<EvaluationStep | null>(null);
     const [transcriptQuery, setTranscriptQuery] = useState("");
-    const [simView, setSimView] = useState<"persona" | "coach" | null>(null);
+    const [simView, setSimView] = useState<SimulationViewMode | null>(null);
     const [pdfExportStep, setPdfExportStep] = useState<number | null>(null);
     const evaluationData = evaluation ?? fallbackEvaluation;
 
@@ -291,11 +302,14 @@ export function EvaluationPageContent({
 
     if (simView) {
         const isPersona = simView === "persona";
+        const isCoachFeedback = simView === "coachFeedback";
         // Embarque le runtime public existant sans le modifier (contrat iframe).
         const iframeSrc = roleplay.scenarioId
             ? isPersona
                 ? ROLEPLAY_ROUTES.app.personaFeedback(roleplay.scenarioId, session.id)
-                : ROLEPLAY_ROUTES.app.sessionDebrief(roleplay.scenarioId, session.id)
+                : isCoachFeedback
+                  ? ROLEPLAY_ROUTES.app.sessionCoachFeedback(roleplay.scenarioId, session.id)
+                  : ROLEPLAY_ROUTES.app.sessionDebrief(roleplay.scenarioId, session.id)
             : null;
 
         return (
@@ -304,7 +318,9 @@ export function EvaluationPageContent({
                 title={
                     isPersona
                         ? `${roleplay.name} — Avis et ressenti`
-                        : getGlobalCoachDebriefTitle(roleplay)
+                        : isCoachFeedback
+                          ? getCoachFeedbackTitle(roleplay)
+                          : getGlobalCoachDebriefTitle(roleplay)
                 }
                 liveTabLabel={isPersona ? "AI Persona" : "AI Coach"}
                 iframeSrc={iframeSrc}
@@ -556,7 +572,8 @@ export function EvaluationPageContent({
                             <SyntheseTab
                                 evaluation={evaluationData}
                                 onAskPersona={() => setSimView("persona")}
-                                onDebrief={() => setSimView("coach")}
+                                onAskCoach={() => setSimView("coachFeedback")}
+                                onDebrief={() => setSimView("coachDebrief")}
                                 stepsHref={`/roleplays/${roleplay.id}/steps?coach=after&sessionId=${encodeURIComponent(session.id)}`}
                             />
                         )}
@@ -612,11 +629,13 @@ export function EvaluationPageContent({
 export function SyntheseTab({
     evaluation,
     onAskPersona,
+    onAskCoach,
     onDebrief,
     stepsHref,
 }: {
     evaluation: Evaluation;
     onAskPersona: () => void;
+    onAskCoach: () => void;
     onDebrief: () => void;
     stepsHref: string;
 }) {
@@ -655,7 +674,7 @@ export function SyntheseTab({
                             Appréciation globale par le coach IA
                         </Text>
                     </Box>
-                    <Button onClick={onDebrief} className={uiTokens.roleplayEvaluation.aiActionButton}>
+                    <Button onClick={onAskCoach} className={uiTokens.roleplayEvaluation.aiActionButton}>
                         <InlineIcon icon={Video} className={uiTokens.roleplayEvaluation.aiActionIcon} />
                         Ask Coach IA
                     </Button>
@@ -747,7 +766,7 @@ export function SyntheseTab({
                     ))}
                 </Box>
                 <Box className="mt-5 border-t border-[#ECEEF3] pt-5">
-                    <Text as="p" className="text-[12px] font-extrabold uppercase tracking-wide text-[#5140F0]">
+                    <Text as="p" className={uiTokens.roleplayEvaluation.strategicPriorityTitle}>
                         Priorité stratégique
                     </Text>
                     <Text className="mt-2 text-[14px] font-medium leading-6 text-[#4B5563]">

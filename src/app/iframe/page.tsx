@@ -1,6 +1,7 @@
 import IframeClient from "./IframeClient";
 import CoachHeygenClient from "./coach-full-mode/CoachHeygenClient";
 import { AlertCircle } from "lucide-react";
+import { isRoleplayCoachMode } from "@/features/roleplays/domain";
 
 // Force dynamic rendering to ensure searchParams work correctly
 export const dynamic = 'force-dynamic';
@@ -14,7 +15,7 @@ export default async function IframePage({
         ref_session_id?: string;
         model?: string;
         coach_id?: string;
-        coach_mode?: string;  // "before_training" | "after_training" | "notation"
+        coach_mode?: string;
         coach_session_id?: string;
         step?: string;        // "1" | "2" | "3" | "4"
         variant?: string;     // "coach" (pour mode persona avec coaching)
@@ -28,12 +29,13 @@ export default async function IframePage({
 
     // Validate parameters
     const isCoachMode = params.mode === "coach";
-    const isCoachWithTrainingMode = isCoachMode && (params.coach_mode === "before_training" || params.coach_mode === "after_training" || params.coach_mode === "notation");
+    const coachMode = isRoleplayCoachMode(params.coach_mode) ? params.coach_mode : undefined;
+    const isCoachWithScenarioMode = isCoachMode && Boolean(coachMode);
     const isPersonaCoachVariant = params.variant === "coach" && params.scenario_id;
 
     // scenario_id is required for:
     // - standard mode (persona)
-    // - coach mode with before_training or after_training or notation
+    // - coach mode with an explicit roleplay coach mode
     // - variant=coach
     if (!isCoachMode && !isPersonaCoachVariant && !params.scenario_id) {
         return (
@@ -47,8 +49,8 @@ export default async function IframePage({
         );
     }
 
-    // For coach mode with before_training, after_training, or notation, scenario_id is required
-    if (isCoachWithTrainingMode && !params.scenario_id) {
+    // Every explicit roleplay coach mode requires scenario_id.
+    if (isCoachWithScenarioMode && !params.scenario_id) {
         return (
             <div className="h-screen w-full bg-[#E8EEFF] flex flex-col items-center justify-center gap-4 p-6">
                 <AlertCircle className="w-16 h-16 text-red-500" />
@@ -70,7 +72,7 @@ export default async function IframePage({
                 refSessionId={params.ref_session_id}
                 model={params.model || "gpt-realtime-1.5"}
                 coachId={params.coach_id}
-                coachMode={params.coach_mode as "before_training" | "after_training" | "notation" | undefined}
+                coachMode={coachMode}
                 coachSessionId={params.coach_session_id}
                 step={params.step ? parseInt(params.step, 10) : undefined}
             />
@@ -84,7 +86,7 @@ export default async function IframePage({
             refSessionId={params.ref_session_id}
             model={params.model || "gpt-realtime-1.5"}
             coachId={params.coach_id}
-            coachMode={params.coach_mode as "before_training" | "after_training" | "notation" | undefined}
+            coachMode={coachMode}
             coachSessionId={params.coach_session_id}
             step={params.step ? parseInt(params.step, 10) : undefined}
             variant={params.variant as "coach" | undefined}

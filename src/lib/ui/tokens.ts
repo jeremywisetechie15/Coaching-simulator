@@ -125,7 +125,7 @@ export const uiTokens = {
                 "rounded-[13px] border border-[#E1E5EF] bg-white p-6 shadow-[0_1px_2px_rgba(24,32,95,0.025)]",
             metricsGrid: "grid gap-3 sm:grid-cols-2 xl:grid-cols-6",
             aiTitle: "mb-3 mt-5 text-[15px] font-extrabold tracking-[-0.015em] text-[#101828]",
-            aiGrid: "grid gap-3 sm:grid-cols-2 xl:grid-cols-5",
+            aiGrid: "grid gap-3 sm:grid-cols-2 xl:grid-cols-6",
         },
         layout: {
             middle: "grid gap-4 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]",
@@ -135,7 +135,7 @@ export const uiTokens = {
             layout: "space-y-4",
             summary:
                 "space-y-5 rounded-[13px] border border-[#E1E5EF] bg-white p-6 shadow-[0_1px_2px_rgba(24,32,95,0.025)]",
-            aiGrid: "grid gap-3 sm:grid-cols-2 xl:grid-cols-5",
+            aiGrid: "grid gap-3 sm:grid-cols-2 xl:grid-cols-6",
         },
         header: {
             layout: "flex flex-col gap-5 py-1 xl:flex-row xl:items-end xl:justify-between",
@@ -181,11 +181,11 @@ export const uiTokens = {
         },
         ai: {
             table: "overflow-hidden rounded-[11px] border border-[#E1E5EF] bg-white",
-            tableMinWidth: "min-w-[720px]",
+            tableMinWidth: "min-w-[1050px]",
             header:
-                "grid grid-cols-[minmax(130px,1.2fr)_0.55fr_0.7fr_0.7fr_0.7fr_0.65fr] gap-3 border-b border-[#E1E5EF] bg-[#FBFCFF] px-3 py-2 text-[8px] font-extrabold uppercase tracking-[0.035em] text-[#52608A]",
+                "grid grid-cols-[minmax(130px,1.2fr)_0.55fr_0.65fr_0.65fr_0.65fr_0.65fr_0.65fr_0.6fr] gap-3 border-b border-[#E1E5EF] bg-[#FBFCFF] px-3 py-2 text-[8px] font-extrabold uppercase tracking-[0.035em] text-[#52608A]",
             row:
-                "grid min-h-12 grid-cols-[minmax(130px,1.2fr)_0.55fr_0.7fr_0.7fr_0.7fr_0.65fr] items-center gap-3 border-b border-[#EEF0F5] px-3 text-[10px] font-semibold text-[#344054] last:border-b-0",
+                "grid min-h-12 grid-cols-[minmax(130px,1.2fr)_0.55fr_0.65fr_0.65fr_0.65fr_0.65fr_0.65fr_0.6fr] items-center gap-3 border-b border-[#EEF0F5] px-3 text-[10px] font-semibold text-[#344054] last:border-b-0",
         },
         table: {
             root: "overflow-hidden rounded-[11px] border border-[#E1E5EF] bg-white",
@@ -469,6 +469,8 @@ export const uiTokens = {
             toggleIdle:
                 "border-[#FDE68A] bg-[#FDE68A]/15 text-[#92400E] hover:bg-[#FDE68A]/30",
         },
+        strategicPriorityTitle:
+            "text-[12px] font-extrabold uppercase tracking-wide text-[#B45309]",
     },
     roleplayEditor: {
         aiInstructionsDrawerContent: "flex min-h-0 flex-1 flex-col gap-3",
@@ -562,6 +564,7 @@ export const uiTokens = {
         option: "flex min-h-11 w-full min-w-0 items-start justify-between gap-2 rounded-lg px-3 py-2.5 text-left text-[14px] font-medium transition hover:bg-[#F6F7FB]",
         optionActive: "text-[#5140F0]",
         optionIcon: "mt-0.5 h-4 w-4 shrink-0 text-[#6B7280]",
+        optionDisabled: "cursor-not-allowed text-[#9CA3AF] opacity-70 hover:bg-transparent",
         optionIdle: "text-[#111827]",
         optionLabel: "block whitespace-normal break-words leading-5",
         optionLabelWrapper: "min-w-0 flex-1",

@@ -7,6 +7,7 @@ import {
     type ContentStatus,
     type ContentVisibilityScope,
     type DiscProfile,
+    type EntitySelectionAvailability,
 } from "@/features/content/domain";
 import type { QuizKind, QuizParticipation, QuizType } from "@/features/evaluations/domain";
 import type { MethodSelectionOption } from "@/features/methods/domain/method";
@@ -30,7 +31,7 @@ export type RoleplayVisibilityScope = ContentVisibilityScope;
 
 export const ROLEPLAY_VISIBILITY_SCOPE_LABELS = CONTENT_VISIBILITY_SCOPE_LABELS;
 
-export interface RoleplayPersonaOption {
+export interface RoleplayPersonaOption extends EntitySelectionAvailability {
     avatarUrl: string | null;
     company: string;
     id: string;
@@ -38,14 +39,14 @@ export interface RoleplayPersonaOption {
     role: string;
 }
 
-export interface RoleplayCoachOption {
+export interface RoleplayCoachOption extends EntitySelectionAvailability {
     id: string;
     name: string;
 }
 
 export type RoleplayMethodOption = MethodSelectionOption;
 
-export interface RoleplayQuizOption {
+export interface RoleplayQuizOption extends EntitySelectionAvailability {
     id: string;
     kind: QuizKind;
     methodId: string | null;
@@ -53,24 +54,24 @@ export interface RoleplayQuizOption {
     title: string;
 }
 
-export interface RoleplayScorecardOption {
+export interface RoleplayScorecardOption extends EntitySelectionAvailability {
     id: string;
     methodId: string;
     name: string;
 }
 
-export interface RoleplayOrganizationOption {
+export interface RoleplayOrganizationOption extends EntitySelectionAvailability {
     id: string;
     name: string;
 }
 
-export interface RoleplayGroupOption {
+export interface RoleplayGroupOption extends EntitySelectionAvailability {
     id: string;
     name: string;
     organizationId: string;
 }
 
-export interface RoleplayUserOption {
+export interface RoleplayUserOption extends EntitySelectionAvailability {
     groupIds: string[];
     id: string;
     name: string;

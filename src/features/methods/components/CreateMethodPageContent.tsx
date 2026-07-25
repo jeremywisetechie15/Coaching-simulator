@@ -13,6 +13,7 @@ import {
     CONTENT_VISIBILITY_CHOICE_LABELS,
     CONTENT_VISIBILITY_CHOICES,
     getCategoriesForDomain,
+    getEntitySelectionLabel,
     isContentCategoryForDomain,
     isContentDomain,
     type ContentCategory,
@@ -390,7 +391,8 @@ export function CreateMethodPageContent({
     const isEditing = Boolean(initialMethod);
     const isDraft = !initialMethod || initialMethod.status === CONTENT_STATUS.draft;
     const organizationSelectOptions = organizationOptions.map((organization) => ({
-        label: organization.name,
+        disabled: organization.isSelectable === false,
+        label: getEntitySelectionLabel(organization.name, organization),
         value: organization.id,
     }));
     const availableQuizOptions = quizOptions.filter((quiz) =>
@@ -406,7 +408,11 @@ export function CreateMethodPageContent({
     const quizSelectOptions = [
         { label: "Aucun quiz associé", value: noQuizOptionValue },
         ...availableQuizOptions.map((quiz) => ({
-            label: `${quiz.title}${quiz.questionCount > 0 ? ` (${quiz.questionCount} questions)` : ""}`,
+            disabled: quiz.isSelectable === false,
+            label: getEntitySelectionLabel(
+                `${quiz.title}${quiz.questionCount > 0 ? ` (${quiz.questionCount} questions)` : ""}`,
+                quiz,
+            ),
             value: quiz.id,
         })),
     ];
@@ -1269,7 +1275,7 @@ export function CreateMethodPageContent({
                         </Box>
                     )}
                     <Box className="flex justify-end gap-3">
-                        {isDraft && (
+                        {isDraft && !embedded && (
                             <Button
                                 disabled={isSaving}
                                 onClick={() => handleSave(CONTENT_STATUS.draft)}

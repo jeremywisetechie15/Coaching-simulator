@@ -5,6 +5,7 @@ import {
     CONTENT_VISIBILITY_SCOPES,
     type ContentStatus,
     type ContentVisibilityScope,
+    type EntitySelectionAvailability,
 } from "@/features/content/domain";
 import type { MethodSelectionOption } from "@/features/methods/domain/method";
 
@@ -129,25 +130,25 @@ export interface QuizMethodOption extends MethodSelectionOption {
     steps: QuizMethodStepOption[];
 }
 
-export interface QuizOrganizationOption {
+export interface QuizOrganizationOption extends EntitySelectionAvailability {
     id: string;
     name: string;
 }
 
-export interface QuizGroupOption {
+export interface QuizGroupOption extends EntitySelectionAvailability {
     id: string;
     name: string;
     organizationId: string;
 }
 
-export interface QuizUserOption {
+export interface QuizUserOption extends EntitySelectionAvailability {
     groupIds: string[];
     id: string;
     name: string;
     organizationIds: string[];
 }
 
-export interface QuizOption {
+export interface QuizOption extends EntitySelectionAvailability {
     id: string;
     kind: QuizKind;
     methodId: string | null;

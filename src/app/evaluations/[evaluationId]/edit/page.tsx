@@ -7,16 +7,18 @@ import {
 import { CreateQuizPage } from "@/features/evaluations/components";
 import {
     getQuizById,
-    listQuizGroupOptions,
     listQuizMethodOptions,
-    listQuizOrganizationOptions,
-    listQuizUserOptions,
+    listQuizTargetOptions,
 } from "@/features/evaluations/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
-import { listSkillOptions } from "@/features/skills/server";
+import { listSkillSelectionOptions } from "@/features/skills/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
-import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
+import {
+    APP_NAVIGATION_LABEL,
+    buildAuthRedirectHref,
+    withReturnTo,
+} from "@/features/app-shell/domain";
 
 interface PageProps {
     params: Promise<{ evaluationId: string }>;
@@ -59,7 +61,7 @@ export default async function Page({ params, searchParams }: PageProps) {
     if (!canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.evaluations)) {
         return (
             <AccessDeniedPage
-                activePrimaryItem="Évaluations"
+                activePrimaryItem={APP_NAVIGATION_LABEL.evaluations}
                 profileValues={profileValues}
                 searchPlaceholder="Rechercher..."
             />
@@ -78,23 +80,29 @@ export default async function Page({ params, searchParams }: PageProps) {
         throw error;
     }
 
-    const [methodOptions, organizationOptions, groupOptions, userOptions, skillOptions] = await Promise.all([
-        listQuizMethodOptions(),
-        listQuizOrganizationOptions(),
-        listQuizGroupOptions(),
-        listQuizUserOptions(),
-        listSkillOptions(),
+    const currentSkillIds = [...new Set(quiz.steps.flatMap((step) => [
+        ...step.competenceIds,
+        ...step.questions.flatMap((question) => question.competenceId ? [question.competenceId] : []),
+    ]))];
+    const [methodOptions, targetOptions, skillOptions] = await Promise.all([
+        listQuizMethodOptions({ includeUnavailableIds: quiz.methodId ? [quiz.methodId] : [] }),
+        listQuizTargetOptions({
+            groupId: quiz.groupId,
+            organizationId: quiz.organizationId,
+            userId: quiz.assignedUserId,
+        }),
+        listSkillSelectionOptions({ includeUnavailableIds: currentSkillIds }),
     ]);
 
     return (
         <CreateQuizPage
-            groupOptions={groupOptions}
+            groupOptions={targetOptions.groups}
             methodOptions={methodOptions}
-            organizationOptions={organizationOptions}
+            organizationOptions={targetOptions.organizations}
             profileValues={profileValues}
             quiz={quiz}
             skillOptions={skillOptions}
-            userOptions={userOptions}
+            userOptions={targetOptions.users}
         />
     );
 }

@@ -41,6 +41,11 @@ export interface OrganizationListItem {
     userCount: number;
 }
 
+export interface OrganizationSelectionOption extends EntitySelectionAvailability {
+    id: string;
+    name: string;
+}
+
 export function filterOrganizationListItems(
     organizations: readonly OrganizationListItem[],
     query: string,
@@ -57,3 +62,4 @@ export function filterOrganizationListItems(
         return matchesQuery && matchesStatus;
     });
 }
+import type { EntitySelectionAvailability } from "@/features/content/domain";

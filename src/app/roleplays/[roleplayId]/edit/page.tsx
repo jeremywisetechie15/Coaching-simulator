@@ -10,13 +10,11 @@ import { getCurrentProfile } from "@/features/profile/server";
 import {
     getRoleplayEditorById,
     listRoleplayCoachOptions,
-    listRoleplayGroupOptions,
     listRoleplayMethodOptions,
-    listRoleplayOrganizationOptions,
     listRoleplayPersonaOptions,
     listRoleplayQuizOptions,
     listRoleplayScorecardOptions,
-    listRoleplayUserOptions,
+    listRoleplayTargetOptions,
 } from "@/features/roleplays/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
 import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
@@ -74,33 +72,33 @@ export default async function Page({ params, searchParams }: PageProps) {
         methodOptions,
         quizOptions,
         scorecardOptions,
-        organizationOptions,
-        groupOptions,
-        userOptions,
+        targetOptions,
     ] = await Promise.all([
-        listRoleplayPersonaOptions(),
-        listRoleplayCoachOptions(),
-        listRoleplayMethodOptions(),
-        listRoleplayQuizOptions(),
-        listRoleplayScorecardOptions(),
-        listRoleplayOrganizationOptions(),
-        listRoleplayGroupOptions(),
-        listRoleplayUserOptions(),
+        listRoleplayPersonaOptions({ includeUnavailableIds: roleplay.personaId ? [roleplay.personaId] : [] }),
+        listRoleplayCoachOptions({ includeUnavailableIds: roleplay.coachId ? [roleplay.coachId] : [] }),
+        listRoleplayMethodOptions({ includeUnavailableIds: roleplay.methodId ? [roleplay.methodId] : [] }),
+        listRoleplayQuizOptions({ includeUnavailableIds: roleplay.quizIds }),
+        listRoleplayScorecardOptions({ includeUnavailableIds: roleplay.scorecardId ? [roleplay.scorecardId] : [] }),
+        listRoleplayTargetOptions({
+            groupId: roleplay.groupId,
+            organizationId: roleplay.organizationId,
+            userId: roleplay.assignedUserId,
+        }),
     ]);
 
     return (
         <CreateRoleplayPage
             coachOptions={coachOptions}
-            groupOptions={groupOptions}
+            groupOptions={targetOptions.groups}
             initialRoleplay={roleplay}
             methodOptions={methodOptions}
-            organizationOptions={organizationOptions}
+            organizationOptions={targetOptions.organizations}
             personaOptions={personaOptions}
             profileValues={profileValues}
             quizOptions={quizOptions}
             roleplayId={roleplayId}
             scorecardOptions={scorecardOptions}
-            userOptions={userOptions}
+            userOptions={targetOptions.users}
         />
     );
 }

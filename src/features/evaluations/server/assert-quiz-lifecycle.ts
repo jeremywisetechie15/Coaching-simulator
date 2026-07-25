@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { CONTENT_STATUS, type ContentStatus } from "@/features/content/domain";
 import {
     assertContentDependencyScopes,
+    assertActiveContentTarget,
     assertContentStatusTransition,
     assertInitialContentStatus,
     CONTENT_DEPENDENCY_KIND,
@@ -69,6 +70,12 @@ export async function assertQuizLifecycle(
         await assertQuizKnowledgeSkills(supabase, [...skillIds]);
     }
     await assertContentDependencyScopes(supabase, input.status, dependencies, {
+        groupId: input.groupId,
+        organizationId: input.organizationId,
+        scope: input.scope,
+        userId: input.assignedUserId,
+    });
+    await assertActiveContentTarget(supabase, {
         groupId: input.groupId,
         organizationId: input.organizationId,
         scope: input.scope,

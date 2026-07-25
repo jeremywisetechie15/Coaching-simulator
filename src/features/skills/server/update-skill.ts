@@ -3,7 +3,7 @@ import { requireAdmin } from "@/features/auth/server";
 import type { SkillDetail } from "@/features/skills/domain/skills";
 import type { SaveSkillDto } from "@/features/skills/dto";
 import { mapDatabaseError, NotFoundError } from "@/lib/server/errors";
-import { assertContentStatusTransition } from "@/features/content/server";
+import { assertActiveContentTarget, assertContentStatusTransition } from "@/features/content/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchSkillDetail } from "./skill-query";
 import { createSkillDimensionItemRows, createSkillUpdate } from "./skills.persistence";
@@ -27,6 +27,12 @@ export async function updateSkill(skillId: string, input: SaveSkillDto): Promise
     }
 
     assertContentStatusTransition(existingSkill.status, input.status);
+    await assertActiveContentTarget(adminSupabase, {
+        groupId: input.groupId,
+        organizationId: input.organizationId,
+        scope: input.scope,
+        userId: input.assignedUserId,
+    });
 
     const items = createSkillDimensionItemRows(skillId, input).map((item) => ({
         ...item,

@@ -40,7 +40,7 @@ function createFakeSupabase(rowsByTable: Record<string, FakeRow[]>) {
 
 describe("assertRoleplayLifecycle", () => {
     it.each([CONTENT_STATUS.draft, CONTENT_STATUS.archived])(
-        "allows a published roleplay to reference %s content",
+        "rejects a published roleplay that references %s content",
         async (dependencyStatus) => {
             const supabase = createFakeSupabase({
                 methods: [{
@@ -58,7 +58,10 @@ describe("assertRoleplayLifecycle", () => {
                 status: CONTENT_STATUS.published,
             } as unknown as SaveRoleplayDto;
 
-            await expect(assertRoleplayLifecycle(supabase as never, input)).resolves.toBeUndefined();
+            await expect(assertRoleplayLifecycle(supabase as never, input)).rejects.toMatchObject({
+                message: expect.stringContaining("publié et actif"),
+                status: 409,
+            });
         },
     );
 });

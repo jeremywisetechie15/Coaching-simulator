@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { ROLEPLAY_COACH_PROMPT_TITLE } from "@/features/roleplays/domain";
 import type { Coach } from "@/types";
 
 const FALLBACK_COACH_PROMPT = `Tu es un coach professionnel expert en communication et techniques de vente.
@@ -93,8 +94,8 @@ export async function prepareHeygenTestSession(params: PrepareParams = {}): Prom
 
         // 3. Pick prompt based on coachMode
         const promptTitle = coachMode === "before_training"
-            ? "coach.before_training"
-            : "coach.after_training";
+            ? ROLEPLAY_COACH_PROMPT_TITLE.beforeTraining
+            : ROLEPLAY_COACH_PROMPT_TITLE.afterTraining;
 
         const { data: promptData } = await adminSupabase
             .from("prompts")

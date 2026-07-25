@@ -6,7 +6,10 @@ import type { EmailOtpType } from "@supabase/supabase-js";
 import { resolveInternalHref } from "@/features/app-shell/domain";
 import { recordSuccessfulLogin } from "@/features/activity-tracking/client";
 import { createClient } from "@/lib/supabase/client";
-import { validateNewPassword } from "@/features/auth/domain/password-recovery";
+import {
+    DEFAULT_AUTH_REDIRECT,
+    validateNewPassword,
+} from "@/features/auth/domain/password-recovery";
 import { FormRoot } from "@/lib/ui/atoms";
 import {
     createFormSubmitError,
@@ -41,22 +44,33 @@ function getAuthHashErrorMessage() {
 export function SetPasswordCard() {
     const searchParams = useSearchParams();
     const redirectTo = useMemo(
-        () => resolveInternalHref(searchParams.get("redirect"), "/profile"),
+        () => resolveInternalHref(searchParams.get("redirect"), DEFAULT_AUTH_REDIRECT),
         [searchParams],
     );
     const organizationId = searchParams.get("organization_id");
     const tokenHash = searchParams.get("token_hash");
     const otpType = searchParams.get("type");
+    const callbackStatus = searchParams.get("status");
 
     const [password, setPassword] = useState("");
     const [confirmPassword, setConfirmPassword] = useState("");
     const [isPasswordVisible, setIsPasswordVisible] = useState(false);
     const [isConfirmVisible, setIsConfirmVisible] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(() => getAuthHashErrorMessage());
+    const [error, setError] = useState<string | null>(() =>
+        callbackStatus === "invalid" ? expiredInvitationMessage : getAuthHashErrorMessage()
+    );
 
     const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+
+        if (callbackStatus === "invalid") {
+            setError(notifyFormSubmitError(
+                new Error(expiredInvitationMessage),
+                expiredInvitationMessage,
+            ));
+            return;
+        }
 
         const authHashError = getAuthHashErrorMessage();
 

@@ -15,7 +15,11 @@ import {
 import { ContextualBackLink, useContextualReturnHref } from "@/features/app-shell/components";
 import { buildPostSaveHref } from "@/features/app-shell/domain";
 import type { ContentStatus } from "@/features/content/domain";
-import { CONTENT_STATUS, getCategoriesForDomain } from "@/features/content/domain";
+import {
+    CONTENT_STATUS,
+    getCategoriesForDomain,
+    getEntitySelectionLabel,
+} from "@/features/content/domain";
 import {
     QUIZ_PARTICIPATION_LABELS,
     QUIZ_PARTICIPATIONS,
@@ -151,8 +155,9 @@ export function CreateQuizPageContent({
     const competenceOptions: SearchableOption[] = useMemo(
         () =>
             quizSkillOptions.map((skill) => ({
+                disabled: skill.isSelectable === false,
                 group: skill.domain || "Compétences",
-                label: skill.name,
+                label: getEntitySelectionLabel(skill.name, skill),
                 value: skill.id,
             })),
         [quizSkillOptions],
@@ -165,18 +170,27 @@ export function CreateQuizPageContent({
     const selectedMethod = methodOptions.find((method) => method.id === form.methodId) ?? null;
     const methodGeneratedStepCount = form.steps.filter((step) => step.methodStepId !== null).length;
     const organizationSelectOptions = organizationOptions.map((organization) => ({
-        label: organization.name,
+        disabled: organization.isSelectable === false,
+        label: getEntitySelectionLabel(organization.name, organization),
         value: organization.id,
     }));
     const groupSelectOptions = form.organizationId
         ? groupOptions
               .filter((group) => group.organizationId === form.organizationId)
-              .map((group) => ({ label: group.name, value: group.id }))
+              .map((group) => ({
+                  disabled: group.isSelectable === false,
+                  label: getEntitySelectionLabel(group.name, group),
+                  value: group.id,
+              }))
         : [];
     const userSelectOptions = form.groupId
         ? userOptions
               .filter((user) => user.groupIds.includes(form.groupId))
-              .map((user) => ({ label: user.name, value: user.id }))
+              .map((user) => ({
+                  disabled: user.isSelectable === false,
+                  label: getEntitySelectionLabel(user.name, user),
+                  value: user.id,
+              }))
         : [];
 
     const totalQuestions = useMemo(

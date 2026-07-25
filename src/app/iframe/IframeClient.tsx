@@ -8,6 +8,7 @@ import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 import {
     ROLEPLAY_COACH_TRANSCRIPT_EVENT,
+    type RoleplayCoachMode,
     type RoleplayCoachTranscriptEvent,
 } from "@/features/roleplays/domain/coach-session-notes";
 import {
@@ -58,7 +59,7 @@ interface IframeClientProps {
     refSessionId?: string;
     model: string;
     coachId?: string;
-    coachMode?: "before_training" | "after_training" | "notation";
+    coachMode?: RoleplayCoachMode;
     coachSessionId?: string;
     step?: number;
     variant?: "coach";
@@ -84,7 +85,10 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
         end: endTrackedConversation,
         markActivity: markTrackedConversationActivity,
         start: startTrackedConversation,
-    } = useAiConversationTracking(trackedInteractionType);
+    } = useAiConversationTracking(
+        trackedInteractionType,
+        trackedInteractionType === AI_CONVERSATION_TYPE.coach ? coachMode : undefined,
+    );
 
     // WebRTC refs
     const peerConnectionRef = useRef<RTCPeerConnection | null>(null);

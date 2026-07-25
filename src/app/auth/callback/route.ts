@@ -2,9 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveInternalHref } from "@/features/app-shell/domain";
 import {
     AUTH_PATHS,
+    DEFAULT_AUTH_REDIRECT,
     PASSWORD_RECOVERY_TYPE,
     buildAuthPath,
     resolvePasswordRecoveryCredential,
+    resolvePasswordRecoveryIntent,
 } from "@/features/auth/domain/password-recovery";
 import { createClient } from "@/lib/supabase/server";
 
@@ -18,16 +20,24 @@ function noStoreRedirect(destination: URL) {
 
 export async function GET(request: NextRequest) {
     const credential = resolvePasswordRecoveryCredential(request.nextUrl.searchParams);
+    const intent = resolvePasswordRecoveryIntent(request.nextUrl.searchParams);
     const redirect = resolveInternalHref(
         request.nextUrl.searchParams.get("redirect"),
-        "/profile",
+        DEFAULT_AUTH_REDIRECT,
     );
     const destination = new URL(
-        buildAuthPath(AUTH_PATHS.resetPassword, redirect),
+        buildAuthPath(
+            intent.kind === "invitation" ? AUTH_PATHS.setPassword : AUTH_PATHS.resetPassword,
+            redirect,
+        ),
         request.nextUrl.origin,
     );
 
-    if (!credential) {
+    if (intent.kind === "invitation") {
+        destination.searchParams.set("organization_id", intent.organizationId);
+    }
+
+    if (!credential || intent.kind === "invalid") {
         destination.searchParams.set("status", "invalid");
         return noStoreRedirect(destination);
     }
@@ -40,6 +50,9 @@ export async function GET(request: NextRequest) {
         })
         : await supabase.auth.exchangeCodeForSession(credential.value);
 
-    destination.searchParams.set("status", error ? "invalid" : "recovery");
+    destination.searchParams.set(
+        "status",
+        error ? "invalid" : intent.kind === "invitation" ? "invitation" : "recovery",
+    );
     return noStoreRedirect(destination);
 }

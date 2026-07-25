@@ -5,7 +5,7 @@ import {
     canManageAppResource,
 } from "@/features/auth/domain/access-control";
 import { CreateSkillPage } from "@/features/skills/components";
-import { listSkillGroupOptions, listSkillOrganizationOptions, listSkillUserOptions } from "@/features/skills/server";
+import { listSkillTargetOptions } from "@/features/skills/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { UnauthorizedError } from "@/lib/server/errors";
@@ -46,18 +46,14 @@ export default async function Page({ searchParams }: PageProps) {
         );
     }
 
-    const [organizationOptions, groupOptions, userOptions] = await Promise.all([
-        listSkillOrganizationOptions(),
-        listSkillGroupOptions(),
-        listSkillUserOptions(),
-    ]);
+    const targetOptions = await listSkillTargetOptions();
 
     return (
         <CreateSkillPage
-            groupOptions={groupOptions}
-            organizationOptions={organizationOptions}
+            groupOptions={targetOptions.groups}
+            organizationOptions={targetOptions.organizations}
             profileValues={profileValues}
-            userOptions={userOptions}
+            userOptions={targetOptions.users}
         />
     );
 }

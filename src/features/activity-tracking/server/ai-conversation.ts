@@ -29,6 +29,7 @@ export async function createAiConversation(input: CreateAiConversationDto) {
     const { data, error } = await adminSupabase
         .from("ai_conversation_sessions")
         .insert({
+            coach_mode: payload.coachMode ?? null,
             interaction_type: payload.interactionType,
             last_activity_at: new Date().toISOString(),
             organization_id: context.activeOrganizationId,

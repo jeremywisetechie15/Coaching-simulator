@@ -15,6 +15,8 @@ import { buildPostSaveHref } from "@/features/app-shell/domain";
 import {
     CONTENT_STATUS,
     CONTENT_VISIBILITY_SCOPE,
+    getEntitySelectionLabel,
+    isEntitySelectionAvailable,
 } from "@/features/content/domain";
 import {
     ContentEditorSubmitActions,
@@ -84,6 +86,7 @@ type EntityEditor = "coach" | "method" | "persona";
 type RoleplayResourceDeliveryType = ContentResourceDeliveryType;
 
 interface SelectOption {
+    disabled?: boolean;
     label: string;
     value: string;
 }
@@ -249,13 +252,19 @@ function SingleSelect({
                 <CardSurface className="absolute left-0 right-0 top-[56px] z-30 max-h-[260px] overflow-y-auto rounded-xl border border-[#E5E7EB] p-1.5 shadow-[0_18px_40px_rgba(17,24,39,0.16)]">
                     {options.map((option) => (
                         <Button
+                            disabled={option.disabled}
                             key={option.value}
                             onClick={() => {
+                                if (option.disabled) return;
                                 onChange(option.value);
                                 setOpen(false);
                             }}
-                            className={`flex h-11 w-full items-center justify-between gap-2 rounded-lg px-3 text-left text-[14px] font-medium transition hover:bg-[#F6F7FB] ${
-                                option.value === value ? "text-[#5140F0]" : "text-[#111827]"
+                            className={`flex h-11 w-full items-center justify-between gap-2 rounded-lg px-3 text-left text-[14px] font-medium transition ${
+                                option.disabled
+                                    ? "cursor-not-allowed text-[#9CA3AF] opacity-70"
+                                    : "hover:bg-[#F6F7FB]"
+                            } ${
+                                option.value === value && !option.disabled ? "text-[#5140F0]" : "text-[#111827]"
                             }`}
                         >
                             <Text as="span">{option.label}</Text>
@@ -294,6 +303,9 @@ function QuizParticipationField({
     const selectedQuizzes = selectedIds
         .map((id) => options.find((option) => option.id === id))
         .filter((option): option is RoleplayQuizOption => Boolean(option));
+    const displayedOptions = options.filter(
+        (quiz) => isEntitySelectionAvailable(quiz) || selectedIds.includes(quiz.id),
+    );
 
     return (
         <Box>
@@ -308,7 +320,7 @@ function QuizParticipationField({
                                 key={quiz.id}
                                 className="inline-flex min-h-8 items-center gap-1.5 rounded-lg bg-[#EEF0FF] py-1 pl-3 pr-2 text-[13px] font-semibold text-[#5140F0]"
                             >
-                                {quiz.title}
+                                {getEntitySelectionLabel(quiz.title, quiz)}
                                 <Button
                                     aria-label={`Retirer ${quiz.title}`}
                                     onClick={() => onToggle(quiz.id)}
@@ -336,18 +348,25 @@ function QuizParticipationField({
 
                 {open && (
                     <CardSurface className="absolute left-0 right-0 top-[56px] z-30 max-h-[280px] overflow-y-auto rounded-xl border border-[#E5E7EB] p-1.5 shadow-[0_18px_40px_rgba(17,24,39,0.16)]">
-                        {options.length === 0 ? (
+                        {displayedOptions.length === 0 ? (
                             <Text className="px-3 py-6 text-center text-[13px] text-[#9CA3AF]">
                                 {emptyMessage}
                             </Text>
                         ) : (
-                            options.map((quiz) => {
+                            displayedOptions.map((quiz) => {
                                 const isChecked = selectedIds.includes(quiz.id);
+                                const canToggle = isEntitySelectionAvailable(quiz) || isChecked;
                                 return (
                                     <Button
+                                        disabled={!canToggle}
                                         key={quiz.id}
-                                        onClick={() => onToggle(quiz.id)}
-                                        className="flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[14px] font-medium text-[#111827] transition hover:bg-[#F6F7FB]"
+                                        onClick={() => canToggle && onToggle(quiz.id)}
+                                        className={cn(
+                                            "flex min-h-11 w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[14px] font-medium transition",
+                                            canToggle
+                                                ? "text-[#111827] hover:bg-[#F6F7FB]"
+                                                : "cursor-not-allowed text-[#9CA3AF] opacity-70",
+                                        )}
                                     >
                                         <Box
                                             className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-[6px] border transition ${
@@ -359,7 +378,7 @@ function QuizParticipationField({
                                             {isChecked && <InlineIcon icon={Check} className="h-3.5 w-3.5" />}
                                         </Box>
                                         <Text as="span" className="flex-1">
-                                            {quiz.title}
+                                            {getEntitySelectionLabel(quiz.title, quiz)}
                                         </Text>
                                         <Text as="span" className="text-[12px] font-semibold text-[#9CA3AF]">
                                             {quiz.questionCount} Q
@@ -608,7 +627,11 @@ export function CreateRoleplayPageContent({
     const personaSelectOptions = useMemo(
         () =>
             localPersonaOptions.map((item) => ({
-                label: [item.name, item.role, item.company].filter(Boolean).join(" - "),
+                disabled: item.isSelectable === false,
+                label: getEntitySelectionLabel(
+                    [item.name, item.role, item.company].filter(Boolean).join(" - "),
+                    item,
+                ),
                 value: item.id,
             })),
         [localPersonaOptions],
@@ -616,7 +639,8 @@ export function CreateRoleplayPageContent({
     const coachSelectOptions = useMemo(
         () =>
             localCoachOptions.map((item) => ({
-                label: item.name,
+                disabled: item.isSelectable === false,
+                label: getEntitySelectionLabel(item.name, item),
                 value: item.id,
             })),
         [localCoachOptions],
@@ -630,7 +654,8 @@ export function CreateRoleplayPageContent({
             scorecardOptions
                 .filter((item) => method && item.methodId === method)
                 .map((item) => ({
-                    label: item.name,
+                    disabled: item.isSelectable === false,
+                    label: getEntitySelectionLabel(item.name, item),
                     value: item.id,
                 })),
         [method, scorecardOptions],

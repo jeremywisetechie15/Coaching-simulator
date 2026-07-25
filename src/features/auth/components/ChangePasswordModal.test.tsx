@@ -14,6 +14,6 @@ describe("ChangePasswordModal", () => {
         expect(html).toContain("current-password");
         expect(html).toContain("new-password");
         expect(html).toContain("Mot de passe oublié ?");
-        expect(html).toContain('href="/auth/forgot-password"');
+        expect(html).toContain('href="/auth/forgot-password?redirect=%2Fprofile"');
     });
 });

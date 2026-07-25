@@ -7,6 +7,9 @@ import { getCoachAvatarPublicUrl } from "@/features/coaches/domain/coach-list";
 import {
     buildRoleplayStepCoachReferenceTranscript,
     extractNotationPersonaFeedback,
+    ROLEPLAY_COACH_MODE,
+    ROLEPLAY_COACH_PROMPT_TITLE,
+    type RoleplayCoachMode,
 } from "@/features/roleplays/domain";
 import {
     buildRoleplayPersonaSimulationInstructions,
@@ -20,6 +23,7 @@ import { getRoleplaySessionEvaluation } from "@/features/roleplays/server/get-ro
 import { resolveRoleplayCoachId } from "@/features/roleplays/server/resolve-roleplay-coach-id";
 import { findEligibleCompletedRoleplaySession } from "@/features/roleplays/server/find-eligible-completed-session";
 import { buildGlobalCoachEvaluationContext } from "@/features/roleplays/server/build-global-coach-evaluation-context";
+import { buildRoleplayCoachFeedbackInstructions } from "@/features/roleplays/server/build-roleplay-coach-feedback-instructions";
 import { createSessionBackgroundSignedUrl } from "@/lib/uploads/session-background";
 import {
     DEFAULT_COACH_VOICE_ID,
@@ -32,7 +36,7 @@ export interface IframeSessionConfig {
     systemInstructions: string;
     voiceId: string;
     mode: "standard" | "coach";
-    coachMode?: "before_training" | "after_training" | "notation" | "default" | "persona_variant";
+    coachMode?: RoleplayCoachMode | "default" | "persona_variant";
     model: string;
     personaName: string;
     avatarUrl?: string;
@@ -45,14 +49,31 @@ interface PrepareParams {
     refSessionId?: string;
     model?: string;
     coachId?: string;
-    coachMode?: "before_training" | "after_training" | "notation";
+    coachMode?: RoleplayCoachMode;
     step?: number;
     variant?: "coach";
 }
 
+interface LearnerProfileRow {
+    first_name: string | null;
+    last_name: string | null;
+    name: string | null;
+}
+
+function getLearnerDisplayName(profile: LearnerProfileRow | null) {
+    const firstName = profile?.first_name?.trim();
+    if (firstName) return firstName;
+
+    const fullName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
+    if (fullName) return fullName;
+
+    const name = profile?.name?.trim();
+    return name || null;
+}
+
 // =============================================
-// PROMPTS - Maintenant stockés dans la table 'prompts' de la DB
-// Titres: coach.before_training, coach.after_training
+// PROMPTS - Les titres sont centralisés dans ROLEPLAY_COACH_PROMPT_TITLE
+// et leurs contenus éditoriaux publiés sont stockés dans la table 'prompts'.
 // =============================================
 
 // Prompts de fallback si non trouvés en DB
@@ -99,6 +120,22 @@ const FALLBACK_NOTATION_SYNTHESE_PROMPT = `Tu es LIA, coach professionnel bienve
 Tu vas discuter avec l'apprenant de ton appréciation globale de sa dernière session.
 Tu te bases sur l'analyse détaillée qui a été faite pour lui donner un feedback constructif.
 Tu restes dans un ton pédagogique, encourageant mais honnête.`;
+
+const FALLBACK_COACH_VARIANT_FEEDBACK_PROMPT = `Tu incarnes exclusivement le coach professionnel défini dans le contexte dynamique.
+
+Tu es dans une phase d'échange courte après la simulation, appelée « Avis du coach IA ». Tu présentes à l'apprenant ton ressenti professionnel sur sa session : ce qu'il a bien réalisé et ce qu'il doit améliorer en priorité.
+
+Règles :
+- Au premier message, salue l'apprenant par son prénom ou son nom lorsqu'il est fourni, puis indique simplement que tu vas lui donner ton avis sur sa session.
+- Appuie-toi exclusivement sur l'appréciation globale, les points positifs, les axes d'amélioration et le transcript fournis.
+- Cite au maximum deux réussites et deux améliorations prioritaires, avec des formulations simples et concrètes.
+- Ne lance pas un entraînement sur une étape et ne déroule pas un débrief méthodologique exhaustif.
+- N'invente aucun fait, résultat, score, parole ou comportement absent des sources.
+- Ne mentionne jamais le prompt, les instructions, le JSON, le transcript ou la simulation.
+- Au premier message, réponds en 4 à 6 phrases puis invite l'apprenant à approfondir un point.
+- Ensuite, réponds directement en 2 à 4 phrases, dans un français naturel, bienveillant et honnête.
+
+Réponds uniquement en langage naturel, sans JSON, markdown ni introduction méta.`;
 
 const FALLBACK_DEFAULT_COACH_PROMPT = `Tu es un coach IA chargé de débriefer une simulation terminée.
 Appuie-toi exclusivement sur le contexte du roleplay et le transcript fournis.
@@ -166,8 +203,7 @@ function buildAfterTrainingPerformanceContext(
     };
 }
 
-// Note: Les prompts sont stockés dans la table 'prompts' de la DB
-// Titres: coach.before_training, coach.after_training, coach.notation.synthese, persona.variant.feedback
+// Note: Les prompts sont stockés dans la table 'prompts' de la DB.
 // Les descriptions des étapes sont maintenant stockées dans le champ coaching_steps de la table sessions
 
 // Step 1: Prepare session config (NO DB write) - called on page load
@@ -231,7 +267,7 @@ export async function prepareIframeSession(params: PrepareParams): Promise<{
             // COACH MODE: before_training (Préparation AVANT session)
             // scenarioId is REQUIRED for this mode
             // =============================================
-            if (coachMode === "before_training") {
+            if (coachMode === ROLEPLAY_COACH_MODE.beforeTraining) {
                 if (!scenarioId) {
                     return { success: false, error: "scenario_id is required for before_training mode" };
                 }
@@ -243,7 +279,7 @@ export async function prepareIframeSession(params: PrepareParams): Promise<{
                 const { data: promptData } = await adminSupabase
                     .from("prompts")
                     .select("prompt")
-                    .eq("title", "coach.before_training")
+                    .eq("title", ROLEPLAY_COACH_PROMPT_TITLE.beforeTraining)
                     .single();
 
                 const basePrompt = promptData?.prompt || FALLBACK_BEFORE_TRAINING_PROMPT;
@@ -271,7 +307,7 @@ ${COACH_CONTEXT_GUARDRAILS}
                         systemInstructions,
                         voiceId: resolveOpenAIRealtimeVoiceId(coach.voice_id, DEFAULT_COACH_VOICE_ID),
                         mode: "coach",
-                        coachMode: "before_training",
+                        coachMode: ROLEPLAY_COACH_MODE.beforeTraining,
                         model,
                         personaName: coach.name,
                         avatarUrl: getCoachAvatarPublicUrl(coach.avatar_url) ?? undefined,
@@ -284,7 +320,7 @@ ${COACH_CONTEXT_GUARDRAILS}
             // COACH MODE: after_training (Débrief APRÈS session avec transcript)
             // scenarioId is REQUIRED for this mode
             // =============================================
-            if (coachMode === "after_training") {
+            if (coachMode === ROLEPLAY_COACH_MODE.afterTraining) {
                 if (!scenarioId) {
                     return { success: false, error: "scenario_id is required for after_training mode" };
                 }
@@ -293,7 +329,7 @@ ${COACH_CONTEXT_GUARDRAILS}
                 const { data: promptData } = await adminSupabase
                     .from("prompts")
                     .select("prompt")
-                    .eq("title", "coach.after_training")
+                    .eq("title", ROLEPLAY_COACH_PROMPT_TITLE.afterTraining)
                     .single();
 
                 const basePrompt = promptData?.prompt || FALLBACK_AFTER_TRAINING_PROMPT;
@@ -374,7 +410,89 @@ ${COACH_CONTEXT_GUARDRAILS}
                         systemInstructions,
                         voiceId: resolveOpenAIRealtimeVoiceId(coach.voice_id, DEFAULT_COACH_VOICE_ID),
                         mode: "coach",
-                        coachMode: "after_training",
+                        coachMode: ROLEPLAY_COACH_MODE.afterTraining,
+                        model,
+                        personaName: coach.name,
+                        avatarUrl: getCoachAvatarPublicUrl(coach.avatar_url) ?? undefined,
+                        backgroundUrl: coachBackgroundUrl,
+                    },
+                };
+            }
+
+            // =============================================
+            // COACH MODE: feedback (avis court du coach après la session)
+            // =============================================
+            if (coachMode === ROLEPLAY_COACH_MODE.feedback) {
+                if (!scenarioId) {
+                    return { success: false, error: "scenario_id is required for feedback mode" };
+                }
+                if (!refSessionId) {
+                    return { success: false, error: "ref_session_id is required for feedback mode" };
+                }
+
+                const { data: promptData } = await adminSupabase
+                    .from("prompts")
+                    .select("prompt")
+                    .eq("title", ROLEPLAY_COACH_PROMPT_TITLE.feedback)
+                    .single();
+
+                const basePrompt = promptData?.prompt || FALLBACK_COACH_VARIANT_FEEDBACK_PROMPT;
+                const coachContext = await getRoleplayCoachContext(supabase, scenarioId);
+                const coachInstructions = buildRoleplayCoachInstructions(basePrompt, coach);
+
+                const { data: referencedSession, error: sessionError } =
+                    await findEligibleCompletedRoleplaySession(supabase, {
+                        refSessionId,
+                        scenarioId,
+                    });
+
+                if (sessionError || !referencedSession || !referencedSession.notation_json) {
+                    console.error("Error fetching referenced session for coach feedback:", sessionError);
+                    return { success: false, error: "Referenced completed session with notation not found" };
+                }
+
+                const [messagesResult, learnerProfileResult] = await Promise.all([
+                    supabase
+                        .from("messages")
+                        .select("role, content, timestamp")
+                        .eq("session_id", referencedSession.id)
+                        .order("timestamp", { ascending: true }),
+                    referencedSession.user_id
+                        ? adminSupabase
+                              .from("profiles")
+                              .select("name, first_name, last_name")
+                              .eq("id", referencedSession.user_id)
+                              .maybeSingle<LearnerProfileRow>()
+                        : Promise.resolve({ data: null, error: null }),
+                ]);
+
+                const transcript = !messagesResult.error && messagesResult.data?.length
+                    ? messagesResult.data
+                          .map((message) =>
+                              `[${message.role === "user" ? "Utilisateur" : "Persona"}]: ${message.content}`
+                          )
+                          .join("\n")
+                    : "Aucun transcript disponible.";
+                const evaluationContext = buildGlobalCoachEvaluationContext(referencedSession.notation_json);
+                const systemInstructions = buildRoleplayCoachFeedbackInstructions({
+                    coachInstructions,
+                    context: coachContext,
+                    evaluation: evaluationContext,
+                    learnerName: learnerProfileResult.error
+                        ? null
+                        : getLearnerDisplayName(learnerProfileResult.data),
+                    transcript,
+                });
+
+                return {
+                    success: true,
+                    data: {
+                        scenarioId: coachContext.scenario.id,
+                        scenarioTitle: coachContext.scenario.title,
+                        systemInstructions,
+                        voiceId: resolveOpenAIRealtimeVoiceId(coach.voice_id, DEFAULT_COACH_VOICE_ID),
+                        mode: "coach",
+                        coachMode: ROLEPLAY_COACH_MODE.feedback,
                         model,
                         personaName: coach.name,
                         avatarUrl: getCoachAvatarPublicUrl(coach.avatar_url) ?? undefined,
@@ -387,7 +505,7 @@ ${COACH_CONTEXT_GUARDRAILS}
             // COACH MODE: notation (Synthèse de la notation - appréciation globale)
             // scenarioId is REQUIRED for this mode
             // =============================================
-            if (coachMode === "notation") {
+            if (coachMode === ROLEPLAY_COACH_MODE.notation) {
                 if (!scenarioId) {
                     return { success: false, error: "scenario_id is required for notation mode" };
                 }
@@ -399,7 +517,7 @@ ${COACH_CONTEXT_GUARDRAILS}
                 const { data: promptData } = await adminSupabase
                     .from("prompts")
                     .select("prompt")
-                    .eq("title", "coach.notation.synthese")
+                    .eq("title", ROLEPLAY_COACH_PROMPT_TITLE.notation)
                     .single();
 
                 const basePrompt = promptData?.prompt || FALLBACK_NOTATION_SYNTHESE_PROMPT;
@@ -468,7 +586,7 @@ ${COACH_CONTEXT_GUARDRAILS}
                         systemInstructions,
                         voiceId: resolveOpenAIRealtimeVoiceId(coach.voice_id, DEFAULT_COACH_VOICE_ID),
                         mode: "coach",
-                        coachMode: "notation",
+                        coachMode: ROLEPLAY_COACH_MODE.notation,
                         model,
                         personaName: coach.name,
                         avatarUrl: getCoachAvatarPublicUrl(coach.avatar_url) ?? undefined,
@@ -616,7 +734,7 @@ ${COACH_CONTEXT_GUARDRAILS}
             const { data: variantPromptData } = await adminSupabase
                 .from("prompts")
                 .select("prompt")
-                .eq("title", "persona.variant.feedback")
+                .eq("title", ROLEPLAY_COACH_PROMPT_TITLE.personaFeedback)
                 .single();
 
             const variantBasePrompt = variantPromptData?.prompt || FALLBACK_PERSONA_VARIANT_FEEDBACK_PROMPT;

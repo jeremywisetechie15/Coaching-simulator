@@ -217,6 +217,37 @@ Ordre actuel :
 Le succès recharge les utilisateurs, actualise la fiche et demande de vérifier
 la boîte de réception, les indésirables ou les spams.
 
+### Renvoi d'une invitation
+
+- L'action « Renvoyer l'invitation » existe uniquement pour un rattachement
+  encore `invited`. Elle est absente pour `active`, `suspended` et `removed`.
+- La route dédiée exige un administrateur, reçoit uniquement l'organisation et
+  l'utilisateur, puis récupère l'adresse depuis Supabase Auth. L'adresse du
+  navigateur n'est jamais utilisée.
+- Le compte Auth, le profil, les groupes et les assignations existants ne sont
+  ni recréés ni modifiés.
+- Comme Supabase ne renvoie pas nativement une invitation Auth existante, le
+  serveur envoie un nouveau lien Recovery vers le parcours de finalisation
+  d'invitation. L'utilisateur voit « Créer votre mot de passe », puis son
+  rattachement passe de `invited` à `active`.
+- `organization_members.invitation_sent_at` est la SSOT du dernier envoi. Une
+  réservation atomique bloque les doubles envois pendant une minute ; elle est
+  restaurée si le fournisseur refuse l'email.
+- Aucun lien ni token n'est stocké. Le callback valide le credential Recovery,
+  l'identifiant d'organisation et les redirections internes avant de créer la
+  session.
+- Le modèle Recovery est volontairement commun à la création et à la
+  réinitialisation du mot de passe.
+- Le modèle versionné est
+  [recovery.html](../supabase/templates/recovery.html). Sur Supabase hébergé,
+  cette version doit rester synchronisée avec le modèle Recovery configuré
+  dans Authentication > Email Templates.
+
+Sources :
+[resend-organization-invitation.ts](../src/features/organizations/server/resend-organization-invitation.ts),
+[route.ts](../src/app/api/organizations/[organizationId]/users/[userId]/resend-invitation/route.ts)
+et [password-recovery.ts](../src/features/auth/domain/password-recovery.ts).
+
 ### Retrait d'une organisation
 
 - Le retrait supprime uniquement `organization_members(organization_id,
@@ -246,7 +277,7 @@ Clés uniques :
 | Créer une organisation | Ajouter la réponse au cache, puis invalider Organisations |
 | Modifier, suspendre ou supprimer une organisation | Mettre à jour l'état local si nécessaire, invalider Organisations, puis refresh serveur |
 | Créer, modifier ou archiver un groupe | Actualiser le groupe, invalider Organisations, puis refresh du parent |
-| Inviter ou retirer un utilisateur | Actualiser les lignes, invalider Organisations et Utilisateurs, puis refresh du parent |
+| Inviter, réinviter ou retirer un utilisateur | Actualiser les lignes, invalider Organisations et Utilisateurs, puis refresh du parent |
 | Modifier nom, rôle, statut ou groupes d'un utilisateur | Invalider les vues Utilisateurs et Organisations concernées |
 | Créer, modifier, publier, changer la cible ou archiver un roleplay/quiz | Invalider Organisations, puis refresh serveur |
 
@@ -266,7 +297,9 @@ Les routes utilisent `jsonError()` :
 | `403` | Administrateur requis |
 | `404` | Ressource introuvable |
 | `409` | Doublon ou invariant métier bloquant |
+| `429` | Invitation renvoyée trop récemment ou limite email Supabase |
 | `500` | Erreur interne sans détail technique exposé |
+| `502` | Échec du service Auth ou de l'envoi de l'email |
 
 ## 11. Garanties PostgreSQL
 
@@ -277,6 +310,7 @@ Les routes utilisent `jsonError()` :
 | Groupe archivé sans accès dérivé | `private.can_read_group` exige `groups.status = active` |
 | Organisation avec membres non supprimable | FK restrictive sur `organization_members.organization_id` |
 | Retrait utilisateur cohérent | Trigger transactionnel nettoyant ses groupes de la même organisation |
+| Réinvitation sans doublon | Rattachement existant, Recovery Auth et délai sur `invitation_sent_at` |
 
 Les fonctions `security definer` utilisent le schéma `private`, un
 `search_path` vide et des droits d'exécution limités.
@@ -286,7 +320,8 @@ Migrations de référence :
 - [20260713120000_enforce_suspended_organization_access.sql](../supabase/migrations/20260713120000_enforce_suspended_organization_access.sql) ;
 - [20260717071140_harden_profile_update_privileges.sql](../supabase/migrations/20260717071140_harden_profile_update_privileges.sql) ;
 - [20260717085528_revoke_archived_group_content_access.sql](../supabase/migrations/20260717085528_revoke_archived_group_content_access.sql) ;
-- [20260717085539_restrict_organization_deletion_with_members.sql](../supabase/migrations/20260717085539_restrict_organization_deletion_with_members.sql).
+- [20260717085539_restrict_organization_deletion_with_members.sql](../supabase/migrations/20260717085539_restrict_organization_deletion_with_members.sql) ;
+- [20260724121008_track_organization_invitation_sends.sql](../supabase/migrations/20260724121008_track_organization_invitation_sends.sql).
 
 ## 12. Registre des écarts restants
 

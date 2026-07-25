@@ -7,6 +7,7 @@ import {
     type ContentStatus,
     type OrganizationContentVisibilityScope,
     type ContentVisibilityChoice,
+    type EntitySelectionAvailability,
 } from "@/features/content/domain";
 import type { MethodSelectionOption } from "@/features/methods/domain/method";
 import type { SkillDimension } from "@/features/skills/domain/skills";
@@ -57,7 +58,7 @@ export const SCORECARD_CRITERION_DIMENSION_LABELS: Record<ScorecardCriterionDime
 
 export type ScorecardMethodOption = MethodSelectionOption;
 
-export interface ScorecardOrganizationOption {
+export interface ScorecardOrganizationOption extends EntitySelectionAvailability {
     id: string;
     name: string;
 }

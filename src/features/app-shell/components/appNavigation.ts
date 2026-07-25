@@ -18,6 +18,7 @@ import {
     APP_NAVIGATION_RESOURCE,
     type AppNavigationResource,
 } from "@/features/auth/domain/access-control";
+import { APP_NAVIGATION_LABEL } from "@/features/app-shell/domain";
 import { SHOW_ROLES_PERMISSIONS_NAVIGATION } from "@/features/permissions/domain";
 
 export interface AppNavigationItem {
@@ -33,7 +34,12 @@ export const primaryNavigation: AppNavigationItem[] = [
     // { icon: BookOpen, label: "Programmes" },
     { href: "/roleplays", icon: MessagesSquare, label: "Roleplays", resource: APP_NAVIGATION_RESOURCE.roleplays },
     { href: "/methods", icon: BookOpen, label: "Méthodes et Playbook", resource: APP_NAVIGATION_RESOURCE.methods },
-    { href: "/evaluations", icon: ClipboardCheck, label: "Évaluations", resource: APP_NAVIGATION_RESOURCE.evaluations },
+    {
+        href: "/evaluations",
+        icon: ClipboardCheck,
+        label: APP_NAVIGATION_LABEL.evaluations,
+        resource: APP_NAVIGATION_RESOURCE.evaluations,
+    },
     { href: "/scorecards", icon: ClipboardList, label: "Scorecards", resource: APP_NAVIGATION_RESOURCE.scorecards },
     { href: "/skills", icon: Star, label: "Compétences", resource: APP_NAVIGATION_RESOURCE.skills },
     { href: "/coaches", icon: BotMessageSquare, label: "Mes Coachs IA", resource: APP_NAVIGATION_RESOURCE.coaches },

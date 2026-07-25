@@ -13,7 +13,7 @@ import {
     listScorecardMethodOptions,
     listScorecardOrganizationOptions,
 } from "@/features/scorecards/server";
-import { listSkillOptions } from "@/features/skills/server";
+import { listSkillSelectionOptions } from "@/features/skills/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
 import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
 
@@ -64,10 +64,15 @@ export default async function Page({ params, searchParams }: PageProps) {
         throw error;
     }
 
+    const currentSkillIds = [...new Set(scorecard.steps.flatMap((step) =>
+        step.criteria.flatMap((criterion) => criterion.competenceId ? [criterion.competenceId] : [])
+    ))];
     const [methodOptions, organizationOptions, skillOptions] = await Promise.all([
-        listScorecardMethodOptions(),
-        listScorecardOrganizationOptions(),
-        listSkillOptions(),
+        listScorecardMethodOptions({ includeUnavailableIds: [scorecard.methodId] }),
+        listScorecardOrganizationOptions({
+            includeUnavailableIds: scorecard.organizationId ? [scorecard.organizationId] : [],
+        }),
+        listSkillSelectionOptions({ includeUnavailableIds: currentSkillIds }),
     ]);
 
     return (

@@ -7,6 +7,7 @@ import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
 export interface SearchableOption {
+    disabled?: boolean;
     group?: string;
     label: string;
     value: string;
@@ -48,7 +49,7 @@ export function SearchableMultiSelectField({
     const availableOptions = useMemo(() => {
         const normalizedQuery = query.trim().toLowerCase();
         return options.filter((option) => {
-            if (selectedValues.includes(option.value)) return false;
+            if (selectedValues.includes(option.value) || option.disabled) return false;
             if (!normalizedQuery) return true;
             return (
                 option.label.toLowerCase().includes(normalizedQuery) ||

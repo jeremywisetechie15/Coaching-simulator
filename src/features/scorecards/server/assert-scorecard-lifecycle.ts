@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ContentStatus } from "@/features/content/domain";
 import {
     assertContentDependencyScopes,
+    assertActiveContentTarget,
     assertContentStatusTransition,
     assertInitialContentStatus,
     CONTENT_DEPENDENCY_KIND,
@@ -37,8 +38,10 @@ export async function assertScorecardLifecycle(
 
     dependencies.push(...[...skillIds].map((id) => ({ id, kind: CONTENT_DEPENDENCY_KIND.skill })));
 
-    await assertContentDependencyScopes(supabase, input.status, dependencies, {
+    const audience = {
         organizationId: input.organizationId,
         scope: scorecardVisibilityToScope(input.visibility),
-    });
+    };
+    await assertContentDependencyScopes(supabase, input.status, dependencies, audience);
+    await assertActiveContentTarget(supabase, audience);
 }

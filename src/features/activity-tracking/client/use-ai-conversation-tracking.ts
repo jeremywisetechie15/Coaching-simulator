@@ -6,6 +6,7 @@ import {
     type AiConversationStatus,
     type AiConversationType,
 } from "@/features/activity-tracking/domain";
+import type { RoleplayCoachMode } from "@/features/roleplays/domain";
 import {
     createTrackedAiConversation,
     updateTrackedAiConversation,
@@ -18,7 +19,10 @@ const EMPTY_HEARTBEAT = {
     userMessageDelta: 0,
 } as const;
 
-export function useAiConversationTracking(interactionType: AiConversationType | null) {
+export function useAiConversationTracking(
+    interactionType: AiConversationType | null,
+    coachMode?: RoleplayCoachMode,
+) {
     const [conversationId, setConversationId] = useState<string | null>(null);
     const conversationIdRef = useRef<string | null>(null);
     const isMountedRef = useRef(true);
@@ -42,7 +46,7 @@ export function useAiConversationTracking(interactionType: AiConversationType | 
         if (conversationIdRef.current) return conversationIdRef.current;
         if (startPromiseRef.current) return startPromiseRef.current;
 
-        const promise = createTrackedAiConversation(interactionType)
+        const promise = createTrackedAiConversation(interactionType, coachMode)
             .then((id) => {
                 if (!isMountedRef.current) {
                     void updateTrackedAiConversation(
@@ -67,7 +71,7 @@ export function useAiConversationTracking(interactionType: AiConversationType | 
             });
         startPromiseRef.current = promise;
         return promise;
-    }, [interactionType, markActivity]);
+    }, [coachMode, interactionType, markActivity]);
 
     const end = useCallback(async (status: Exclude<AiConversationStatus, "active">) => {
         const activeConversationId = conversationIdRef.current ?? await startPromiseRef.current;

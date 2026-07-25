@@ -4,7 +4,7 @@ import { findEligibleCompletedRoleplaySession } from "./find-eligible-completed-
 
 function createSupabaseDouble() {
     const result = {
-        data: { id: "session-1", notation_json: { synthese: {} } },
+        data: { id: "session-1", notation_json: { synthese: {} }, user_id: "user-1" },
         error: null,
     };
     const query = {
@@ -47,6 +47,7 @@ describe("findEligibleCompletedRoleplaySession", () => {
         expect(query.eq).toHaveBeenCalledWith("status", "completed");
         expect(query.eq).toHaveBeenCalledWith("id", "session-1");
         expect(query.gte).toHaveBeenCalledWith("duration_seconds", 30);
+        expect(query.select).toHaveBeenCalledWith("id, notation_json, user_id");
         expect(query.order).not.toHaveBeenCalled();
     });
 

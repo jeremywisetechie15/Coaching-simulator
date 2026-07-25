@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { resolveInternalHref } from "@/features/app-shell/domain";
 import {
     AUTH_PATHS,
+    DEFAULT_AUTH_REDIRECT,
     buildAuthPath,
     validateNewPassword,
 } from "@/features/auth/domain/password-recovery";
@@ -27,7 +28,7 @@ interface ResetPasswordCardProps {
 export function ResetPasswordCard({ hasRecoverySession }: ResetPasswordCardProps) {
     const searchParams = useSearchParams();
     const redirectTo = useMemo(
-        () => resolveInternalHref(searchParams.get("redirect"), "/profile"),
+        () => resolveInternalHref(searchParams.get("redirect"), DEFAULT_AUTH_REDIRECT),
         [searchParams],
     );
     const forgotPasswordHref = buildAuthPath(AUTH_PATHS.forgotPassword, redirectTo);

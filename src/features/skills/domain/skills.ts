@@ -6,6 +6,7 @@ import {
     type ContentDomain,
     type ContentStatus,
     type ContentVisibilityScope,
+    type EntitySelectionAvailability,
 } from "@/features/content/domain";
 
 function encodeRouteSegment(value: string) {
@@ -109,7 +110,7 @@ export interface SkillDetail extends SkillListItem {
     dimensionItems: SkillDimensionItem[];
 }
 
-export interface SkillOption {
+export interface SkillOption extends EntitySelectionAvailability {
     dimensionItems: SkillDimensionItem[];
     domain: ContentDomain | null;
     id: string;

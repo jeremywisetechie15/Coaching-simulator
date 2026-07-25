@@ -59,6 +59,33 @@ describe("GET /auth/callback", () => {
         expect(response.headers.get("location")).not.toContain("pkce-code");
     });
 
+    it("routes an invitation recovery to the existing account-activation page", async () => {
+        const organizationId = "11111111-1111-4111-8111-111111111111";
+        const response = await GET(request(
+            `flow=recovery&token_hash=secure-token&type=recovery&purpose=invitation&organization_id=${organizationId}`,
+        ));
+
+        expect(mocks.verifyOtp).toHaveBeenCalledWith({
+            token_hash: "secure-token",
+            type: "recovery",
+        });
+        expect(response.headers.get("location")).toBe(
+            `https://app.maiacoach.fr/auth/set-password?organization_id=${organizationId}&status=invitation`,
+        );
+        expect(response.headers.get("location")).not.toContain("secure-token");
+    });
+
+    it("rejects an invitation recovery without a valid organization identifier", async () => {
+        const response = await GET(request(
+            "flow=recovery&token_hash=secure-token&type=recovery&purpose=invitation&organization_id=invalid",
+        ));
+
+        expect(mocks.createClient).not.toHaveBeenCalled();
+        expect(response.headers.get("location")).toBe(
+            "https://app.maiacoach.fr/auth/reset-password?status=invalid",
+        );
+    });
+
     it("rejects a token hash for any non-recovery email action", async () => {
         const response = await GET(request(
             "token_hash=secure-token&type=invite&code=pkce-code&flow=recovery",

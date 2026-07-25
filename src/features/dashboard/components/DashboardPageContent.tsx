@@ -178,7 +178,7 @@ export function DashboardPageContent({ firstName, initialDashboardData }: Dashbo
                                 ))}
                             </Box>
 
-                            <Text as="h2" className={`${uiTokens.dashboard.sectionTitle} mt-5`}>Activité quiz &amp; connaissances</Text>
+                            <Text as="h2" className={`${uiTokens.dashboard.sectionTitle} mt-5`}>Activité quizs &amp; évaluations</Text>
                             <Box className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                                 {dashboard.activity.quizzes.map((metric) => (
                                     <DashboardMetricCard key={metric.id} metric={metric} />

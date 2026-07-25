@@ -29,18 +29,20 @@ export const CONTENT_TARGET_SCOPES = [
 
 export type ContentTargetScope = (typeof CONTENT_TARGET_SCOPES)[number];
 
-export interface ContentTargetOrganizationOption {
+import type { EntitySelectionAvailability } from "./entity-selection";
+
+export interface ContentTargetOrganizationOption extends EntitySelectionAvailability {
     id: string;
     name: string;
 }
 
-export interface ContentTargetGroupOption {
+export interface ContentTargetGroupOption extends EntitySelectionAvailability {
     id: string;
     name: string;
     organizationId: string;
 }
 
-export interface ContentTargetUserOption {
+export interface ContentTargetUserOption extends EntitySelectionAvailability {
     groupIds: string[];
     id: string;
     name: string;

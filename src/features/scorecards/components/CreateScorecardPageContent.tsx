@@ -9,6 +9,7 @@ import {
     CONTENT_STATUS,
     getCategoriesForDomain,
     type ContentStatus,
+    getEntitySelectionLabel,
 } from "@/features/content/domain";
 import { CONTENT_DOMAINS } from "@/features/content/domain";
 import type { SaveScorecardInput } from "@/features/scorecards/dto";
@@ -128,11 +129,13 @@ export function CreateScorecardPageContent({
 
     const methodSelectOptions = methodOptions.map(toMethodSelectOption);
     const competenceOptions: SingleSelectOption[] = skillOptions.map((skill) => ({
-        label: skill.name,
+        disabled: skill.isSelectable === false,
+        label: getEntitySelectionLabel(skill.name, skill),
         value: skill.id,
     }));
     const organizationSelectOptions = organizationOptions.map((organization) => ({
-        label: organization.name,
+        disabled: organization.isSelectable === false,
+        label: getEntitySelectionLabel(organization.name, organization),
         value: organization.id,
     }));
     const selectedMethod = methodOptions.find((method) => method.id === form.methodId);

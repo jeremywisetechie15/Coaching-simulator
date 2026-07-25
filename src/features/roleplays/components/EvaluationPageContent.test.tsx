@@ -1,7 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { evaluation } from "@/features/roleplays/data/evaluation";
-import { getGlobalCoachDebriefTitle, SyntheseTab } from "./EvaluationPageContent";
+import {
+    getCoachFeedbackTitle,
+    getGlobalCoachDebriefTitle,
+    SyntheseTab,
+} from "./EvaluationPageContent";
 
 vi.mock("next/navigation", () => ({
     usePathname: () => "/roleplays/roleplay-1/evaluation",
@@ -19,6 +23,7 @@ describe("SyntheseTab", () => {
             <SyntheseTab
                 evaluation={evaluation}
                 onAskPersona={() => undefined}
+                onAskCoach={() => undefined}
                 onDebrief={() => undefined}
                 stepsHref="/roleplays/roleplay-1/steps"
             />,
@@ -39,5 +44,15 @@ describe("SyntheseTab", () => {
                 title: "Présenter MAIA COACH pour caler une DEMO",
             }),
         ).toBe("Débrief avec mon coach LIA - Roleplay Présenter MAIA COACH pour caler une DEMO");
+    });
+
+    it("builds a distinct title for the concise coach feedback", () => {
+        expect(
+            getCoachFeedbackTitle({
+                coachName: "Coach LIA",
+                name: "Sophie Martin",
+                title: "Présenter MAIA COACH pour caler une DEMO",
+            }),
+        ).toBe("Avis de mon coach LIA - Roleplay Présenter MAIA COACH pour caler une DEMO");
     });
 });

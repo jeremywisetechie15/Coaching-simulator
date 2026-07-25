@@ -20,7 +20,10 @@ import {
     isOrganizationMemberStatus,
 } from "@/features/organizations/domain/organization-member";
 import { ORGANIZATION_STATUS } from "@/features/organizations/domain/organization-list";
-import { MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS } from "@/features/roleplays/domain";
+import {
+    MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
+    isRoleplayCoachMode,
+} from "@/features/roleplays/domain";
 import {
     extractAssignmentScore,
 } from "@/features/users/server/user-assignment-visibility";
@@ -116,6 +119,7 @@ interface MessageRow {
 interface AiConversationRow {
     active_duration_seconds: number;
     ai_message_count: number;
+    coach_mode: string | null;
     ended_at: string | null;
     id: string;
     interaction_type: "ask_persona" | "coach";
@@ -267,7 +271,7 @@ export async function getAdminDashboard(
             .returns<ProfileRow[]>()),
         fetchAllRows<AiConversationRow>((from, to) => supabase
             .from("ai_conversation_sessions")
-            .select("id, user_id, organization_id, interaction_type, status, ended_at, active_duration_seconds, user_message_count, ai_message_count, technical_error")
+            .select("id, user_id, organization_id, interaction_type, coach_mode, status, ended_at, active_duration_seconds, user_message_count, ai_message_count, technical_error")
             .eq("status", "completed")
             .eq("technical_error", false)
             .gte("ended_at", periodStart)
@@ -366,6 +370,9 @@ export async function getAdminDashboard(
     const aiConversations: AdminDashboardAiConversationRecord[] = aiConversationRows.map((conversation) => ({
         activeDurationSeconds: conversation.active_duration_seconds,
         aiMessageCount: conversation.ai_message_count,
+        coachMode: isRoleplayCoachMode(conversation.coach_mode)
+            ? conversation.coach_mode
+            : null,
         endedAt: conversation.ended_at,
         id: conversation.id,
         interactionType: conversation.interaction_type,

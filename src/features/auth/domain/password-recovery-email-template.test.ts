@@ -14,4 +14,9 @@ describe("password recovery email template", () => {
         expect(template).toContain("type=recovery");
         expect(template).not.toContain("{{ .ConfirmationURL }}");
     });
+
+    it("uses wording shared by password creation and password recovery", () => {
+        expect(template).toContain("Création ou réinitialisation");
+        expect(template).toContain("créer ou réinitialiser votre mot de passe");
+    });
 });

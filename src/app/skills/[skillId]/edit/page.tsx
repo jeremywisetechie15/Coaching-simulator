@@ -7,9 +7,7 @@ import {
 import { CreateSkillPage } from "@/features/skills/components";
 import {
     getSkillById,
-    listSkillGroupOptions,
-    listSkillOrganizationOptions,
-    listSkillUserOptions,
+    listSkillTargetOptions,
 } from "@/features/skills/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
@@ -77,19 +75,19 @@ export default async function Page({ params, searchParams }: PageProps) {
         throw error;
     }
 
-    const [organizationOptions, groupOptions, userOptions] = await Promise.all([
-        listSkillOrganizationOptions(),
-        listSkillGroupOptions(),
-        listSkillUserOptions(),
-    ]);
+    const targetOptions = await listSkillTargetOptions({
+        groupId: skill.groupId,
+        organizationId: skill.organizationId,
+        userId: skill.assignedUserId,
+    });
 
     return (
         <CreateSkillPage
-            groupOptions={groupOptions}
+            groupOptions={targetOptions.groups}
             initialSkill={skill}
-            organizationOptions={organizationOptions}
+            organizationOptions={targetOptions.organizations}
             profileValues={profileValues}
-            userOptions={userOptions}
+            userOptions={targetOptions.users}
         />
     );
 }

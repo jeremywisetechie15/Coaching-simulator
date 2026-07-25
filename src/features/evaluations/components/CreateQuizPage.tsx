@@ -1,4 +1,5 @@
 import { AccessDeniedState, AppShell } from "@/features/app-shell/components";
+import { APP_NAVIGATION_LABEL } from "@/features/app-shell/domain";
 import {
     APP_NAVIGATION_RESOURCE,
     canManageAppResource,
@@ -38,7 +39,7 @@ export function CreateQuizPage({
 
     return (
         <AppShell
-            activePrimaryItem="Évaluations"
+            activePrimaryItem={APP_NAVIGATION_LABEL.evaluations}
             avatarUrl={profileValues.avatarUrl}
             platformRole={profileValues.platformRole}
             initials={getProfileInitials(profileValues)}

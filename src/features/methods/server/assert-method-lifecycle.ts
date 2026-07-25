@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import type { ContentStatus } from "@/features/content/domain";
 import {
     assertContentDependencyScopes,
+    assertActiveContentTarget,
     assertContentStatusTransition,
     assertInitialContentStatus,
     CONTENT_DEPENDENCY_KIND,
@@ -19,15 +20,17 @@ export async function assertMethodLifecycle(
         assertInitialContentStatus(input.status);
     }
 
+    const audience = {
+        organizationId: input.organizationId,
+        scope: input.scope,
+    };
     await assertContentDependencyScopes(
         supabase,
         input.status,
         input.quizId
             ? [{ id: input.quizId, kind: CONTENT_DEPENDENCY_KIND.quiz, label: "quiz associé" }]
             : [],
-        {
-            organizationId: input.organizationId,
-            scope: input.scope,
-        },
+        audience,
     );
+    await assertActiveContentTarget(supabase, audience);
 }

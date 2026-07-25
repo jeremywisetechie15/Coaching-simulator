@@ -1,6 +1,6 @@
 import type { QuizMethodOption, QuizOrganizationOption } from "@/features/evaluations/domain/quiz";
-import { listMethods } from "@/features/methods/server";
-import { listOrganizations } from "@/features/organizations/server";
+import { listMethodSelectionOptions } from "@/features/methods/server";
+import { listOrganizationSelectionOptions } from "@/features/organizations/server";
 import { createClient } from "@/lib/supabase/server";
 
 interface MethodStepOptionRow {
@@ -50,22 +50,28 @@ async function listMethodStepsByMethodId(methodIds: string[]) {
     return stepsByMethodId;
 }
 
-export async function listQuizMethodOptions(): Promise<QuizMethodOption[]> {
-    const methods = await listMethods();
+export async function listQuizMethodOptions({
+    includeUnavailableIds = [],
+}: {
+    includeUnavailableIds?: readonly string[];
+} = {}): Promise<QuizMethodOption[]> {
+    const methods = await listMethodSelectionOptions({ includeUnavailableIds });
     const stepsByMethodId = await listMethodStepsByMethodId(methods.map((method) => method.id));
 
     return methods.map((method) => ({
         id: method.id,
+        isSelectable: method.isSelectable,
         name: method.name,
         steps: stepsByMethodId.get(method.id) ?? [],
     }));
 }
 
 export async function listQuizOrganizationOptions(): Promise<QuizOrganizationOption[]> {
-    const organizations = await listOrganizations();
+    const organizations = await listOrganizationSelectionOptions();
 
     return organizations.map((organization) => ({
         id: organization.id,
+        isSelectable: organization.isSelectable,
         name: organization.name,
     }));
 }

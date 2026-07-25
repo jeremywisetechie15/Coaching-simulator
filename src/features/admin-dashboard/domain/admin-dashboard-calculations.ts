@@ -14,7 +14,9 @@ import {
 } from "@/features/organizations/domain/organization-list";
 import {
     MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
+    ROLEPLAY_COACH_MODE,
     ROLEPLAY_ROUTES,
+    type RoleplayCoachMode,
 } from "@/features/roleplays/domain";
 import { PLATFORM_ROLE, type PlatformRole } from "@/features/users/domain/users";
 import { formatLongDate } from "@/lib/date/format-date-time";
@@ -95,6 +97,7 @@ export interface AdminDashboardQuizAttemptRecord {
 export interface AdminDashboardAiConversationRecord {
     activeDurationSeconds: number;
     aiMessageCount: number;
+    coachMode: RoleplayCoachMode | null;
     endedAt: string | null;
     id: string;
     interactionType: "ask_persona" | "coach";
@@ -378,18 +381,38 @@ function buildAiUsage(
         const askPersonaSeconds = organizationConversations
             .filter((conversation) => conversation.interactionType === "ask_persona")
             .reduce((sum, conversation) => sum + conversation.activeDurationSeconds, 0);
-        const coachSeconds = organizationConversations
-            .filter((conversation) => conversation.interactionType === "coach")
+        const coachConversations = organizationConversations.filter(
+            (conversation) => conversation.interactionType === "coach",
+        );
+        const coachSecondsForMode = (coachMode: RoleplayCoachMode) => coachConversations
+            .filter((conversation) => conversation.coachMode === coachMode)
             .reduce((sum, conversation) => sum + conversation.activeDurationSeconds, 0);
+        const askCoachSeconds = coachSecondsForMode(ROLEPLAY_COACH_MODE.feedback);
+        const debriefSeconds = coachSecondsForMode(ROLEPLAY_COACH_MODE.notation);
+        const improvementSeconds = coachSecondsForMode(ROLEPLAY_COACH_MODE.afterTraining);
+        const preparationSeconds = coachSecondsForMode(ROLEPLAY_COACH_MODE.beforeTraining);
+        const legacyCoachSeconds = coachConversations
+            .filter((conversation) => conversation.coachMode === null)
+            .reduce((sum, conversation) => sum + conversation.activeDurationSeconds, 0);
+        const coachSeconds =
+            askCoachSeconds
+            + debriefSeconds
+            + improvementSeconds
+            + preparationSeconds
+            + legacyCoachSeconds;
 
         return {
             activeLearnerCount: new Set(activeMemberships
                 .filter((membership) => membership.organizationId === organization.id)
                 .map((membership) => membership.userId)).size,
+            askCoachSeconds,
             askPersonaSeconds,
-            coachSeconds,
+            debriefSeconds,
             id: organization.id,
+            improvementSeconds,
+            legacyCoachSeconds,
             name: organization.name,
+            preparationSeconds,
             simulationSeconds,
             totalSeconds: simulationSeconds + askPersonaSeconds + coachSeconds,
         };
@@ -399,15 +422,28 @@ function buildAiUsage(
     ).slice(0, 5);
     const simulationSeconds = allRows.reduce((sum, row) => sum + row.simulationSeconds, 0);
     const askPersonaSeconds = allRows.reduce((sum, row) => sum + row.askPersonaSeconds, 0);
-    const coachSeconds = allRows.reduce((sum, row) => sum + row.coachSeconds, 0);
-    const totalSeconds = simulationSeconds + askPersonaSeconds + coachSeconds;
+    const askCoachSeconds = allRows.reduce((sum, row) => sum + row.askCoachSeconds, 0);
+    const debriefSeconds = allRows.reduce((sum, row) => sum + row.debriefSeconds, 0);
+    const improvementSeconds = allRows.reduce((sum, row) => sum + row.improvementSeconds, 0);
+    const preparationSeconds = allRows.reduce((sum, row) => sum + row.preparationSeconds, 0);
+    const legacyCoachSeconds = allRows.reduce((sum, row) => sum + row.legacyCoachSeconds, 0);
+    const otherCoachSeconds = preparationSeconds + legacyCoachSeconds;
+    const totalSeconds =
+        simulationSeconds
+        + askPersonaSeconds
+        + askCoachSeconds
+        + debriefSeconds
+        + improvementSeconds
+        + otherCoachSeconds;
     const share = (value: number) => `${totalSeconds === 0 ? 0 : Math.round((value / totalSeconds) * 100)}% du temps IA`;
 
     return {
         organizations: rows,
         overview: [
             {
-                detail: "Sur la période sélectionnée",
+                detail: otherCoachSeconds > 0
+                    ? `Inclut ${formatAdminDashboardDuration(otherCoachSeconds)} de préparation ou d’historique Coach`
+                    : "Sur la période sélectionnée",
                 id: ADMIN_DASHBOARD_AI_OVERVIEW_ID.total,
                 label: "Temps total d’interaction IA",
                 tone: "blue",
@@ -428,11 +464,25 @@ function buildAiUsage(
                 value: formatAdminDashboardDuration(askPersonaSeconds),
             },
             {
-                detail: share(coachSeconds),
-                id: ADMIN_DASHBOARD_AI_OVERVIEW_ID.coach,
-                label: "Coach IA",
+                detail: share(askCoachSeconds),
+                id: ADMIN_DASHBOARD_AI_OVERVIEW_ID.askCoach,
+                label: "Ask Coach IA",
                 tone: "blue",
-                value: formatAdminDashboardDuration(coachSeconds),
+                value: formatAdminDashboardDuration(askCoachSeconds),
+            },
+            {
+                detail: share(debriefSeconds),
+                id: ADMIN_DASHBOARD_AI_OVERVIEW_ID.debrief,
+                label: "Débriefing IA",
+                tone: "blue",
+                value: formatAdminDashboardDuration(debriefSeconds),
+            },
+            {
+                detail: share(improvementSeconds),
+                id: ADMIN_DASHBOARD_AI_OVERVIEW_ID.improve,
+                label: "Améliorer avec l’IA",
+                tone: "blue",
+                value: formatAdminDashboardDuration(improvementSeconds),
             },
         ],
     };

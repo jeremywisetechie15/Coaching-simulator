@@ -6,7 +6,7 @@ import { fetchSkillDetail } from "./skill-query";
 import { createSkillInsert, createUniqueSkillId, SKILL_SELECT } from "./skills.persistence";
 import { replaceSkillDimensionItems } from "./replace-skill-dimension-items";
 import type { SkillRow } from "./skill.mapper";
-import { assertInitialContentStatus } from "@/features/content/server";
+import { assertActiveContentTarget, assertInitialContentStatus } from "@/features/content/server";
 
 export async function createSkill(input: SaveSkillDto): Promise<SkillDetail> {
     const context = await requireAdmin();
@@ -15,6 +15,12 @@ export async function createSkill(input: SaveSkillDto): Promise<SkillDetail> {
     let createdSkillId: string | null = null;
 
     assertInitialContentStatus(input.status);
+    await assertActiveContentTarget(adminSupabase, {
+        groupId: input.groupId,
+        organizationId: input.organizationId,
+        scope: input.scope,
+        userId: input.assignedUserId,
+    });
 
     try {
         const { data: skillRow, error } = await adminSupabase

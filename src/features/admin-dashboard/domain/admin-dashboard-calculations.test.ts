@@ -73,6 +73,7 @@ function conversation(
     return {
         activeDurationSeconds: 90,
         aiMessageCount: 1,
+        coachMode: null,
         endedAt: "2026-07-19T10:20:00.000Z",
         id,
         interactionType: "ask_persona",
@@ -124,7 +125,30 @@ describe("admin dashboard calculations", () => {
         const dashboard = buildAdminDashboardViewData(buildInput({
             aiConversations: [
                 conversation("ask-persona"),
-                conversation("coach", { activeDurationSeconds: 60, interactionType: "coach" }),
+                conversation("ask-coach", {
+                    activeDurationSeconds: 60,
+                    coachMode: "feedback",
+                    interactionType: "coach",
+                }),
+                conversation("debrief", {
+                    activeDurationSeconds: 120,
+                    coachMode: "notation",
+                    interactionType: "coach",
+                }),
+                conversation("improve", {
+                    activeDurationSeconds: 180,
+                    coachMode: "after_training",
+                    interactionType: "coach",
+                }),
+                conversation("prepare", {
+                    activeDurationSeconds: 60,
+                    coachMode: "before_training",
+                    interactionType: "coach",
+                }),
+                conversation("legacy-coach", {
+                    activeDurationSeconds: 60,
+                    interactionType: "coach",
+                }),
                 conversation("failed", { activeDurationSeconds: 999, technicalError: true }),
             ],
             loginEvents: [
@@ -182,16 +206,26 @@ describe("admin dashboard calculations", () => {
             roleplayScore: 80,
         });
         expect(dashboard.aiUsage.organizations[0]).toMatchObject({
+            askCoachSeconds: 60,
             askPersonaSeconds: 90,
-            coachSeconds: 60,
+            debriefSeconds: 120,
             id: "org-a",
+            improvementSeconds: 180,
+            legacyCoachSeconds: 60,
+            preparationSeconds: 60,
             simulationSeconds: 120,
-            totalSeconds: 270,
+            totalSeconds: 690,
         });
         expect(dashboard.aiUsage.overview).toEqual(expect.arrayContaining([
-            expect.objectContaining({ detail: "44% du temps IA", id: "simulations" }),
-            expect.objectContaining({ detail: "33% du temps IA", id: "ask-persona" }),
-            expect.objectContaining({ detail: "22% du temps IA", id: "coach" }),
+            expect.objectContaining({ detail: "17% du temps IA", id: "simulations" }),
+            expect.objectContaining({ detail: "13% du temps IA", id: "ask-persona" }),
+            expect.objectContaining({ detail: "9% du temps IA", id: "ask-coach" }),
+            expect.objectContaining({ detail: "17% du temps IA", id: "debrief" }),
+            expect.objectContaining({ detail: "26% du temps IA", id: "improve" }),
+            expect.objectContaining({
+                detail: "Inclut 2min de préparation ou d’historique Coach",
+                id: "total",
+            }),
         ]));
     });
 
