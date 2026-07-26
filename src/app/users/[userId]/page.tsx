@@ -17,6 +17,7 @@ import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import { getCurrentProfile } from "@/features/profile/server";
 import { buildAuthRedirectHref, withReturnTo, withSearchParam } from "@/features/app-shell/domain";
+import { listUserPendingOrganizationInvitations } from "@/features/organizations/server";
 
 export const metadata = {
     title: "Fiche utilisateur | MaiaCoach",
@@ -90,9 +91,10 @@ export default async function Page({ params, searchParams }: PageProps) {
         notFound();
     }
 
-    const [assignedRoleplays, assignedQuizzes] = await Promise.all([
+    const [assignedRoleplays, assignedQuizzes, invitationResendTargets] = await Promise.all([
         listUserAssignedRoleplays(user.id),
         listUserAssignedQuizzes(user.id),
+        listUserPendingOrganizationInvitations(user.id),
     ]);
     const [statistics, skills] = await Promise.all([
         listUserStatistics(user.id, {
@@ -109,6 +111,7 @@ export default async function Page({ params, searchParams }: PageProps) {
             avatarUrl={profileValues.avatarUrl}
             initialMode={resolvedSearchParams?.mode === "edit" ? "edit" : "view"}
             initials={getProfileInitials(profileValues)}
+            invitationResendTargets={invitationResendTargets}
             platformRole={profileValues.platformRole}
             skills={skills}
             statistics={statistics}

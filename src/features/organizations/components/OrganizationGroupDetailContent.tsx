@@ -69,7 +69,7 @@ function isGroupDetailTab(value: string | null): value is GroupDetailTab {
     return tabs.some((tab) => tab.value === value);
 }
 
-const memberColumns = ["Utilisateur", "Email", "Rôle", "Statut", "Roleplays", "Quizzes", "Actions"];
+const memberColumns = ["Utilisateur", "Email", "Rôle", "Statut", "Roleplays", "Quiz", "Actions"];
 
 function GroupDetailTabs({
     activeTab,

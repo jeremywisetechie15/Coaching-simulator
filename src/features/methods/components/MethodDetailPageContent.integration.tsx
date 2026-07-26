@@ -70,6 +70,7 @@ describe("MethodDetailPageContent", () => {
             "/evaluations/22222222-2222-4222-8222-222222222222/quiz?returnTo=%2Fmethods%2Fmethod-1",
         );
         expect(html).toContain("Vérifier mes connaissances");
+        expect(html).not.toContain("Vérifier mes connaissances sur cette étape");
         expect(html).toContain("72%");
         expect(html).toContain("09/07/2026");
         expect(html).toContain("Progression de 12 points depuis le quiz précédent");

@@ -1,3 +1,5 @@
+import { getRoleplayDisplayTitle } from "./roleplay";
+
 export const ROLEPLAY_SESSION_HISTORY_ALL_VALUE = "all";
 
 export interface RoleplaySessionHistoryFilters {
@@ -95,7 +97,7 @@ export function listRoleplaySessionHistoryRoleplays<T extends RoleplaySessionHis
             sessions.map((item) => [
                 item.roleplay.id,
                 {
-                    label: item.roleplay.title?.trim() || item.roleplay.name,
+                    label: getRoleplayDisplayTitle(item.roleplay),
                     value: item.roleplay.id,
                 },
             ]),

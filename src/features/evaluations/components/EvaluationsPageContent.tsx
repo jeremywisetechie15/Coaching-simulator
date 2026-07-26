@@ -11,7 +11,7 @@ import {
     ContextualLink,
     useCurrentAppHref,
 } from "@/features/app-shell/components";
-import { withReturnTo, withSearchParams } from "@/features/app-shell/domain";
+import { APP_NAVIGATION_LABEL, withReturnTo, withSearchParams } from "@/features/app-shell/domain";
 import {
     EVALUATION_ROUTES,
     getQuizStatusLabel,
@@ -182,7 +182,7 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                         </ContextualBackLink>
                         <Box>
                             <Text as="h1" className={cn("text-[30px] font-extrabold leading-tight md:text-[34px]", uiTokens.text.heading)}>
-                                Évaluations
+                                {APP_NAVIGATION_LABEL.evaluations}
                             </Text>
                             <Text className={cn("mt-2 max-w-[680px] text-[15px] font-semibold leading-6", uiTokens.text.muted)}>
                                 Gérez et créez vos quiz de connaissances et d’auto-positionnement.

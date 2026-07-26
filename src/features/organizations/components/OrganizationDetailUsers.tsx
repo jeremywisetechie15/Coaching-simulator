@@ -38,8 +38,9 @@ import {
     getOrganizationInvitationResendSuccessMessage,
 } from "@/features/organizations/domain/organization-invitation";
 import { OrganizationInvitationResendAction } from "./OrganizationInvitationResendAction";
+import { OrganizationInvitationResendConfirmationModal } from "./OrganizationInvitationResendConfirmationModal";
 
-const columns = ["Utilisateur", "Email", "Rôle", "Statut", "Roleplays", "Quizzes", "Actions"];
+const columns = ["Utilisateur", "Email", "Rôle", "Statut", "Roleplays", "Quiz", "Actions"];
 
 interface ApiValidationIssue {
     message: string;
@@ -111,6 +112,7 @@ export function OrganizationDetailUsers({
     const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
     const [inviteStatus, setInviteStatus] = useState<string | null>(null);
     const [removalError, setRemovalError] = useState<string | null>(null);
+    const [invitationResendUser, setInvitationResendUser] = useState<OrganizationUserRow | null>(null);
     const [userToRemove, setUserToRemove] = useState<OrganizationUserRow | null>(null);
     const [organizationGroups, setOrganizationGroups] = useState<OrganizationGroupRow[]>([]);
     const [createUserValues, setCreateUserValues] = useState<UserInviteFormValues>(() =>
@@ -292,7 +294,7 @@ export function OrganizationDetailUsers({
 
     const resendInvitation = async (user: OrganizationUserRow) => {
         if (resendingInvitationUserId) {
-            return;
+            return false;
         }
 
         setResendingInvitationUserId(user.id);
@@ -312,7 +314,7 @@ export function OrganizationDetailUsers({
                     payload as ApiErrorPayload | null,
                     "Impossible de renvoyer l’invitation.",
                 ));
-                return;
+                return false;
             }
 
             const recipientEmail =
@@ -320,10 +322,24 @@ export function OrganizationDetailUsers({
             notify.success(getOrganizationInvitationResendSuccessMessage(recipientEmail));
             void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
             void queryClient.invalidateQueries({ queryKey: USERS_QUERY_KEY });
+            return true;
         } catch {
             notify.error("Impossible de renvoyer l’invitation.");
+            return false;
         } finally {
             setResendingInvitationUserId(null);
+        }
+    };
+
+    const confirmInvitationResend = async () => {
+        if (!invitationResendUser) {
+            return;
+        }
+
+        const wasSent = await resendInvitation(invitationResendUser);
+
+        if (wasSent) {
+            setInvitationResendUser(null);
         }
     };
 
@@ -441,7 +457,7 @@ export function OrganizationDetailUsers({
                                             <OrganizationInvitationResendAction
                                                 isDisabled={Boolean(resendingInvitationUserId)}
                                                 isSending={resendingInvitationUserId === user.id}
-                                                onResend={() => void resendInvitation(user)}
+                                                onRequestResend={() => setInvitationResendUser(user)}
                                                 status={user.status}
                                                 userName={user.name}
                                             />
@@ -502,6 +518,17 @@ export function OrganizationDetailUsers({
                     onConfirm={() => void removeUser()}
                     title="Retirer de l'organisation"
                     warning="Le compte et le profil seront conservés. L'utilisateur sera également retiré des groupes de cette organisation."
+                />
+            )}
+
+            {invitationResendUser && (
+                <OrganizationInvitationResendConfirmationModal
+                    isSending={resendingInvitationUserId === invitationResendUser.id}
+                    onCancel={() => setInvitationResendUser(null)}
+                    onConfirm={() => void confirmInvitationResend()}
+                    organizationName={organizationName}
+                    userEmail={invitationResendUser.email}
+                    userName={invitationResendUser.name}
                 />
             )}
         </Box>

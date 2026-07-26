@@ -177,6 +177,10 @@ export function normalizeRoleplayDifficulty(value: unknown): RoleplayDifficulty 
     return isRoleplayDifficulty(value) ? value : "Moyen";
 }
 
+export function getRoleplayDisplayTitle(roleplay: { name: string; title?: string | null }) {
+    return roleplay.title?.trim() || roleplay.name.trim();
+}
+
 export function isRoleplayDiscProfile(value: unknown): value is RoleplayDiscProfile {
     return typeof value === "string" && ROLEPLAY_DISC_PROFILES.includes(value as RoleplayDiscProfile);
 }

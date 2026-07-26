@@ -8,7 +8,7 @@ describe("OrganizationInvitationResendAction", () => {
         const html = renderToStaticMarkup(
             <OrganizationInvitationResendAction
                 isSending={false}
-                onResend={() => undefined}
+                onRequestResend={() => undefined}
                 status={ORGANIZATION_MEMBER_STATUS.invited}
                 userName="Paul Martin"
             />,
@@ -25,7 +25,7 @@ describe("OrganizationInvitationResendAction", () => {
         const html = renderToStaticMarkup(
             <OrganizationInvitationResendAction
                 isSending={false}
-                onResend={() => undefined}
+                onRequestResend={() => undefined}
                 status={status}
                 userName="Paul Martin"
             />,

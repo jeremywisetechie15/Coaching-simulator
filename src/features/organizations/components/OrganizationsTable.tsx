@@ -14,7 +14,7 @@ const columns = [
     "Groupes",
     "Utilisateurs",
     "Roleplays",
-    "Quizzes",
+    "Quiz",
     "Date de création",
     "Statut",
     "Actions",

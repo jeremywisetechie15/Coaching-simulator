@@ -16,7 +16,7 @@ import {
     type RoleplayItem,
 } from "@/features/roleplays/data/roleplays";
 import type { RoleplaySession } from "@/features/roleplays/data/sessions";
-import { scoreLevel } from "@/features/roleplays/domain";
+import { getRoleplayDisplayTitle, scoreLevel } from "@/features/roleplays/domain";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -38,6 +38,7 @@ export function EvaluationSessionOverview({
 }: EvaluationSessionOverviewProps) {
     const categoryStyle = categoryBadgeStyles[roleplay.category] ?? defaultCategoryBadgeStyle;
     const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
+    const roleplayTitle = getRoleplayDisplayTitle(roleplay);
     const scoreTone = t.scoreTone[scoreLevel(session.score)];
 
     return (
@@ -94,7 +95,7 @@ export function EvaluationSessionOverview({
                             <InlineIcon icon={Info} className={t.detailIconGlyph} />
                         </Box>
                         <Text as="h3" className={t.detailTitle}>
-                            Situation
+                            Situation : {roleplayTitle}
                         </Text>
                     </Box>
                     <Box className={t.situationContent}>

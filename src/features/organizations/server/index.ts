@@ -8,6 +8,7 @@ export * from "./list-organization-activity";
 export * from "./list-organization-users";
 export * from "./list-organizations";
 export * from "./list-organization-selection-options";
+export * from "./list-user-pending-organization-invitations";
 export * from "./organization-group-detail";
 export * from "./remove-organization-user";
 export * from "./resend-organization-invitation";

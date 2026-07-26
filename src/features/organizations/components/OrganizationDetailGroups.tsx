@@ -18,7 +18,7 @@ import { getOrganizationGroupDetailHref } from "@/features/organizations/domain/
 import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
 import { CreateGroupModal } from "./CreateGroupModal";
 
-const columns = ["Groupe", "Membres", "Roleplays", "Quizzes", "Actions"];
+const columns = ["Groupe", "Membres", "Roleplays", "Quiz", "Actions"];
 
 interface OrganizationDetailGroupsProps {
     onGroupsChanged?: () => void;

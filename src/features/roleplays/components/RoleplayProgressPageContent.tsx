@@ -25,6 +25,7 @@ import { cn } from "@/lib/ui/utils/cn";
 import {
     getRoleplayIndexTrend,
     progressCompetencies,
+    ROLEPLAY_INDEX_LABEL,
     scoreLevel,
     type DimensionKey,
     type ProgressCompetency,
@@ -402,7 +403,7 @@ export function RoleplayProgressPageContent({ backHref, progress }: RoleplayProg
                         )}
 
                         <Text className={t.footnote}>
-                            L&apos;INDEX et les scores pratiques utilisent les 3 meilleures simulations parmi les 6
+                            Le {ROLEPLAY_INDEX_LABEL} et les scores pratiques utilisent les 3 meilleures simulations parmi les 6
                             dernières sessions éligibles. Le Savoir agrège la meilleure tentative de chaque quiz terminé
                             associé à la méthode ou au roleplay. Δ indique
                             l&apos;évolution depuis votre première session éligible.

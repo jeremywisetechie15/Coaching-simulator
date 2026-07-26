@@ -40,6 +40,7 @@ export default async function Page({ params }: PageProps) {
     return (
         <RoleplaySessionReportPrintPage
             evaluation={report.evaluation}
+            method={report.method}
             roleplay={report.roleplay}
             session={report.session}
         />

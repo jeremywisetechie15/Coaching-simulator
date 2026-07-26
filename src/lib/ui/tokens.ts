@@ -336,6 +336,22 @@ export const uiTokens = {
     interaction: {
         button: "cursor-pointer disabled:cursor-not-allowed",
     },
+    organizationInvitation: {
+        confirmation: {
+            actions: "grid gap-3 sm:grid-cols-2",
+            body: "space-y-5",
+            callout: "flex gap-3 rounded-xl border p-4",
+            calloutIcon: "mt-0.5 h-5 w-5 shrink-0",
+            calloutText: "text-[13px] font-semibold leading-6",
+            confirmButton:
+                "flex h-11 items-center justify-center gap-2 rounded-xl px-6 text-[14px] font-bold text-white transition disabled:opacity-70",
+            confirmIcon: "h-4 w-4",
+            panel: "max-w-[500px]",
+        },
+        detailAction:
+            "flex h-[42px] items-center justify-center gap-2.5 rounded-[10px] border border-[#C9C2FB] bg-white px-5 text-[14px] font-extrabold text-[#5140F0] transition hover:bg-[#F4F3FE]",
+        detailActionIcon: "h-5 w-5",
+    },
     action: {
         addButton:
             "flex h-9 items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white px-3 text-[13px] font-semibold text-[#374151] transition hover:border-[#D5D7DE]",
@@ -465,9 +481,9 @@ export const uiTokens = {
             detailCard:
                 "rounded-[16px] border border-[#E1E4EA] p-6 shadow-none lg:min-h-[310px]",
             detailHeader: "flex items-center gap-3",
-            detailIcon: "flex h-12 w-12 items-center justify-center rounded-full",
+            detailIcon: "flex h-12 w-12 shrink-0 items-center justify-center rounded-full",
             detailIconGlyph: "h-5 w-5",
-            detailTitle: "text-[18px] font-bold text-[#111827]",
+            detailTitle: "min-w-0 text-[18px] font-bold text-[#111827]",
             difficultyBadge:
                 "inline-flex h-6 items-center rounded-md border px-2 text-[11px] font-bold",
             discBadge: "h-6 rounded-md border-0 px-2 text-[11px] uppercase",

@@ -3,9 +3,17 @@ import {
     type OrganizationMemberStatus,
 } from "./organization-member";
 
+export interface OrganizationInvitationResendTarget {
+    organizationId: string;
+    organizationName: string;
+}
+
 export const ORGANIZATION_INVITATION_RESEND_COOLDOWN_MS = 60_000;
 
 export const ORGANIZATION_INVITATION_RESEND_LABEL = "Renvoyer l’invitation";
+export const ORGANIZATION_INVITATION_RESEND_BUSY_LABEL = "Envoi...";
+export const ORGANIZATION_INVITATION_RESEND_CONFIRMATION_MESSAGE =
+    "L’utilisateur recevra un nouveau lien sécurisé pour créer son mot de passe.";
 
 export const ORGANIZATION_INVITATION_RESEND_MESSAGES = {
     conflict: "L’invitation ne peut être renvoyée que si l’utilisateur est encore invité.",

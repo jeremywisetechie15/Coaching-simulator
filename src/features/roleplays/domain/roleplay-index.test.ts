@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 import {
     calculateRoleplayIndex,
     calculateRoleplayIndexSeries,
+    getRoleplayIndexDisplayState,
     ROLEPLAY_INDEX_BEST_SESSION_COUNT,
+    ROLEPLAY_INDEX_DESCRIPTION,
+    ROLEPLAY_INDEX_MINIMUM_VISIBLE_SESSION_COUNT,
     ROLEPLAY_INDEX_RECENT_SESSION_LIMIT,
     selectRoleplayIndexScorePositions,
 } from "./roleplay-index";
@@ -19,7 +22,7 @@ describe("roleplay index", () => {
         });
     });
 
-    it("uses all available scores until three simulations exist", () => {
+    it("keeps internal rolling scores before the display threshold", () => {
         expect(calculateRoleplayIndex([70, 50])).toEqual({
             delta: 10,
             score: 60,
@@ -32,6 +35,15 @@ describe("roleplay index", () => {
             sessionCount: 1,
             trend: "unavailable",
         });
+    });
+
+    it("shows the index only after three eligible simulations", () => {
+        expect(ROLEPLAY_INDEX_MINIMUM_VISIBLE_SESSION_COUNT).toBe(3);
+        expect(getRoleplayIndexDisplayState(0)).toBe("empty");
+        expect(getRoleplayIndexDisplayState(1)).toBe("pending");
+        expect(getRoleplayIndexDisplayState(2)).toBe("pending");
+        expect(getRoleplayIndexDisplayState(3)).toBe("available");
+        expect(ROLEPLAY_INDEX_DESCRIPTION).toContain("disponible à partir de 3 simulations");
     });
 
     it("returns an empty index without evaluated simulations", () => {

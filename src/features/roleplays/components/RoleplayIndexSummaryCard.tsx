@@ -3,10 +3,15 @@
 import { useState } from "react";
 import { ChartNoAxesColumnIncreasing, Info, Minus, TrendingDown, TrendingUp } from "lucide-react";
 import {
+    getRoleplayIndexDisplayState,
     getRoleplayIndexTrend,
     ROLEPLAY_INDEX_BEST_SESSION_COUNT,
+    ROLEPLAY_INDEX_LABEL,
+    ROLEPLAY_INDEX_MINIMUM_VISIBLE_SESSION_COUNT,
     ROLEPLAY_INDEX_RECENT_SESSION_LIMIT,
+    ROLEPLAY_INDEX_TITLE,
     type RoleplayIndexSession,
+    type RoleplayIndexDisplayState,
     type RoleplayIndexTrend,
 } from "@/features/roleplays/domain";
 import { Box, Button, CardSurface, InlineIcon, Text, Tooltip } from "@/lib/ui/atoms";
@@ -22,7 +27,19 @@ interface RoleplayIndexSummaryCardProps {
     trend?: RoleplayIndexTrend;
 }
 
-function getTrendPresentation(trend: RoleplayIndexTrend, delta: number | null, sessionCount: number) {
+function getTrendPresentation(
+    trend: RoleplayIndexTrend,
+    delta: number | null,
+    displayState: RoleplayIndexDisplayState,
+) {
+    if (displayState === "empty") {
+        return { className: uiTokens.text.muted, icon: Minus, label: "Aucune mesure" };
+    }
+
+    if (displayState === "pending") {
+        return { className: uiTokens.text.muted, icon: Minus, label: "En cours de calcul" };
+    }
+
     if (trend === "up") {
         return { className: uiTokens.text.success, icon: TrendingUp, label: `Évolution +${delta}%` };
     }
@@ -32,13 +49,13 @@ function getTrendPresentation(trend: RoleplayIndexTrend, delta: number | null, s
     }
 
     if (trend === "stable") {
-        return { className: uiTokens.text.muted, icon: Minus, label: "INDEX stabilisé" };
+        return { className: uiTokens.text.muted, icon: Minus, label: `${ROLEPLAY_INDEX_LABEL} stabilisé` };
     }
 
     return {
         className: uiTokens.text.muted,
         icon: Minus,
-        label: sessionCount > 0 ? "Première mesure" : "Aucune mesure",
+        label: "Aucune mesure",
     };
 }
 
@@ -54,8 +71,10 @@ function formatSessionDate(value: string | null) {
 
 export function RoleplayIndexSummaryCard({ delta, score, sessions, sessionCount, trend }: RoleplayIndexSummaryCardProps) {
     const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+    const displayState = getRoleplayIndexDisplayState(sessionCount);
+    const displayScore = displayState === "available" && score !== null ? `${score}%` : "-";
     const resolvedTrend = trend ?? getRoleplayIndexTrend(delta);
-    const presentation = getTrendPresentation(resolvedTrend, delta, sessionCount);
+    const presentation = getTrendPresentation(resolvedTrend, delta, displayState);
     const chartSessions = sessions.slice().reverse();
     const indexCurvePoints = chartSessions
         .map((session, position) => {
@@ -69,10 +88,10 @@ export function RoleplayIndexSummaryCard({ delta, score, sessions, sessionCount,
             <CardSurface className={uiTokens.roleplayIndex.card}>
                 <Box className="flex items-center justify-center gap-1.5">
                     <InlineIcon icon={ChartNoAxesColumnIncreasing} className={uiTokens.roleplayIndex.titleIcon} />
-                    <Text className={uiTokens.roleplayIndex.title}>Mon INDEX</Text>
-                    <Tooltip content="Comprendre mon INDEX">
+                    <Text className={uiTokens.roleplayIndex.title}>{ROLEPLAY_INDEX_TITLE}</Text>
+                    <Tooltip content={`Comprendre mon ${ROLEPLAY_INDEX_LABEL}`}>
                         <Button
-                            aria-label="Comprendre mon INDEX"
+                            aria-label={`Comprendre mon ${ROLEPLAY_INDEX_LABEL}`}
                             onClick={() => setIsDrawerOpen(true)}
                             className={uiTokens.roleplayIndex.infoButton}
                         >
@@ -80,7 +99,7 @@ export function RoleplayIndexSummaryCard({ delta, score, sessions, sessionCount,
                         </Button>
                     </Tooltip>
                 </Box>
-                <Text className={uiTokens.roleplayIndex.score}>{score === null ? "--" : `${score}%`}</Text>
+                <Text className={uiTokens.roleplayIndex.score}>{displayScore}</Text>
                 <Box className={cn(uiTokens.roleplayIndex.trend, presentation.className)}>
                     <InlineIcon icon={presentation.icon} className="h-3.5 w-3.5 shrink-0" />
                     <Text as="span">{presentation.label}</Text>
@@ -89,7 +108,7 @@ export function RoleplayIndexSummaryCard({ delta, score, sessions, sessionCount,
 
             {isDrawerOpen && (
                 <Drawer
-                    title="Mon INDEX"
+                    title={ROLEPLAY_INDEX_TITLE}
                     description="Synthèse de vos performances récentes"
                     onClose={() => setIsDrawerOpen(false)}
                 >
@@ -97,9 +116,9 @@ export function RoleplayIndexSummaryCard({ delta, score, sessions, sessionCount,
                         <Box className={uiTokens.roleplayIndex.chartCard}>
                             <Box className={uiTokens.roleplayIndex.chartHeader}>
                                 <Box>
-                                    <Text className={uiTokens.roleplayIndex.drawerLabel}>INDEX actuel</Text>
+                                    <Text className={uiTokens.roleplayIndex.drawerLabel}>{ROLEPLAY_INDEX_LABEL} actuel</Text>
                                     <Text className={uiTokens.roleplayIndex.chartIndexScore}>
-                                        {score === null ? "--" : `${score}%`}
+                                        {displayScore}
                                     </Text>
                                 </Box>
                                 <Box className={cn(uiTokens.roleplayIndex.drawerTrend, presentation.className)}>
@@ -108,13 +127,13 @@ export function RoleplayIndexSummaryCard({ delta, score, sessions, sessionCount,
                                 </Box>
                             </Box>
 
-                            {sessions.length > 0 ? (
+                            {displayState === "available" && sessions.length > 0 ? (
                                 <Box className="mt-5">
                                     <Text className={uiTokens.roleplayIndex.chartTitle}>
                                         {ROLEPLAY_INDEX_RECENT_SESSION_LIMIT} dernières simulations notées
                                     </Text>
                                     <Box
-                                        aria-label={`Scores des ${ROLEPLAY_INDEX_RECENT_SESSION_LIMIT} dernières simulations et évolution de l'INDEX`}
+                                        aria-label={`Scores des ${ROLEPLAY_INDEX_RECENT_SESSION_LIMIT} dernières simulations et évolution du ${ROLEPLAY_INDEX_LABEL}`}
                                         className={uiTokens.roleplayIndex.chartPlot}
                                         role="group"
                                     >
@@ -167,7 +186,7 @@ export function RoleplayIndexSummaryCard({ delta, score, sessions, sessionCount,
                                             {chartSessions.map((session, position) => (
                                                 <Box key={session.sessionId} className="relative h-full">
                                                     <Button
-                                                        aria-label={`INDEX ${session.indexScore}%`}
+                                                        aria-label={`${ROLEPLAY_INDEX_LABEL} ${session.indexScore}%`}
                                                         className={uiTokens.roleplayIndex.chartIndexPoint}
                                                         style={{ bottom: `${session.indexScore}%` }}
                                                     >
@@ -210,13 +229,15 @@ export function RoleplayIndexSummaryCard({ delta, score, sessions, sessionCount,
                                         </Box>
                                         <Box className="inline-flex items-center gap-1.5">
                                             <Box className={uiTokens.roleplayIndex.chartLegendIndexCurve} />
-                                            <Text as="span">Évolution de l&apos;INDEX</Text>
+                                            <Text as="span">Évolution du {ROLEPLAY_INDEX_LABEL}</Text>
                                         </Box>
                                     </Box>
                                 </Box>
                             ) : (
                                 <Box className={uiTokens.roleplayIndex.chartEmpty}>
-                                    Le graphique apparaîtra après votre première simulation notée.
+                                    {displayState === "empty"
+                                        ? "Le graphique apparaîtra après votre première simulation notée."
+                                        : `Le ${ROLEPLAY_INDEX_LABEL} sera disponible après ${ROLEPLAY_INDEX_MINIMUM_VISIBLE_SESSION_COUNT} simulations notées.`}
                                 </Box>
                             )}
                         </Box>
@@ -224,6 +245,7 @@ export function RoleplayIndexSummaryCard({ delta, score, sessions, sessionCount,
                         <Box className={uiTokens.roleplayIndex.definitionCard}>
                             <Text className={uiTokens.roleplayIndex.definitionTitle}>Règle de calcul</Text>
                             <Text className={uiTokens.roleplayIndex.definitionText}>
+                                Disponible à partir de {ROLEPLAY_INDEX_MINIMUM_VISIBLE_SESSION_COUNT} simulations notées.
                                 Moyenne des {ROLEPLAY_INDEX_BEST_SESSION_COUNT} meilleurs scores obtenus parmi vos{" "}
                                 {ROLEPLAY_INDEX_RECENT_SESSION_LIMIT} dernières simulations notées.
                             </Text>

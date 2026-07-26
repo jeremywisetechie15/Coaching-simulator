@@ -197,7 +197,7 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
                                 <InlineIcon icon={CalendarDays} className={uiTokens.metadata.dateBadgeIcon} />
                                 {detail.lastDate}
                             </Box>
-                            <Text className="mt-0.5 text-[12px] font-medium text-[#9CA3AF]">Dernière simulation</Text>
+                            <Text className="mt-0.5 text-[12px] font-medium text-[#9CA3AF]">Dernier score</Text>
                         </CardSurface>
                         <CardSurface className="rounded-[14px] border border-[#E5E7EB] p-5 text-center shadow-none">
                             <Text className="text-[13px] font-bold text-[#4B5563]">Meilleur score</Text>
@@ -208,9 +208,6 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
                                 <InlineIcon icon={CalendarDays} className={uiTokens.metadata.dateBadgeIcon} />
                                 {detail.bestScoreDate ?? "Aucune session"}
                             </Box>
-                            <Text className="mt-0.5 text-[12px] font-medium text-[#9CA3AF]">
-                                Sur {detail.simulations} tentatives
-                            </Text>
                         </CardSurface>
                         <CardSurface className="rounded-[14px] border border-[#E5E7EB] p-5 text-center shadow-none">
                             <Text className="text-[13px] font-bold text-[#4B5563]">Simulations</Text>

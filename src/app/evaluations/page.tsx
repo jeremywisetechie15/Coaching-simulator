@@ -4,7 +4,12 @@ import { listQuizzes } from "@/features/evaluations/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { UnauthorizedError } from "@/lib/server/errors";
-import { buildAuthRedirectHref, withReturnTo, withSearchParams } from "@/features/app-shell/domain";
+import {
+    APP_NAVIGATION_LABEL,
+    buildAuthRedirectHref,
+    withReturnTo,
+    withSearchParams,
+} from "@/features/app-shell/domain";
 
 interface PageProps {
     searchParams?: Promise<{
@@ -17,7 +22,7 @@ interface PageProps {
 }
 
 export const metadata = {
-    title: "Évaluations | MaiaCoach",
+    title: `${APP_NAVIGATION_LABEL.evaluations} | MaiaCoach`,
 };
 
 export default async function Page({ searchParams }: PageProps) {

@@ -183,11 +183,9 @@ export function getMethodResourceUrl(methodId: string, resource: MethodResource)
 }
 
 function StepAccordion({
-    associatedQuiz,
     methodId,
     step,
 }: {
-    associatedQuiz: QuizOption | null;
     methodId: string;
     step: MethodStepItem;
 }) {
@@ -303,13 +301,6 @@ function StepAccordion({
                             )}
                         </Box>
 
-                        <MethodQuizAction
-                            associatedQuiz={associatedQuiz}
-                            className="mt-5 flex h-10 items-center justify-center gap-2 rounded-lg border border-[#C9C2FB] bg-white px-4 text-[13px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
-                        >
-                            <InlineIcon icon={FileText} className="h-4 w-4" />
-                            Vérifier mes connaissances sur cette étape
-                        </MethodQuizAction>
                     </Box>
                 )}
             </CardSurface>
@@ -602,7 +593,6 @@ export function MethodDetailPageContent({
                         {method.steps.map((step) => (
                             <StepAccordion
                                 key={step.title}
-                                associatedQuiz={associatedQuiz}
                                 methodId={method.id}
                                 step={step}
                             />

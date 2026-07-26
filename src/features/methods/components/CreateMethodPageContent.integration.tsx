@@ -45,7 +45,7 @@ describe("CreateMethodPageContent", () => {
         expect(html).toContain("Choisir un fichier");
         const publishButton = html.match(/<button[^>]*>Publier la méthode<\/button>/)?.[0];
         expect(publishButton).toBeDefined();
-        expect(publishButton).not.toContain("disabled");
+        expect(publishButton).not.toMatch(/\sdisabled(?:=|[\s>])/);
     });
 
     it("renders existing method-level resources as separate documents", () => {

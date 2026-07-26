@@ -38,6 +38,7 @@ import {
 import type { Evaluation, EvaluationCriterion, EvaluationStep } from "@/features/roleplays/data/evaluation";
 import {
     buildEvaluationScoreDetails,
+    getRoleplayDisplayTitle,
     getRoleplayNotationApiErrorMessage,
     ROLEPLAY_NOTATION_FEEDBACK_MESSAGES,
     ROLEPLAY_PDF_TEMPLATES,
@@ -123,7 +124,7 @@ export function getGlobalCoachDebriefTitle(
 ) {
     const coachNameWithoutPrefix = roleplay.coachName?.trim().replace(/^coach\s+/i, "");
     const coachName = coachNameWithoutPrefix || "IA";
-    const roleplayTitle = roleplay.title?.trim() || roleplay.name.trim();
+    const roleplayTitle = getRoleplayDisplayTitle(roleplay);
 
     return `Débrief avec mon coach ${coachName} - Roleplay ${roleplayTitle}`;
 }
@@ -133,7 +134,7 @@ export function getCoachFeedbackTitle(
 ) {
     const coachNameWithoutPrefix = roleplay.coachName?.trim().replace(/^coach\s+/i, "");
     const coachName = coachNameWithoutPrefix || "IA";
-    const roleplayTitle = roleplay.title?.trim() || roleplay.name.trim();
+    const roleplayTitle = getRoleplayDisplayTitle(roleplay);
 
     return `Avis de mon coach ${coachName} - Roleplay ${roleplayTitle}`;
 }

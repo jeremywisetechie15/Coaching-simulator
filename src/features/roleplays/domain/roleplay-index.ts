@@ -1,11 +1,15 @@
 export const ROLEPLAY_INDEX_RECENT_SESSION_LIMIT = 6;
 export const ROLEPLAY_INDEX_BEST_SESSION_COUNT = 3;
+export const ROLEPLAY_INDEX_MINIMUM_VISIBLE_SESSION_COUNT = ROLEPLAY_INDEX_BEST_SESSION_COUNT;
+export const ROLEPLAY_INDEX_LABEL = "Score INDEX";
+export const ROLEPLAY_INDEX_TITLE = `Mon ${ROLEPLAY_INDEX_LABEL}`;
 export const ROLEPLAY_INDEX_DESCRIPTION =
-    `Moyenne des ${ROLEPLAY_INDEX_BEST_SESSION_COUNT} meilleurs scores parmi les ` +
-    `${ROLEPLAY_INDEX_RECENT_SESSION_LIMIT} dernières simulations éligibles. ` +
-    `Avec moins de ${ROLEPLAY_INDEX_BEST_SESSION_COUNT} simulations, toutes les simulations disponibles sont retenues.`;
+    `${ROLEPLAY_INDEX_LABEL} disponible à partir de ${ROLEPLAY_INDEX_MINIMUM_VISIBLE_SESSION_COUNT} simulations éligibles. ` +
+    `Il correspond à la moyenne des ${ROLEPLAY_INDEX_BEST_SESSION_COUNT} meilleurs scores parmi les ` +
+    `${ROLEPLAY_INDEX_RECENT_SESSION_LIMIT} dernières simulations éligibles.`;
 
 export type RoleplayIndexTrend = "up" | "down" | "stable" | "unavailable";
+export type RoleplayIndexDisplayState = "available" | "empty" | "pending";
 
 export interface RoleplayIndexResult {
     delta: number | null;
@@ -21,6 +25,12 @@ export interface RoleplayIndexSession {
     isTopScore: boolean;
     score: number;
     sessionId: string;
+}
+
+export function getRoleplayIndexDisplayState(sessionCount: number): RoleplayIndexDisplayState {
+    if (!Number.isFinite(sessionCount) || sessionCount <= 0) return "empty";
+    if (sessionCount < ROLEPLAY_INDEX_MINIMUM_VISIBLE_SESSION_COUNT) return "pending";
+    return "available";
 }
 
 function normalizeScore(score: number) {

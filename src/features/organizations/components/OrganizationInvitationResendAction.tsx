@@ -10,7 +10,7 @@ import { uiTokens } from "@/lib/ui/tokens";
 interface OrganizationInvitationResendActionProps {
     isDisabled?: boolean;
     isSending: boolean;
-    onResend: () => void;
+    onRequestResend: () => void;
     status: OrganizationMemberStatus;
     userName: string;
 }
@@ -18,7 +18,7 @@ interface OrganizationInvitationResendActionProps {
 export function OrganizationInvitationResendAction({
     isDisabled = false,
     isSending,
-    onResend,
+    onRequestResend,
     status,
     userName,
 }: OrganizationInvitationResendActionProps) {
@@ -33,7 +33,7 @@ export function OrganizationInvitationResendAction({
             aria-label={accessibleLabel}
             className={`${uiTokens.action.iconButtonGhost} disabled:cursor-not-allowed disabled:opacity-60`}
             disabled={isDisabled || isSending}
-            onClick={onResend}
+            onClick={onRequestResend}
             title={ORGANIZATION_INVITATION_RESEND_LABEL}
         >
             <InlineIcon

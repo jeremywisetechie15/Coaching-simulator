@@ -13,6 +13,7 @@ import {
     Clock3,
     Eye,
     Info,
+    Mail,
     Pencil,
     Plus,
     Target,
@@ -43,7 +44,13 @@ import {
     notifyFormSubmitSuccess,
 } from "@/lib/ui/feedback/form-submit-feedback";
 import { notify } from "@/lib/ui/feedback/toast";
-import { ROLEPLAY_INDEX_DESCRIPTION } from "@/features/roleplays/domain";
+import { ROLEPLAY_INDEX_DESCRIPTION, ROLEPLAY_INDEX_LABEL } from "@/features/roleplays/domain";
+import { OrganizationInvitationResendConfirmationModal } from "@/features/organizations/components";
+import {
+    getOrganizationInvitationResendSuccessMessage,
+    ORGANIZATION_INVITATION_RESEND_LABEL,
+    type OrganizationInvitationResendTarget,
+} from "@/features/organizations/domain/organization-invitation";
 import {
     getAvailableUserStatusAction,
     getEditableUserRoleOptions,
@@ -83,6 +90,7 @@ interface UserDetailPageProps {
     avatarUrl: string | null;
     initialMode?: "edit" | "view";
     initials: string;
+    invitationResendTargets?: OrganizationInvitationResendTarget[];
     platformRole: PlatformRole;
     skills?: UserSkillProgress[];
     statistics?: UserStatistics;
@@ -154,6 +162,12 @@ interface ApiValidationIssue {
 interface ApiErrorPayload {
     error?: string;
     issues?: ApiValidationIssue[];
+}
+
+interface InvitationResendPayload extends ApiErrorPayload {
+    invitation?: {
+        email?: string;
+    };
 }
 
 interface UserContentAssignmentApiPayload extends ApiErrorPayload {
@@ -690,13 +704,13 @@ function RoleplaysTab({
                     <Box as="table" className="w-full min-w-[1000px] border-collapse">
                         <Box as="thead">
                             <Box as="tr" className="h-[48px] border-b border-[#E3E6EE] bg-[#F7F8FA]">
-                                {["Roleplay", "Persona", "INDEX", "Sessions", "Date d'assignation"].map((column) => (
+                                {["Roleplay", "Persona", ROLEPLAY_INDEX_LABEL, "Sessions", "Date d'assignation"].map((column) => (
                                     <Box
                                         as="th"
                                         key={column}
                                         className="px-7 text-left text-[12px] font-extrabold uppercase tracking-[0.12em] text-[#737B8E]"
                                     >
-                                        {column === "INDEX" ? (
+                                        {column === ROLEPLAY_INDEX_LABEL ? (
                                             <Box className="inline-flex items-center gap-1.5">
                                                 {column}
                                                 <Tooltip
@@ -705,7 +719,7 @@ function RoleplaysTab({
                                                 >
                                                     <button
                                                         type="button"
-                                                        aria-label="Afficher la règle de calcul de l'INDEX"
+                                                        aria-label={`Afficher la règle de calcul du ${ROLEPLAY_INDEX_LABEL}`}
                                                         className="inline-flex h-5 w-5 items-center justify-center rounded-full"
                                                     >
                                                         <InlineIcon icon={Info} className="h-3.5 w-3.5" />
@@ -754,9 +768,9 @@ function EvaluationsTab({
     const inProgress = quizzes.filter((quiz) => quiz.status === "in_progress");
     const completed = quizzes.filter((quiz) => quiz.status === "completed");
     const sections: Array<{ items: UserAssignedQuiz[]; label: string; status: UserAssignmentStatus }> = [
-        { items: notStarted, label: "Quizzes non commencés", status: "not_started" },
-        { items: inProgress, label: "Quizzes en cours", status: "in_progress" },
-        { items: completed, label: "Quizzes terminés", status: "completed" },
+        { items: notStarted, label: "Quiz non commencés", status: "not_started" },
+        { items: inProgress, label: "Quiz en cours", status: "in_progress" },
+        { items: completed, label: "Quiz terminés", status: "completed" },
     ];
 
     const toggleSection = (status: UserAssignmentStatus) => {
@@ -792,7 +806,7 @@ function EvaluationsTab({
     return (
         <Box className="px-6 pb-7 pt-7 md:px-7">
             <SectionHeading
-                title="Quizzes assignés"
+                title="Quiz assignés"
                 action={<LightActionButton onClick={onAssign}>Assigner un quiz</LightActionButton>}
             />
 
@@ -954,7 +968,7 @@ function StatisticsTab({ statistics }: { statistics: UserStatistics }) {
                 <Box className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                     <StatTile icon={Clock3} label="Temps d'entraînement" tone="blue" value={statistics.trainingTime} />
                     <StatTile icon={CheckCircle2} label="Roleplays terminés" tone="green" value={statistics.completedRoleplays} />
-                    <StatTile icon={CheckCircle2} label="Quizzes terminés" tone="cyan" value={statistics.completedQuizzes} />
+                    <StatTile icon={CheckCircle2} label="Quiz terminés" tone="cyan" value={statistics.completedQuizzes} />
                     <StatTile icon={BarChart3} label="Taux de complétion" tone="amber" value={statistics.completionRate} />
                     <StatTile icon={Clock3} label="Dernière activité" tone="purple" value={statistics.lastActivity} />
                 </Box>
@@ -964,7 +978,7 @@ function StatisticsTab({ statistics }: { statistics: UserStatistics }) {
                 <StatGroupTitle>Performance</StatGroupTitle>
                 <Box className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                     <StatTile icon={TrendingUp} label="Score moyen roleplays" tone="orange" value={statistics.averageRoleplayScore} />
-                    <StatTile icon={TrendingUp} label="Score moyen quizzes" tone="blue" value={statistics.averageQuizScore} />
+                    <StatTile icon={TrendingUp} label="Score moyen des quiz" tone="blue" value={statistics.averageQuizScore} />
                     <StatTile icon={TrendingUp} label="Meilleur score roleplay" tone="green" value={statistics.bestRoleplayScore} />
                     <StatTile icon={TrendingUp} label="Dernier score roleplay" tone="orange" value={statistics.latestRoleplayScore} />
                     <StatTile badge={statistics.targetScoreGap} icon={Target} label="Score cible" tone="green" value={statistics.targetScore} />
@@ -1256,6 +1270,7 @@ export function UserDetailPage({
     avatarUrl,
     initialMode = "view",
     initials,
+    invitationResendTargets = [],
     platformRole,
     skills = [],
     statistics = emptyUserStatistics,
@@ -1281,6 +1296,9 @@ export function UserDetailPage({
     const [pendingStatusAction, setPendingStatusAction] = useState<UserStatusAction | null>(null);
     const [statusActionError, setStatusActionError] = useState<string | null>(null);
     const [isStatusActionPending, setIsStatusActionPending] = useState(false);
+    const [invitationResendTarget, setInvitationResendTarget] =
+        useState<OrganizationInvitationResendTarget | null>(null);
+    const [isInvitationResending, setIsInvitationResending] = useState(false);
     const [roleplayAssignments, setRoleplayAssignments] = useState<UserAssignedRoleplay[]>(assignedRoleplays);
     const [quizAssignments, setQuizAssignments] = useState<UserAssignedQuiz[]>(assignedQuizzes);
     const [assignmentDialogKind, setAssignmentDialogKind] = useState<UserAssignableContentKind | null>(null);
@@ -1494,6 +1512,40 @@ export function UserDetailPage({
         }
     };
 
+    const confirmInvitationResend = async () => {
+        if (!invitationResendTarget || isInvitationResending) {
+            return;
+        }
+
+        setIsInvitationResending(true);
+
+        try {
+            const response = await fetch(
+                `/api/organizations/${invitationResendTarget.organizationId}/users/${currentUser.id}/resend-invitation`,
+                { method: "POST" },
+            );
+            const payload = (await response.json().catch(() => null)) as InvitationResendPayload | null;
+
+            if (!response.ok) {
+                notify.error(getApiErrorMessage(
+                    payload,
+                    "Impossible de renvoyer l’invitation.",
+                ));
+                return;
+            }
+
+            const recipientEmail = payload?.invitation?.email ?? currentUser.email;
+
+            notify.success(getOrganizationInvitationResendSuccessMessage(recipientEmail));
+            setInvitationResendTarget(null);
+            refreshUserData();
+        } catch {
+            notify.error("Impossible de renvoyer l’invitation.");
+        } finally {
+            setIsInvitationResending(false);
+        }
+    };
+
     const openAddGroupDialog = () => {
         setSelectedGroupId(availableGroups[0]?.id ?? "");
         setGroupDialogError(null);
@@ -1682,6 +1734,24 @@ export function UserDetailPage({
     const assignRoleplay = () => void openAssignmentDialog("roleplay");
 
     const assignQuiz = () => void openAssignmentDialog("quiz");
+    const invitationResendActions = invitationResendTargets.map((target) => {
+        const label = invitationResendTargets.length > 1
+            ? `${ORGANIZATION_INVITATION_RESEND_LABEL} · ${target.organizationName}`
+            : ORGANIZATION_INVITATION_RESEND_LABEL;
+
+        return (
+            <Button
+                key={target.organizationId}
+                aria-label={`${label} à ${currentUser.name}`}
+                disabled={isInvitationResending}
+                onClick={() => setInvitationResendTarget(target)}
+                className={uiTokens.organizationInvitation.detailAction}
+            >
+                <InlineIcon icon={Mail} className={uiTokens.organizationInvitation.detailActionIcon} />
+                {label}
+            </Button>
+        );
+    });
 
     return (
         <AppShell
@@ -1709,6 +1779,7 @@ export function UserDetailPage({
 
                         {isEditing ? (
                             <Box className="flex flex-wrap gap-4">
+                                {invitationResendActions}
                                 <Button
                                     onClick={cancelEditing}
                                     disabled={isSaving}
@@ -1728,6 +1799,7 @@ export function UserDetailPage({
                             </Box>
                         ) : (
                             <Box className="flex flex-wrap gap-4">
+                                {invitationResendActions}
                                 <Button
                                     onClick={startEditing}
                                     className="flex h-[42px] items-center justify-center gap-3 rounded-[10px] bg-[#5140F0] px-5 text-[15px] font-extrabold text-white shadow-[0_12px_24px_rgba(81,64,240,0.22)] transition hover:bg-[#4635E7]"
@@ -1835,6 +1907,17 @@ export function UserDetailPage({
                     isSubmitting={isGroupActionPending}
                     onClose={closeRemoveGroupDialog}
                     onConfirm={confirmRemoveGroup}
+                />
+            )}
+
+            {invitationResendTarget && (
+                <OrganizationInvitationResendConfirmationModal
+                    isSending={isInvitationResending}
+                    onCancel={() => setInvitationResendTarget(null)}
+                    onConfirm={() => void confirmInvitationResend()}
+                    organizationName={invitationResendTarget.organizationName}
+                    userEmail={currentUser.email}
+                    userName={currentUser.name}
                 />
             )}
 
