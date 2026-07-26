@@ -1,7 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { evaluation } from "@/features/roleplays/data/evaluation";
+import { roleplays } from "@/features/roleplays/data/roleplays";
+import { roleplaySessions } from "@/features/roleplays/data/sessions";
+import { uiTokens } from "@/lib/ui/tokens";
 import {
+    EvaluationPageContent,
     getCoachFeedbackTitle,
     getGlobalCoachDebriefTitle,
     SyntheseTab,
@@ -18,6 +22,22 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("SyntheseTab", () => {
+    it("exposes a pointer cursor for every enabled page interaction", () => {
+        const html = renderToStaticMarkup(
+            <EvaluationPageContent
+                evaluation={evaluation}
+                roleplay={roleplays[0]}
+                session={roleplaySessions[0]}
+            />,
+        );
+        const renderedButtons = html.match(/<button\b[^>]*>/g) ?? [];
+
+        expect(uiTokens.interaction.button).toContain("cursor-pointer");
+        expect(uiTokens.interaction.button).toContain("disabled:cursor-not-allowed");
+        expect(renderedButtons.length).toBeGreaterThan(0);
+        expect(renderedButtons.every((button) => button.includes("cursor-pointer"))).toBe(true);
+    });
+
     it("offers the persona and global coach conversations beside their respective feedback", () => {
         const html = renderToStaticMarkup(
             <SyntheseTab

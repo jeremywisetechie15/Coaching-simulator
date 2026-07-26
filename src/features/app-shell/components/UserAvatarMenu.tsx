@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { LogOut, Settings, UserRound } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { Box, InlineIcon, Text } from "@/lib/ui/atoms";
+import { Box, Button, InlineIcon, Text } from "@/lib/ui/atoms";
 import { signOutAction } from "@/features/auth/server/sign-out";
 import { SHOW_ROLES_PERMISSIONS_NAVIGATION } from "@/features/permissions/domain";
 
@@ -56,8 +56,7 @@ export function UserAvatarMenu({ avatarUrl, initials, fullName, email }: UserAva
 
     return (
         <div ref={containerRef} className="relative">
-            <button
-                type="button"
+            <Button
                 aria-label="Ouvrir le menu utilisateur"
                 aria-haspopup="menu"
                 aria-expanded={open}
@@ -75,7 +74,7 @@ export function UserAvatarMenu({ avatarUrl, initials, fullName, email }: UserAva
                         {initials}
                     </Text>
                 )}
-            </button>
+            </Button>
 
             {open && (
                 <Box
@@ -114,14 +113,14 @@ export function UserAvatarMenu({ avatarUrl, initials, fullName, email }: UserAva
 
                     <Box className="border-t border-[#EDEEF3] py-1.5">
                         <form action={signOutAction}>
-                            <button
+                            <Button
                                 type="submit"
                                 role="menuitem"
                                 className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[14px] font-semibold text-[#DC2626] transition hover:bg-[#FEF2F2]"
                             >
                                 <InlineIcon icon={LogOut} className="h-4 w-4" />
                                 Déconnexion
-                            </button>
+                            </Button>
                         </form>
                     </Box>
                 </Box>

@@ -230,12 +230,14 @@ export const roleplays: RoleplayItem[] = [
     },
 ];
 
+export const defaultCategoryBadgeStyle = { bg: "#F3E8FD", text: "#8B2FD6" };
+
 export const categoryBadgeStyles: Record<string, { bg: string; text: string }> = {
-    "Prise de rendez-vous": { bg: "#F3E8FD", text: "#8B2FD6" },
+    "Prise de rendez-vous": defaultCategoryBadgeStyle,
     "Entretien de Remobilisation": { bg: "#DCE8FB", text: "#2552D6" },
-    Négociation: { bg: "#F3E8FD", text: "#8B2FD6" },
-    Vente: { bg: "#F3E8FD", text: "#8B2FD6" },
-    Recommandation: { bg: "#F3E8FD", text: "#8B2FD6" },
+    Négociation: defaultCategoryBadgeStyle,
+    Vente: defaultCategoryBadgeStyle,
+    Recommandation: defaultCategoryBadgeStyle,
 };
 
 export const difficultyBadgeStyles: Record<RoleplayDifficulty, { bg: string; border: string; text: string }> = {

@@ -2,7 +2,7 @@
 
 import { useId, useState } from "react";
 import type { LucideIcon } from "lucide-react";
-import { Box, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
@@ -64,10 +64,9 @@ export function RoleplayGuidanceTabsPanel({
                     const tabId = `${panelId}-${tab.key}-tab`;
 
                     return (
-                        <button
+                        <Button
                             key={tab.key}
                             id={tabId}
-                            type="button"
                             role="tab"
                             aria-controls={tabPanelId}
                             aria-selected={isActive}
@@ -79,7 +78,7 @@ export function RoleplayGuidanceTabsPanel({
                         >
                             <InlineIcon icon={tab.icon} className="h-4 w-4" />
                             {tab.label}
-                        </button>
+                        </Button>
                     );
                 })}
             </Box>

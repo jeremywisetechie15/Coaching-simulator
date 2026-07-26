@@ -333,6 +333,9 @@ export const uiTokens = {
         removeButton: "inline-flex h-8 items-center gap-1.5 rounded-lg px-2.5 text-[12px] font-semibold text-[#6B7280] transition hover:bg-[#FEF2F2] hover:text-[#DC2626] disabled:cursor-not-allowed disabled:opacity-60",
         removeIcon: "h-3.5 w-3.5",
     },
+    interaction: {
+        button: "cursor-pointer disabled:cursor-not-allowed",
+    },
     action: {
         addButton:
             "flex h-9 items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white px-3 text-[13px] font-semibold text-[#374151] transition hover:border-[#D5D7DE]",
@@ -454,6 +457,65 @@ export const uiTokens = {
         aiActionButton:
             "flex h-9 items-center gap-2 rounded-lg border border-[#E5E7EB] bg-white px-3 text-[13px] font-semibold text-[#374151] transition hover:border-[#D5D7DE] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0] focus-visible:ring-offset-2",
         aiActionIcon: "h-4 w-4 text-[#5140F0]",
+        sessionOverview: {
+            aiBadge:
+                "inline-flex h-5 items-center rounded-md bg-[#EEF0FF] px-1.5 text-[10px] font-bold text-[#5140F0]",
+            categoryBadge:
+                "inline-flex min-h-9 w-fit shrink-0 items-center rounded-lg px-3.5 text-[13px] font-bold",
+            detailCard:
+                "rounded-[16px] border border-[#E1E4EA] p-6 shadow-none lg:min-h-[310px]",
+            detailHeader: "flex items-center gap-3",
+            detailIcon: "flex h-12 w-12 items-center justify-center rounded-full",
+            detailIconGlyph: "h-5 w-5",
+            detailTitle: "text-[18px] font-bold text-[#111827]",
+            difficultyBadge:
+                "inline-flex h-6 items-center rounded-md border px-2 text-[11px] font-bold",
+            discBadge: "h-6 rounded-md border-0 px-2 text-[11px] uppercase",
+            grid:
+                "grid gap-4 lg:grid-cols-[minmax(0,2.4fr)_minmax(270px,1fr)]",
+            metadataCard:
+                "flex min-h-[88px] flex-col justify-center gap-4 rounded-[14px] border border-[#E1E4EA] bg-[#F7F8FB] px-5 py-4 shadow-none md:flex-row md:items-center md:justify-between",
+            metadataIcon: "h-[18px] w-[18px] text-[#7A8494]",
+            metadataItem: "flex items-center gap-2",
+            metadataList:
+                "flex flex-wrap items-center gap-x-6 gap-y-3 text-[14px] font-semibold text-[#4B5563]",
+            personaAvatar:
+                "mx-auto mt-5 h-[104px] w-[104px] overflow-hidden rounded-full border-2 border-[#E7EAFF] shadow-[0_4px_10px_rgba(17,24,39,0.12)]",
+            personaAvatarImage: "h-full w-full bg-cover bg-center",
+            personaBadges: "mt-3 flex items-center justify-center gap-2",
+            personaCard: "text-center",
+            personaIcon: "bg-[#EEF0FF] text-[#5140F0]",
+            personaMeta:
+                "mt-1 text-[14px] font-semibold leading-6 text-[#6B7280]",
+            personaName: "text-[16px] font-extrabold text-[#111827]",
+            personaNameRow: "mt-4 flex items-center justify-center gap-2",
+            scoreCard:
+                "flex min-h-[88px] items-center justify-between gap-4 rounded-[14px] border px-5 py-4 shadow-none",
+            scoreDetailButton:
+                "flex h-7 w-7 shrink-0 items-center justify-center rounded-full transition hover:bg-white/70",
+            scoreDetailIcon: "h-4 w-4",
+            scoreIdentity: "flex min-w-0 items-center gap-3",
+            scoreIcon: "h-6 w-6 shrink-0",
+            scoreTitle: "text-[16px] font-extrabold",
+            scoreTone: {
+                green: "border-[#BBF7D0] !bg-[#F0FDF4] text-[#16A34A]",
+                orange: "border-[#FED7AA] !bg-[#FFF7ED] text-[#C2410C]",
+                red: "border-[#FECACA] !bg-[#FEF2F2] text-[#DC2626]",
+                yellow: "border-[#FDE68A] !bg-[#FFFBEB] text-[#B45309]",
+            },
+            scoreValue:
+                "shrink-0 text-[28px] font-extrabold leading-none",
+            situationContent: "mt-8 space-y-5",
+            situationIcon: "bg-[#E7EDFD] text-[#3B6FD0]",
+            situationLabel: "text-[14px] font-semibold text-[#7A8494]",
+            situationRow:
+                "grid gap-2 sm:grid-cols-[100px_1fr] sm:gap-4",
+            situationText:
+                "text-[15px] font-medium leading-7 text-[#252B38]",
+            statusDot: "h-2.5 w-2.5 rounded-full bg-[#22C55E]",
+            statusLabel: "text-[14px] font-bold text-[#16A34A]",
+            statusRow: "mb-4 flex items-center justify-end gap-2",
+        },
         transcriptCorrection: {
             divider: "border-[#FDE68A]",
             highlight: "bg-[#FDE68A]",

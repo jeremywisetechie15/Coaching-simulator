@@ -3,15 +3,12 @@
 import { useRouter } from "next/navigation";
 import {
     ArrowLeft,
-    CalendarDays,
     CheckCircle2,
     ChevronDown,
     CircleAlert,
-    Clock,
     Download,
     Eye,
     FileText,
-    Hash,
     Info,
     Layers,
     MessageSquare,
@@ -26,17 +23,12 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
-import { DiscProfileBadge } from "@/features/content/components";
 import { METHOD_ROUTES } from "@/features/methods/domain/method";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { CardActionMenu, CardActionMenuButton } from "@/lib/ui/molecules";
 import { AnalysisLoaderDialog, Drawer, Modal } from "@/lib/ui/organisms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
-import {
-    categoryBadgeStyles,
-    difficultyBadgeStyles,
-} from "@/features/roleplays/data/roleplays";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import type { RoleplaySession } from "@/features/roleplays/data/sessions";
 import {
@@ -56,9 +48,10 @@ import {
 } from "@/features/roleplays/domain";
 import { ROLEPLAY_ANALYSIS_STEPS, ROLEPLAY_PDF_EXPORT_STEPS } from "@/features/roleplays/data/session-analysis";
 import { notify, notifyHttpError } from "@/lib/ui/feedback/toast";
-import { SimulationView } from "./SimulationView";
 import { EvaluationKeyMomentsSection } from "./EvaluationKeyMomentsSection";
+import { EvaluationSessionOverview } from "./EvaluationSessionOverview";
 import { RoleplayGuidanceTabsPanel } from "./RoleplayGuidanceTabsPanel";
+import { SimulationView } from "./SimulationView";
 import {
     TranscriptCorrectionPanel,
     TranscriptCorrectionToggle,
@@ -80,20 +73,6 @@ function scoreColor(score: number) {
         return "#F59E0B";
     }
     return "#F97316";
-}
-
-/** Niveau de performance + couleurs, dérivés des seuils de notation (0-40 / 41-65 / 66-85 / 86-100). */
-function scoreNiveau(score: number): { label: string; bg: string; text: string } {
-    if (score >= 86) {
-        return { bg: "#F0FDF4", label: "Excellent", text: "#16A34A" };
-    }
-    if (score >= 66) {
-        return { bg: "#F0FDF4", label: "Bon", text: "#16A34A" };
-    }
-    if (score >= 41) {
-        return { bg: "#FFF7ED", label: "Moyen", text: "#C2410C" };
-    }
-    return { bg: "#FEF2F2", label: "Faible", text: "#DC2626" };
 }
 
 function Ring({ score, size = 110, stroke = 11 }: { score: number; size?: number; stroke?: number }) {
@@ -176,8 +155,6 @@ export function EvaluationPageContent({
     const [pdfExportStep, setPdfExportStep] = useState<number | null>(null);
     const evaluationData = evaluation ?? fallbackEvaluation;
 
-    const categoryStyle = categoryBadgeStyles[roleplay.category] ?? { bg: "#F3E8FD", text: "#8B2FD6" };
-    const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
     const notationRefreshing = notationRefreshStep !== null;
     const pdfExporting = pdfExportStep !== null;
 
@@ -389,133 +366,12 @@ export function EvaluationPageContent({
                 </Box>
 
                 <CardSurface className="rounded-[24px] border border-[#E9E7FB] p-6 shadow-[0_1px_2px_rgba(17,24,39,0.04)] md:p-8">
-                    <Box className="mb-4 flex items-center justify-end gap-2">
-                        <Box className="h-2.5 w-2.5 rounded-full bg-[#22C55E]" />
-                        <Text className="text-[14px] font-bold text-[#16A34A]">Données synchronisées</Text>
-                    </Box>
-
-                    <Box className="flex flex-col gap-4 rounded-[14px] bg-[#F7F8FB] px-5 py-4 md:flex-row md:items-center md:justify-between">
-                        <Box className="flex flex-wrap items-center gap-x-6 gap-y-2 text-[14px] font-semibold text-[#4B5563]">
-                            <Box className="flex items-center gap-2">
-                                <InlineIcon icon={Hash} className="h-4 w-4 text-[#9CA3AF]" />
-                                Session n°{session.attemptNumber}
-                            </Box>
-                            <Box className="flex items-center gap-2">
-                                <InlineIcon icon={CalendarDays} className="h-4 w-4 text-[#9CA3AF]" />
-                                Réalisé le {session.date} à {session.time}
-                            </Box>
-                            <Box className="flex items-center gap-2">
-                                <InlineIcon icon={Clock} className="h-4 w-4 text-[#9CA3AF]" />
-                                Durée session: {session.duration}
-                            </Box>
-                        </Box>
-                        <Box
-                            className="inline-flex h-9 w-fit items-center rounded-lg px-3.5 text-[13px] font-bold"
-                            style={{ backgroundColor: categoryStyle.bg, color: categoryStyle.text }}
-                        >
-                            {roleplay.category}
-                        </Box>
-                    </Box>
-
-                    <Box className="mt-5 grid gap-4 lg:grid-cols-[1.6fr_1fr_1fr]">
-                        <CardSurface className="rounded-[16px] border border-[#E5E7EB] p-6 shadow-none">
-                            <Box className="flex items-center gap-3">
-                                <Box className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E7EDFD]">
-                                    <InlineIcon icon={Info} className="h-5 w-5 text-[#3B6FD0]" />
-                                </Box>
-                                <Text as="h3" className="text-[17px] font-bold text-[#111827]">
-                                    Situation
-                                </Text>
-                            </Box>
-                            <Box className="mt-4 space-y-3">
-                                <Box className="grid grid-cols-[88px_1fr] gap-3">
-                                    <Text className="text-[13px] font-semibold text-[#9CA3AF]">Contexte</Text>
-                                    <Text className="text-[14px] font-medium leading-6 text-[#3F4654]">
-                                        {evaluationData.steps.length > 0 ? roleplay.detail.context : ""}
-                                    </Text>
-                                </Box>
-                                <Box className="grid grid-cols-[88px_1fr] gap-3">
-                                    <Text className="text-[13px] font-semibold text-[#9CA3AF]">Objectif</Text>
-                                    <Text className="text-[14px] font-medium leading-6 text-[#3F4654]">
-                                        {roleplay.description}
-                                    </Text>
-                                </Box>
-                            </Box>
-                        </CardSurface>
-
-                        <CardSurface className="rounded-[16px] border border-[#E5E7EB] p-6 text-center shadow-none">
-                            <Box className="flex items-center gap-3">
-                                <Box className="flex h-10 w-10 items-center justify-center rounded-full bg-[#EEF0FF]">
-                                    <InlineIcon icon={Info} className="h-5 w-5 text-[#5140F0]" />
-                                </Box>
-                                <Text as="h3" className="text-[17px] font-bold text-[#111827]">
-                                    Persona
-                                </Text>
-                            </Box>
-                            <Box className="mx-auto mt-4 h-[72px] w-[72px] overflow-hidden rounded-full border-2 border-[#E7EAFF]">
-                                <Box
-                                    aria-label={roleplay.name}
-                                    role="img"
-                                    className="h-full w-full bg-cover bg-center"
-                                    style={{ backgroundImage: `url(${roleplay.avatarSrc})` }}
-                                />
-                            </Box>
-                            <Box className="mt-2 flex items-center justify-center gap-2">
-                                <Text className="text-[15px] font-extrabold text-[#111827]">{roleplay.name}</Text>
-                                <Box className="inline-flex h-5 items-center rounded-md bg-[#EEF0FF] px-1.5 text-[10px] font-bold text-[#5140F0]">
-                                    AI
-                                </Box>
-                            </Box>
-                            <Text className="text-[13px] font-semibold text-[#6B7280]">
-                                {roleplay.role}
-                                <br />@ {roleplay.company}
-                            </Text>
-                            <Box className="mt-2 flex items-center justify-center gap-2">
-                                <DiscProfileBadge
-                                    profile={roleplay.disc}
-                                    className="h-6 rounded-md border-0 px-2 text-[11px] uppercase"
-                                />
-                                <Box
-                                    className="inline-flex h-6 items-center rounded-md px-2 text-[11px] font-bold"
-                                    style={{ backgroundColor: difficultyStyle.bg, color: difficultyStyle.text }}
-                                >
-                                    {roleplay.difficulty}
-                                </Box>
-                            </Box>
-                        </CardSurface>
-
-                        <CardSurface className="rounded-[16px] border border-[#E5E7EB] p-6 text-center shadow-none">
-                            <Box className="flex items-center gap-3">
-                                <Box className="flex h-10 w-10 items-center justify-center rounded-full bg-[#E7F9ED]">
-                                    <InlineIcon icon={CheckCircle2} className="h-5 w-5 text-[#16A34A]" />
-                                </Box>
-                                <Text as="h3" className="text-[17px] font-bold text-[#111827]">
-                                    Score
-                                </Text>
-                            </Box>
-                            <Box className="mt-3 flex justify-center">
-                                <Ring score={session.score} />
-                            </Box>
-                            <Box className="mt-2 flex items-center justify-center gap-2">
-                                <Box
-                                    className="inline-flex h-6 items-center rounded-md px-2.5 text-[12px] font-bold"
-                                    style={{
-                                        backgroundColor: scoreNiveau(session.score).bg,
-                                        color: scoreNiveau(session.score).text,
-                                    }}
-                                >
-                                    {scoreNiveau(session.score).label}
-                                </Box>
-                                <Button
-                                    aria-label="Détail du score global"
-                                    onClick={() => setScoreInfoOpen(true)}
-                                    className="flex h-6 w-6 items-center justify-center rounded-full text-[#9CA3AF] transition hover:bg-[#F3F4F6] hover:text-[#5140F0]"
-                                >
-                                    <InlineIcon icon={Info} className="h-4 w-4" />
-                                </Button>
-                            </Box>
-                        </CardSurface>
-                    </Box>
+                    <EvaluationSessionOverview
+                        context={evaluationData.steps.length > 0 ? roleplay.detail.context : ""}
+                        onOpenScoreDetails={() => setScoreInfoOpen(true)}
+                        roleplay={roleplay}
+                        session={session}
+                    />
 
                     <Box className="mt-5 flex flex-col gap-3 rounded-[14px] bg-[#F7F8FB] px-5 py-4 md:flex-row md:items-center md:justify-between">
                         <Text className="text-[14px] font-semibold text-[#3F4654]">
@@ -549,9 +405,8 @@ export function EvaluationPageContent({
                         {TABS.map((tab) => {
                             const isActive = tab === activeTab;
                             return (
-                                <button
+                                <Button
                                     key={tab}
-                                    type="button"
                                     role="tab"
                                     aria-selected={isActive}
                                     onClick={() => setActiveTab(tab)}
@@ -562,7 +417,7 @@ export function EvaluationPageContent({
                                     }`}
                                 >
                                     {tab}
-                                </button>
+                                </Button>
                             );
                         })}
                     </Box>
@@ -811,9 +666,8 @@ function PersonaFeedbackPanel({ evaluation }: { evaluation: Evaluation }) {
                 {tabs.map((item) => {
                     const isActive = item.key === tab;
                     return (
-                        <button
+                        <Button
                             key={item.key}
-                            type="button"
                             role="tab"
                             aria-selected={isActive}
                             onClick={() => setTab(item.key)}
@@ -824,7 +678,7 @@ function PersonaFeedbackPanel({ evaluation }: { evaluation: Evaluation }) {
                             }`}
                         >
                             {item.label}
-                        </button>
+                        </Button>
                     );
                 })}
             </Box>
@@ -1096,8 +950,7 @@ function MethodologieStep({
     return (
         <CardSurface className="overflow-hidden rounded-[14px] border border-[#E5E7EB] shadow-none">
             <Box className="flex flex-col gap-4 px-5 py-4 md:flex-row md:items-center md:justify-between">
-                <button
-                    type="button"
+                <Button
                     aria-expanded={open}
                     onClick={() => setOpen((value) => !value)}
                     className="flex flex-1 items-center gap-4 text-left"
@@ -1111,7 +964,7 @@ function MethodologieStep({
                     <Text as="h3" className="text-[16px] font-bold text-[#111827]">
                         Étape {step.number} : {step.title}
                     </Text>
-                </button>
+                </Button>
                 <Box className="flex items-center gap-4">
                     <Ring score={step.score} size={64} stroke={7} />
                     <Box
@@ -1120,8 +973,7 @@ function MethodologieStep({
                     >
                         {step.status}
                     </Box>
-                    <button
-                        type="button"
+                    <Button
                         aria-label={open ? "Replier l'étape" : "Déplier l'étape"}
                         onClick={() => setOpen((value) => !value)}
                         className="text-[#9CA3AF] transition hover:text-[#111827]"
@@ -1130,7 +982,7 @@ function MethodologieStep({
                             icon={ChevronDown}
                             className={`h-5 w-5 transition-transform ${open ? "rotate-180" : ""}`}
                         />
-                    </button>
+                    </Button>
                 </Box>
             </Box>
 

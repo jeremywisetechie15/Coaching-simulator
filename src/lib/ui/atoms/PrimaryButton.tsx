@@ -9,6 +9,7 @@ export function PrimaryButton({ children, className, type = "submit", ...props }
         <button
             type={type}
             className={cn(
+                uiTokens.interaction.button,
                 uiTokens.action.primaryFullButton,
                 className
             )}
