@@ -10,6 +10,20 @@ interface RouteContext {
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
+const PDF_PAGE_FOOTER = `
+    <div style="
+        box-sizing: border-box;
+        width: 100%;
+        padding: 0 12mm;
+        color: #6B7280;
+        font-family: sans-serif;
+        font-size: 9px;
+        text-align: center;
+    ">
+        Page <span class="pageNumber"></span> / <span class="totalPages"></span>
+    </div>
+`;
+
 function reportFileName(sessionId: string, template: string) {
     return `maia-coach-${template}-${sessionId.replace(/[^a-zA-Z0-9_-]/g, "")}.pdf`;
 }
@@ -39,7 +53,10 @@ export async function GET(request: NextRequest, context: RouteContext) {
         }
 
         const pdf = await page.pdf({
+            displayHeaderFooter: true,
             format: "A4",
+            footerTemplate: PDF_PAGE_FOOTER,
+            headerTemplate: "<span></span>",
             margin: {
                 bottom: "0",
                 left: "0",

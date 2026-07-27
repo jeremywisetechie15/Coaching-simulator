@@ -411,7 +411,7 @@ function PlanProgress({ evaluation }: { evaluation: Evaluation }) {
                     </Box>
                 ))}
                 <Box className="rounded-[14px] border border-[#E9E7FB] bg-[#F8F7FF] p-4">
-                    <Text className="text-[12px] font-extrabold uppercase tracking-wide text-[#5140F0]">
+                    <Text className={uiTokens.roleplayEvaluation.strategicPriorityTitle}>
                         Priorité stratégique
                     </Text>
                     <Text className="mt-2 text-[13px] font-medium leading-6 text-[#4B5563]">
@@ -624,7 +624,7 @@ export function RoleplaySessionReportPrintPage({
             <style
                 dangerouslySetInnerHTML={{
                     __html: `
-                        @page { size: A4; margin: 12mm; }
+                        @page { size: A4; margin: 12mm 12mm 16mm; }
                         @media print {
                             * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
                             body { background: white !important; }

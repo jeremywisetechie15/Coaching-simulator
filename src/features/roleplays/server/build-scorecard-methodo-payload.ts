@@ -3,9 +3,11 @@ import {
     createRoleplayTranscriptCorrectionLimiter,
     extractRoleplayTranscriptCorrectionCandidates,
     normalizeRoleplayTranscriptCorrection,
-    type RoleplayNotationCriterionRef,
-    type RoleplayNotationScoreResult,
-} from "@/features/roleplays/domain";
+} from "@/features/roleplays/domain/transcript-correction";
+import type {
+    RoleplayNotationCriterionRef,
+    RoleplayNotationScoreResult,
+} from "@/features/roleplays/domain/roleplay-notation";
 import type { RoleplayScorecardNotationContext } from "./build-roleplay-notation-context";
 
 type JsonRecord = Record<string, unknown>;
