@@ -189,7 +189,7 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
                     </Text>
                     <Box className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                         <CardSurface className="rounded-[14px] border border-[#E5E7EB] p-5 text-center shadow-none">
-                            <Text className="text-[13px] font-bold text-[#4B5563]">Score actuel</Text>
+                            <Text className="text-[13px] font-bold text-[#4B5563]">Dernier score</Text>
                             <Text className="mt-2 text-[30px] font-extrabold text-[#EA580C]">
                                 {detail.scoreActuel}%
                             </Text>
@@ -197,7 +197,6 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
                                 <InlineIcon icon={CalendarDays} className={uiTokens.metadata.dateBadgeIcon} />
                                 {detail.lastDate}
                             </Box>
-                            <Text className="mt-0.5 text-[12px] font-medium text-[#9CA3AF]">Dernier score</Text>
                         </CardSurface>
                         <CardSurface className="rounded-[14px] border border-[#E5E7EB] p-5 text-center shadow-none">
                             <Text className="text-[13px] font-bold text-[#4B5563]">Meilleur score</Text>

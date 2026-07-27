@@ -24,7 +24,8 @@ describe("EvaluationSessionOverview", () => {
         expect(html).toContain(`Session n°${session.attemptNumber}`);
         expect(html).toContain(`Réalisé le ${session.date} à ${session.time}`);
         expect(html).toContain(`Durée session: ${session.duration}`);
-        expect(html).toContain("Situation : Gérer une réclamation client");
+        expect(html).toContain("Gérer une réclamation client");
+        expect(html).not.toContain("Situation :");
         expect(html).toContain(`${session.score}%`);
         expect(html).toContain('aria-label="Détail du score global"');
         expect(html).toContain(uiTokens.roleplayEvaluation.sessionOverview.scoreTone.orange);

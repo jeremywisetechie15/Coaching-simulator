@@ -3,6 +3,7 @@ import { CONTENT_STATUS, CONTENT_VISIBILITY_SCOPE } from "@/features/content/dom
 import type { SaveQuizDto } from "@/features/evaluations/dto";
 
 const mocks = vi.hoisted(() => ({
+    assertQuizAttemptEditPolicy: vi.fn(),
     assertQuizLifecycle: vi.fn(),
     fetchQuizDetail: vi.fn(),
     materializeQuizAttachments: vi.fn(),
@@ -29,6 +30,9 @@ vi.mock("@/lib/supabase/admin", () => ({
     }),
 }));
 vi.mock("./assert-quiz-lifecycle", () => ({ assertQuizLifecycle: mocks.assertQuizLifecycle }));
+vi.mock("./quiz-attempt-edit-policy", () => ({
+    assertQuizAttemptEditPolicy: mocks.assertQuizAttemptEditPolicy,
+}));
 vi.mock("./quiz-query", () => ({ fetchQuizDetail: mocks.fetchQuizDetail }));
 vi.mock("./save-quiz-children", async (importOriginal) => {
     const original = await importOriginal<typeof import("./save-quiz-children")>();
@@ -104,8 +108,15 @@ describe("updateQuiz", () => {
     });
 
     it("preserves existing aggregate IDs sent by the edit form", async () => {
-        await updateQuiz("quiz-1", quizInput());
+        const input = quizInput();
+        await updateQuiz("quiz-1", input);
 
+        expect(mocks.assertQuizAttemptEditPolicy).toHaveBeenCalledWith(
+            expect.anything(),
+            "quiz-1",
+            input,
+            { hasUploads: false },
+        );
         expect(mocks.rpc).toHaveBeenCalledWith("admin_update_quiz_aggregate", expect.objectContaining({
             p_attachments: [expect.objectContaining({ id: attachmentId, question_id: questionId })],
             p_choices: [expect.objectContaining({ id: choiceId, question_id: questionId })],

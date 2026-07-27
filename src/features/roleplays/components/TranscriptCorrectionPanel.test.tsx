@@ -42,6 +42,22 @@ describe("transcript correction", () => {
         expect(html).toContain("Le cadrage doit annoncer plus clairement");
     });
 
+    it("shows both retained verbatims for the same learner message", () => {
+        const secondCorrection = {
+            ...correction,
+            criterionRef: "C2",
+            reason: "La question gagnerait à être plus directe.",
+            suggestion: "Quelles sont vos deux priorités pour cet échange ?",
+        };
+        const html = renderToStaticMarkup(
+            <TranscriptCorrectionPanel corrections={[correction, secondCorrection]} />,
+        );
+
+        expect(html).toContain(correction.suggestion);
+        expect(html).toContain(secondCorrection.suggestion);
+        expect(html.match(/Verbatim préconisé/g)).toHaveLength(2);
+    });
+
     it("renders no correction section when none was validated", () => {
         expect(renderToStaticMarkup(
             <TranscriptCorrectionPanel corrections={[]} />,

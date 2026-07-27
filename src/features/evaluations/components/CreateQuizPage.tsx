@@ -5,7 +5,7 @@ import {
     canManageAppResource,
 } from "@/features/auth/domain/access-control";
 import type {
-    QuizDetail,
+    QuizEditorDetail,
     QuizGroupOption,
     QuizMethodOption,
     QuizOrganizationOption,
@@ -21,7 +21,7 @@ interface CreateQuizPageProps {
     methodOptions: QuizMethodOption[];
     organizationOptions: QuizOrganizationOption[];
     profileValues: ProfileFormValues;
-    quiz?: QuizDetail;
+    quiz?: QuizEditorDetail;
     skillOptions: SkillOption[];
     userOptions: QuizUserOption[];
 }

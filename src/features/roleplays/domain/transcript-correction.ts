@@ -25,7 +25,12 @@ function trimmedString(value: unknown) {
 }
 
 function comparableText(value: string) {
-    return value.trim().toLocaleLowerCase("fr-FR");
+    return value
+        .normalize("NFD")
+        .replace(/\p{Diacritic}/gu, "")
+        .toLocaleLowerCase("fr-FR")
+        .replace(/[^\p{Letter}\p{Number}]+/gu, " ")
+        .trim();
 }
 
 function lowercaseText(value: string) {
@@ -92,6 +97,16 @@ export function normalizeRoleplayTranscriptCorrection({
         pourquoi: reason,
         verbatim_preconise: suggested,
     };
+}
+
+export function extractRoleplayTranscriptCorrectionCandidates(
+    criterion: unknown,
+): unknown[] {
+    if (!isRecord(criterion)) return [];
+    if (Array.isArray(criterion.corrections)) return criterion.corrections;
+    if (criterion.correction === null || criterion.correction === undefined) return [];
+
+    return [criterion.correction];
 }
 
 export function createRoleplayTranscriptCorrectionLimiter() {

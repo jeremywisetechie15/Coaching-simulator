@@ -87,7 +87,7 @@ const correction = {
 };
 
 describe("build scorecard methodo payload", () => {
-    it("persists one validated correction for an incomplete criterion", () => {
+    it("adapts a legacy singular correction without changing its criterion score", () => {
         const payload = buildScorecardMethodoPayload(
             {
                 criteres: [{ correction, ref: "C1" }],
@@ -100,14 +100,56 @@ describe("build scorecard methodo payload", () => {
 
         expect(payload).not.toHaveProperty("criteres");
         expect(payload.etapes[0].criteres[0]).toMatchObject({
-            correction,
+            corrections: [correction],
             points_obtenus: 1,
             points_max: 2,
             verbatim: criterionRefs[0].verbatim,
         });
+        expect(payload.etapes[0].criteres[0]).not.toHaveProperty("correction");
     });
 
-    it("forces correction to null when the normalized criterion score is complete", () => {
+    it("keeps several useful learner messages for the same incomplete criterion", () => {
+        const secondCorrection = {
+            message_ref: "M2",
+            phrase_originale: "je vais regarder ce que nous pouvons faire",
+            pourquoi: "La conclusion gagnerait à annoncer une prochaine étape précise.",
+            verbatim_preconise: "Je vous propose de valider ensemble la prochaine étape.",
+        };
+        const payload = buildScorecardMethodoPayload(
+            {
+                criteres: [{
+                    corrections: [correction, secondCorrection],
+                    ref: "C1",
+                }],
+            },
+            scoreResult(1),
+            criterionRefs,
+            {
+                ...transcription,
+                conversation: [
+                    ...transcription.conversation,
+                    {
+                        etape_methodo: null,
+                        id: 2,
+                        is_ai_response: false,
+                        speaker: "Apprenant",
+                        timecode_absolute: "12:00:10",
+                        timecode_relative: "00:00:10",
+                        verbatim: "Avant de conclure, je vais regarder ce que nous pouvons faire.",
+                    },
+                ],
+                messages_apprenant: 2,
+                total_messages: 2,
+            },
+        );
+
+        expect(payload.etapes[0].criteres[0].corrections).toEqual([
+            correction,
+            secondCorrection,
+        ]);
+    });
+
+    it("forces corrections to an empty array when the normalized criterion score is complete", () => {
         const payload = buildScorecardMethodoPayload(
             { criteres: [{ correction, ref: "C1" }] },
             scoreResult(2),
@@ -115,7 +157,7 @@ describe("build scorecard methodo payload", () => {
             transcription,
         );
 
-        expect(payload.etapes[0].criteres[0].correction).toBeNull();
+        expect(payload.etapes[0].criteres[0].corrections).toEqual([]);
     });
 
     it("drops a semantically invalid correction without altering criterion scoring", () => {
@@ -132,13 +174,13 @@ describe("build scorecard methodo payload", () => {
         );
 
         expect(payload.etapes[0].criteres[0]).toMatchObject({
-            correction: null,
+            corrections: [],
             points_obtenus: 1,
             score: 50,
         });
     });
 
-    it("caps corrections per phrase without removing criteria or changing their scores", () => {
+    it("caps corrections per learner message without removing criteria or changing their scores", () => {
         const repeatedCriterionRefs = Array.from({ length: 3 }, (_, index) => ({
             ...criterionRefs[0],
             criterionKey: `Critère ${index + 1}`,
@@ -176,14 +218,14 @@ describe("build scorecard methodo payload", () => {
         const payload = buildScorecardMethodoPayload(
             {
                 criteres: repeatedCriterionRefs.map((criterionRef, index) => ({
-                    correction: {
+                    corrections: [{
                         ...correction,
                         phrase_originale: index === 2
                             ? "Avant de rentrer dans les possibilités, parlons de vos priorités."
                             : correction.phrase_originale,
                         pourquoi: `Pourquoi ${index + 1}`,
                         verbatim_preconise: `Verbatim recommandé ${index + 1}`,
-                    },
+                    }],
                     ref: criterionRef.ref,
                 })),
             },
@@ -196,7 +238,7 @@ describe("build scorecard methodo payload", () => {
         expect(persistedCriteria).toHaveLength(3);
         expect(persistedCriteria.map((criterion) => criterion.points_obtenus)).toEqual([1, 1, 1]);
         expect(persistedCriteria.map((criterion) => criterion.score)).toEqual([50, 50, 50]);
-        expect(persistedCriteria.filter((criterion) => criterion.correction)).toHaveLength(2);
-        expect(persistedCriteria[2].correction).toBeNull();
+        expect(persistedCriteria.flatMap((criterion) => criterion.corrections)).toHaveLength(2);
+        expect(persistedCriteria[2].corrections).toEqual([]);
     });
 });

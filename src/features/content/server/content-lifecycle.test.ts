@@ -65,22 +65,24 @@ describe("content lifecycle server guards", () => {
 
     it("rejects a published parent that exposes a narrower dependency", async () => {
         const supabase = createFakeSupabase({
-            methods: [{
-                id: "method-1",
+            quizzes: [{
+                assigned_user_id: "user-1",
+                id: "quiz-1",
                 is_active: true,
-                organization_id: "org-1",
-                scope: CONTENT_VISIBILITY_SCOPE.organization,
                 status: CONTENT_STATUS.published,
+                visibility_scope: CONTENT_VISIBILITY_SCOPE.user,
             }],
         });
 
         await expect(assertContentDependencyScopes(
             supabase as never,
             CONTENT_STATUS.published,
-            [{ id: "method-1", kind: CONTENT_DEPENDENCY_KIND.method }],
+            [{ id: "quiz-1", kind: CONTENT_DEPENDENCY_KIND.quiz }],
             { scope: CONTENT_VISIBILITY_SCOPE.public },
         )).rejects.toMatchObject({
-            message: expect.stringContaining("portée"),
+            message:
+                "Impossible de publier : le quiz associé n'est pas accessible à tous les destinataires prévus. " +
+                "Vérifiez que sa visibilité correspond à celle du contenu.",
             status: 409,
         });
     });

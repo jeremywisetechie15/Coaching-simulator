@@ -17,6 +17,7 @@ interface SearchableMultiSelectFieldProps {
     /** Variante de style du bouton d'ouverture (défaut : `uiTokens.action.addButton`). */
     addButtonClassName?: string;
     addLabel: string;
+    disabled?: boolean;
     emptyHint?: string;
     onAdd: (value: string) => void;
     onRemove: (value: string) => void;
@@ -32,6 +33,7 @@ interface SearchableMultiSelectFieldProps {
 export function SearchableMultiSelectField({
     addButtonClassName,
     addLabel,
+    disabled,
     emptyHint,
     onAdd,
     onRemove,
@@ -70,8 +72,12 @@ export function SearchableMultiSelectField({
                             <Text as="span">{option.label}</Text>
                             <Button
                                 aria-label={`Retirer ${option.label}`}
+                                disabled={disabled}
                                 onClick={() => onRemove(option.value)}
-                                className={uiTokens.searchableSelect.chipRemoveButton}
+                                className={cn(
+                                    uiTokens.searchableSelect.chipRemoveButton,
+                                    disabled && "cursor-not-allowed opacity-50",
+                                )}
                             >
                                 <InlineIcon icon={X} className="h-3.5 w-3.5" />
                             </Button>
@@ -80,7 +86,7 @@ export function SearchableMultiSelectField({
                 </Box>
             )}
 
-            {open ? (
+            {open && !disabled ? (
                 <Box className={uiTokens.searchableSelect.panel}>
                     <TextInput
                         autoFocus
@@ -128,7 +134,14 @@ export function SearchableMultiSelectField({
                     </Button>
                 </Box>
             ) : (
-                <Button onClick={() => setOpen(true)} className={addButtonClassName ?? uiTokens.action.addButton}>
+                <Button
+                    disabled={disabled}
+                    onClick={() => setOpen(true)}
+                    className={cn(
+                        addButtonClassName ?? uiTokens.action.addButton,
+                        disabled && "cursor-not-allowed opacity-50",
+                    )}
+                >
                     <InlineIcon icon={Plus} className="h-4 w-4" />
                     {addLabel}
                 </Button>

@@ -112,6 +112,10 @@ export interface ScorecardDetail extends ScorecardListItem {
     steps: ScorecardStep[];
 }
 
+export interface ScorecardEditorDetail extends ScorecardDetail {
+    hasUsage: boolean;
+}
+
 export function scorecardVisibilityToScope(visibility: ScorecardVisibility): ScorecardScope {
     return visibility === SCORECARD_VISIBILITY.private ? SCORECARD_SCOPE.organization : SCORECARD_SCOPE.public;
 }

@@ -277,6 +277,62 @@ describe("evaluation notation mapper", () => {
         expect(evaluation.transcript[1].corrections).toBeUndefined();
     });
 
+    it("links plural corrections from one criterion to every referenced learner message", () => {
+        const evaluation = mapNotationToEvaluation(
+            {
+                methodo: {
+                    etapes: [{
+                        criteres: [{
+                            corrections: [
+                                {
+                                    message_ref: "M1",
+                                    phrase_originale: "parlons de vos priorités",
+                                    pourquoi: "Le cadrage doit être plus explicite.",
+                                    verbatim_preconise: "Pour cadrer notre échange, quelles sont vos priorités ?",
+                                },
+                                {
+                                    message_ref: "M3",
+                                    phrase_originale: "je vais regarder ce que nous pouvons faire",
+                                    pourquoi: "La prochaine étape doit être annoncée clairement.",
+                                    verbatim_preconise: "Je vous propose de valider ensemble la prochaine étape.",
+                                },
+                            ],
+                            points_max: 2,
+                            points_obtenus: 1,
+                            ref: "C1",
+                        }],
+                    }],
+                },
+            },
+            [
+                {
+                    content: "Avant de commencer, parlons de vos priorités.",
+                    role: "user",
+                    timestamp: "2026-06-30T10:15:30",
+                },
+                {
+                    content: "D'accord.",
+                    role: "assistant",
+                    timestamp: "2026-06-30T10:15:35",
+                },
+                {
+                    content: "Je vais regarder ce que nous pouvons faire.",
+                    role: "user",
+                    timestamp: "2026-06-30T10:15:40",
+                },
+            ],
+        );
+
+        expect(evaluation.transcript[0].corrections).toHaveLength(1);
+        expect(evaluation.transcript[1].corrections).toBeUndefined();
+        expect(evaluation.transcript[2].corrections).toMatchObject([
+            {
+                criterionRef: "C1",
+                suggestion: "Je vous propose de valider ensemble la prochaine étape.",
+            },
+        ]);
+    });
+
     it("does not expose an AI correction for a fully awarded criterion", () => {
         const evaluation = mapNotationToEvaluation(
             {

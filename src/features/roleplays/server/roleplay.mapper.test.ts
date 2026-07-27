@@ -73,6 +73,26 @@ describe("roleplay card persona avatar", () => {
     });
 });
 
+describe("roleplay persona facts", () => {
+    it("maps the persona business fields used by roleplay badges", () => {
+        const roleplay = mapRoleplayRowToListItem({
+            id: "roleplay-1",
+            persona_age: 32,
+            persona_annual_revenue: "40 M€",
+            persona_employee_count: 1800,
+            persona_industry: "Immobilier",
+            title: "Prospection immobilière",
+        });
+
+        expect(roleplay.personaFacts).toEqual({
+            age: 32,
+            annualRevenue: "40 M€",
+            employeeCount: 1800,
+            industry: "Immobilier",
+        });
+    });
+});
+
 describe("roleplay coach presentation", () => {
     it("keeps the associated coach identity and external avatar", () => {
         const roleplay = mapCoachToRoleplay("https://cdn.example.com/coach.webp");

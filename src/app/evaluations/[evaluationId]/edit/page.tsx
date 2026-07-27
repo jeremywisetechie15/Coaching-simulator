@@ -7,6 +7,7 @@ import {
 import { CreateQuizPage } from "@/features/evaluations/components";
 import {
     getQuizById,
+    getQuizEditorById,
     listQuizMethodOptions,
     listQuizTargetOptions,
 } from "@/features/evaluations/server";
@@ -71,7 +72,7 @@ export default async function Page({ params, searchParams }: PageProps) {
     let quiz;
 
     try {
-        quiz = await getQuizById(evaluationId);
+        quiz = await getQuizEditorById(evaluationId);
     } catch (error) {
         if (error instanceof NotFoundError) {
             notFound();

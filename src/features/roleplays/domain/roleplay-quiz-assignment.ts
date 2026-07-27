@@ -1,3 +1,4 @@
+import { QUIZ_KIND } from "@/features/evaluations/domain";
 import type { RoleplayQuizOption } from "./roleplay";
 
 export interface RoleplayQuizAssignmentCandidate {
@@ -32,6 +33,17 @@ export function getAssignableRoleplayQuizOptions(
     methodId: string | null | undefined,
 ) {
     return quizOptions.filter((quiz) => isRoleplayQuizAssignableForMethod(quiz, methodId));
+}
+
+export function getRoleplayMethodKnowledgeQuizOption(
+    quizOptions: RoleplayQuizOption[],
+    methodId: string | null | undefined,
+) {
+    if (!methodId) return null;
+
+    return quizOptions.find(
+        (quiz) => quiz.methodId === methodId && quiz.kind === QUIZ_KIND.methodKnowledge,
+    ) ?? null;
 }
 
 export function validateRoleplayQuizAssignments({

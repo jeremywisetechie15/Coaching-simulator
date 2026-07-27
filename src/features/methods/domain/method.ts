@@ -332,3 +332,10 @@ export interface MethodDetail extends MethodListItem {
     resources: MethodResource[];
     steps: MethodStepItem[];
 }
+
+export const METHOD_USAGE_EDIT_RESTRICTION_MESSAGE =
+    "Cette méthode est déjà utilisée. Seuls les champs texte et numériques existants peuvent être modifiés.";
+
+export interface MethodEditorDetail extends MethodDetail {
+    hasUsage: boolean;
+}

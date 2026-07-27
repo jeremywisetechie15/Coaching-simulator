@@ -47,6 +47,7 @@ interface QuizQuestionEditorProps {
     removable: boolean;
     skillOptions: SkillOption[];
     stepCompetenceIds: string[];
+    structureLocked?: boolean;
     uploadProgressByClientFileId?: Readonly<Record<string, number>>;
 }
 
@@ -74,6 +75,7 @@ export function QuizQuestionEditor({
     removable,
     skillOptions,
     stepCompetenceIds,
+    structureLocked,
     uploadProgressByClientFileId,
 }: QuizQuestionEditorProps) {
     const questionCompetenceOptions = skillOptions
@@ -134,6 +136,7 @@ export function QuizQuestionEditor({
                             className={uiTokens.form.textAreaWhite}
                         />
                         <SingleSelectField
+                            disabled={structureLocked}
                             options={QUIZ_QUESTION_TYPES.map((type) => ({
                                 label: QUIZ_QUESTION_TYPE_LABELS[type],
                                 value: type,
@@ -146,8 +149,9 @@ export function QuizQuestionEditor({
                     {removable && (
                         <Button
                             aria-label="Supprimer la question"
+                            disabled={structureLocked}
                             onClick={onRemove}
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#9CA3AF] transition hover:bg-[#FEF2F2] hover:text-[#DC2626]"
+                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#9CA3AF] transition hover:bg-[#FEF2F2] hover:text-[#DC2626] disabled:cursor-not-allowed disabled:opacity-50"
                         >
                             <InlineIcon icon={Trash2} className="h-4 w-4" />
                         </Button>
@@ -162,13 +166,14 @@ export function QuizQuestionEditor({
                         <Box key={choice.id} className="flex items-center gap-2">
                             <Button
                                 aria-label="Marquer comme bonne réponse"
+                                disabled={structureLocked}
                                 onClick={() =>
                                     onChoicePatch(choice.id, {
                                         isCorrect: question.type === "QCM" ? !choice.isCorrect : true,
                                     })
                                 }
                                 className={cn(
-                                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition",
+                                    "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition disabled:cursor-not-allowed disabled:opacity-60",
                                     choice.isCorrect ? "border-[#5140F0]" : "border-[#9CA3AF]",
                                 )}
                             >
@@ -184,15 +189,26 @@ export function QuizQuestionEditor({
                             {question.choices.length > 2 && (
                                 <Button
                                     aria-label="Supprimer la réponse"
+                                    disabled={structureLocked}
                                     onClick={() => onRemoveChoice(choice.id)}
-                                    className={uiTokens.action.listRemoveButton}
+                                    className={cn(
+                                        uiTokens.action.listRemoveButton,
+                                        "disabled:cursor-not-allowed disabled:opacity-50",
+                                    )}
                                 >
                                     <InlineIcon icon={X} className="h-4 w-4" />
                                 </Button>
                             )}
                         </Box>
                     ))}
-                    <Button onClick={onAddChoice} className={uiTokens.action.addButton}>
+                    <Button
+                        disabled={structureLocked}
+                        onClick={onAddChoice}
+                        className={cn(
+                            uiTokens.action.addButton,
+                            "disabled:cursor-not-allowed disabled:opacity-50",
+                        )}
+                    >
                         <InlineIcon icon={Plus} className="h-4 w-4" />
                         Ajouter une réponse
                     </Button>
@@ -205,6 +221,7 @@ export function QuizQuestionEditor({
                     <Box>
                         <FieldLabel required className={uiTokens.form.subLabel}>Compétence évaluée</FieldLabel>
                         <SingleSelectField
+                            disabled={structureLocked}
                             options={questionCompetenceOptions}
                             value={question.competenceId}
                             placeholder="Sélectionner une compétence..."
@@ -236,7 +253,11 @@ export function QuizQuestionEditor({
                                 Item de {dimensionLabel} évalué
                             </FieldLabel>
                             <SingleSelectField
-                                disabled={!question.competenceId || dimensionItemOptions.length === 0}
+                                disabled={
+                                    structureLocked ||
+                                    !question.competenceId ||
+                                    dimensionItemOptions.length === 0
+                                }
                                 options={dimensionItemOptions}
                                 value={dimensionItemValue}
                                 placeholder={
@@ -284,7 +305,14 @@ export function QuizQuestionEditor({
                     <Box className="flex items-center justify-between gap-3">
                         <FieldLabel className={uiTokens.form.subLabel}>Pièces jointes</FieldLabel>
                         {canAddAttachment && (
-                            <Button onClick={() => onAddAttachment("document")} className={uiTokens.action.addButton}>
+                            <Button
+                                disabled={structureLocked}
+                                onClick={() => onAddAttachment("document")}
+                                className={cn(
+                                    uiTokens.action.addButton,
+                                    "disabled:cursor-not-allowed disabled:opacity-50",
+                                )}
+                            >
                                 <InlineIcon icon={FileText} className="h-4 w-4" />
                                 Ajouter une pièce jointe
                             </Button>
@@ -304,8 +332,12 @@ export function QuizQuestionEditor({
                                     </Text>
                                     <Button
                                         aria-label={`Retirer la pièce jointe ${attachmentIndex + 1}`}
+                                        disabled={structureLocked}
                                         onClick={() => onRemoveAttachment(attachment.id)}
-                                        className={uiTokens.action.iconButtonGhost}
+                                        className={cn(
+                                            uiTokens.action.iconButtonGhost,
+                                            "disabled:cursor-not-allowed disabled:opacity-50",
+                                        )}
                                     >
                                         <InlineIcon icon={X} className="h-4 w-4" />
                                     </Button>
@@ -326,6 +358,7 @@ export function QuizQuestionEditor({
                                     <Box>
                                         <FieldLabel className={uiTokens.form.subLabel}>Type de fichier</FieldLabel>
                                         <SingleSelectField
+                                            disabled={structureLocked}
                                             options={quizAttachmentTypeOptions}
                                             value={attachment.type}
                                             placeholder="Sélectionner un type"
@@ -338,6 +371,7 @@ export function QuizQuestionEditor({
                                         <Box>
                                             <FieldLabel className={uiTokens.form.subLabel}>Source</FieldLabel>
                                             <SingleSelectField
+                                                disabled={structureLocked}
                                                 options={[...attachmentDeliveryOptions]}
                                                 value={attachment.deliveryType}
                                                 placeholder="Sélectionner"
@@ -356,6 +390,7 @@ export function QuizQuestionEditor({
                                         <>
                                             <FieldLabel className={uiTokens.form.subLabel}>Fichier</FieldLabel>
                                             <FileUploadField
+                                                disabled={structureLocked}
                                                 inputId={`quiz-question-${question.id}-attachment-${attachment.id}`}
                                                 file={attachmentUploadPreview(attachment)}
                                                 uploadProgress={uploadProgressByClientFileId?.[attachment.clientFileId]}

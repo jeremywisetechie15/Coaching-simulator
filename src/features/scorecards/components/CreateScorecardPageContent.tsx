@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, ChevronDown, ChevronUp, Plus } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronUp, Copy, LockKeyhole, Plus } from "lucide-react";
 import { ContextualBackLink } from "@/features/app-shell/components";
 import {
     CONTENT_LEVELS,
@@ -18,6 +18,7 @@ import {
     SCORECARD_CRITERION_DIMENSION_LABELS,
     SCORECARD_CRITERION_DIMENSIONS,
     SCORECARD_ROUTES,
+    SCORECARD_USAGE_EDIT_RESTRICTION_MESSAGE,
     getScorecardStepWeightTotal,
     isCompleteScorecardStepWeighting,
     isScorecardStepWeight,
@@ -28,6 +29,7 @@ import {
     SCORECARD_VISIBILITY_LABELS,
     SCORECARD_VISIBILITIES,
     type ScorecardDetail,
+    type ScorecardEditorDetail,
     type ScorecardMethodOption,
     type ScorecardMethodStep,
     type ScorecardOrganizationOption,
@@ -78,7 +80,7 @@ interface ScorecardApiPayload {
 }
 
 interface CreateScorecardPageContentProps {
-    initialScorecard?: ScorecardDetail;
+    initialScorecard?: ScorecardDetail & Partial<Pick<ScorecardEditorDetail, "hasUsage">>;
     methodOptions: ScorecardMethodOption[];
     organizationOptions: ScorecardOrganizationOption[];
     scorecardId?: string;
@@ -111,6 +113,27 @@ async function saveScorecard(values: SaveScorecardInput, scorecardId?: string) {
     return payload.scorecard;
 }
 
+async function duplicateScorecard(scorecardId: string) {
+    const response = await fetch(SCORECARD_ROUTES.api.duplicate(scorecardId), {
+        method: "POST",
+    });
+    const payload = (await response.json().catch(() => null)) as ScorecardApiPayload | null;
+
+    if (!response.ok) {
+        throw createFormSubmitApiError(
+            payload,
+            response.status,
+            "Impossible de dupliquer la scorecard.",
+        );
+    }
+
+    if (!payload?.scorecard) {
+        throw new Error("La scorecard a été dupliquée mais la réponse est incomplète.");
+    }
+
+    return payload.scorecard;
+}
+
 export function CreateScorecardPageContent({
     initialScorecard,
     methodOptions,
@@ -120,10 +143,12 @@ export function CreateScorecardPageContent({
 }: CreateScorecardPageContentProps) {
     const router = useRouter();
     const isEditing = Boolean(scorecardId);
+    const hasExistingUsage = initialScorecard?.hasUsage ?? false;
     const [form, setForm] = useState<ScorecardFormState>(() =>
         initialScorecard ? scorecardDetailToFormState(initialScorecard) : emptyScorecardFormState(),
     );
     const [formError, setFormError] = useState<string | null>(null);
+    const [duplicating, setDuplicating] = useState(false);
     const [importingMethod, setImportingMethod] = useState(false);
     const [savingStatus, setSavingStatus] = useState<ContentStatus | null>(null);
 
@@ -240,7 +265,7 @@ export function CreateScorecardPageContent({
     }
 
     async function selectMethod(methodId: string) {
-        if (!methodId || methodId === form.methodId || importingMethod) {
+        if (hasExistingUsage || !methodId || methodId === form.methodId || importingMethod) {
             return;
         }
 
@@ -271,7 +296,11 @@ export function CreateScorecardPageContent({
     }
 
     async function handleSave(status: ContentStatus) {
-        if (isSaving || (status === CONTENT_STATUS.published ? !canPublish : !canSubmit)) {
+        if (
+            isSaving ||
+            duplicating ||
+            (status === CONTENT_STATUS.published ? !canPublish : !canSubmit)
+        ) {
             return;
         }
 
@@ -287,6 +316,22 @@ export function CreateScorecardPageContent({
             setFormError(notifyFormSubmitError(error, "Impossible d'enregistrer la scorecard."));
         } finally {
             setSavingStatus(null);
+        }
+    }
+
+    async function handleDuplicate() {
+        if (!scorecardId || duplicating || isSaving) return;
+
+        setFormError(null);
+        setDuplicating(true);
+        try {
+            const duplicate = await duplicateScorecard(scorecardId);
+            router.push(SCORECARD_ROUTES.app.edit(duplicate.id));
+            router.refresh();
+        } catch (error) {
+            setFormError(notifyFormSubmitError(error, "Impossible de dupliquer la scorecard."));
+        } finally {
+            setDuplicating(false);
         }
     }
 
@@ -316,6 +361,36 @@ export function CreateScorecardPageContent({
                 <Box className="space-y-6">
                     {formError && <AlertMessage message={formError} />}
 
+                    {hasExistingUsage && (
+                        <Box
+                            className={cn(
+                                "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
+                                uiTokens.surface.mutedPanel,
+                            )}
+                        >
+                            <Box className="flex min-w-0 items-start gap-3">
+                                <InlineIcon
+                                    icon={LockKeyhole}
+                                    className={cn("mt-0.5 h-4 w-4 shrink-0", uiTokens.text.primary)}
+                                />
+                                <Text className={cn("text-[13px] font-medium leading-5", uiTokens.text.muted)}>
+                                    {SCORECARD_USAGE_EDIT_RESTRICTION_MESSAGE}
+                                </Text>
+                            </Box>
+                            <Button
+                                disabled={duplicating || isSaving}
+                                onClick={() => void handleDuplicate()}
+                                className={cn(
+                                    uiTokens.action.accentSecondaryButton,
+                                    "shrink-0 disabled:cursor-not-allowed disabled:opacity-60",
+                                )}
+                            >
+                                <InlineIcon icon={Copy} className="h-4 w-4" />
+                                {duplicating ? "Duplication..." : "Dupliquer pour tout modifier"}
+                            </Button>
+                        </Box>
+                    )}
+
                     <CardSurface className={uiTokens.surface.formCard}>
                         <SectionHeading title="Informations générales" />
                         <Box className="mt-6 space-y-5">
@@ -332,6 +407,7 @@ export function CreateScorecardPageContent({
                             <Box>
                                 <FieldLabel required className={uiTokens.form.label}>Méthode associée</FieldLabel>
                                 <SingleSelectField
+                                    disabled={hasExistingUsage}
                                     options={methodSelectOptions}
                                     value={form.methodId}
                                     placeholder="Sélectionner une méthode"
@@ -349,6 +425,7 @@ export function CreateScorecardPageContent({
                                 <Box>
                                     <FieldLabel className={uiTokens.form.label}>Domaine</FieldLabel>
                                     <SingleSelectField
+                                        disabled={hasExistingUsage}
                                         options={[...CONTENT_DOMAINS]}
                                         value={form.domain}
                                         placeholder="Sélectionner un domaine"
@@ -360,7 +437,7 @@ export function CreateScorecardPageContent({
                                 <Box>
                                     <FieldLabel className={uiTokens.form.label}>Catégorie</FieldLabel>
                                     <SingleSelectField
-                                        disabled={!form.domain}
+                                        disabled={hasExistingUsage || !form.domain}
                                         options={[...getCategoriesForDomain(form.domain)]}
                                         value={form.category}
                                         placeholder={
@@ -374,6 +451,7 @@ export function CreateScorecardPageContent({
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Niveau</FieldLabel>
                                 <SingleSelectField
+                                    disabled={hasExistingUsage}
                                     options={levelOptions}
                                     value={form.level}
                                     placeholder="Sélectionner un niveau"
@@ -396,6 +474,7 @@ export function CreateScorecardPageContent({
                                 <Box className="space-y-2.5">
                                     {SCORECARD_VISIBILITIES.map((visibility) => (
                                         <VisibilityRadio
+                                            disabled={hasExistingUsage}
                                             key={visibility}
                                             selected={form.visibility === visibility}
                                             title={SCORECARD_VISIBILITY_LABELS[visibility]}
@@ -417,6 +496,7 @@ export function CreateScorecardPageContent({
                                     <Box className="mt-3">
                                         <FieldLabel required className={uiTokens.form.label}>Organisation</FieldLabel>
                                         <SingleSelectField
+                                            disabled={hasExistingUsage}
                                             options={organizationSelectOptions}
                                             value={form.organizationId}
                                             placeholder="Sélectionner une organisation..."
@@ -531,12 +611,17 @@ export function CreateScorecardPageContent({
                                                                 updateCriterion(step.id, criterion.id, patchCriterion)
                                                             }
                                                             onRemove={() => removeCriterion(step.id, criterion.id)}
+                                                            structureLocked={hasExistingUsage}
                                                         />
                                                     ))
                                                 )}
                                                 <Button
+                                                    disabled={hasExistingUsage}
                                                     onClick={() => addCriterion(step.id)}
-                                                    className={cn(uiTokens.action.addButton, "w-full justify-center")}
+                                                    className={cn(
+                                                        uiTokens.action.addButton,
+                                                        "w-full justify-center disabled:cursor-not-allowed disabled:opacity-50",
+                                                    )}
                                                 >
                                                     <InlineIcon icon={Plus} className="h-4 w-4" />
                                                     Ajouter un critère
@@ -552,7 +637,7 @@ export function CreateScorecardPageContent({
                     <Box className="flex flex-col gap-3 sm:flex-row sm:justify-end">
                         {isDraft && (
                             <Button
-                                disabled={!canSubmit || isSaving}
+                                disabled={!canSubmit || isSaving || duplicating}
                                 onClick={() => void handleSave(CONTENT_STATUS.draft)}
                                 className={cn(uiTokens.action.secondaryButton, "disabled:cursor-not-allowed disabled:opacity-60")}
                             >
@@ -562,11 +647,11 @@ export function CreateScorecardPageContent({
                             </Button>
                         )}
                         <Button
-                            disabled={!canPublish || isSaving}
+                            disabled={!canPublish || isSaving || duplicating}
                             onClick={() => void handleSave(CONTENT_STATUS.published)}
                             className={cn(
                                 "flex h-11 items-center justify-center rounded-xl px-6 text-[14px] font-bold text-white transition",
-                                canPublish && !isSaving
+                                canPublish && !isSaving && !duplicating
                                     ? uiTokens.action.primaryButton
                                     : uiTokens.action.primaryButtonDisabled,
                             )}
@@ -594,20 +679,27 @@ function SectionHeading({ title }: { title: string }) {
 
 function VisibilityRadio({
     description,
+    disabled,
     onSelect,
     selected,
     title,
 }: {
     description: string;
+    disabled?: boolean;
     onSelect: () => void;
     selected: boolean;
     title: string;
 }) {
     return (
         <Button
+            disabled={disabled}
             onClick={onSelect}
             aria-pressed={selected}
-            className={cn(uiTokens.radio.option, selected ? uiTokens.radio.optionSelected : uiTokens.radio.optionIdle)}
+            className={cn(
+                uiTokens.radio.option,
+                selected ? uiTokens.radio.optionSelected : uiTokens.radio.optionIdle,
+                "disabled:cursor-not-allowed disabled:opacity-60",
+            )}
         >
             <Box className={cn(uiTokens.radio.ring, selected ? uiTokens.radio.ringSelected : uiTokens.radio.ringIdle)}>
                 {selected && <Box className={uiTokens.radio.dot} />}

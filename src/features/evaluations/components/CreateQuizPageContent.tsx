@@ -7,6 +7,8 @@ import {
     ArrowLeft,
     ChevronDown,
     ChevronUp,
+    Copy,
+    LockKeyhole,
     Plus,
     Sparkles,
     Trash2,
@@ -21,12 +23,15 @@ import {
     getEntitySelectionLabel,
 } from "@/features/content/domain";
 import {
+    EVALUATION_ROUTES,
+    QUIZ_ATTEMPT_EDIT_RESTRICTION_MESSAGE,
     QUIZ_PARTICIPATION_LABELS,
     QUIZ_PARTICIPATIONS,
     QUIZ_TYPE_LABELS,
     QUIZ_TYPES,
     hasActiveQuizKnowledgeItem,
     type QuizDetail,
+    type QuizEditorDetail,
     type QuizGroupOption,
     type QuizMethodOption,
     type QuizOrganizationOption,
@@ -86,7 +91,7 @@ interface ApiErrorPayload {
 
 interface CreateQuizPageContentProps {
     groupOptions: QuizGroupOption[];
-    initialQuiz?: QuizDetail;
+    initialQuiz?: QuizEditorDetail;
     methodOptions: QuizMethodOption[];
     organizationOptions: QuizOrganizationOption[];
     skillOptions: SkillOption[];
@@ -105,11 +110,14 @@ function createClientFileId(prefix: string) {
 }
 
 async function saveQuiz(quizId: string | undefined, values: SaveQuizInput) {
-    const response = await fetch(quizId ? `/api/quizzes/${quizId}` : "/api/quizzes", {
-        body: JSON.stringify(values),
-        headers: { "Content-Type": "application/json" },
-        method: quizId ? "PATCH" : "POST",
-    });
+    const response = await fetch(
+        quizId ? EVALUATION_ROUTES.api.detail(quizId) : EVALUATION_ROUTES.api.collection,
+        {
+            body: JSON.stringify(values),
+            headers: { "Content-Type": "application/json" },
+            method: quizId ? "PATCH" : "POST",
+        },
+    );
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
 
     if (!response.ok) {
@@ -127,6 +135,27 @@ async function saveQuiz(quizId: string | undefined, values: SaveQuizInput) {
     return payload.quiz;
 }
 
+async function duplicateQuiz(quizId: string) {
+    const response = await fetch(EVALUATION_ROUTES.api.duplicate(quizId), {
+        method: "POST",
+    });
+    const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+
+    if (!response.ok) {
+        throw createFormSubmitApiError(
+            payload,
+            response.status,
+            "Impossible de dupliquer le quiz.",
+        );
+    }
+
+    if (!payload?.quiz) {
+        throw new Error("Le quiz a été dupliqué mais la réponse est incomplète.");
+    }
+
+    return payload.quiz;
+}
+
 export function CreateQuizPageContent({
     groupOptions,
     initialQuiz,
@@ -139,12 +168,16 @@ export function CreateQuizPageContent({
     const router = useRouter();
     const isEditing = Boolean(initialQuiz);
     const isDraft = !initialQuiz || initialQuiz.status === CONTENT_STATUS.draft;
-    const returnHref = initialQuiz ? `/evaluations/${initialQuiz.id}` : "/evaluations";
+    const hasExistingAttempts = initialQuiz?.hasAttempts ?? false;
+    const returnHref = initialQuiz
+        ? EVALUATION_ROUTES.app.detail(initialQuiz.id)
+        : EVALUATION_ROUTES.app.collection;
     const contextualReturnHref = useContextualReturnHref(returnHref);
     const [form, setForm] = useState<QuizFormState>(() =>
         quizToFormState(initialQuiz, groupOptions, userOptions),
     );
     const [formError, setFormError] = useState<string | null>(null);
+    const [duplicating, setDuplicating] = useState(false);
     const [savingStatus, setSavingStatus] = useState<ContentStatus | null>(null);
     const [uploadProgressByClientFileId, setUploadProgressByClientFileId] = useState<Record<string, number>>({});
     const [tagDraft, setTagDraft] = useState("");
@@ -445,7 +478,13 @@ export function CreateQuizPageContent({
     }
 
     async function handleSave(status: ContentStatus) {
-        if (isSaving || (status === CONTENT_STATUS.published ? !canPublish : !canSaveDraft)) return;
+        if (
+            isSaving ||
+            duplicating ||
+            (status === CONTENT_STATUS.published ? !canPublish : !canSaveDraft)
+        ) {
+            return;
+        }
 
         setFormError(null);
         setSavingStatus(status);
@@ -462,7 +501,11 @@ export function CreateQuizPageContent({
             void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
             notifyFormSubmitSuccess();
             router.push(
-                buildPostSaveHref(`/evaluations/${savedQuiz.id}`, contextualReturnHref, isEditing),
+                buildPostSaveHref(
+                    EVALUATION_ROUTES.app.detail(savedQuiz.id),
+                    contextualReturnHref,
+                    isEditing,
+                ),
             );
             router.refresh();
         } catch (error) {
@@ -470,6 +513,22 @@ export function CreateQuizPageContent({
         } finally {
             setSavingStatus(null);
             setUploadProgressByClientFileId({});
+        }
+    }
+
+    async function handleDuplicate() {
+        if (!initialQuiz || duplicating || isSaving) return;
+
+        setFormError(null);
+        setDuplicating(true);
+        try {
+            const duplicate = await duplicateQuiz(initialQuiz.id);
+            router.push(EVALUATION_ROUTES.app.edit(duplicate.id));
+            router.refresh();
+        } catch (error) {
+            setFormError(notifyFormSubmitError(error, "Impossible de dupliquer le quiz."));
+        } finally {
+            setDuplicating(false);
         }
     }
 
@@ -494,6 +553,35 @@ export function CreateQuizPageContent({
 
                 <Box className="space-y-6">
                     {formError && <AlertMessage message={formError} />}
+                    {hasExistingAttempts && (
+                        <Box
+                            className={cn(
+                                "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
+                                uiTokens.surface.mutedPanel,
+                            )}
+                        >
+                            <Box className="flex min-w-0 items-start gap-3">
+                                <InlineIcon
+                                    icon={LockKeyhole}
+                                    className={cn("mt-0.5 h-4 w-4 shrink-0", uiTokens.text.primary)}
+                                />
+                                <Text className={cn("text-[13px] font-medium leading-5", uiTokens.text.muted)}>
+                                    {QUIZ_ATTEMPT_EDIT_RESTRICTION_MESSAGE}
+                                </Text>
+                            </Box>
+                            <Button
+                                disabled={duplicating || isSaving}
+                                onClick={() => void handleDuplicate()}
+                                className={cn(
+                                    uiTokens.action.accentSecondaryButton,
+                                    "shrink-0 disabled:cursor-not-allowed disabled:opacity-60",
+                                )}
+                            >
+                                <InlineIcon icon={Copy} className="h-4 w-4" />
+                                {duplicating ? "Duplication..." : "Dupliquer pour tout modifier"}
+                            </Button>
+                        </Box>
+                    )}
 
                     <CardSurface className={uiTokens.surface.formCard}>
                         <SectionHeading title="Informations générales" />
@@ -510,6 +598,7 @@ export function CreateQuizPageContent({
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Type de quiz</FieldLabel>
                                 <SingleSelectField
+                                    disabled={hasExistingAttempts}
                                     options={QUIZ_TYPES.map((type) => ({
                                         label: QUIZ_TYPE_LABELS[type],
                                         value: type,
@@ -522,6 +611,7 @@ export function CreateQuizPageContent({
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Domaine (optionnel)</FieldLabel>
                                 <SingleSelectField
+                                    disabled={hasExistingAttempts}
                                     options={domainOptions}
                                     value={form.domain}
                                     placeholder="Non affecté"
@@ -538,6 +628,7 @@ export function CreateQuizPageContent({
                                 <FieldLabel className={uiTokens.form.label}>Catégories (optionnel)</FieldLabel>
                                 {form.domain ? (
                                     <SearchableMultiSelectField
+                                        disabled={hasExistingAttempts}
                                         options={getCategoriesForDomain(form.domain).map((category) => ({
                                             label: category,
                                             value: category,
@@ -568,6 +659,7 @@ export function CreateQuizPageContent({
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Méthode associée</FieldLabel>
                                 <SingleSelectField
+                                    disabled={hasExistingAttempts}
                                     options={methodSelectOptions}
                                     value={form.methodId ?? ""}
                                     placeholder="Aucune"
@@ -623,6 +715,7 @@ export function CreateQuizPageContent({
                                 <FieldLabel className={uiTokens.form.label}>Nombre de tentatives</FieldLabel>
                                 <SegmentedControl
                                     ariaLabel="Limite du nombre de tentatives"
+                                    disabled={hasExistingAttempts}
                                     options={attemptLimitOptions}
                                     value={form.maxAttempts === null ? "unlimited" : "limited"}
                                     onChange={(value) =>
@@ -703,6 +796,7 @@ export function CreateQuizPageContent({
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Participation</FieldLabel>
                                 <SingleSelectField
+                                    disabled={hasExistingAttempts}
                                     options={QUIZ_PARTICIPATIONS.map((participation) => ({
                                         label: QUIZ_PARTICIPATION_LABELS[participation],
                                         value: participation,
@@ -716,12 +810,14 @@ export function CreateQuizPageContent({
                                 <FieldLabel className={uiTokens.form.label}>Visibilité</FieldLabel>
                                 <Box className="space-y-2.5">
                                     <VisibilityRadio
+                                        disabled={hasExistingAttempts}
                                         selected={!isPrivate}
                                         title="Public"
                                         description="Visible par tous les utilisateurs de la plateforme"
                                         onSelect={() => patch("scope", "public")}
                                     />
                                     <VisibilityRadio
+                                        disabled={hasExistingAttempts}
                                         selected={isPrivate}
                                         title="Privé"
                                         description="Visible uniquement par une cible spécifique"
@@ -740,6 +836,7 @@ export function CreateQuizPageContent({
                                                 </Text>
                                             )}
                                             <SingleSelectField
+                                                disabled={hasExistingAttempts}
                                                 options={organizationSelectOptions}
                                                 value={form.organizationId}
                                                 placeholder="Sélectionner une organisation..."
@@ -750,6 +847,7 @@ export function CreateQuizPageContent({
                                             <Box>
                                                 <FieldLabel className={uiTokens.form.label}>Groupe</FieldLabel>
                                                 <SingleSelectField
+                                                    disabled={hasExistingAttempts}
                                                     options={[
                                                         { label: "Toute l'organisation", value: "" },
                                                         ...groupSelectOptions,
@@ -764,6 +862,7 @@ export function CreateQuizPageContent({
                                             <Box>
                                                 <FieldLabel className={uiTokens.form.label}>Utilisateur</FieldLabel>
                                                 <SingleSelectField
+                                                    disabled={hasExistingAttempts}
                                                     options={[
                                                         { label: "Tout le groupe", value: "" },
                                                         ...userSelectOptions,
@@ -804,7 +903,14 @@ export function CreateQuizPageContent({
                                     )}
                                 </Box>
                             </Box>
-                            <Button onClick={addStep} className={cn(uiTokens.action.addButton, "shrink-0")}>
+                            <Button
+                                disabled={hasExistingAttempts}
+                                onClick={addStep}
+                                className={cn(
+                                    uiTokens.action.addButton,
+                                    "shrink-0 disabled:cursor-not-allowed disabled:opacity-50",
+                                )}
+                            >
                                 <InlineIcon icon={Plus} className="h-4 w-4" />
                                 Ajouter une étape
                             </Button>
@@ -901,8 +1007,9 @@ export function CreateQuizPageContent({
                                                         </Button>
                                                         <Button
                                                             aria-label="Supprimer l'étape"
+                                                            disabled={hasExistingAttempts}
                                                             onClick={() => removeStep(step.id)}
-                                                            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#9CA3AF] transition hover:bg-[#FEF2F2] hover:text-[#DC2626]"
+                                                            className="flex h-8 w-8 items-center justify-center rounded-lg text-[#9CA3AF] transition hover:bg-[#FEF2F2] hover:text-[#DC2626] disabled:cursor-not-allowed disabled:opacity-50"
                                                         >
                                                             <InlineIcon icon={Trash2} className="h-4 w-4" />
                                                         </Button>
@@ -917,6 +1024,7 @@ export function CreateQuizPageContent({
                                                             Compétences évaluées dans cette étape
                                                         </FieldLabel>
                                                         <SearchableMultiSelectField
+                                                            disabled={hasExistingAttempts}
                                                             options={competenceOptions}
                                                             selectedValues={step.competenceIds}
                                                             addButtonClassName={uiTokens.action.addDashed}
@@ -943,6 +1051,7 @@ export function CreateQuizPageContent({
                                                     <Box className="mt-5 space-y-4">
                                                         {step.questions.map((question, questionIndex) => (
                                                             <QuizQuestionEditor
+                                                                structureLocked={hasExistingAttempts}
                                                                 key={question.id}
                                                                 question={question}
                                                                 questionIndex={questionIndex}
@@ -1030,8 +1139,12 @@ export function CreateQuizPageContent({
                                                             />
                                                         ))}
                                                         <Button
+                                                            disabled={hasExistingAttempts}
                                                             onClick={() => addQuestion(step.id)}
-                                                            className={cn(uiTokens.action.addButton, "w-full justify-center")}
+                                                            className={cn(
+                                                                uiTokens.action.addButton,
+                                                                "w-full justify-center disabled:cursor-not-allowed disabled:opacity-50",
+                                                            )}
                                                         >
                                                             <InlineIcon icon={Plus} className="h-4 w-4" />
                                                             Ajouter une question
@@ -1049,7 +1162,7 @@ export function CreateQuizPageContent({
                     <Box className="flex flex-col gap-3 sm:flex-row sm:justify-end">
                         {isDraft && (
                             <Button
-                                disabled={!canSaveDraft || isSaving}
+                                disabled={!canSaveDraft || isSaving || duplicating}
                                 onClick={() => void handleSave(CONTENT_STATUS.draft)}
                                 className={cn(uiTokens.action.secondaryButton, "disabled:cursor-not-allowed disabled:opacity-60")}
                             >
@@ -1059,11 +1172,11 @@ export function CreateQuizPageContent({
                             </Button>
                         )}
                         <Button
-                            disabled={!canPublish || isSaving}
+                            disabled={!canPublish || isSaving || duplicating}
                             onClick={() => void handleSave(CONTENT_STATUS.published)}
                             className={cn(
                                 "flex h-11 items-center justify-center rounded-xl px-6 text-[14px] font-bold text-white transition",
-                                canPublish && !isSaving
+                                canPublish && !isSaving && !duplicating
                                     ? uiTokens.action.primaryButton
                                     : uiTokens.action.primaryButtonDisabled,
                             )}
@@ -1091,22 +1204,26 @@ function SectionHeading({ title }: { title: string }) {
 
 function VisibilityRadio({
     description,
+    disabled,
     onSelect,
     selected,
     title,
 }: {
     description: string;
+    disabled?: boolean;
     onSelect: () => void;
     selected: boolean;
     title: string;
 }) {
     return (
         <Button
+            disabled={disabled}
             onClick={onSelect}
             aria-pressed={selected}
             className={cn(
                 uiTokens.radio.option,
                 selected ? uiTokens.radio.optionSelected : uiTokens.radio.optionIdle,
+                disabled && "cursor-not-allowed opacity-60",
             )}
         >
             <Box

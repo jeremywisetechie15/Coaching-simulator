@@ -397,6 +397,8 @@ export const uiTokens = {
             "h-9 w-full rounded-lg border border-[#E5E7EB] bg-white px-3 text-[14px] font-normal text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#5140F0] focus:ring-4 focus:ring-[#5140F0]/10",
         controlReadonly:
             "h-9 w-full cursor-default rounded-lg border border-[#E9E7FB] bg-[#F4F3FE] px-3 text-[14px] font-medium text-[#374151] outline-none",
+        readonlySelection:
+            "flex min-h-12 w-full cursor-default items-center gap-3 rounded-lg border border-[#E9E7FB] bg-[#F4F3FE] px-3.5 py-2 text-[14px] font-medium text-[#374151]",
         label: "mb-2 block text-[14px] font-bold text-[#111827]",
         helpText: "text-[13px] font-medium leading-5 text-[#6B7280]",
         subLabel: "mb-1.5 block text-[13px] font-bold text-[#374151]",
@@ -618,7 +620,6 @@ export const uiTokens = {
         chartLegendOtherDot: "h-2 w-2 rounded-full bg-[#C9CED8]",
         chartLegendTopDot: "h-2 w-2 rounded-full bg-[#5140F0]",
         chartPlot: "relative mt-4 h-[190px] border-b border-[#D5D7DE] bg-[linear-gradient(to_top,#ECEEF3_1px,transparent_1px)] bg-[length:100%_25%]",
-        chartTitle: "text-[14px] font-extrabold text-[#111827]",
         definitionCard: "rounded-xl border border-[#C9C2FB] bg-[#F8F7FE] p-4",
         definitionText: "mt-1 text-[13px] font-medium leading-5 text-[#4B5563]",
         definitionTitle: "text-[13px] font-extrabold text-[#5140F0]",

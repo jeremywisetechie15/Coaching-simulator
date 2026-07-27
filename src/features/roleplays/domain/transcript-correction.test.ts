@@ -3,6 +3,7 @@ import type { RoleplayNotationTranscriptConversationItem } from "./roleplay-nota
 import {
     buildTranscriptHighlightSegments,
     createRoleplayTranscriptCorrectionLimiter,
+    extractRoleplayTranscriptCorrectionCandidates,
     normalizeRoleplayTranscriptCorrection,
 } from "./transcript-correction";
 
@@ -57,7 +58,7 @@ describe("roleplay transcript correction", () => {
         ["an unknown message", { ...validCorrection, message_ref: "M99" }],
         ["a persona message", { ...validCorrection, message_ref: "M2", phrase_originale: "rattraper le retard" }],
         ["an invented original phrase", { ...validCorrection, phrase_originale: "Phrase absente du transcript" }],
-        ["an unchanged suggestion", { ...validCorrection, verbatim_preconise: "PARLONS DE VOS PRIORITÉS" }],
+        ["an unchanged suggestion", { ...validCorrection, verbatim_preconise: "PARLONS DE VOS PRIORITÉS !" }],
         ["an incomplete payload", { ...validCorrection, pourquoi: "" }],
     ])("drops a correction linked to %s", (_label, correction) => {
         expect(normalizeRoleplayTranscriptCorrection({
@@ -66,6 +67,18 @@ describe("roleplay transcript correction", () => {
             pointsMax: 2,
             transcript,
         })).toBeNull();
+    });
+
+    it("reads both the current correction array and legacy singular correction", () => {
+        expect(extractRoleplayTranscriptCorrectionCandidates({
+            corrections: [validCorrection],
+        })).toEqual([validCorrection]);
+        expect(extractRoleplayTranscriptCorrectionCandidates({
+            correction: validCorrection,
+        })).toEqual([validCorrection]);
+        expect(extractRoleplayTranscriptCorrectionCandidates({
+            correction: null,
+        })).toEqual([]);
     });
 
     it("merges overlapping highlights without duplicating transcript text", () => {

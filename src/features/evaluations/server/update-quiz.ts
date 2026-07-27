@@ -20,6 +20,7 @@ import {
     type UploadedQuizStorageObject,
 } from "./quiz-upload-files";
 import { assertQuizLifecycle } from "./assert-quiz-lifecycle";
+import { assertQuizAttemptEditPolicy } from "./quiz-attempt-edit-policy";
 
 export async function updateQuiz(
     quizId: string,
@@ -44,6 +45,9 @@ export async function updateQuiz(
         throw new NotFoundError("Quiz introuvable.");
     }
 
+    await assertQuizAttemptEditPolicy(adminSupabase, quizId, input, {
+        hasUploads: uploadFilesByClientId.size > 0,
+    });
     await assertQuizLifecycle(adminSupabase, input, existingQuiz.status);
 
     try {

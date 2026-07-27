@@ -31,6 +31,39 @@ function listOrMock(values: string[], fallback: string[]) {
     return values.length > 0 ? values : fallback;
 }
 
+function buildPersonaInfoChips(
+    roleplay: RoleplayListItem | DbRoleplayDetail,
+): UiRoleplayDetail["infoChips"] {
+    const chips: UiRoleplayDetail["infoChips"] = [];
+    const { age, annualRevenue, employeeCount, industry } = roleplay.personaFacts;
+
+    if (employeeCount !== null) {
+        chips.push({
+            icon: "users",
+            label: `${new Intl.NumberFormat("fr-FR").format(employeeCount)} employé${employeeCount === 1 ? "" : "s"}`,
+        });
+    }
+
+    const revenue = annualRevenue.trim();
+    if (revenue) {
+        chips.push({
+            icon: "money",
+            label: /\bCA\b/i.test(revenue) ? revenue : `${revenue} CA`,
+        });
+    }
+
+    const businessIndustry = industry.trim();
+    if (businessIndustry) {
+        chips.push({ icon: "building", label: businessIndustry });
+    }
+
+    if (age !== null) {
+        chips.push({ icon: "calendar", label: `${age} ans` });
+    }
+
+    return chips;
+}
+
 function getPrepDocumentKind(resource: DbRoleplayDetail["resources"][number]): PrepResourceKind {
     if (resource.resourceType === "link") return "article";
     if (resource.resourceType === "video" || resource.resourceType === "image" || resource.resourceType === "audio") {
@@ -128,7 +161,7 @@ function buildDetail(roleplay: RoleplayListItem | DbRoleplayDetail, mock: Rolepl
     return {
         bestScoreDate: hasDbStats && dbStats ? dbStats.bestScoreDate : mockDetail.bestScoreDate ?? mockDetail.lastDate,
         context: dbDetail ? textOrMock(dbDetail.context, mockDetail.context) : mockDetail.context,
-        infoChips: mockDetail.infoChips,
+        infoChips: buildPersonaInfoChips(roleplay),
         indexDelta: hasDbStats && dbStats ? dbStats.indexDelta : mockDetail.indexDelta ?? null,
         indexScore: hasDbStats && dbStats ? dbStats.indexScore : mockDetail.indexScore ?? null,
         indexSessions: hasDbStats && dbStats ? dbStats.indexSessions : mockDetail.indexSessions ?? [],

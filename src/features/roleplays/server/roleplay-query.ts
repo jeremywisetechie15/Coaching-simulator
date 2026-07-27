@@ -27,9 +27,13 @@ import { mergeMethodKnowledgeQuizRow } from "./roleplay-preparation-quizzes";
 import { ROLEPLAY_SELECT, SCENARIO_QUIZ_SELECT, SCENARIO_RESOURCE_SELECT } from "./roleplay.persistence";
 
 interface PersonaRelationRow {
+    age: number | null;
+    annual_revenue: string | null;
     avatar_url: string | null;
     company: string | null;
+    employee_count: number | null;
     id: string;
+    industry: string | null;
     name: string | null;
     role: string | null;
 }
@@ -115,7 +119,7 @@ async function fetchPersonasById(supabase: SupabaseClient, ids: string[]) {
 
     const { data, error } = await supabase
         .from("personas")
-        .select("id, name, role, company, avatar_url")
+        .select("id, name, role, company, industry, employee_count, annual_revenue, age, avatar_url")
         .in("id", ids)
         .returns<PersonaRelationRow[]>();
 
@@ -365,8 +369,12 @@ async function withRoleplayRelations(rows: RoleplayRow[]) {
             method_name: method?.name ?? method?.code ?? null,
             method_step_count: row.method_id ? methodStepCountsById.get(row.method_id) ?? 0 : 0,
             organization_name: row.organization_id ? organizationNamesById.get(row.organization_id) ?? null : null,
+            persona_age: persona?.age ?? null,
+            persona_annual_revenue: persona?.annual_revenue ?? null,
             persona_avatar_url: persona?.avatar_url ?? null,
             persona_company: persona?.company ?? null,
+            persona_employee_count: persona?.employee_count ?? null,
+            persona_industry: persona?.industry ?? null,
             persona_name: persona?.name ?? null,
             persona_role: persona?.role ?? null,
             scorecard_name: row.scorecard_id ? scorecardNamesById.get(row.scorecard_id) ?? null : null,

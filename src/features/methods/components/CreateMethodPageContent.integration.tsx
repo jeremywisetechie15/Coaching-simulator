@@ -32,7 +32,7 @@ describe("CreateMethodPageContent", () => {
             />,
         );
 
-        expect(html).toContain("Quiz associé (optionnel)");
+        expect(html).toContain("Quiz et évaluation associés (optionnel)");
         expect(html).toContain("Domaine");
         expect(html).toContain("Catégorie");
         expect(html).not.toContain("Fonctions");

@@ -28,7 +28,7 @@ export async function assertMethodLifecycle(
         supabase,
         input.status,
         input.quizId
-            ? [{ id: input.quizId, kind: CONTENT_DEPENDENCY_KIND.quiz, label: "quiz associé" }]
+            ? [{ id: input.quizId, kind: CONTENT_DEPENDENCY_KIND.quiz }]
             : [],
         audience,
     );

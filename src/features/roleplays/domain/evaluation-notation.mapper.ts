@@ -21,6 +21,7 @@ import {
 } from "./roleplay-score";
 import {
     createRoleplayTranscriptCorrectionLimiter,
+    extractRoleplayTranscriptCorrectionCandidates,
     normalizeRoleplayTranscriptCorrection,
 } from "./transcript-correction";
 
@@ -601,24 +602,26 @@ function mapTranscriptCorrections(
 
             if (!ref || pointsAwarded === null || pointsMax === null) continue;
 
-            const correction = limitTranscriptCorrection(
-                normalizeRoleplayTranscriptCorrection({
-                    correction: criterion.correction,
-                    pointsAwarded,
-                    pointsMax,
-                    transcript,
-                }),
-            );
-            if (!correction) continue;
+            for (const rawCorrection of extractRoleplayTranscriptCorrectionCandidates(criterion)) {
+                const correction = limitTranscriptCorrection(
+                    normalizeRoleplayTranscriptCorrection({
+                        correction: rawCorrection,
+                        pointsAwarded,
+                        pointsMax,
+                        transcript,
+                    }),
+                );
+                if (!correction) continue;
 
-            const current = correctionsByMessageRef.get(correction.message_ref) ?? [];
-            current.push({
-                criterionRef: ref,
-                original: correction.phrase_originale,
-                reason: correction.pourquoi,
-                suggestion: correction.verbatim_preconise,
-            });
-            correctionsByMessageRef.set(correction.message_ref, current);
+                const current = correctionsByMessageRef.get(correction.message_ref) ?? [];
+                current.push({
+                    criterionRef: ref,
+                    original: correction.phrase_originale,
+                    reason: correction.pourquoi,
+                    suggestion: correction.verbatim_preconise,
+                });
+                correctionsByMessageRef.set(correction.message_ref, current);
+            }
         }
     }
 

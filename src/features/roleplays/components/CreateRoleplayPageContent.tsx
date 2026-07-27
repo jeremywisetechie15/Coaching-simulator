@@ -6,6 +6,8 @@ import {
     ArrowLeft,
     Check,
     ChevronDown,
+    Copy,
+    LockKeyhole,
     Plus,
     X,
 } from "lucide-react";
@@ -49,7 +51,9 @@ import {
     type RoleplayUserOption,
     ROLEPLAY_LEARNER_ROLE_MAX_LENGTH,
     ROLEPLAY_ROUTES,
+    ROLEPLAY_SESSION_EDIT_RESTRICTION_MESSAGE,
     getAssignableRoleplayQuizOptions,
+    getRoleplayMethodKnowledgeQuizOption,
     getRoleplayPublicationIssues,
 } from "@/features/roleplays/domain";
 import {
@@ -310,7 +314,8 @@ function QuizParticipationField({
     return (
         <Box>
             <Text as="span" className={fieldLabelClasses}>
-                Évaluation <Text as="span" className="font-medium text-[#9CA3AF]">(optionnel)</Text>
+                Quiz et évaluations complémentaires{" "}
+                <Text as="span" className="font-medium text-[#9CA3AF]">(optionnel)</Text>
             </Text>
             <div ref={ref} className="relative">
                 {selectedQuizzes.length > 0 && (
@@ -323,8 +328,9 @@ function QuizParticipationField({
                                 {getEntitySelectionLabel(quiz.title, quiz)}
                                 <Button
                                     aria-label={`Retirer ${quiz.title}`}
+                                    disabled={disabled}
                                     onClick={() => onToggle(quiz.id)}
-                                    className="flex h-5 w-5 items-center justify-center rounded-md text-[#5140F0] transition hover:bg-[#DDE0FF]"
+                                    className="flex h-5 w-5 items-center justify-center rounded-md text-[#5140F0] transition hover:bg-[#DDE0FF] disabled:cursor-not-allowed disabled:opacity-60"
                                 >
                                     <InlineIcon icon={X} className="h-3.5 w-3.5" />
                                 </Button>
@@ -400,6 +406,7 @@ function QuizParticipationField({
                         const isSelected = participation === option;
                         return (
                             <Button
+                                disabled={disabled}
                                 key={option}
                                 onClick={() => onParticipationChange(option)}
                                 aria-pressed={isSelected}
@@ -422,13 +429,43 @@ function QuizParticipationField({
     );
 }
 
-function PlusButton({ label, onClick }: { label: string; onClick?: () => void }) {
+function MethodQuizInformationField({ quiz }: { quiz: RoleplayQuizOption | null }) {
+    return (
+        <Box>
+            <FieldLabel className={fieldLabelClasses}>Quiz et évaluations de la méthode</FieldLabel>
+            <Box className={uiTokens.form.readonlySelection}>
+                <InlineIcon icon={LockKeyhole} className="h-4 w-4 shrink-0 text-[#5140F0]" />
+                <Text as="span" className="min-w-0 flex-1 truncate">
+                    {quiz
+                        ? getEntitySelectionLabel(quiz.title, quiz)
+                        : "Aucun quiz associé à cette méthode"}
+                </Text>
+                {quiz && (
+                    <Text as="span" className="shrink-0 text-[12px] font-semibold text-[#6B7280]">
+                        {quiz.questionCount} Q
+                    </Text>
+                )}
+            </Box>
+        </Box>
+    );
+}
+
+function PlusButton({
+    disabled = false,
+    label,
+    onClick,
+}: {
+    disabled?: boolean;
+    label: string;
+    onClick?: () => void;
+}) {
     return (
         <Button
             aria-label={label}
             title={label}
+            disabled={disabled}
             onClick={onClick}
-            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-[#E5E7EB] bg-white text-[#374151] transition hover:border-[#D5D7DE] hover:text-[#5140F0]"
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-[#E5E7EB] bg-white text-[#374151] transition hover:border-[#D5D7DE] hover:text-[#5140F0] disabled:cursor-not-allowed disabled:opacity-60"
         >
             <InlineIcon icon={Plus} className="h-5 w-5" />
         </Button>
@@ -528,6 +565,27 @@ async function saveRoleplay(
     return payload.roleplay;
 }
 
+async function duplicateRoleplay(roleplayId: string) {
+    const response = await fetch(ROLEPLAY_ROUTES.api.duplicate(roleplayId), {
+        method: "POST",
+    });
+    const payload = (await response.json().catch(() => null)) as RoleplayApiPayload | null;
+
+    if (!response.ok) {
+        throw createFormSubmitApiError(
+            payload,
+            response.status,
+            "Impossible de dupliquer le roleplay.",
+        );
+    }
+
+    if (!payload?.roleplay) {
+        throw new Error("Le roleplay a été dupliqué mais la réponse est incomplète.");
+    }
+
+    return payload.roleplay;
+}
+
 function getInitialTargetScope(
     initialRoleplay: RoleplayEditorDetail | undefined,
     groupOptions: RoleplayGroupOption[],
@@ -586,6 +644,7 @@ export function CreateRoleplayPageContent({
     const queryClient = useQueryClient();
     const returnHref = roleplayId ? ROLEPLAY_ROUTES.app.detail(roleplayId) : ROLEPLAY_ROUTES.app.collection;
     const isDraft = !initialRoleplay || initialRoleplay.status === CONTENT_STATUS.draft;
+    const hasExistingSessions = initialRoleplay?.hasSessions ?? false;
     const router = useRouter();
     const contextualReturnHref = useContextualReturnHref(returnHref);
     const [localPersonaOptions, setLocalPersonaOptions] = useState(personaOptions);
@@ -621,6 +680,7 @@ export function CreateRoleplayPageContent({
     );
     const [openEntityEditor, setOpenEntityEditor] = useState<EntityEditor | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
+    const [duplicating, setDuplicating] = useState(false);
     const [saving, setSaving] = useState(false);
     const [uploadProgressByClientFileId, setUploadProgressByClientFileId] = useState<Record<string, number>>({});
 
@@ -662,6 +722,10 @@ export function CreateRoleplayPageContent({
     );
     const assignableQuizOptions = useMemo(
         () => getAssignableRoleplayQuizOptions(quizOptions, method),
+        [method, quizOptions],
+    );
+    const methodKnowledgeQuiz = useMemo(
+        () => getRoleplayMethodKnowledgeQuizOption(quizOptions, method),
         [method, quizOptions],
     );
     const assignableQuizIds = useMemo(
@@ -915,6 +979,22 @@ export function CreateRoleplayPageContent({
         }
     }
 
+    async function handleDuplicate() {
+        if (!roleplayId || duplicating || saving) return;
+
+        setFormError(null);
+        setDuplicating(true);
+        try {
+            const duplicate = await duplicateRoleplay(roleplayId);
+            router.push(ROLEPLAY_ROUTES.app.edit(duplicate.id));
+            router.refresh();
+        } catch (error) {
+            setFormError(notifyFormSubmitError(error, "Impossible de dupliquer le roleplay."));
+        } finally {
+            setDuplicating(false);
+        }
+    }
+
     function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault();
         const submitter = (event.nativeEvent as SubmitEvent).submitter as HTMLButtonElement | null;
@@ -947,6 +1027,32 @@ export function CreateRoleplayPageContent({
 
                 <CardSurface className="rounded-[24px] border border-[#E9E7FB] p-7 shadow-[0_1px_2px_rgba(17,24,39,0.04)] md:p-9">
                     {formError && <AlertMessage message={formError} />}
+                    {hasExistingSessions && (
+                        <Box
+                            className={cn(
+                                "mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
+                                uiTokens.surface.mutedPanel,
+                            )}
+                        >
+                            <Box className="flex min-w-0 items-start gap-3">
+                                <InlineIcon icon={LockKeyhole} className="mt-0.5 h-4 w-4 shrink-0 text-[#5140F0]" />
+                                <Text className={cn("text-[13px] font-medium leading-5", uiTokens.text.muted)}>
+                                    {ROLEPLAY_SESSION_EDIT_RESTRICTION_MESSAGE}
+                                </Text>
+                            </Box>
+                            <Button
+                                disabled={duplicating || saving}
+                                onClick={() => void handleDuplicate()}
+                                className={cn(
+                                    uiTokens.action.accentSecondaryButton,
+                                    "shrink-0 disabled:cursor-not-allowed disabled:opacity-60",
+                                )}
+                            >
+                                <InlineIcon icon={Copy} className="h-4 w-4" />
+                                {duplicating ? "Duplication..." : "Dupliquer pour tout modifier"}
+                            </Button>
+                        </Box>
+                    )}
                     <Box className={cn("mb-5", uiTokens.surface.mutedPanel)}>
                         <Text className={cn("text-[13px] font-medium", uiTokens.text.muted)}>
                             <span aria-hidden="true" className={uiTokens.text.required}>*</span>{" "}
@@ -959,6 +1065,7 @@ export function CreateRoleplayPageContent({
                             <Box className="flex gap-2.5">
                                 <Box className="flex-1">
                                     <SingleSelect
+                                        disabled={hasExistingSessions}
                                         options={personaSelectOptions}
                                         value={persona}
                                         placeholder="Sélectionner un persona IA"
@@ -966,6 +1073,7 @@ export function CreateRoleplayPageContent({
                                     />
                                 </Box>
                                 <PlusButton
+                                    disabled={hasExistingSessions}
                                     label="Créer un nouveau persona"
                                     onClick={() => setOpenEntityEditor("persona")}
                                 />
@@ -977,6 +1085,7 @@ export function CreateRoleplayPageContent({
                             <Box className="flex gap-2.5">
                                 <Box className="flex-1">
                                     <SingleSelect
+                                        disabled={hasExistingSessions}
                                         options={coachSelectOptions}
                                         value={coach}
                                         placeholder="Sélectionner un coach IA"
@@ -984,6 +1093,7 @@ export function CreateRoleplayPageContent({
                                     />
                                 </Box>
                                 <PlusButton
+                                    disabled={hasExistingSessions}
                                     label="Créer un nouveau coach IA"
                                     onClick={() => setOpenEntityEditor("coach")}
                                 />
@@ -999,6 +1109,7 @@ export function CreateRoleplayPageContent({
                             <Box className="flex gap-2.5">
                                 <Box className="flex-1">
                                     <SingleSelect
+                                        disabled={hasExistingSessions}
                                         options={methodSelectOptions}
                                         value={method}
                                         placeholder="Sélectionner une méthode ou un playbook"
@@ -1006,18 +1117,25 @@ export function CreateRoleplayPageContent({
                                     />
                                 </Box>
                                 <PlusButton
+                                    disabled={hasExistingSessions}
                                     label="Créer une nouvelle méthode"
                                     onClick={() => setOpenEntityEditor("method")}
                                 />
                             </Box>
                         </Box>
 
+                        {method && <MethodQuizInformationField quiz={methodKnowledgeQuiz} />}
+
                         <Box>
                             <FieldLabel required className={fieldLabelClasses}>
                                 Scorecard de la méthode sélectionnée
                             </FieldLabel>
                             <SingleSelectField
-                                disabled={!method || scorecardSelectOptions.length === 0}
+                                disabled={
+                                    hasExistingSessions ||
+                                    !method ||
+                                    scorecardSelectOptions.length === 0
+                                }
                                 options={scorecardSelectOptions}
                                 value={scorecard}
                                 placeholder={
@@ -1032,7 +1150,7 @@ export function CreateRoleplayPageContent({
                         </Box>
 
                         <QuizParticipationField
-                            disabled={!method}
+                            disabled={hasExistingSessions || !method}
                             emptyMessage="Aucun quiz libre disponible pour cette méthode"
                             options={assignableQuizOptions}
                             placeholder={
@@ -1052,6 +1170,7 @@ export function CreateRoleplayPageContent({
                         <Box>
                             <FieldLabel required className={fieldLabelClasses}>Domaines</FieldLabel>
                             <SingleSelect
+                                disabled={hasExistingSessions}
                                 options={staticOptions(roleplayDomainOptions)}
                                 value={domain}
                                 placeholder="Sélectionner un domaine"
@@ -1065,10 +1184,10 @@ export function CreateRoleplayPageContent({
                         <Box>
                             <FieldLabel required className={fieldLabelClasses}>Catégorie</FieldLabel>
                             <SingleSelect
+                                disabled={hasExistingSessions || !domain}
                                 options={staticOptions(roleplayCategoryOptions)}
                                 value={category}
                                 placeholder={domain ? "Sélectionner une catégorie" : "Sélectionnez d'abord un domaine"}
-                                disabled={!domain}
                                 onChange={setCategory}
                             />
                         </Box>
@@ -1076,6 +1195,7 @@ export function CreateRoleplayPageContent({
                         <Box>
                             <FieldLabel required className={fieldLabelClasses}>Niveau de difficulté</FieldLabel>
                             <SingleSelect
+                                disabled={hasExistingSessions}
                                 options={staticOptions(roleplayDifficultyOptions)}
                                 value={difficulty}
                                 placeholder="Sélectionnez la difficulté"
@@ -1129,7 +1249,7 @@ export function CreateRoleplayPageContent({
                         </Box>
 
                         <SessionBackgroundUploadField
-                            disabled={saving}
+                            disabled={saving || hasExistingSessions}
                             file={backgroundFile}
                             inputId="roleplay-session-background"
                             storedPath={backgroundImagePath}
@@ -1196,8 +1316,12 @@ export function CreateRoleplayPageContent({
                                     Documents d&apos;accompagnement (optionnel)
                                 </Text>
                                 <Button
+                                    disabled={hasExistingSessions}
                                     onClick={() => setResources((current) => [...current, emptyRoleplayResource()])}
-                                    className={uiTokens.action.addButton}
+                                    className={cn(
+                                        uiTokens.action.addButton,
+                                        "disabled:cursor-not-allowed disabled:opacity-60",
+                                    )}
                                 >
                                     <InlineIcon icon={Plus} className="h-3.5 w-3.5" />
                                     Ajouter un document
@@ -1216,8 +1340,12 @@ export function CreateRoleplayPageContent({
                                                 </Text>
                                                 <Button
                                                     aria-label={`Retirer le document ${resourceIndex + 1}`}
+                                                    disabled={hasExistingSessions}
                                                     onClick={() => removeResource(resourceIndex)}
-                                                    className={uiTokens.action.iconButtonGhost}
+                                                    className={cn(
+                                                        uiTokens.action.iconButtonGhost,
+                                                        "disabled:cursor-not-allowed disabled:opacity-60",
+                                                    )}
                                                 >
                                                     <InlineIcon icon={X} className="h-4 w-4" />
                                                 </Button>
@@ -1235,6 +1363,7 @@ export function CreateRoleplayPageContent({
                                             <Box>
                                                 <FieldLabel className={uiTokens.form.subLabel}>Type de document</FieldLabel>
                                                 <SingleSelectField
+                                                    disabled={hasExistingSessions}
                                                     options={[...CONTENT_RESOURCE_DELIVERY_OPTIONS]}
                                                     value={resource.deliveryType}
                                                     placeholder="Sélectionner un type"
@@ -1250,6 +1379,7 @@ export function CreateRoleplayPageContent({
                                                 <Box>
                                                     <FieldLabel className={uiTokens.form.subLabel}>Fichier du document</FieldLabel>
                                                     <FileUploadField
+                                                        disabled={hasExistingSessions}
                                                         inputId={`roleplay-resource-upload-${resourceIndex}`}
                                                         file={uploadedResourcePreview(resource)}
                                                         uploadProgress={uploadProgressByClientFileId[resource.clientFileId]}
@@ -1288,6 +1418,7 @@ export function CreateRoleplayPageContent({
                         </Text>
                         <Box className="mt-4">
                             <ContentTargetScopeField
+                                disabled={hasExistingSessions}
                                 groupOptions={groupOptions}
                                 organizationOptions={organizationOptions}
                                 userOptions={userOptions}

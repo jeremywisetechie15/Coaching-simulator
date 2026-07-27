@@ -6,7 +6,7 @@ import {
 } from "@/features/auth/domain/access-control";
 import { listQuizSelectionOptions } from "@/features/evaluations/server";
 import { CreateMethodPage } from "@/features/methods/components";
-import { getMethodById } from "@/features/methods/server";
+import { getMethodById, getMethodEditorById } from "@/features/methods/server";
 import { listOrganizationSelectionOptions } from "@/features/organizations/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
@@ -64,7 +64,7 @@ export default async function Page({ params, searchParams }: PageProps) {
     let method;
 
     try {
-        method = await getMethodById(methodId);
+        method = await getMethodEditorById(methodId);
     } catch (error) {
         if (error instanceof NotFoundError) {
             notFound();

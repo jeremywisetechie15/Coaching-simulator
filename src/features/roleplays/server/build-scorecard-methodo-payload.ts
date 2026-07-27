@@ -1,6 +1,7 @@
 import { SCORECARD_STEP_WEIGHT_TOTAL_PERCENT } from "@/features/scorecards/domain";
 import {
     createRoleplayTranscriptCorrectionLimiter,
+    extractRoleplayTranscriptCorrectionCandidates,
     normalizeRoleplayTranscriptCorrection,
     type RoleplayNotationCriterionRef,
     type RoleplayNotationScoreResult,
@@ -72,14 +73,19 @@ export function buildScorecardMethodoPayload(
                     conseil: criterion.advice,
                     preuves_attendues: criterionRef?.expectedEvidence,
                     verbatim: criterionRef?.verbatim,
-                    correction: limitTranscriptCorrection(
-                        normalizeRoleplayTranscriptCorrection({
-                            correction: rawCriterion?.correction,
-                            pointsAwarded: criterion.pointsAwarded,
-                            pointsMax: criterion.pointsMax,
-                            transcript: transcription.conversation,
+                    corrections: extractRoleplayTranscriptCorrectionCandidates(rawCriterion)
+                        .flatMap((correction) => {
+                            const normalized = limitTranscriptCorrection(
+                                normalizeRoleplayTranscriptCorrection({
+                                    correction,
+                                    pointsAwarded: criterion.pointsAwarded,
+                                    pointsMax: criterion.pointsMax,
+                                    transcript: transcription.conversation,
+                                }),
+                            );
+
+                            return normalized ? [normalized] : [];
                         }),
-                    ),
                 };
             }),
         })),

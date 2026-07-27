@@ -3,6 +3,7 @@ import { QUIZ_KIND } from "@/features/evaluations/domain";
 import type { RoleplayQuizOption } from "./roleplay";
 import {
     getAssignableRoleplayQuizOptions,
+    getRoleplayMethodKnowledgeQuizOption,
     validateRoleplayQuizAssignments,
 } from "./roleplay-quiz-assignment";
 
@@ -49,6 +50,25 @@ describe("roleplay quiz assignment", () => {
 
     it("does not expose any quiz before a method is selected", () => {
         expect(getAssignableRoleplayQuizOptions(quizzes, null)).toEqual([]);
+    });
+
+    it("returns the knowledge quiz attached to the selected method", () => {
+        expect(getRoleplayMethodKnowledgeQuizOption(quizzes, methodId)?.id).toBe(
+            "22222222-2222-4222-8222-222222222222",
+        );
+    });
+
+    it("does not return a method quiz before a method is selected", () => {
+        expect(getRoleplayMethodKnowledgeQuizOption(quizzes, null)).toBeNull();
+    });
+
+    it("ignores contextual quizzes attached to the selected method", () => {
+        expect(
+            getRoleplayMethodKnowledgeQuizOption(
+                quizzes.filter((quiz) => quiz.kind === QUIZ_KIND.contextual),
+                methodId,
+            ),
+        ).toBeNull();
     });
 
     it("accepts unlinked quizzes", () => {

@@ -9,7 +9,7 @@ import { getCurrentProfile } from "@/features/profile/server";
 import { CreateScorecardPage } from "@/features/scorecards/components";
 import { SCORECARD_ROUTES } from "@/features/scorecards/domain";
 import {
-    getScorecardById,
+    getScorecardEditorById,
     listScorecardMethodOptions,
     listScorecardOrganizationOptions,
 } from "@/features/scorecards/server";
@@ -55,7 +55,7 @@ export default async function Page({ params, searchParams }: PageProps) {
     }
 
     try {
-        scorecard = await getScorecardById(scorecardId);
+        scorecard = await getScorecardEditorById(scorecardId);
     } catch (error) {
         if (error instanceof NotFoundError) {
             notFound();

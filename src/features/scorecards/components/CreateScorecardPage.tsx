@@ -4,7 +4,7 @@ import {
     canManageAppResource,
 } from "@/features/auth/domain/access-control";
 import type {
-    ScorecardDetail,
+    ScorecardEditorDetail,
     ScorecardMethodOption,
     ScorecardOrganizationOption,
 } from "@/features/scorecards/domain";
@@ -14,7 +14,7 @@ import type { SkillOption } from "@/features/skills/domain/skills";
 import { CreateScorecardPageContent } from "./CreateScorecardPageContent";
 
 interface CreateScorecardPageProps {
-    initialScorecard?: ScorecardDetail;
+    initialScorecard?: ScorecardEditorDetail;
     methodOptions: ScorecardMethodOption[];
     organizationOptions: ScorecardOrganizationOption[];
     profileValues: ProfileFormValues;

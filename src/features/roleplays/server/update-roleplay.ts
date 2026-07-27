@@ -12,6 +12,7 @@ import {
 import { assertScorecardMatchesMethod, resolveNotationMethodId } from "./create-roleplay";
 import { fetchRoleplayDetail } from "./roleplay-query";
 import { assertRoleplayQuizzesMatchMethod } from "./roleplay-quiz-assignment.validation";
+import { assertRoleplaySessionEditPolicy } from "./roleplay-session-edit-policy";
 import {
     createRoleplayUpdate,
     createScenarioQuizRows,
@@ -37,11 +38,7 @@ export async function updateRoleplay(
     backgroundFile: File | null = null,
 ): Promise<RoleplayDetail> {
     const context = await requireAdmin();
-    await assertScorecardMatchesMethod(input);
-    await assertRoleplayQuizzesMatchMethod(input);
-
     const adminSupabase = createAdminClient();
-    const notationMethodId = await resolveNotationMethodId(input.methodId);
     const uploadedObjects: UploadedRoleplayStorageObject[] = [];
     const { data: existingRoleplay, error: existingRoleplayError } = await adminSupabase
         .from("scenarios")
@@ -51,7 +48,14 @@ export async function updateRoleplay(
 
     if (existingRoleplayError) throw existingRoleplayError;
     if (!existingRoleplay) throw new NotFoundError("Roleplay introuvable.");
+    await assertRoleplaySessionEditPolicy(adminSupabase, roleplayId, input, {
+        hasBackgroundUpload: Boolean(backgroundFile),
+        hasResourceUploads: uploadFilesByClientId.size > 0,
+    });
+    await assertScorecardMatchesMethod(input);
+    await assertRoleplayQuizzesMatchMethod(input);
     await assertRoleplayLifecycle(adminSupabase, input, existingRoleplay.status);
+    const notationMethodId = await resolveNotationMethodId(input.methodId);
     if (
         !backgroundFile &&
         input.backgroundImagePath &&

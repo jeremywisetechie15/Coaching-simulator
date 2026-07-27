@@ -4,13 +4,13 @@ import {
     canManageAppResource,
 } from "@/features/auth/domain/access-control";
 import type { QuizOption } from "@/features/evaluations/domain";
-import type { MethodDetail, MethodOrganizationOption } from "@/features/methods/domain/method";
+import type { MethodEditorDetail, MethodOrganizationOption } from "@/features/methods/domain/method";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import { CreateMethodPageContent } from "./CreateMethodPageContent";
 
 interface CreateMethodPageProps {
-    method?: MethodDetail;
+    method?: MethodEditorDetail;
     organizationOptions: MethodOrganizationOption[];
     profileValues: ProfileFormValues;
     quizOptions: QuizOption[];

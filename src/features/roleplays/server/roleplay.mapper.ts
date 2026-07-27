@@ -51,9 +51,13 @@ export interface RoleplayRow {
     obstacles?: string | null;
     organization_id?: string | null;
     organization_name?: string | null;
+    persona_age?: number | null;
+    persona_annual_revenue?: string | null;
     persona_avatar_url?: string | null;
     persona_company?: string | null;
+    persona_employee_count?: number | null;
     persona_id?: string | null;
+    persona_industry?: string | null;
     persona_name?: string | null;
     persona_role?: string | null;
     preview_description?: string | null;
@@ -170,6 +174,12 @@ export function mapRoleplayRowToListItem(row: RoleplayRow, quizCount = 0, attemp
         organizationId: row.organization_id ?? null,
         organizationName: row.organization_name ?? null,
         personaAvatarUrl: getPersonaAvatarPublicUrl(row.persona_avatar_url),
+        personaFacts: {
+            age: row.persona_age ?? null,
+            annualRevenue: row.persona_annual_revenue ?? "",
+            employeeCount: row.persona_employee_count ?? null,
+            industry: row.persona_industry ?? "",
+        },
         personaId: row.persona_id ?? null,
         quizCount,
         role: row.persona_role ?? "",

@@ -95,7 +95,7 @@ export function EvaluationSessionOverview({
                             <InlineIcon icon={Info} className={t.detailIconGlyph} />
                         </Box>
                         <Text as="h3" className={t.detailTitle}>
-                            Situation : {roleplayTitle}
+                            {roleplayTitle}
                         </Text>
                     </Box>
                     <Box className={t.situationContent}>

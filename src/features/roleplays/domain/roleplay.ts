@@ -111,6 +111,13 @@ export interface RoleplayStats {
     simulations: number;
 }
 
+export interface RoleplayPersonaFacts {
+    age: number | null;
+    annualRevenue: string;
+    employeeCount: number | null;
+    industry: string;
+}
+
 export interface RoleplayListItem {
     assignedUserId: string | null;
     assignedUserName: string | null;
@@ -137,6 +144,7 @@ export interface RoleplayListItem {
     organizationId: string | null;
     organizationName: string | null;
     personaAvatarUrl: string | null;
+    personaFacts: RoleplayPersonaFacts;
     personaId: string | null;
     quizCount: number;
     role: string;
@@ -167,6 +175,7 @@ export interface RoleplayDetail extends RoleplayListItem {
 /** Données privées réservées au formulaire d'administration du roleplay. */
 export interface RoleplayEditorDetail extends RoleplayDetail {
     aiInstructions: string;
+    hasSessions: boolean;
 }
 
 export function isRoleplayDifficulty(value: unknown): value is RoleplayDifficulty {

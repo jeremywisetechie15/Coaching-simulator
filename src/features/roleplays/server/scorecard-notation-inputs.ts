@@ -49,14 +49,18 @@ REGLES:
 - Pour le champ preuve, utilise uniquement les paroles de l'Utilisateur / Apprenant dans la TRANSCRIPTION.
 - Cite si possible un extrait exact avec sa reference M et son horodatage.
 - Si aucune parole utilisateur ne prouve le critere, retourne "Aucune preuve utilisateur observee" et zero point.
-- Pour chaque critere, correction doit toujours etre present: retourne null si aucune reformulation precise et utile n'est necessaire.
-- Si points_obtenus est egal a points_max, correction doit obligatoirement etre null.
-- Si le critere n'obtient pas tous ses points, propose au maximum une correction, uniquement lorsqu'une phrase precise de l'Apprenant doit etre amelioree.
-- Dans correction, message_ref doit viser une reference M de l'Apprenant et phrase_originale doit recopier exactement un extrait continu de ce message.
-- Pour un meme message_ref de l'Apprenant, meme si plusieurs extraits phrase_originale se chevauchent, retourne au maximum ${ROLEPLAY_TRANSCRIPT_VERBATIM_LIMIT_PER_MESSAGE} corrections non nulles sur l'ensemble des criteres. Selectionne les ${ROLEPLAY_TRANSCRIPT_VERBATIM_LIMIT_PER_MESSAGE} verbatims les plus coherents et efficaces, et retourne correction: null pour les autres criteres concernes.
+- Pour chaque critere, corrections doit toujours etre present et etre un tableau.
+- Si points_obtenus est egal a points_max, corrections doit obligatoirement etre [].
+- Si le critere n'obtient pas tous ses points, examine tous les messages de l'Apprenant et ajoute une correction pour chaque message dont la formulation a concretement contribue a la perte de points et peut etre utilement reformulee.
+- Ne force jamais une correction pour remplir le tableau. Si le comportement attendu est absent, si le message est deja correct ou sans rapport direct avec le critere, retourne corrections: [] et explique l'amelioration uniquement dans conseil.
+- Considere les erreurs probables de transcription automatique, notamment les noms propres, mots tronques, homophones, ponctuation et hesitations. Ne les penalise pas et ne les corrige pas. En cas de doute entre une erreur de l'Apprenant et une erreur de transcription, ne produis aucune correction.
+- Une correction doit porter sur une formulation metier qui change reellement la clarte, la structure, le questionnement, l'argumentation ou l'action attendue, jamais sur une simple correction linguistique.
+- Dans chaque element de corrections, message_ref doit viser une reference M de l'Apprenant et phrase_originale doit recopier exactement un extrait continu de ce message.
+- Pour un meme message_ref de l'Apprenant, retourne au maximum ${ROLEPLAY_TRANSCRIPT_VERBATIM_LIMIT_PER_MESSAGE} corrections sur l'ensemble des criteres. Conserve uniquement les ${ROLEPLAY_TRANSCRIPT_VERBATIM_LIMIT_PER_MESSAGE} verbatims les plus coherents et efficaces et place-les en premier.
 - Construis verbatim_preconise a partir du verbatim_conformes du critere et des verbatims de la methode, en l'adaptant au contexte sans changer leur intention metier.
 - pourquoi doit expliquer concretement et brievement l'amelioration apportee.
-- La transcription peut contenir des erreurs sur les noms et prenoms. Ne penalise pas une transcription approximative si l'intention est claire.
+- Avant de retourner le JSON, verifie que chaque correction respecte toutes ces regles et supprime toute correction incertaine ou non necessaire.
+- La transcription peut contenir des erreurs. Evalue l'intention metier de l'Apprenant, pas la qualite linguistique de la transcription.
 
 TRANSCRIPTION:
 ---

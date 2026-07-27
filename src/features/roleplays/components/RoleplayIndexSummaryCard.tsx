@@ -129,9 +129,6 @@ export function RoleplayIndexSummaryCard({ delta, score, sessions, sessionCount,
 
                             {displayState === "available" && sessions.length > 0 ? (
                                 <Box className="mt-5">
-                                    <Text className={uiTokens.roleplayIndex.chartTitle}>
-                                        {ROLEPLAY_INDEX_RECENT_SESSION_LIMIT} dernières simulations notées
-                                    </Text>
                                     <Box
                                         aria-label={`Scores des ${ROLEPLAY_INDEX_RECENT_SESSION_LIMIT} dernières simulations et évolution du ${ROLEPLAY_INDEX_LABEL}`}
                                         className={uiTokens.roleplayIndex.chartPlot}

@@ -28,6 +28,7 @@ import {
     type UploadedStorageObject,
 } from "./method-upload-files";
 import { assertMethodLifecycle } from "./assert-method-lifecycle";
+import { assertMethodUsageEditPolicy } from "./method-usage-edit-policy";
 
 type StepMutationRow = ReturnType<typeof createStepRows>[number];
 type ResourceMutationRow = ReturnType<typeof createResourceRows>[number] & { id?: string };
@@ -73,6 +74,9 @@ export async function updateMethod(
         throw new NotFoundError("Méthode introuvable.");
     }
 
+    await assertMethodUsageEditPolicy(adminSupabase, methodId, normalizedInput, {
+        hasUploads: uploadFilesByClientId.size > 0,
+    });
     await assertMethodLifecycle(adminSupabase, normalizedInput, existingMethod.status);
 
     const { data: currentSteps, error: currentStepsError } = await adminSupabase

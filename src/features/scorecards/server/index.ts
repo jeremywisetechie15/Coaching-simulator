@@ -3,6 +3,8 @@ export * from "./assert-scorecard-lifecycle";
 export * from "./create-scorecard";
 export * from "./duplicate-scorecard";
 export * from "./get-scorecard-by-id";
+export * from "./get-scorecard-editor-by-id";
 export * from "./list-scorecard-options";
 export * from "./list-scorecards";
+export * from "./scorecard-usage-edit-policy";
 export * from "./update-scorecard";

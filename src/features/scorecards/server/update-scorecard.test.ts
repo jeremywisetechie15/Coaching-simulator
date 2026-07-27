@@ -4,6 +4,7 @@ import type { SaveScorecardDto } from "@/features/scorecards/dto";
 
 const mocks = vi.hoisted(() => ({
     assertScorecardLifecycle: vi.fn(),
+    assertScorecardUsageEditPolicy: vi.fn(),
     fetchScorecardDetail: vi.fn(),
     rpc: vi.fn(),
 }));
@@ -27,6 +28,9 @@ vi.mock("@/lib/supabase/admin", () => ({
 }));
 vi.mock("./assert-scorecard-lifecycle", () => ({
     assertScorecardLifecycle: mocks.assertScorecardLifecycle,
+}));
+vi.mock("./scorecard-usage-edit-policy", () => ({
+    assertScorecardUsageEditPolicy: mocks.assertScorecardUsageEditPolicy,
 }));
 vi.mock("./scorecard-query", () => ({ fetchScorecardDetail: mocks.fetchScorecardDetail }));
 
@@ -81,6 +85,11 @@ describe("updateScorecard", () => {
     it("preserves existing step and criterion IDs", async () => {
         await updateScorecard("scorecard-1", scorecardInput());
 
+        expect(mocks.assertScorecardUsageEditPolicy).toHaveBeenCalledWith(
+            expect.anything(),
+            "scorecard-1",
+            scorecardInput(),
+        );
         expect(mocks.rpc).toHaveBeenCalledWith("admin_update_scorecard_aggregate", expect.objectContaining({
             p_criteria: [expect.objectContaining({ id: criterionId, scorecard_step_id: scorecardStepId })],
             p_steps: [expect.objectContaining({ id: scorecardStepId })],

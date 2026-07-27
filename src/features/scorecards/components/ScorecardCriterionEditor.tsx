@@ -1,6 +1,6 @@
 "use client";
 
-import { Trash2 } from "lucide-react";
+import { LockKeyhole, Trash2 } from "lucide-react";
 import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import { SingleSelectField, type SingleSelectOption } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
@@ -15,6 +15,7 @@ interface ScorecardCriterionEditorProps {
     index: number;
     onPatch: (patch: Partial<ScorecardCriterionFormState>) => void;
     onRemove: () => void;
+    structureLocked?: boolean;
 }
 
 export function ScorecardCriterionEditor({
@@ -25,6 +26,7 @@ export function ScorecardCriterionEditor({
     index,
     onPatch,
     onRemove,
+    structureLocked = false,
 }: ScorecardCriterionEditorProps) {
     return (
         <CardSurface className={cn(uiTokens.surface.nestedCard, "space-y-4")}>
@@ -34,10 +36,14 @@ export function ScorecardCriterionEditor({
                 </Text>
                 <Button
                     aria-label="Supprimer le critère"
+                    disabled={structureLocked}
                     onClick={onRemove}
-                    className={uiTokens.action.dangerIconButton}
+                    className={cn(
+                        uiTokens.action.dangerIconButton,
+                        "disabled:cursor-not-allowed disabled:opacity-50",
+                    )}
                 >
-                    <InlineIcon icon={Trash2} className="h-4 w-4" />
+                    <InlineIcon icon={structureLocked ? LockKeyhole : Trash2} className="h-4 w-4" />
                 </Button>
             </Box>
 
@@ -81,6 +87,7 @@ export function ScorecardCriterionEditor({
                 <Box>
                     <FieldLabel required className={uiTokens.form.subLabel}>Compétence associée</FieldLabel>
                     <SingleSelectField
+                        disabled={structureLocked}
                         options={competenceOptions}
                         value={criterion.competenceId}
                         placeholder="Choisir..."
@@ -95,6 +102,7 @@ export function ScorecardCriterionEditor({
                 <Box>
                     <FieldLabel required className={uiTokens.form.subLabel}>Dimension évaluée</FieldLabel>
                     <SingleSelectField
+                        disabled={structureLocked}
                         options={dimensionOptions}
                         value={criterion.dimension}
                         placeholder="Choisir..."
@@ -109,7 +117,12 @@ export function ScorecardCriterionEditor({
                 <Box>
                     <FieldLabel required className={uiTokens.form.subLabel}>Item évalué</FieldLabel>
                     <SingleSelectField
-                        disabled={!criterion.competenceId || !criterion.dimension || dimensionItemOptions.length === 0}
+                        disabled={
+                            structureLocked ||
+                            !criterion.competenceId ||
+                            !criterion.dimension ||
+                            dimensionItemOptions.length === 0
+                        }
                         options={dimensionItemOptions}
                         value={criterion.dimensionItemId}
                         placeholder={

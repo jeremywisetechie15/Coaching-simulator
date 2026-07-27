@@ -21,6 +21,7 @@ export interface ContentTargetScopeValue {
 }
 
 interface ContentTargetScopeFieldProps {
+    disabled?: boolean;
     groupOptions: ContentTargetGroupOption[];
     onChange: (value: ContentTargetScopeValue) => void;
     organizationOptions: ContentTargetOrganizationOption[];
@@ -30,21 +31,25 @@ interface ContentTargetScopeFieldProps {
 
 function VisibilityRadio({
     description,
+    disabled,
     onSelect,
     selected,
     title,
 }: {
     description: string;
+    disabled?: boolean;
     onSelect: () => void;
     selected: boolean;
     title: string;
 }) {
     return (
         <Button
+            disabled={disabled}
             onClick={onSelect}
             className={cn(
                 uiTokens.radio.option,
                 selected ? uiTokens.radio.optionSelected : uiTokens.radio.optionIdle,
+                "disabled:cursor-not-allowed disabled:opacity-65",
             )}
         >
             <Box
@@ -66,6 +71,7 @@ function VisibilityRadio({
 }
 
 export function ContentTargetScopeField({
+    disabled = false,
     groupOptions,
     onChange,
     organizationOptions,
@@ -147,12 +153,14 @@ export function ContentTargetScopeField({
             <FieldLabel className={uiTokens.form.label}>Visibilité</FieldLabel>
             <Box className="space-y-2.5">
                 <VisibilityRadio
+                    disabled={disabled}
                     selected={!isPrivate}
                     title="Public"
                     description="Visible par tous les utilisateurs de la plateforme"
                     onSelect={selectPublic}
                 />
                 <VisibilityRadio
+                    disabled={disabled}
                     selected={isPrivate}
                     title="Privé"
                     description="Visible uniquement par une organisation, un groupe ou un utilisateur"
@@ -165,6 +173,7 @@ export function ContentTargetScopeField({
                     <Box>
                         <FieldLabel required className={uiTokens.form.label}>Organisation</FieldLabel>
                         <SingleSelectField
+                            disabled={disabled}
                             options={organizationOptions.map((organization) => ({
                                 disabled: organization.isSelectable === false,
                                 label: getEntitySelectionLabel(organization.name, organization),
@@ -179,6 +188,7 @@ export function ContentTargetScopeField({
                         <Box>
                             <FieldLabel className={uiTokens.form.label}>Groupe</FieldLabel>
                             <SingleSelectField
+                                disabled={disabled}
                                 options={[
                                     { label: "Toute l'organisation", value: "" },
                                     ...groupSelectOptions,
@@ -193,6 +203,7 @@ export function ContentTargetScopeField({
                         <Box>
                             <FieldLabel className={uiTokens.form.label}>Utilisateur</FieldLabel>
                             <SingleSelectField
+                                disabled={disabled}
                                 options={[
                                     { label: value.groupId ? "Tout le groupe" : "Toute l'organisation", value: "" },
                                     ...userSelectOptions,

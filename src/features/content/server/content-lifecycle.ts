@@ -198,7 +198,8 @@ export async function assertContentDependencyScopes(
             && !contentAudienceCoversDependency(resolvedParentAudience, dependencyAudience(definition, row))
         ) {
             throw new ConflictError(
-                `Impossible de publier : la portée de ${label} ne couvre pas tous les destinataires.`,
+                `Impossible de publier : ${label} n'est pas accessible à tous les destinataires prévus. ` +
+                "Vérifiez que sa visibilité correspond à celle du contenu.",
             );
         }
     }

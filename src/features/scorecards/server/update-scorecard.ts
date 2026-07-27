@@ -11,6 +11,7 @@ import {
     createScorecardUpdate,
 } from "./scorecard.persistence";
 import { assertScorecardLifecycle } from "./assert-scorecard-lifecycle";
+import { assertScorecardUsageEditPolicy } from "./scorecard-usage-edit-policy";
 
 export async function updateScorecard(
     scorecardId: string,
@@ -27,6 +28,7 @@ export async function updateScorecard(
     if (existingError) throw existingError;
     if (!existing) throw new NotFoundError("Scorecard introuvable.");
 
+    await assertScorecardUsageEditPolicy(adminSupabase, scorecardId, input);
     await assertScorecardLifecycle(adminSupabase, input, existing.status);
 
     const scorecardStepIdsByMethodStepId = new Map(

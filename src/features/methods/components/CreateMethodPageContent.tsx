@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Plus, X } from "lucide-react";
+import { ArrowLeft, Copy, LockKeyhole, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { ContextualBackLink, useContextualReturnHref } from "@/features/app-shell/components";
 import { buildPostSaveHref } from "@/features/app-shell/domain";
@@ -25,7 +25,10 @@ import { QUIZ_KIND, type QuizOption } from "@/features/evaluations/domain";
 import {
     DEFAULT_METHOD_STEP_ICON,
     type MethodDetail,
+    type MethodEditorDetail,
+    METHOD_ROUTES,
     METHOD_SCOPE,
+    METHOD_USAGE_EDIT_RESTRICTION_MESSAGE,
     normalizeMethodStepIcon,
     type MethodOrganizationOption,
     type MethodResource,
@@ -121,7 +124,7 @@ type MethodUploadFile = PendingDirectUpload;
 
 interface CreateMethodPageContentProps {
     embedded?: boolean;
-    initialMethod?: MethodDetail;
+    initialMethod?: MethodDetail & Partial<Pick<MethodEditorDetail, "hasUsage">>;
     onSaved?: (method: MethodDetail) => void;
     organizationOptions: MethodOrganizationOption[];
     quizOptions: QuizOption[];
@@ -135,7 +138,7 @@ async function saveMethod(
     methodId: string | undefined,
     values: SaveMethodInput,
 ) {
-    const response = await fetch(methodId ? `/api/methods/${methodId}` : "/api/methods", {
+    const response = await fetch(methodId ? METHOD_ROUTES.api.detail(methodId) : METHOD_ROUTES.api.collection, {
         body: JSON.stringify(values),
         headers: { "Content-Type": "application/json" },
         method: methodId ? "PATCH" : "POST",
@@ -152,6 +155,27 @@ async function saveMethod(
 
     if (!payload?.method) {
         throw new Error("La méthode a été enregistrée mais la réponse est incomplète.");
+    }
+
+    return payload.method;
+}
+
+async function duplicateMethod(methodId: string) {
+    const response = await fetch(METHOD_ROUTES.api.duplicate(methodId), {
+        method: "POST",
+    });
+    const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+
+    if (!response.ok) {
+        throw createFormSubmitApiError(
+            payload,
+            response.status,
+            "Impossible de dupliquer la méthode.",
+        );
+    }
+
+    if (!payload?.method) {
+        throw new Error("La méthode a été dupliquée mais la réponse est incomplète.");
     }
 
     return payload.method;
@@ -390,6 +414,7 @@ export function CreateMethodPageContent({
     const router = useRouter();
     const isEditing = Boolean(initialMethod);
     const isDraft = !initialMethod || initialMethod.status === CONTENT_STATUS.draft;
+    const hasExistingUsage = initialMethod?.hasUsage ?? false;
     const organizationSelectOptions = organizationOptions.map((organization) => ({
         disabled: organization.isSelectable === false,
         label: getEntitySelectionLabel(organization.name, organization),
@@ -437,7 +462,11 @@ export function CreateMethodPageContent({
         initialMethod?.organizationId ?? null,
     );
     const [methodResources, setMethodResources] = useState<MethodResourceFormState[]>(
-        initialMethod?.resources.length ? initialMethod.resources.map(methodResourceToFormState) : [emptyMethodResource()],
+        initialMethod?.resources.length
+            ? initialMethod.resources.map(methodResourceToFormState)
+            : hasExistingUsage
+                ? []
+                : [emptyMethodResource()],
     );
     const [objectifs, setObjectifs] = useState<string[]>(editableList(initialMethod?.objectives ?? []));
     const [enjeux, setEnjeux] = useState<string[]>(editableList(initialMethod?.challenges ?? []));
@@ -445,11 +474,14 @@ export function CreateMethodPageContent({
         initialMethod?.steps.length ? initialMethod.steps.map(methodStepToFormState) : [emptyStep()],
     );
     const [formError, setFormError] = useState<string | null>(null);
+    const [duplicating, setDuplicating] = useState(false);
     const [savingStatus, setSavingStatus] = useState<ContentStatus | null>(null);
     const [uploadProgressByClientFileId, setUploadProgressByClientFileId] = useState<Record<string, number>>({});
 
     const isSaving = savingStatus !== null;
-    const returnHref = initialMethod ? `/methods/${initialMethod.id}` : "/methods";
+    const returnHref = initialMethod
+        ? METHOD_ROUTES.app.detail(initialMethod.id)
+        : METHOD_ROUTES.app.collection;
     const contextualReturnHref = useContextualReturnHref(returnHref);
 
     function updateList(
@@ -655,7 +687,7 @@ export function CreateMethodPageContent({
     }
 
     async function handleSave(status: ContentStatus) {
-        if (isSaving) return;
+        if (isSaving || duplicating) return;
 
         setFormError(null);
         const payload = validateMethodFormPayload(buildPayload(status));
@@ -683,7 +715,11 @@ export function CreateMethodPageContent({
             }
 
             router.push(
-                buildPostSaveHref(`/methods/${savedMethod.id}`, contextualReturnHref, isEditing),
+                buildPostSaveHref(
+                    METHOD_ROUTES.app.detail(savedMethod.id),
+                    contextualReturnHref,
+                    isEditing,
+                ),
             );
             router.refresh();
         } catch (error) {
@@ -691,6 +727,22 @@ export function CreateMethodPageContent({
         } finally {
             setSavingStatus(null);
             setUploadProgressByClientFileId({});
+        }
+    }
+
+    async function handleDuplicate() {
+        if (!initialMethod || duplicating || isSaving) return;
+
+        setFormError(null);
+        setDuplicating(true);
+        try {
+            const duplicate = await duplicateMethod(initialMethod.id);
+            router.push(METHOD_ROUTES.app.edit(duplicate.id));
+            router.refresh();
+        } catch (error) {
+            setFormError(notifyFormSubmitError(error, "Impossible de dupliquer la méthode."));
+        } finally {
+            setDuplicating(false);
         }
     }
 
@@ -716,6 +768,35 @@ export function CreateMethodPageContent({
                 )}
 
                 <CardSurface className={uiTokens.surface.formCard}>
+                    {hasExistingUsage && (
+                        <Box
+                            className={cn(
+                                "mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
+                                uiTokens.surface.mutedPanel,
+                            )}
+                        >
+                            <Box className="flex min-w-0 items-start gap-3">
+                                <InlineIcon
+                                    icon={LockKeyhole}
+                                    className={cn("mt-0.5 h-4 w-4 shrink-0", uiTokens.text.primary)}
+                                />
+                                <Text className={cn("text-[13px] font-medium leading-5", uiTokens.text.muted)}>
+                                    {METHOD_USAGE_EDIT_RESTRICTION_MESSAGE}
+                                </Text>
+                            </Box>
+                            <Button
+                                disabled={duplicating || isSaving}
+                                onClick={() => void handleDuplicate()}
+                                className={cn(
+                                    uiTokens.action.accentSecondaryButton,
+                                    "shrink-0 disabled:cursor-not-allowed disabled:opacity-60",
+                                )}
+                            >
+                                <InlineIcon icon={Copy} className="h-4 w-4" />
+                                {duplicating ? "Duplication..." : "Dupliquer pour tout modifier"}
+                            </Button>
+                        </Box>
+                    )}
                     <Text as="h2" className={cn("text-[20px] font-extrabold", uiTokens.text.heading)}>
                         Informations générales
                     </Text>
@@ -734,6 +815,7 @@ export function CreateMethodPageContent({
                             <Box>
                                 <FieldLabel className={labelClasses}>Domaine</FieldLabel>
                                 <SingleSelectField
+                                    disabled={hasExistingUsage}
                                     options={[...CONTENT_DOMAINS]}
                                     value={domain}
                                     placeholder="Sélectionner un domaine"
@@ -751,7 +833,7 @@ export function CreateMethodPageContent({
                                     options={[...getCategoriesForDomain(domain)]}
                                     value={category}
                                     placeholder={domain ? "Sélectionner une catégorie" : "Sélectionnez d'abord un domaine"}
-                                    disabled={!domain}
+                                    disabled={hasExistingUsage || !domain}
                                     onChange={(value) => {
                                         if (isContentCategoryForDomain(domain, value)) {
                                             setCategory(value);
@@ -761,8 +843,11 @@ export function CreateMethodPageContent({
                             </Box>
                         </Box>
                         <Box>
-                            <FieldLabel className={labelClasses}>Quiz associé (optionnel)</FieldLabel>
+                            <FieldLabel className={labelClasses}>
+                                Quiz et évaluation associés (optionnel)
+                            </FieldLabel>
                             <SingleSelectField
+                                disabled={hasExistingUsage}
                                 options={quizSelectOptions}
                                 value={quiz ?? noQuizOptionValue}
                                 placeholder="Aucun quiz associé"
@@ -797,8 +882,12 @@ export function CreateMethodPageContent({
                                     Ressources complémentaires
                                 </Text>
                                 <Button
+                                    disabled={hasExistingUsage}
                                     onClick={() => setMethodResources((current) => [...current, emptyMethodResource()])}
-                                    className={uiTokens.action.addButton}
+                                    className={cn(
+                                        uiTokens.action.addButton,
+                                        "disabled:cursor-not-allowed disabled:opacity-50",
+                                    )}
                                 >
                                     <InlineIcon icon={Plus} className="h-3.5 w-3.5" />
                                     Ajouter un document
@@ -817,12 +906,16 @@ export function CreateMethodPageContent({
                                             {methodResources.length > 1 && (
                                                 <Button
                                                     aria-label={`Retirer le document ${resourceIndex + 1}`}
+                                                    disabled={hasExistingUsage}
                                                     onClick={() =>
                                                         setMethodResources((current) =>
                                                             current.filter((_, index) => index !== resourceIndex),
                                                         )
                                                     }
-                                                    className={uiTokens.action.iconButtonGhost}
+                                                    className={cn(
+                                                        uiTokens.action.iconButtonGhost,
+                                                        "disabled:cursor-not-allowed disabled:opacity-50",
+                                                    )}
                                                 >
                                                     <InlineIcon icon={X} className="h-4 w-4" />
                                                 </Button>
@@ -843,6 +936,7 @@ export function CreateMethodPageContent({
                                         <Box>
                                             <FieldLabel className={uiTokens.form.subLabel}>Type de document</FieldLabel>
                                             <SingleSelectField
+                                                disabled={hasExistingUsage}
                                                 options={[...CONTENT_RESOURCE_DELIVERY_OPTIONS]}
                                                 value={resource.deliveryType}
                                                 placeholder="Sélectionner un type"
@@ -858,6 +952,7 @@ export function CreateMethodPageContent({
                                             <Box>
                                                 <FieldLabel className={uiTokens.form.subLabel}>Fichier du document</FieldLabel>
                                                 <FileUploadField
+                                                    disabled={hasExistingUsage}
                                                     inputId={`method-resource-upload-${resourceIndex}`}
                                                     file={uploadedFilePreview(resource)}
                                                     uploadProgress={uploadProgressByClientFileId[resource.clientFileId]}
@@ -909,6 +1004,7 @@ export function CreateMethodPageContent({
                                     type="button"
                                     role="radio"
                                     aria-checked={isSelected}
+                                    disabled={hasExistingUsage}
                                     onClick={() => {
                                         setVisibility(option);
                                         if (option === CONTENT_VISIBILITY_CHOICE.public) {
@@ -918,6 +1014,7 @@ export function CreateMethodPageContent({
                                     className={cn(
                                         uiTokens.radio.option,
                                         isSelected ? uiTokens.radio.optionSelected : uiTokens.radio.optionIdle,
+                                        hasExistingUsage && "cursor-not-allowed opacity-60",
                                     )}
                                 >
                                     <Box
@@ -950,7 +1047,7 @@ export function CreateMethodPageContent({
                                         ? "Sélectionner une organisation..."
                                         : "Aucune organisation disponible"
                                 }
-                                disabled={organizationSelectOptions.length === 0}
+                                disabled={hasExistingUsage || organizationSelectOptions.length === 0}
                                 onChange={setSelectedOrganizationId}
                             />
                         </CardSurface>
@@ -967,6 +1064,7 @@ export function CreateMethodPageContent({
                             placeholder="Ex: Obtenir un rendez-vous qualifié avec le décideur"
                             items={objectifs}
                             showAddLabel
+                            structureLocked={hasExistingUsage}
                             onAdd={() => setObjectifs((current) => [...current, ""])}
                             onChange={(index, value) => updateList(objectifs, setObjectifs, index, value)}
                             onRemove={(index) =>
@@ -978,6 +1076,7 @@ export function CreateMethodPageContent({
                             placeholder="Ex: Éviter le refus catégorique du standard"
                             items={enjeux}
                             showAddLabel
+                            structureLocked={hasExistingUsage}
                             onAdd={() => setEnjeux((current) => [...current, ""])}
                             onChange={(index, value) => updateList(enjeux, setEnjeux, index, value)}
                             onRemove={(index) => setEnjeux((current) => current.filter((_, i) => i !== index))}
@@ -991,8 +1090,12 @@ export function CreateMethodPageContent({
                             Étapes de la méthode
                         </Text>
                         <Button
+                            disabled={hasExistingUsage}
                             onClick={() => setSteps((current) => [...current, emptyStep()])}
-                            className={uiTokens.action.addButton}
+                            className={cn(
+                                uiTokens.action.addButton,
+                                "disabled:cursor-not-allowed disabled:opacity-50",
+                            )}
                         >
                             <InlineIcon icon={Plus} className="h-3.5 w-3.5" />
                             Ajouter une étape
@@ -1012,12 +1115,16 @@ export function CreateMethodPageContent({
                                     {steps.length > 1 && (
                                         <Button
                                             aria-label={`Retirer l'étape ${stepIndex + 1}`}
+                                            disabled={hasExistingUsage}
                                             onClick={() =>
                                                 setSteps((current) =>
                                                     current.filter((_, i) => i !== stepIndex),
                                                 )
                                             }
-                                            className={uiTokens.action.stepRemoveButton}
+                                            className={cn(
+                                                uiTokens.action.stepRemoveButton,
+                                                "disabled:cursor-not-allowed disabled:opacity-50",
+                                            )}
                                         >
                                             <InlineIcon icon={X} className="h-4 w-4" />
                                         </Button>
@@ -1099,6 +1206,7 @@ export function CreateMethodPageContent({
                                         <Box>
                                             <FieldLabel className={uiTokens.form.subLabel}>Type de média</FieldLabel>
                                             <SingleSelectField
+                                                disabled={hasExistingUsage}
                                                 options={mediaTypeOptions}
                                                 value={step.mediaType}
                                                 placeholder="Sélectionner un type de média"
@@ -1109,6 +1217,7 @@ export function CreateMethodPageContent({
                                             <Box>
                                                 <FieldLabel className={uiTokens.form.subLabel}>Fichier du média</FieldLabel>
                                                 <FileUploadField
+                                                    disabled={hasExistingUsage}
                                                     inputId={`method-step-learning-upload-${stepIndex}`}
                                                     file={stepLearningUploadPreview(step)}
                                                     uploadProgress={uploadProgressByClientFileId[step.videoClientFileId]}
@@ -1138,6 +1247,7 @@ export function CreateMethodPageContent({
                                     <Box>
                                         <FieldLabel className={uiTokens.form.subLabel}>Icône</FieldLabel>
                                         <SingleSelectField
+                                            disabled={hasExistingUsage}
                                             options={METHOD_STEP_ICON_OPTIONS}
                                             value={step.icon}
                                             placeholder="Sélectionner une icône"
@@ -1151,6 +1261,7 @@ export function CreateMethodPageContent({
                                         label="Objectifs de l'étape"
                                         placeholder="Objectif..."
                                         items={step.objectifs}
+                                        structureLocked={hasExistingUsage}
                                         onAdd={() =>
                                             updateStepList(stepIndex, "objectifs", [...step.objectifs, ""])
                                         }
@@ -1173,6 +1284,7 @@ export function CreateMethodPageContent({
                                         label="Bonnes pratiques"
                                         placeholder="Bonne pratique..."
                                         items={step.bonnesPratiques}
+                                        structureLocked={hasExistingUsage}
                                         onAdd={() =>
                                             updateStepList(stepIndex, "bonnesPratiques", [
                                                 ...step.bonnesPratiques,
@@ -1200,6 +1312,7 @@ export function CreateMethodPageContent({
                                         label="Erreurs à éviter"
                                         placeholder="Erreur à éviter..."
                                         items={step.erreurs}
+                                        structureLocked={hasExistingUsage}
                                         onAdd={() =>
                                             updateStepList(stepIndex, "erreurs", [...step.erreurs, ""])
                                         }
@@ -1222,6 +1335,7 @@ export function CreateMethodPageContent({
                                         label="Posture & Communication"
                                         placeholder="Posture..."
                                         items={step.posture}
+                                        structureLocked={hasExistingUsage}
                                         onAdd={() =>
                                             updateStepList(stepIndex, "posture", [...step.posture, ""])
                                         }
@@ -1244,6 +1358,7 @@ export function CreateMethodPageContent({
                                         label="Verbatims préconisés"
                                         placeholder="Verbatim..."
                                         items={step.verbatims}
+                                        structureLocked={hasExistingUsage}
                                         onAdd={() =>
                                             updateStepList(stepIndex, "verbatims", [...step.verbatims, ""])
                                         }
@@ -1277,7 +1392,7 @@ export function CreateMethodPageContent({
                     <Box className="flex justify-end gap-3">
                         {isDraft && !embedded && (
                             <Button
-                                disabled={isSaving}
+                                disabled={isSaving || duplicating}
                                 onClick={() => handleSave(CONTENT_STATUS.draft)}
                                 className={uiTokens.action.secondaryButton}
                             >
@@ -1287,11 +1402,11 @@ export function CreateMethodPageContent({
                             </Button>
                         )}
                         <Button
-                            disabled={isSaving}
+                            disabled={isSaving || duplicating}
                             onClick={() => handleSave(CONTENT_STATUS.published)}
                             className={cn(
                                 "flex h-11 items-center justify-center rounded-xl px-6 text-[14px] font-bold text-white transition",
-                                !isSaving
+                                !isSaving && !duplicating
                                     ? uiTokens.action.primaryButton
                                     : uiTokens.action.primaryButtonDisabled,
                             )}

@@ -228,6 +228,11 @@ export interface QuizDetail extends QuizListItem {
     steps: QuizStep[];
 }
 
+/** Données réservées au formulaire d'administration d'un quiz. */
+export interface QuizEditorDetail extends QuizDetail {
+    hasAttempts: boolean;
+}
+
 export function getQuizStatusLabel(status: ContentStatus) {
     return CONTENT_STATUS_LABELS[status];
 }

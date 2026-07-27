@@ -59,6 +59,12 @@ function createRoleplayDetail({
         organizationId: null,
         organizationName: null,
         personaAvatarUrl: null,
+        personaFacts: {
+            age: null,
+            annualRevenue: "",
+            employeeCount: null,
+            industry: "",
+        },
         personaId: "persona-1",
         quizCount: 0,
         quizIds: quizzes.map((quiz) => quiz.id),
@@ -100,6 +106,42 @@ describe("roleplay UI adapter", () => {
         const roleplay = mapDbRoleplayToUi(createRoleplayDetail({ learnerRole: "" }));
 
         expect(roleplay.detail.learnerRole).toBe("");
+    });
+
+    it("builds company badges from the persona data stored in DB", () => {
+        const detail = createRoleplayDetail();
+        detail.personaFacts = {
+            age: 32,
+            annualRevenue: "40 M€",
+            employeeCount: 1800,
+            industry: "Immobilier",
+        };
+
+        const roleplay = mapDbRoleplayToUi(detail);
+
+        expect(roleplay.detail.infoChips).toEqual([
+            { icon: "users", label: `${new Intl.NumberFormat("fr-FR").format(1800)} employés` },
+            { icon: "money", label: "40 M€ CA" },
+            { icon: "building", label: "Immobilier" },
+            { icon: "calendar", label: "32 ans" },
+        ]);
+    });
+
+    it("never falls back to historical mock badges when persona data is missing", () => {
+        const roleplay = mapDbRoleplayToUi(createRoleplayDetail());
+
+        expect(roleplay.detail.infoChips).toEqual([]);
+    });
+
+    it("only creates badges for persona fields that are populated", () => {
+        const detail = createRoleplayDetail();
+        detail.personaFacts.industry = "Conseil";
+
+        const roleplay = mapDbRoleplayToUi(detail, null);
+
+        expect(roleplay.detail.infoChips).toEqual([
+            { icon: "building", label: "Conseil" },
+        ]);
     });
 
     it("maps DB scenario resources to preparation documents with access routes", () => {
