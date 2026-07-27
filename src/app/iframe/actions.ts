@@ -24,6 +24,7 @@ import { resolveRoleplayCoachId } from "@/features/roleplays/server/resolve-role
 import { findEligibleCompletedRoleplaySession } from "@/features/roleplays/server/find-eligible-completed-session";
 import { buildGlobalCoachEvaluationContext } from "@/features/roleplays/server/build-global-coach-evaluation-context";
 import { buildRoleplayCoachFeedbackInstructions } from "@/features/roleplays/server/build-roleplay-coach-feedback-instructions";
+import { resolveRoleplayCoachSessionPrompt } from "@/features/roleplays/server/coach-ai-context";
 import { createSessionBackgroundSignedUrl } from "@/lib/uploads/session-background";
 import {
     DEFAULT_COACH_VOICE_ID,
@@ -282,7 +283,11 @@ export async function prepareIframeSession(params: PrepareParams): Promise<{
                     .eq("title", ROLEPLAY_COACH_PROMPT_TITLE.beforeTraining)
                     .single();
 
-                const basePrompt = promptData?.prompt || FALLBACK_BEFORE_TRAINING_PROMPT;
+                const basePrompt = await resolveRoleplayCoachSessionPrompt(
+                    adminSupabase,
+                    promptData?.prompt || FALLBACK_BEFORE_TRAINING_PROMPT,
+                    ROLEPLAY_COACH_MODE.beforeTraining,
+                );
 
                 const coachContext = await getRoleplayCoachContext(supabase, scenarioId, step);
                 const coachInstructions = buildRoleplayCoachInstructions(basePrompt, coach);
@@ -332,7 +337,11 @@ ${COACH_CONTEXT_GUARDRAILS}
                     .eq("title", ROLEPLAY_COACH_PROMPT_TITLE.afterTraining)
                     .single();
 
-                const basePrompt = promptData?.prompt || FALLBACK_AFTER_TRAINING_PROMPT;
+                const basePrompt = await resolveRoleplayCoachSessionPrompt(
+                    adminSupabase,
+                    promptData?.prompt || FALLBACK_AFTER_TRAINING_PROMPT,
+                    ROLEPLAY_COACH_MODE.afterTraining,
+                );
 
                 const coachContext = await getRoleplayCoachContext(supabase, scenarioId, step);
                 const coachInstructions = buildRoleplayCoachInstructions(basePrompt, coach);
@@ -436,7 +445,11 @@ ${COACH_CONTEXT_GUARDRAILS}
                     .eq("title", ROLEPLAY_COACH_PROMPT_TITLE.feedback)
                     .single();
 
-                const basePrompt = promptData?.prompt || FALLBACK_COACH_VARIANT_FEEDBACK_PROMPT;
+                const basePrompt = await resolveRoleplayCoachSessionPrompt(
+                    adminSupabase,
+                    promptData?.prompt || FALLBACK_COACH_VARIANT_FEEDBACK_PROMPT,
+                    ROLEPLAY_COACH_MODE.feedback,
+                );
                 const coachContext = await getRoleplayCoachContext(supabase, scenarioId);
                 const coachInstructions = buildRoleplayCoachInstructions(basePrompt, coach);
 
@@ -520,7 +533,11 @@ ${COACH_CONTEXT_GUARDRAILS}
                     .eq("title", ROLEPLAY_COACH_PROMPT_TITLE.notation)
                     .single();
 
-                const basePrompt = promptData?.prompt || FALLBACK_NOTATION_SYNTHESE_PROMPT;
+                const basePrompt = await resolveRoleplayCoachSessionPrompt(
+                    adminSupabase,
+                    promptData?.prompt || FALLBACK_NOTATION_SYNTHESE_PROMPT,
+                    ROLEPLAY_COACH_MODE.notation,
+                );
                 const coachContext = await getRoleplayCoachContext(supabase, scenarioId);
                 const coachInstructions = buildRoleplayCoachInstructions(basePrompt, coach);
 
@@ -632,10 +649,12 @@ ${COACH_CONTEXT_GUARDRAILS}
 
             const scenario = session.scenarios as unknown as { id: string; title: string };
             const coachContext = await getRoleplayCoachContext(supabase, scenario.id);
-            const coachInstructions = buildRoleplayCoachInstructions(
+            const defaultCoachPrompt = await resolveRoleplayCoachSessionPrompt(
+                adminSupabase,
                 FALLBACK_DEFAULT_COACH_PROMPT,
-                coach,
+                "default",
             );
+            const coachInstructions = buildRoleplayCoachInstructions(defaultCoachPrompt, coach);
 
             // Fetch session messages for transcript
             const { data: messages, error: messagesError } = await supabase

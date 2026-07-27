@@ -19,6 +19,7 @@ export const ROLEPLAY_COACH_PROMPT_TITLE = {
     afterTraining: "coach.after_training",
     beforeTraining: "coach.before_training",
     feedback: "coach.variant.feedback",
+    global: "prompt.coach.global",
     notation: "coach.notation.synthese",
     personaFeedback: "persona.variant.feedback",
 } as const;

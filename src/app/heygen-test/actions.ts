@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ROLEPLAY_COACH_PROMPT_TITLE } from "@/features/roleplays/domain";
+import { resolveRoleplayCoachSessionPrompt } from "@/features/roleplays/server/coach-ai-context";
 import type { Coach } from "@/types";
 
 const FALLBACK_COACH_PROMPT = `Tu es un coach professionnel expert en communication et techniques de vente.
@@ -103,16 +104,20 @@ export async function prepareHeygenTestSession(params: PrepareParams = {}): Prom
             .eq("title", promptTitle)
             .single();
 
-        const basePrompt = promptData?.prompt || (coach?.system_instructions || FALLBACK_COACH_PROMPT);
+        const basePrompt = await resolveRoleplayCoachSessionPrompt(
+            adminSupabase,
+            promptData?.prompt || (coach?.system_instructions || FALLBACK_COACH_PROMPT),
+            coachMode,
+        );
 
         // Truncate transcript to avoid LiveAvatar context size limits (~3000 chars max for prompt)
-        const MAX_TRANSCRIPT_CHARS = 2000;
+        const MAX_TRANSCRIPT_CHARS = 800;
         const truncatedTranscript = transcript.length > MAX_TRANSCRIPT_CHARS
             ? transcript.slice(0, MAX_TRANSCRIPT_CHARS) + "\n[...transcript tronqué pour la démo]"
             : transcript;
 
-        // Keep the base prompt concise for LiveAvatar
-        const shortBasePrompt = basePrompt.slice(0, 800);
+        // Keep both the global coach rules and the session variant within LiveAvatar's limit.
+        const shortBasePrompt = basePrompt.slice(0, 1900);
 
         const systemInstructions = `${shortBasePrompt}
 

@@ -3,6 +3,7 @@ export * from "./assert-roleplay-lifecycle";
 export * from "./build-roleplay-coach-feedback-instructions";
 export * from "./build-roleplay-notation-context";
 export * from "./build-scorecard-methodo-payload";
+export * from "./coach-ai-context";
 export * from "./create-roleplay";
 export * from "./duplicate-roleplay";
 export * from "./resolve-roleplay-coach-id";
