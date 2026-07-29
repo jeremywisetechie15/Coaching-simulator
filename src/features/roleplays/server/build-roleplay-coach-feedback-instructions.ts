@@ -1,8 +1,6 @@
 import type { GlobalCoachEvaluationContext } from "./build-global-coach-evaluation-context";
-import {
-    serializeRoleplayCoachSummaryContext,
-    type RoleplayCoachContext,
-} from "./get-roleplay-coach-context";
+import { buildGlobalCoachSessionSources } from "./build-global-coach-session-sources";
+import type { RoleplayCoachContext } from "./get-roleplay-coach-context";
 
 interface RoleplayCoachFeedbackInstructionsInput {
     coachInstructions: string;
@@ -25,30 +23,16 @@ export function buildRoleplayCoachFeedbackInstructions({
 }: RoleplayCoachFeedbackInstructionsInput) {
     return `${coachInstructions.trim()}
 
-CONTEXTE DYNAMIQUE DU ROLEPLAY — SOURCE DE VÉRITÉ:
-${serializeRoleplayCoachSummaryContext(context)}
+${buildGlobalCoachSessionSources({ context, evaluation, transcript })}
 
 APPRENANT:
 ---
 Prénom ou nom à utiliser pour le saluer: ${learnerName || "non disponible"}
 ---
 
-APPRÉCIATION GLOBALE ÉCRITE DU COACH:
----
-${evaluation.appreciation}
----
-
-SYNTHÈSE STRUCTURÉE DE LA SESSION:
-${JSON.stringify({ scoreGlobal: evaluation.scoreGlobal, synthese: evaluation.synthese }, null, 2)}
-
-TRANSCRIPT EXACT DE LA SESSION:
----
-${transcript}
----
-
 RÈGLES DE PRIORITÉ:
 - Commence directement par saluer l'apprenant avec le prénom ou le nom fourni lorsqu'il est disponible.
-- Présente ensuite ton avis sur sa session en t'appuyant uniquement sur l'appréciation, la synthèse et le transcript.
+- Présente ensuite ton avis sur sa session en t'appuyant uniquement sur l'évaluation structurée et le transcript.
 - Ne transforme pas cet avis initial en entraînement sur une étape ni en débrief méthodologique exhaustif.
 - N'invente aucun fait, résultat, score, parole ou comportement absent des sources fournies.
 - Ne demande jamais à l'apprenant de redonner le scénario, le transcript ou ce qui s'est passé.

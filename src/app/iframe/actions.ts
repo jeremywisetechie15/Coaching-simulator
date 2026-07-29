@@ -16,7 +16,6 @@ import {
     getRoleplayCoachContext,
     getRoleplayPersonaContext,
     serializeRoleplayCoachContext,
-    serializeRoleplayCoachSummaryContext,
 } from "@/features/roleplays/server/get-roleplay-coach-context";
 import { buildRoleplayCoachInstructions } from "@/features/roleplays/server/build-roleplay-coach-instructions";
 import { buildRoleplayPersonaFeedbackInstructions } from "@/features/roleplays/server/build-roleplay-persona-feedback-instructions";
@@ -24,6 +23,7 @@ import { getRoleplaySessionEvaluation } from "@/features/roleplays/server/get-ro
 import { resolveRoleplayCoachId } from "@/features/roleplays/server/resolve-roleplay-coach-id";
 import { findEligibleCompletedRoleplaySession } from "@/features/roleplays/server/find-eligible-completed-session";
 import { buildGlobalCoachEvaluationContext } from "@/features/roleplays/server/build-global-coach-evaluation-context";
+import { buildGlobalCoachSessionSources } from "@/features/roleplays/server/build-global-coach-session-sources";
 import { buildRoleplayCoachFeedbackInstructions } from "@/features/roleplays/server/build-roleplay-coach-feedback-instructions";
 import { resolveRoleplayCoachSessionPrompt } from "@/features/roleplays/server/coach-ai-context";
 import { createSessionBackgroundSignedUrl } from "@/lib/uploads/session-background";
@@ -173,6 +173,13 @@ const COACH_DYNAMIC_CONTEXT_PRIORITY = `
 SOURCE DE VÉRITÉ DYNAMIQUE:
 - Le bloc JSON "CONTEXTE DYNAMIQUE DU ROLEPLAY" ci-dessous est la source de vérité pour la méthode, le persona, le scénario, les étapes et les critères de la scorecard.
 - Si le prompt générique contient un nom de méthode, de persona, d'entreprise ou d'étape différent, ignore cet exemple statique et utilise exclusivement le contexte dynamique.
+- Les variables écrites sous la forme {{variable}} dans le prompt générique ne sont pas des données réelles. Utilise les valeurs du contexte dynamique à la place.`;
+
+const COACH_SUMMARY_CONTEXT_PRIORITY = `
+
+SOURCE DE VÉRITÉ DYNAMIQUE:
+- Les blocs "CONTEXTE DYNAMIQUE DU ROLEPLAY", "ÉVALUATION STRUCTURÉE DE LA SESSION" et "TRANSCRIPT EXACT DE LA SESSION" ci-dessous sont les sources de vérité factuelles.
+- Si le prompt générique contient un nom de méthode, de persona, d'entreprise ou de scénario différent, ignore cet exemple statique et utilise exclusivement le contexte dynamique.
 - Les variables écrites sous la forme {{variable}} dans le prompt générique ne sont pas des données réelles. Utilise les valeurs du contexte dynamique à la place.`;
 
 function buildAfterTrainingPerformanceContext(
@@ -571,30 +578,20 @@ ${COACH_CONTEXT_GUARDRAILS}
                 }
 
                 const systemInstructions = `${coachInstructions}
-${COACH_DYNAMIC_CONTEXT_PRIORITY}
+${COACH_SUMMARY_CONTEXT_PRIORITY}
 
-CONTEXTE DYNAMIQUE DU ROLEPLAY:
-${serializeRoleplayCoachSummaryContext(coachContext)}
-
-Ton appréciation globale de la session (c'est ce dont tu dois parler avec l'apprenant):
----
-${evaluationContext.appreciation}
----
-
-SYNTHÈSE STRUCTURÉE DE LA SESSION (réussites, axes d'amélioration, plan de progrès et score):
-${JSON.stringify({ scoreGlobal: evaluationContext.scoreGlobal, synthese: evaluationContext.synthese }, null, 2)}
-
-Pour contexte, voici le transcript de la session analysée:
----
-${transcript}
----
+${buildGlobalCoachSessionSources({
+    context: coachContext,
+    evaluation: evaluationContext,
+    transcript,
+})}
 
 IMPORTANT: Commence par partager ton appréciation globale avec l'apprenant. Sois bienveillante mais honnête. 
 Parle à la première personne ("J'ai remarqué que...", "De mon analyse...", "Ce que j'ai apprécié...").
 ${COACH_CONTEXT_GUARDRAILS}
 `;
 
-                console.log("📝 Coach mode: notation, session:", effectiveSessionId, "appreciation extracted:", evaluationContext.appreciation ? "yes" : "no");
+                console.log("📝 Coach mode: notation, session:", effectiveSessionId, "appreciation extracted:", evaluationContext.appreciationGlobale ? "yes" : "no");
 
                 return {
                     success: true,

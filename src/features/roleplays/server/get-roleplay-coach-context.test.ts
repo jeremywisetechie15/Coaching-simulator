@@ -158,6 +158,11 @@ describe("serializeRoleplayCoachContext", () => {
         });
         expect(result.persona.name).toBe("Persona dynamique");
         expect(result.scenario.title).toBe("Roleplay dynamique");
+        expect(result.persona.age).toBeUndefined();
+        expect(result.persona.childrenCount).toBeUndefined();
+        expect(result.persona.diploma).toBeUndefined();
+        expect(result.persona.netIncomeBeforeTax).toBeUndefined();
+        expect(result.scenario.coachingSteps).toBeUndefined();
         expect(result.methodSteps).toBeUndefined();
         expect(result.selectedStep).toBeUndefined();
         expect(result.scorecard).toBeUndefined();

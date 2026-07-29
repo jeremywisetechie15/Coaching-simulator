@@ -47,4 +47,19 @@ describe("roleplay coach instructions", () => {
         expect(result.match(/Pose des questions courtes et factuelles\./g)).toHaveLength(1);
         expect(result).toContain("Le contexte dynamique du roleplay");
     });
+
+    it("omits empty profile fields without removing configured coach data", () => {
+        const result = JSON.parse(serializeRoleplayCoachProfile({
+            ...coach,
+            certifications: null,
+            diploma: " ",
+        }));
+
+        expect(result).toEqual({
+            coachingStyle: "Exigeant",
+            discProfile: "Consciencieux",
+            expertiseDomain: "Commercial",
+            name: "Coach test",
+        });
+    });
 });

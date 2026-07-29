@@ -13,14 +13,20 @@ function cleanText(value: string | null | undefined) {
 }
 
 export function serializeRoleplayCoachProfile(coach: CoachRow) {
-    return JSON.stringify({
+    const profile = {
         certifications: cleanText(coach.certifications),
         coachingStyle: cleanText(coach.coaching_style),
         diploma: cleanText(coach.diploma),
         discProfile: cleanText(coach.disc_profile),
         expertiseDomain: cleanText(coach.expertise_domain),
-        name: coach.name,
-    }, null, 2);
+        name: cleanText(coach.name),
+    };
+
+    return JSON.stringify(
+        Object.fromEntries(Object.entries(profile).filter(([, value]) => value.length > 0)),
+        null,
+        2,
+    );
 }
 
 export function buildRoleplayCoachInstructions(basePrompt: string, coach: CoachRow) {

@@ -82,12 +82,13 @@ describe("buildRoleplayCoachFeedbackInstructions", () => {
             coachInstructions: "Donne un avis court et bienveillant.",
             context,
             evaluation: {
-                appreciation: "Une session structurée.",
-                scoreGlobal: { valeur: 74 },
-                synthese: {
-                    axes_amelioration: ["Préciser l'accroche"],
-                    points_positifs: ["Bonne écoute"],
-                },
+                appreciationGlobale: "Une session structurée.",
+                axesAmelioration: ["Préciser l'accroche"],
+                momentsCles: [],
+                planDeProgres: [],
+                pointsPositifs: ["Bonne écoute"],
+                prioriteStrategique: "Clarifier l'ouverture.",
+                scoreGlobal: 74,
             },
             learnerName: "Paul",
             transcript: "[Utilisateur]: Bonjour",
@@ -96,6 +97,7 @@ describe("buildRoleplayCoachFeedbackInstructions", () => {
         expect(instructions).toContain("Prénom ou nom à utiliser pour le saluer: Paul");
         expect(instructions).toContain('"name": "Méthode résumée"');
         expect(instructions).toContain("Une session structurée.");
+        expect(instructions.match(/Une session structurée\./g)).toHaveLength(1);
         expect(instructions).toContain("Bonne écoute");
         expect(instructions).toContain("Préciser l'accroche");
         expect(instructions).toContain("[Utilisateur]: Bonjour");

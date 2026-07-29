@@ -380,6 +380,31 @@ function serializeScenarioBusinessContext(scenario: RoleplayRuntimeContext["scen
     };
 }
 
+function serializePersonaCoachSummary(persona: NonNullable<RoleplayRuntimeContext["persona"]>) {
+    return {
+        company: persona.company,
+        companyDescription: persona.companyDescription,
+        discProfile: persona.discProfile,
+        industry: persona.industry,
+        name: persona.name,
+        role: persona.role,
+    };
+}
+
+function serializeScenarioCoachSummary(scenario: RoleplayRuntimeContext["scenario"]) {
+    return {
+        category: scenario.category,
+        context: scenario.context,
+        description: scenario.description,
+        difficulty: scenario.difficulty,
+        discProfile: scenario.discProfile,
+        domain: scenario.domain,
+        objective: scenario.objective,
+        obstacles: scenario.obstacles,
+        title: scenario.title,
+    };
+}
+
 function serializeScorecardBusinessContext(scorecard: RoleplayScorecardDefinition | null) {
     if (!scorecard) return null;
 
@@ -449,8 +474,8 @@ ${serializeRoleplayPersonaSimulationContext(context)}`;
 export function serializeRoleplayCoachSummaryContext(context: RoleplayCoachContext) {
     return JSON.stringify({
         method: serializeMethodSummary(context.method),
-        persona: context.persona ? serializePersonaBusinessContext(context.persona) : null,
-        scenario: serializeScenarioBusinessContext(context.scenario),
+        persona: context.persona ? serializePersonaCoachSummary(context.persona) : null,
+        scenario: serializeScenarioCoachSummary(context.scenario),
     }, null, 2);
 }
 
