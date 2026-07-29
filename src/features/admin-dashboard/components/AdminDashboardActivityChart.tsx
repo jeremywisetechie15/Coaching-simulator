@@ -135,23 +135,25 @@ export function AdminDashboardActivityChart({ data }: { data: AdminDashboardActi
                     </Box>
                 ))}
             </Box>
-            <table className="sr-only">
-                <caption>Données d’activité de la plateforme</caption>
-                <thead>
-                    <tr>
-                        <th>Période</th>
-                        {data.series.map((series) => <th key={series.id}>{series.label}</th>)}
-                    </tr>
-                </thead>
-                <tbody>
-                    {data.labels.map((label, index) => (
-                        <tr key={`${label}-${index}`}>
-                            <th>{label || `Point ${index + 1}`}</th>
-                            {data.series.map((series) => <td key={series.id}>{series.values[index] ?? 0}</td>)}
+            <Box className="sr-only">
+                <table>
+                    <caption>Données d’activité de la plateforme</caption>
+                    <thead>
+                        <tr>
+                            <th>Période</th>
+                            {data.series.map((series) => <th key={series.id}>{series.label}</th>)}
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {data.labels.map((label, index) => (
+                            <tr key={`${label}-${index}`}>
+                                <th>{label || `Point ${index + 1}`}</th>
+                                {data.series.map((series) => <td key={series.id}>{series.values[index] ?? 0}</td>)}
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </Box>
         </>
     );
 }

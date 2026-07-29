@@ -4,6 +4,7 @@ import type { RoleplayCoachContext } from "./get-roleplay-coach-context";
 import {
     buildRoleplayPersonaSimulationInstructions,
     serializeRoleplayCoachContext,
+    serializeRoleplayCoachSummaryContext,
     serializeRoleplayPersonaSimulationContext,
 } from "./get-roleplay-coach-context";
 
@@ -137,6 +138,31 @@ describe("serializeRoleplayCoachContext", () => {
         expect(result.method).toEqual(context.method);
         expect(result.methodSteps).toEqual([selectedStep]);
         expect(result.scorecard.name).toBe("Scorecard dynamique");
+    });
+
+    it("keeps only the method summary and business context for global coach sessions", () => {
+        const result = JSON.parse(serializeRoleplayCoachSummaryContext({
+            ...context,
+            selectedStep: null,
+        }));
+
+        expect(result.method).toEqual({
+            category: "Vente",
+            challenges: ["Structurer la découverte"],
+            code: "TEST",
+            description: "Méthode de test",
+            domain: "Commercial",
+            name: "Méthode dynamique",
+            objectives: ["Mener un entretien consultatif"],
+            version: "1",
+        });
+        expect(result.persona.name).toBe("Persona dynamique");
+        expect(result.scenario.title).toBe("Roleplay dynamique");
+        expect(result.methodSteps).toBeUndefined();
+        expect(result.selectedStep).toBeUndefined();
+        expect(result.scorecard).toBeUndefined();
+        expect(JSON.stringify(result)).not.toContain("criterion-1");
+        expect(JSON.stringify(result)).not.toContain("Chercher une question ouverte");
     });
 
     it("serializes the complete business context for a persona simulation", () => {

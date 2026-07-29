@@ -1,6 +1,6 @@
 import type { GlobalCoachEvaluationContext } from "./build-global-coach-evaluation-context";
 import {
-    serializeRoleplayCoachContext,
+    serializeRoleplayCoachSummaryContext,
     type RoleplayCoachContext,
 } from "./get-roleplay-coach-context";
 
@@ -26,7 +26,7 @@ export function buildRoleplayCoachFeedbackInstructions({
     return `${coachInstructions.trim()}
 
 CONTEXTE DYNAMIQUE DU ROLEPLAY — SOURCE DE VÉRITÉ:
-${serializeRoleplayCoachContext(context)}
+${serializeRoleplayCoachSummaryContext(context)}
 
 APPRENANT:
 ---

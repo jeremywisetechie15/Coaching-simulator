@@ -16,6 +16,7 @@ import {
     getRoleplayCoachContext,
     getRoleplayPersonaContext,
     serializeRoleplayCoachContext,
+    serializeRoleplayCoachSummaryContext,
 } from "@/features/roleplays/server/get-roleplay-coach-context";
 import { buildRoleplayCoachInstructions } from "@/features/roleplays/server/build-roleplay-coach-instructions";
 import { buildRoleplayPersonaFeedbackInstructions } from "@/features/roleplays/server/build-roleplay-persona-feedback-instructions";
@@ -573,7 +574,7 @@ ${COACH_CONTEXT_GUARDRAILS}
 ${COACH_DYNAMIC_CONTEXT_PRIORITY}
 
 CONTEXTE DYNAMIQUE DU ROLEPLAY:
-${serializeRoleplayCoachContext(coachContext)}
+${serializeRoleplayCoachSummaryContext(coachContext)}
 
 Ton appréciation globale de la session (c'est ce dont tu dois parler avec l'apprenant):
 ---

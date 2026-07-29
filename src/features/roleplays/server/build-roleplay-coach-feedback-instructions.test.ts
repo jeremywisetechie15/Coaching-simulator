@@ -3,8 +3,31 @@ import type { RoleplayCoachContext } from "./get-roleplay-coach-context";
 import { buildRoleplayCoachFeedbackInstructions } from "./build-roleplay-coach-feedback-instructions";
 
 const context = {
-    method: null,
-    methodSteps: [],
+    method: {
+        category: "Vente",
+        challenges: ["Créer de la confiance"],
+        code: "TEST",
+        description: "Une méthode de vente structurée.",
+        domain: "Commercial",
+        id: "method-1",
+        name: "Méthode résumée",
+        objectives: ["Structurer l'entretien"],
+        version: "1",
+    },
+    methodSteps: [{
+        bestPractices: ["Détail étape à ne pas transmettre"],
+        code: "E1",
+        id: "method-step-1",
+        objectives: [],
+        order: 1,
+        pitfalls: [],
+        posture: [],
+        summary: "",
+        takeaway: "",
+        title: "Étape détaillée à exclure",
+        verbatims: [],
+        weight: 100,
+    }],
     persona: null,
     scenario: {
         backgroundImagePath: null,
@@ -20,7 +43,36 @@ const context = {
         obstacles: "",
         title: "Prise de rendez-vous",
     },
-    scorecard: null,
+    scorecard: {
+        category: "Vente",
+        description: "Scorecard à exclure",
+        domain: "Commercial",
+        id: "scorecard-1",
+        level: "Intermédiaire",
+        methodId: "method-1",
+        name: "Scorecard détaillée",
+        steps: [{
+            criteria: [{
+                aiInstruction: "Instruction de critère à ne pas transmettre",
+                criterionKey: "critere_interdit",
+                dimension: "savoir_faire",
+                dimensionItemId: null,
+                dimensionItemLabel: null,
+                expectedEvidence: "Preuve détaillée à exclure",
+                id: "criterion-1",
+                maxPoints: 1,
+                order: 1,
+                skillId: "skill-1",
+                skillName: "Compétence détaillée",
+                verbatim: "Verbatim détaillé à exclure",
+            }],
+            id: "scorecard-step-1",
+            methodStepId: "method-step-1",
+            order: 1,
+            title: "Étape scorecard",
+            weightPercent: 100,
+        }],
+    },
     selectedStep: null,
 } satisfies RoleplayCoachContext;
 
@@ -42,10 +94,14 @@ describe("buildRoleplayCoachFeedbackInstructions", () => {
         });
 
         expect(instructions).toContain("Prénom ou nom à utiliser pour le saluer: Paul");
+        expect(instructions).toContain('"name": "Méthode résumée"');
         expect(instructions).toContain("Une session structurée.");
         expect(instructions).toContain("Bonne écoute");
         expect(instructions).toContain("Préciser l'accroche");
         expect(instructions).toContain("[Utilisateur]: Bonjour");
         expect(instructions).toContain("Ne transforme pas cet avis initial en entraînement");
+        expect(instructions).not.toContain("Étape détaillée à exclure");
+        expect(instructions).not.toContain("Instruction de critère à ne pas transmettre");
+        expect(instructions).not.toContain("Scorecard détaillée");
     });
 });

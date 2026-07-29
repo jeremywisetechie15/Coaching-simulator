@@ -407,6 +407,21 @@ function serializeScorecardBusinessContext(scorecard: RoleplayScorecardDefinitio
     };
 }
 
+function serializeMethodSummary(method: RoleplayRuntimeContext["method"]) {
+    if (!method) return null;
+
+    return {
+        category: method.category,
+        challenges: method.challenges,
+        code: method.code,
+        description: method.description,
+        domain: method.domain,
+        name: method.name,
+        objectives: method.objectives,
+        version: method.version,
+    };
+}
+
 export function serializeRoleplayPersonaSimulationContext(context: RoleplayRuntimeContext) {
     return JSON.stringify({
         persona: context.persona ? serializePersonaBusinessContext(context.persona) : null,
@@ -429,6 +444,14 @@ ${PERSONA_DYNAMIC_CONTEXT_PRIORITY}
 
 CONTEXTE DYNAMIQUE DE LA SIMULATION:
 ${serializeRoleplayPersonaSimulationContext(context)}`;
+}
+
+export function serializeRoleplayCoachSummaryContext(context: RoleplayCoachContext) {
+    return JSON.stringify({
+        method: serializeMethodSummary(context.method),
+        persona: context.persona ? serializePersonaBusinessContext(context.persona) : null,
+        scenario: serializeScenarioBusinessContext(context.scenario),
+    }, null, 2);
 }
 
 export function serializeRoleplayCoachContext(context: RoleplayCoachContext) {
