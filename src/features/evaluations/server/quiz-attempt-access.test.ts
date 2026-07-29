@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { NotFoundError } from "@/lib/server/errors";
+import { ConflictError, NotFoundError } from "@/lib/server/errors";
 import { getAccessibleQuizForAttempt, type QuizAttemptQuizRow } from "./quiz-attempt-access";
 
 function createFakeSupabase(row: QuizAttemptQuizRow | null) {
@@ -42,11 +42,14 @@ describe("quiz attempt access", () => {
             .rejects.toThrow(NotFoundError);
     });
 
-    it("rejects archived or inactive quizzes", async () => {
+    it.each([
+        { is_active: true, status: "draft" },
+        { is_active: true, status: "archived" },
+        { is_active: false, status: "published" },
+    ])("rejects a quiz that is not published and active", async (availability) => {
         await expect(getAccessibleQuizForAttempt(createFakeSupabase({
             id: "quiz-1",
-            is_active: false,
-            status: "published",
-        }) as never, "quiz-1")).rejects.toThrow(NotFoundError);
+            ...availability,
+        }) as never, "quiz-1")).rejects.toThrow(ConflictError);
     });
 });

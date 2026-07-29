@@ -8,6 +8,7 @@ import { QUIZ_PARTICIPATIONS } from "@/features/evaluations/domain";
 import {
     ROLEPLAY_AI_INSTRUCTIONS_MAX_LENGTH,
     ROLEPLAY_DIFFICULTIES,
+    ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT,
     ROLEPLAY_DISC_PROFILES,
     ROLEPLAY_LEARNER_ROLE_MAX_LENGTH,
     getRoleplayPublicationIssues,
@@ -77,6 +78,13 @@ export const saveRoleplayDto = z
         difficulty: z.enum(ROLEPLAY_DIFFICULTIES).nullable().optional().default(null),
         disc: z.enum(ROLEPLAY_DISC_PROFILES).optional().default("Stable"),
         domain: z.string().trim().max(120, "Le domaine est trop long.").optional().default(""),
+        estimatedDurationMinutes: z
+            .number()
+            .int("La durée estimée doit être un nombre entier.")
+            .min(1, "La durée estimée doit être supérieure à 0.")
+            .nullable()
+            .optional()
+            .default(null),
         groupId: optionalUuid,
         learnerRole: z
             .string()
@@ -121,6 +129,13 @@ export const saveRoleplayDto = z
             .trim()
             .min(1, "Le titre du roleplay est requis.")
             .max(180, "Le titre du roleplay est trop long."),
+        validationThreshold: z
+            .number()
+            .int("Le seuil doit être un nombre entier.")
+            .min(0, "Le seuil ne peut pas être négatif.")
+            .max(100, "Le seuil ne peut pas dépasser 100%.")
+            .optional()
+            .default(ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT),
     })
     .strict()
     .superRefine((roleplay, ctx) => {

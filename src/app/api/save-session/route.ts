@@ -4,7 +4,11 @@ import {
     ROLEPLAY_NOTATION_STATUS,
 } from "@/features/roleplays/domain";
 import { requireAuth } from "@/features/auth/server";
-import { NotFoundError } from "@/lib/server/errors";
+import {
+    isSelectableContent,
+    normalizeContentStatus,
+} from "@/features/content/domain";
+import { ConflictError, NotFoundError } from "@/lib/server/errors";
 import { jsonError } from "@/lib/server/http";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
@@ -38,12 +42,24 @@ export async function POST(request: NextRequest) {
         const authenticatedSupabase = await createClient();
         const { data: accessibleScenario, error: scenarioError } = await authenticatedSupabase
             .from("scenarios")
-            .select("id")
+            .select("id, status, is_active")
             .eq("id", scenario_id)
-            .maybeSingle<{ id: string }>();
+            .maybeSingle<{
+                id: string;
+                is_active: boolean | null;
+                status: string | null;
+            }>();
 
         if (scenarioError) throw scenarioError;
         if (!accessibleScenario) throw new NotFoundError("Roleplay introuvable.");
+        if (
+            !isSelectableContent(
+                normalizeContentStatus(accessibleScenario.status),
+                accessibleScenario.is_active ?? true,
+            )
+        ) {
+            throw new ConflictError("Publiez le roleplay avant de démarrer une session.");
+        }
 
         const supabase = createAdminClient();
         const endedAt = new Date().toISOString();

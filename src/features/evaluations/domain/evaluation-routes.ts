@@ -22,8 +22,13 @@ export const EVALUATION_ROUTES = {
         collection: "/evaluations",
         detail: (quizId: string) => `/evaluations/${encodeRouteSegment(quizId)}`,
         edit: (quizId: string) => `/evaluations/${encodeRouteSegment(quizId)}/edit`,
+        history: "/evaluations/history",
+        historyForQuiz: (quizId: string) =>
+            `/evaluations/history?quiz_id=${encodeRouteSegment(quizId)}`,
         new: "/evaluations/new",
         quiz: (quizId: string) => `/evaluations/${encodeRouteSegment(quizId)}/quiz`,
         results: (quizId: string) => `/evaluations/${encodeRouteSegment(quizId)}/quiz?result=1`,
+        attemptResults: (quizId: string, attemptId: string) =>
+            `/evaluations/${encodeRouteSegment(quizId)}/quiz?result=1&attemptId=${encodeRouteSegment(attemptId)}`,
     },
 } as const;

@@ -64,7 +64,7 @@ describe("buildUserStatistics", () => {
                     notation_json: null,
                 },
             ],
-            targetScore: 80,
+            targetScore: 90,
         });
 
         expect(statistics.trainingTime).toBe("25min");
@@ -75,6 +75,8 @@ describe("buildUserStatistics", () => {
         expect(statistics.averageQuizScore).toBe("70%");
         expect(statistics.bestRoleplayScore).toBe("80%");
         expect(statistics.latestRoleplayScore).toBe("80%");
+        expect(statistics.targetScore).toBe("90%");
+        expect(statistics.targetScoreGap).toBe("Écart : -10 pts");
         expect(statistics.roleplayProgressSinceFirst).toBe("+30 pts");
         expect(statistics.quizVsRoleplayGap).toBe("+5 pts");
     });

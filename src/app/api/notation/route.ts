@@ -13,6 +13,7 @@ import {
     limitRoleplaySynthesisLists,
     shouldReuseCompletedRoleplayNotation,
     ROLEPLAY_NOTATION_FEEDBACK_MESSAGES,
+    ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
     type RoleplayNotationSource,
     type RoleplayNotationTab,
 } from '@/features/roleplays/domain';
@@ -241,7 +242,9 @@ function buildInterpretation(
     global: number
 ) {
     const niveau = niveauPerformance(global);
-    const strengths = detail.filter(d => d.score_etape >= 80);
+    const strengths = detail.filter(
+        d => d.score_etape >= ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
+    );
     const weaknesses = detail.filter(d => d.score_etape < 66);
 
     const formatList = (items: Array<{ etape: string; score_etape: number }>) =>

@@ -7,6 +7,7 @@ import {
 import { requireAuth } from "@/features/auth/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createClient } from "@/lib/supabase/server";
+import { NotFoundError } from "@/lib/server/errors";
 import type { QuizAttemptRow } from "./quiz-attempt.mapper";
 import { fetchQuizAttemptDetail, QUIZ_ATTEMPT_SELECT } from "./quiz-attempt-query";
 import { getAccessibleQuizForAttempt } from "./quiz-attempt-access";
@@ -15,9 +16,13 @@ interface GetLatestQuizAttemptOptions {
     preferCompleted?: boolean;
 }
 
-export async function getLatestQuizAttempt(
+interface ResolveQuizAttemptSessionOptions extends GetLatestQuizAttemptOptions {
+    attemptId?: string;
+}
+
+async function resolveQuizAttemptSession(
     quizId: string,
-    options: GetLatestQuizAttemptOptions = {},
+    options: ResolveQuizAttemptSessionOptions = {},
 ): Promise<QuizAttemptSession> {
     const context = await requireAuth();
     const authenticatedSupabase = await createClient();
@@ -36,17 +41,28 @@ export async function getLatestQuizAttempt(
 
     const attemptsUsed = completedCount ?? 0;
 
-    const { data: latestCompletedAttempt, error: latestError } = await adminSupabase
+    let completedAttemptQuery = adminSupabase
         .from("quiz_attempts")
         .select(QUIZ_ATTEMPT_SELECT)
         .eq("quiz_id", quizId)
         .eq("user_id", context.userId)
-        .eq("status", "completed")
-        .order("attempt_number", { ascending: false })
-        .limit(1)
-        .maybeSingle<QuizAttemptRow>();
+        .eq("status", "completed");
 
-    if (latestError) throw latestError;
+    if (options.attemptId) {
+        completedAttemptQuery = completedAttemptQuery.eq("id", options.attemptId);
+    } else {
+        completedAttemptQuery = completedAttemptQuery
+            .order("attempt_number", { ascending: false })
+            .limit(1);
+    }
+
+    const { data: completedAttempt, error: completedError } =
+        await completedAttemptQuery.maybeSingle<QuizAttemptRow>();
+
+    if (completedError) throw completedError;
+    if (options.attemptId && !completedAttempt) {
+        throw new NotFoundError("Tentative de quiz introuvable.");
+    }
 
     const { data: inProgressAttempt, error: inProgressError } = await adminSupabase
         .from("quiz_attempts")
@@ -59,9 +75,9 @@ export async function getLatestQuizAttempt(
 
     if (inProgressError) throw inProgressError;
 
-    if (options.preferCompleted && latestCompletedAttempt) {
+    if ((options.preferCompleted || options.attemptId) && completedAttempt) {
         return {
-            attempt: await fetchQuizAttemptDetail(adminSupabase, latestCompletedAttempt),
+            attempt: await fetchQuizAttemptDetail(adminSupabase, completedAttempt),
             attemptsRemaining: getQuizAttemptsRemaining(maxAttempts, attemptsUsed),
             attemptsUsed,
             canStartNewAttempt: !inProgressAttempt && !hasReachedQuizAttemptLimit(maxAttempts, attemptsUsed),
@@ -80,10 +96,24 @@ export async function getLatestQuizAttempt(
     }
 
     return {
-        attempt: latestCompletedAttempt ? await fetchQuizAttemptDetail(adminSupabase, latestCompletedAttempt) : null,
+        attempt: completedAttempt ? await fetchQuizAttemptDetail(adminSupabase, completedAttempt) : null,
         attemptsRemaining: getQuizAttemptsRemaining(maxAttempts, attemptsUsed),
         attemptsUsed,
         canStartNewAttempt: !hasReachedQuizAttemptLimit(maxAttempts, attemptsUsed),
         maxAttempts,
     };
+}
+
+export function getLatestQuizAttempt(
+    quizId: string,
+    options: GetLatestQuizAttemptOptions = {},
+) {
+    return resolveQuizAttemptSession(quizId, options);
+}
+
+export function getQuizAttempt(quizId: string, attemptId: string) {
+    return resolveQuizAttemptSession(quizId, {
+        attemptId,
+        preferCompleted: true,
+    });
 }

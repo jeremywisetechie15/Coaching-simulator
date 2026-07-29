@@ -1,8 +1,9 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { BookOpen, Clock, FileText, Info, Play } from "lucide-react";
+import { BookOpen, Clock, Eye, FileText, Info, Play, RefreshCw } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { LearnerContentStatusBadge } from "@/features/content/components";
+import { isSelectableContent } from "@/features/content/domain";
 import { getQuizTypeLabel, type QuizListItem } from "@/features/evaluations/domain";
 import { Box, CardSurface, InlineIcon, Text, Tooltip } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
@@ -22,6 +23,14 @@ export function QuizLibraryCard({
 }: QuizLibraryCardProps) {
     const category = (quiz.categories[0] ?? quiz.domain) || "Non affecté";
     const bestScore = quiz.learnerStats.bestScore;
+    const canStart = isSelectableContent(quiz.status, quiz.isActive);
+    const hasCompletedAttempt = quiz.learnerStats.attemptCount > 0;
+    const actionLabel = !canStart
+        ? "Voir le quiz"
+        : hasCompletedAttempt
+          ? "Retenter le quiz"
+          : "Commencer le quiz";
+    const ActionIcon = !canStart ? Eye : hasCompletedAttempt ? RefreshCw : Play;
 
     return (
         <CardSurface className={uiTokens.quizLibraryCard.root}>
@@ -99,10 +108,14 @@ export function QuizLibraryCard({
                 <Link
                     href={detailHref}
                     className={uiTokens.quizLibraryCard.action}
-                    aria-label={`Commencer le quiz ${quiz.title}`}
+                    aria-label={`${actionLabel} ${quiz.title}`}
                 >
-                    <InlineIcon icon={Play} className={uiTokens.quizLibraryCard.actionIcon} />
-                    Commencer le quiz
+                    <InlineIcon
+                        icon={ActionIcon}
+                        className={uiTokens.quizLibraryCard.actionIcon}
+                        strokeWidth={1.6}
+                    />
+                    {actionLabel}
                 </Link>
             </Box>
         </CardSurface>

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, CalendarDays, History, Target } from "lucide-react";
+import { ArrowLeft, CalendarDays, History, LockKeyhole, Target } from "lucide-react";
 import {
     ContextualBackLink,
     ContextualLink,
@@ -13,6 +13,7 @@ import {
     DiscProfileBadge,
     LearnerContentStatusBadge,
 } from "@/features/content/components";
+import { isSelectableContent } from "@/features/content/domain";
 import {
     categoryBadgeStyles,
     difficultyBadgeStyles,
@@ -92,6 +93,7 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
     });
     const prepDocuments = roleplay.prepDocuments ?? [];
     const prepQuizzes = roleplay.prepQuizzes ?? [];
+    const canStartRoleplay = isSelectableContent(roleplay.status, roleplay.isActive);
 
     function closeModal() {
         setActiveModal(null);
@@ -278,18 +280,27 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
                                 Évaluation de l&apos;entraînement complet
                             </ContextualLink>
                         )}
-                        <ContextualLink
-                            href={`/roleplays/${roleplay.id}/session`}
-                            className="flex h-12 items-center justify-center rounded-xl bg-[#5140F0] px-6 text-[15px] font-bold text-white shadow-[0_12px_24px_rgba(81,64,240,0.24)] transition hover:bg-[#4635E7]"
-                        >
-                            Commencer l&apos;entraînement complet
-                        </ContextualLink>
-                        <ContextualLink
-                            href={`/roleplays/${roleplay.id}/steps`}
-                            className="flex h-12 items-center justify-center rounded-xl border border-[#C9C2FB] bg-white px-6 text-[15px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
-                        >
-                            Se préparer sur une étape spécifique
-                        </ContextualLink>
+                        {canStartRoleplay ? (
+                            <>
+                                <ContextualLink
+                                    href={`/roleplays/${roleplay.id}/session`}
+                                    className={uiTokens.roleplayDetail.trainingPrimary}
+                                >
+                                    Commencer l&apos;entraînement complet
+                                </ContextualLink>
+                                <ContextualLink
+                                    href={`/roleplays/${roleplay.id}/steps`}
+                                    className={uiTokens.roleplayDetail.trainingSecondary}
+                                >
+                                    Se préparer sur une étape spécifique
+                                </ContextualLink>
+                            </>
+                        ) : (
+                            <Button disabled className={uiTokens.roleplayDetail.trainingDisabled}>
+                                <InlineIcon icon={LockKeyhole} className="h-4 w-4" />
+                                Publiez le roleplay pour vous entraîner
+                            </Button>
+                        )}
                     </Box>
                 </CardSurface>
             </Box>

@@ -57,6 +57,7 @@ interface EvaluationQuizPageContentProps {
     initialRetryRequested: boolean;
     initialView: "quiz" | "results";
     quiz: QuizDetail;
+    selectedAttemptId?: string;
     skillOptions: SkillOption[];
 }
 
@@ -198,6 +199,7 @@ export function EvaluationQuizPageContent({
     initialRetryRequested,
     initialView,
     quiz,
+    selectedAttemptId,
     skillOptions,
 }: EvaluationQuizPageContentProps) {
     const completionFallbackHref =
@@ -292,6 +294,8 @@ export function EvaluationQuizPageContent({
     }, []);
 
     useEffect(() => {
+        if (selectedAttemptId) return;
+
         if (skipInitialAttemptFetchRef.current) {
             skipInitialAttemptFetchRef.current = false;
             return;
@@ -363,7 +367,7 @@ export function EvaluationQuizPageContent({
         return () => {
             active = false;
         };
-    }, [quiz.id, quiz.steps]);
+    }, [quiz.id, quiz.steps, selectedAttemptId]);
 
     if (flatQuestions.length === 0) {
         return (

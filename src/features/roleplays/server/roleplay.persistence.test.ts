@@ -37,6 +37,7 @@ describe("roleplay persistence helpers", () => {
             description: "Décrocher un rendez-vous.",
             difficulty: "Moyen",
             domain: "Commercial",
+            estimatedDurationMinutes: 12,
             groupId,
             learnerRole: "Vous incarnez le conseiller commercial.",
             methodId,
@@ -59,6 +60,7 @@ describe("roleplay persistence helpers", () => {
             scorecardId,
             status: CONTENT_STATUS.published,
             title: "Rendez-vous prospect",
+            validationThreshold: 75,
         });
 
         expect(createRoleplayInsert(input, userId, "99999999-9999-4999-8999-999999999999")).toMatchObject({
@@ -66,6 +68,7 @@ describe("roleplay persistence helpers", () => {
             background_image_path: null,
             coach_id: coachId,
             group_id: groupId,
+            estimated_duration_minutes: 12,
             is_active: true,
             learner_role: "Vous incarnez le conseiller commercial.",
             method_id: methodId,
@@ -77,6 +80,7 @@ describe("roleplay persistence helpers", () => {
             scorecard_id: scorecardId,
             status: CONTENT_STATUS.published,
             title: "Rendez-vous prospect",
+            validation_threshold: 75,
             visibility_scope: CONTENT_VISIBILITY_SCOPE.group,
         });
 
@@ -158,6 +162,34 @@ describe("roleplay persistence helpers", () => {
         );
 
         expect(detail.learnerRole).toBe(learnerRole);
+    });
+
+    it("persists and maps roleplay duration and validation threshold", () => {
+        const input = saveRoleplayDto.parse({
+            estimatedDurationMinutes: 15,
+            title: "Roleplay configurable",
+            validationThreshold: 72,
+        });
+
+        expect(createRoleplayUpdate(input, null)).toMatchObject({
+            estimated_duration_minutes: 15,
+            validation_threshold: 72,
+        });
+
+        const detail = mapRoleplayRowsToDetail(
+            {
+                estimated_duration_minutes: 15,
+                id: "scenario-configurable",
+                title: "Roleplay configurable",
+                validation_threshold: 72,
+            },
+            [],
+            [],
+            createEmptyRoleplayStats(),
+        );
+
+        expect(detail.estimatedDurationMinutes).toBe(15);
+        expect(detail.validationThreshold).toBe(72);
     });
 
     it("clears organization and group when a roleplay becomes public", () => {

@@ -69,8 +69,8 @@ function validFilterValue(value: string | null, options: readonly FilterSelectOp
     return exists && value ? value : ROLEPLAY_SESSION_HISTORY_ALL_VALUE;
 }
 
-function scoreColor(score: number) {
-    if (score >= 80) {
+function scoreColor(score: number, validationThreshold: number) {
+    if (score >= validationThreshold) {
         return "#16A34A";
     }
     if (score >= 60) {
@@ -79,11 +79,17 @@ function scoreColor(score: number) {
     return "#F97316";
 }
 
-function ScoreRing({ score }: { score: number }) {
+function ScoreRing({
+    score,
+    validationThreshold,
+}: {
+    score: number;
+    validationThreshold: number;
+}) {
     const radius = 30;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference * (1 - score / 100);
-    const color = scoreColor(score);
+    const color = scoreColor(score, validationThreshold);
 
     return (
         <Box className="relative h-[76px] w-[76px]">
@@ -343,7 +349,10 @@ export function SessionsHistoryPageContent({
                                     </Box>
 
                                     <Box className="flex items-center gap-5 md:shrink-0">
-                                        <ScoreRing score={session.score} />
+                                        <ScoreRing
+                                            score={session.score}
+                                            validationThreshold={roleplay.validationThreshold}
+                                        />
                                         <ContextualLink
                                             href={ROLEPLAY_ROUTES.app.sessionHistoryDetail(session.id)}
                                             className="flex h-11 items-center justify-center gap-2 rounded-xl bg-[#5140F0] px-5 text-[14px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7]"

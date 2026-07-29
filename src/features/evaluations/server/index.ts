@@ -7,6 +7,7 @@ export * from "./get-latest-quiz-attempt";
 export * from "./get-quiz-attachment-access";
 export * from "./get-quiz-by-id";
 export * from "./get-quiz-editor-by-id";
+export * from "./list-quiz-attempt-history";
 export * from "./list-quiz-form-options";
 export * from "./list-quiz-target-options";
 export * from "./list-quizzes";

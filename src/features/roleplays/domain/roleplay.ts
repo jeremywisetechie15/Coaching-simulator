@@ -144,6 +144,7 @@ export interface RoleplayListItem {
     difficulty: RoleplayDifficulty;
     disc: RoleplayDiscProfile;
     domain: string;
+    estimatedDurationMinutes: number | null;
     groupId: string | null;
     groupName: string | null;
     id: string;
@@ -165,6 +166,7 @@ export interface RoleplayListItem {
     status: ContentStatus;
     title: string;
     updatedAt: string | null;
+    validationThreshold: number;
 }
 
 export interface RoleplayDetail extends RoleplayListItem {

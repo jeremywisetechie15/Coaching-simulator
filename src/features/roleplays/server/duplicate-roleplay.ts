@@ -24,6 +24,7 @@ type DuplicateRoleplaySource = Pick<
     | "difficulty"
     | "disc"
     | "domain"
+    | "estimatedDurationMinutes"
     | "groupId"
     | "learnerRole"
     | "methodId"
@@ -35,6 +36,7 @@ type DuplicateRoleplaySource = Pick<
     | "resources"
     | "scope"
     | "scorecardId"
+    | "validationThreshold"
 >;
 
 function normalizeQuizParticipation(value: string | null | undefined): QuizParticipation {
@@ -67,6 +69,7 @@ export function buildDuplicateRoleplayInput({
         difficulty: source.difficulty,
         disc: source.disc,
         domain: source.domain,
+        estimatedDurationMinutes: source.estimatedDurationMinutes,
         groupId: source.groupId,
         learnerRole: source.learnerRole,
         methodId: source.methodId,
@@ -90,6 +93,7 @@ export function buildDuplicateRoleplayInput({
         scorecardId: source.scorecardId,
         status: CONTENT_STATUS.draft,
         title: duplicateTitle,
+        validationThreshold: source.validationThreshold,
     };
 }
 

@@ -1,4 +1,5 @@
 import { notFound, redirect } from "next/navigation";
+import { isSelectableContent } from "@/features/content/domain";
 import { getRoleplayMethod } from "@/features/roleplays/data/roleplays";
 import { getMethodById } from "@/features/methods/server";
 import { RoleplayStepsPage } from "@/features/roleplays/components";
@@ -73,6 +74,10 @@ export default async function Page({ params, searchParams }: PageProps) {
 
     if (!roleplay) {
         notFound();
+    }
+
+    if (!isSelectableContent(roleplay.status, roleplay.isActive)) {
+        redirect(withReturnTo(`/roleplays/${roleplayId}`, returnTo));
     }
 
     let method = getRoleplayMethod(roleplay);

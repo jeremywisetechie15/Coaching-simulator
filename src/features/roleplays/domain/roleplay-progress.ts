@@ -4,8 +4,10 @@ import {
 } from "./roleplay-index";
 import {
     ROLEPLAY_CONSOLIDATION_THRESHOLD_PERCENT,
+    ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT,
     ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
     ROLEPLAY_REINFORCEMENT_THRESHOLD_PERCENT,
+    normalizeRoleplayValidationThreshold,
 } from "./roleplay-score";
 
 export type DimensionKey = "savoir" | "savoir-faire" | "savoir-etre";
@@ -128,9 +130,10 @@ export interface BuildRoleplayProgressInput {
     sessions: ProgressSessionResult[];
     steps: ProgressStepResult[];
     title: string;
+    validationThreshold?: number;
 }
 
-export const ROLEPLAY_PROGRESS_TARGET = 80;
+export const ROLEPLAY_PROGRESS_TARGET = ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT;
 
 export const ROLEPLAY_PROGRESS_DIMENSIONS: Array<Omit<DimensionScore, "score">> = [
     { key: "savoir", label: "Savoir", subtitle: "Théorie" },
@@ -370,6 +373,7 @@ export function createEmptyRoleplayProgress(
     title: string,
     baselineSteps: ProgressBaselineStep[] = [],
     quizCriteria: ProgressCriterionResult[] = [],
+    validationThreshold = ROLEPLAY_PROGRESS_TARGET,
 ): RoleplayProgress {
     return {
         afterTraining: 0,
@@ -392,7 +396,7 @@ export function createEmptyRoleplayProgress(
             },
         ],
         steps: buildBaselineSteps(baselineSteps, quizCriteria),
-        target: ROLEPLAY_PROGRESS_TARGET,
+        target: normalizeRoleplayValidationThreshold(validationThreshold),
         title,
     };
 }
@@ -400,12 +404,14 @@ export function createEmptyRoleplayProgress(
 export function buildRoleplayProgress(input: BuildRoleplayProgressInput): RoleplayProgress {
     const bestQuizCriteria = selectBestQuizCriteriaByAttempt(input.quizCriteria ?? []);
     const quizScore = bestQuizCriteria.length > 0 ? weightedScore(bestQuizCriteria) : null;
+    const validationThreshold = normalizeRoleplayValidationThreshold(input.validationThreshold);
 
     if (input.sessions.length === 0) {
         const emptyProgress = createEmptyRoleplayProgress(
             input.title,
             input.baselineSteps,
             bestQuizCriteria,
+            validationThreshold,
         );
         if (quizScore === null) return emptyProgress;
 
@@ -477,13 +483,16 @@ export function buildRoleplayProgress(input: BuildRoleplayProgressInput): Rolepl
             input.criteria,
             bestQuizCriteria,
         ),
-        target: ROLEPLAY_PROGRESS_TARGET,
+        target: validationThreshold,
         title: input.title,
     };
 }
 
-export function scoreLevel(score: number): ScoreLevel {
-    if (score >= ROLEPLAY_MASTERY_THRESHOLD_PERCENT) return "green";
+export function scoreLevel(
+    score: number,
+    greenThreshold = ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
+): ScoreLevel {
+    if (score >= greenThreshold) return "green";
     if (score >= ROLEPLAY_CONSOLIDATION_THRESHOLD_PERCENT) return "yellow";
     if (score >= ROLEPLAY_REINFORCEMENT_THRESHOLD_PERCENT) return "orange";
     return "red";

@@ -1,7 +1,7 @@
 import type { SaveRoleplayDto } from "@/features/roleplays/dto";
 
 export const ROLEPLAY_SELECT =
-    "id, title, description, preview_title, preview_description, background_image_path, persona_id, coach_id, method_id, scorecard_id, coaching_steps, difficulty_level, created_by, notation_method_id, status, domain, category, disc_profile, context, learner_role, objective, obstacles, visibility_scope, organization_id, group_id, assigned_user_id, is_active, created_at, updated_at";
+    "id, title, description, preview_title, preview_description, background_image_path, persona_id, coach_id, method_id, scorecard_id, coaching_steps, difficulty_level, estimated_duration_minutes, validation_threshold, created_by, notation_method_id, status, domain, category, disc_profile, context, learner_role, objective, obstacles, visibility_scope, organization_id, group_id, assigned_user_id, is_active, created_at, updated_at";
 
 export const SCENARIO_QUIZ_SELECT = "scenario_id, quiz_id, sort_order, participation";
 export const SCENARIO_RESOURCE_SELECT =
@@ -34,6 +34,7 @@ function createRoleplayBasePayload(input: SaveRoleplayDto, notationMethodId: str
         difficulty_level: input.difficulty,
         disc_profile: input.disc,
         domain: nullableText(input.domain),
+        estimated_duration_minutes: input.estimatedDurationMinutes,
         group_id: input.scope === "group" ? input.groupId : null,
         is_active: input.status !== "archived",
         learner_role: nullableText(input.learnerRole),
@@ -50,6 +51,7 @@ function createRoleplayBasePayload(input: SaveRoleplayDto, notationMethodId: str
         status: input.status,
         title: input.title,
         updated_at: new Date().toISOString(),
+        validation_threshold: input.validationThreshold,
         visibility_scope: input.scope,
     };
 }

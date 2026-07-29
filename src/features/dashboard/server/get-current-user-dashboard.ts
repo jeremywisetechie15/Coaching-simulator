@@ -9,7 +9,10 @@ import {
     type DashboardScenarioRecord,
     type DashboardViewData,
 } from "@/features/dashboard/domain";
-import { MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS } from "@/features/roleplays/domain";
+import {
+    MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
+    normalizeRoleplayValidationThreshold,
+} from "@/features/roleplays/domain";
 import { fetchQuizQuestionCounts } from "@/features/evaluations/server";
 import {
     listExplicitQuizAssignments,
@@ -28,6 +31,7 @@ interface ScenarioRow {
     id: string;
     persona_id: string | null;
     title: string;
+    validation_threshold: number;
 }
 
 interface QuizRow {
@@ -108,7 +112,7 @@ export async function getCurrentUserDashboard(
         supabase.auth.getUser(),
         supabase
             .from("scenarios")
-            .select("id, title, persona_id, domain, category")
+            .select("id, title, persona_id, domain, category, validation_threshold")
             .eq("status", "published")
             .eq("is_active", true)
             .order("title", { ascending: true })
@@ -193,6 +197,9 @@ export async function getCurrentUserDashboard(
             personaAvatarUrl: getPersonaAvatarPublicUrl(persona?.avatar_url),
             personaName: persona?.name ?? null,
             title: scenario.title,
+            validationThreshold: normalizeRoleplayValidationThreshold(
+                scenario.validation_threshold,
+            ),
         };
     });
     const dashboardQuizzes: DashboardQuizRecord[] = quizzes.map((quiz) => ({

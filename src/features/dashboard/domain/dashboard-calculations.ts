@@ -5,7 +5,7 @@ import {
 } from "@/features/evaluations/domain";
 import { EVALUATION_ROUTES } from "@/features/evaluations/domain/evaluation-routes";
 import {
-    ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
+    ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT,
     ROLEPLAY_ROUTES,
 } from "@/features/roleplays/domain";
 import { APP_TIME_ZONE, formatLongDate } from "@/lib/date/format-date-time";
@@ -31,6 +31,7 @@ export interface DashboardScenarioRecord {
     personaAvatarUrl: string | null;
     personaName: string | null;
     title: string;
+    validationThreshold: number;
 }
 
 export interface DashboardQuizRecord {
@@ -418,7 +419,7 @@ function buildRoleplayCollection(
             name: scenario.personaName ?? "Persona IA",
             score: roundDashboardScore(score),
             status: "completed",
-            statusLabel: score >= ROLEPLAY_MASTERY_THRESHOLD_PERCENT ? "Validé" : "À retravailler",
+            statusLabel: score >= scenario.validationThreshold ? "Validé" : "À retravailler",
             title: scenario.title,
         }];
     });
@@ -442,7 +443,7 @@ function buildRoleplayCollection(
     const retryScenarios = scenarios
         .flatMap((scenario) => {
             const score = bestScores.get(scenario.id);
-            return score !== undefined && score < ROLEPLAY_MASTERY_THRESHOLD_PERCENT
+            return score !== undefined && score < scenario.validationThreshold
                 ? [{ scenario, score }]
                 : [];
         })
@@ -450,7 +451,7 @@ function buildRoleplayCollection(
     const retryItems = retryScenarios.map<DashboardActivityItem>(({ scenario, score }) => ({
         actionLabel: "Rejouer",
         category: dashboardCategory(scenario.category, scenario.domain, "Roleplay"),
-        date: `Score cible : ${ROLEPLAY_MASTERY_THRESHOLD_PERCENT}%`,
+        date: `Score cible : ${scenario.validationThreshold}%`,
         href: ROLEPLAY_ROUTES.app.detail(scenario.id),
         id: scenario.id,
         imageSrc: scenario.personaAvatarUrl ?? undefined,
@@ -624,8 +625,12 @@ function buildRoleplayMetrics(
         buildScorePointsFromRoleplays(sessions).filter((point) => visibleScenarioIds.has(point.activityId)),
     );
     const evaluatedTotal = bestHistoricalScores.size;
-    const validatedCount = [...bestHistoricalScores.values()].filter(
-        (score) => score >= ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
+    const scenarioById = new Map(scenarios.map((scenario) => [scenario.id, scenario]));
+    const validatedCount = [...bestHistoricalScores.entries()].filter(
+        ([scenarioId, score]) =>
+            score >=
+            (scenarioById.get(scenarioId)?.validationThreshold ??
+                ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT),
     ).length;
 
     return [

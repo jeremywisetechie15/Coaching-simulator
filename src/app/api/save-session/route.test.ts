@@ -48,4 +48,30 @@ describe("POST /api/save-session", () => {
         expect(payload.code).toBe("NOT_FOUND");
         expect(mocks.createAdminClient).not.toHaveBeenCalled();
     });
+
+    it("does not create a session for an accessible draft roleplay", async () => {
+        const scenarioQuery = {
+            eq: vi.fn(),
+            maybeSingle: vi.fn().mockResolvedValue({
+                data: {
+                    id: "scenario-a",
+                    is_active: true,
+                    status: "draft",
+                },
+                error: null,
+            }),
+            select: vi.fn(),
+        };
+        scenarioQuery.select.mockReturnValue(scenarioQuery);
+        scenarioQuery.eq.mockReturnValue(scenarioQuery);
+        mocks.createClient.mockResolvedValue({ from: vi.fn(() => scenarioQuery) });
+
+        const response = await POST(request());
+        const payload = await response.json();
+
+        expect(response.status).toBe(409);
+        expect(payload.code).toBe("CONFLICT");
+        expect(payload.error).toContain("Publiez le roleplay");
+        expect(mocks.createAdminClient).not.toHaveBeenCalled();
+    });
 });

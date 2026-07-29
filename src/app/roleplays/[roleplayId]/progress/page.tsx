@@ -46,6 +46,7 @@ export default async function Page({ params, searchParams }: PageProps) {
                 roleplayDetail.previewTitle || roleplayDetail.title,
                 roleplayDetail.scorecardId,
                 roleplayDetail.methodId,
+                roleplayDetail.validationThreshold,
             );
         }
     } catch (error) {

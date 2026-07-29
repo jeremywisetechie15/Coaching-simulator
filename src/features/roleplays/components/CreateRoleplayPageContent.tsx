@@ -50,6 +50,7 @@ import {
     type RoleplayScorecardOption,
     type RoleplayUserOption,
     ROLEPLAY_LEARNER_ROLE_MAX_LENGTH,
+    ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT,
     ROLEPLAY_ROUTES,
     ROLEPLAY_SESSION_EDIT_RESTRICTION_MESSAGE,
     getAssignableRoleplayQuizOptions,
@@ -132,7 +133,7 @@ interface CreateRoleplayPageContentProps {
 
 const staticOptions = (options: string[]): SelectOption[] => options.map((option) => ({ label: option, value: option }));
 
-const fieldLabelClasses = "mb-2 block text-[14px] font-bold text-[#111827]";
+const fieldLabelClasses = uiTokens.form.label;
 
 function createClientFileId(prefix: string) {
     return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
@@ -661,6 +662,12 @@ export function CreateRoleplayPageContent({
     const [domain, setDomain] = useState<string | null>(initialRoleplay?.domain || null);
     const [category, setCategory] = useState<string | null>(initialRoleplay?.category || null);
     const [difficulty, setDifficulty] = useState<string | null>(initialRoleplay?.configuredDifficulty ?? null);
+    const [estimatedDurationMinutes, setEstimatedDurationMinutes] = useState(
+        initialRoleplay?.estimatedDurationMinutes === null ||
+        initialRoleplay?.estimatedDurationMinutes === undefined
+            ? ""
+            : String(initialRoleplay.estimatedDurationMinutes),
+    );
     const [previewTitle, setPreviewTitle] = useState(initialRoleplay?.previewTitle || initialRoleplay?.title || "");
     const [previewDescription, setPreviewDescription] = useState(
         initialRoleplay?.previewDescription || initialRoleplay?.description || "",
@@ -670,6 +677,9 @@ export function CreateRoleplayPageContent({
     const [learnerRole, setLearnerRole] = useState(initialRoleplay?.learnerRole ?? "");
     const [objective, setObjective] = useState(initialRoleplay?.objective ?? "");
     const [obstacles, setObstacles] = useState(initialRoleplay?.obstacles ?? "");
+    const [validationThreshold, setValidationThreshold] = useState(
+        String(initialRoleplay?.validationThreshold ?? ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT),
+    );
     const [backgroundImagePath, setBackgroundImagePath] = useState(initialRoleplay?.backgroundImagePath ?? "");
     const [backgroundFile, setBackgroundFile] = useState<File | null>(null);
     const [resources, setResources] = useState<RoleplayResourceFormItem[]>(() =>
@@ -922,6 +932,9 @@ export function CreateRoleplayPageContent({
             difficulty: difficulty as RoleplayDifficulty | null,
             disc: initialRoleplay?.disc ?? "Stable",
             domain: domain ?? "",
+            estimatedDurationMinutes: estimatedDurationMinutes.trim()
+                ? Number(estimatedDurationMinutes)
+                : null,
             groupId: scope === CONTENT_VISIBILITY_SCOPE.group ? targetScope.groupId : null,
             learnerRole,
             methodId: method,
@@ -943,6 +956,9 @@ export function CreateRoleplayPageContent({
             scorecardId: scorecard,
             status,
             title,
+            validationThreshold: validationThreshold.trim()
+                ? Number(validationThreshold)
+                : ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT,
         };
     }
 
@@ -1201,6 +1217,38 @@ export function CreateRoleplayPageContent({
                                 placeholder="Sélectionnez la difficulté"
                                 onChange={setDifficulty}
                             />
+                        </Box>
+
+                        <Box className="grid gap-5 sm:grid-cols-2">
+                            <Box>
+                                <FieldLabel className={fieldLabelClasses}>
+                                    Durée estimée (en minutes)
+                                </FieldLabel>
+                                <TextInput
+                                    type="number"
+                                    min={1}
+                                    value={estimatedDurationMinutes}
+                                    onChange={(event) => setEstimatedDurationMinutes(event.target.value)}
+                                    placeholder="10"
+                                    hasLeadingIcon={false}
+                                    className="h-12"
+                                />
+                            </Box>
+                            <Box>
+                                <FieldLabel required className={fieldLabelClasses}>
+                                    Seuil recommandé de validation
+                                </FieldLabel>
+                                <TextInput
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    value={validationThreshold}
+                                    onChange={(event) => setValidationThreshold(event.target.value)}
+                                    placeholder={String(ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT)}
+                                    hasLeadingIcon={false}
+                                    className="h-12"
+                                />
+                            </Box>
                         </Box>
 
                         <Box>

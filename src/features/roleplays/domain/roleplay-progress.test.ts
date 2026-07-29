@@ -121,6 +121,21 @@ describe("roleplay progress helpers", () => {
         expect(scoreLevel(100)).toBe("green");
     });
 
+    it("uses the scenario threshold for global score validation", () => {
+        expect(scoreLevel(89, 90)).toBe("yellow");
+        expect(scoreLevel(90, 90)).toBe("green");
+        expect(scoreLevel(70, 70)).toBe("green");
+    });
+
+    it("exposes the scenario threshold as the progress target", () => {
+        const progress = buildRoleplayProgress({
+            ...createProgressInput(),
+            validationThreshold: 90,
+        });
+
+        expect(progress.target).toBe(90);
+    });
+
     it("builds progress from the INDEX sessions and compares it to the first session", () => {
         const progress = buildRoleplayProgress(createProgressInput());
 

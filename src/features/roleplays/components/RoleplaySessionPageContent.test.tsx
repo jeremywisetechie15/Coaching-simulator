@@ -1,6 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import { LEARNER_CONTENT_STATUS } from "@/features/content/domain";
+import { CONTENT_STATUS, LEARNER_CONTENT_STATUS } from "@/features/content/domain";
 import {
     ROLEPLAY_COACH_MODE,
     ROLEPLAY_COACH_NOTE_TYPE,
@@ -35,12 +35,15 @@ const roleplay: RoleplayItem = {
     disc: "Stable",
     domain: "Commercial",
     id: "roleplay-1",
+    isActive: true,
     learnerStatus: LEARNER_CONTENT_STATUS.todo,
     methodId: "method-1",
     name: "Persona test",
     prepDocuments: [],
     role: "Dirigeant",
     scenarioId: "scenario-1",
+    status: CONTENT_STATUS.published,
+    validationThreshold: 80,
 };
 
 describe("RoleplaySessionPageContent", () => {

@@ -11,8 +11,8 @@ import {
     calculateRoleplayIndex,
     calculateRoleplayIndexSeries,
     isRoleplaySessionEligibleForEvaluation,
+    normalizeRoleplayValidationThreshold,
     ROLEPLAY_INDEX_RECENT_SESSION_LIMIT,
-    ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
     selectRoleplayIndexScorePositions,
     type RoleplayDetail,
     type RoleplayListItem,
@@ -462,7 +462,12 @@ function normalizeScore(value: number | string | null | undefined) {
     return null;
 }
 
-async function fetchRoleplayStats(supabase: SupabaseClient, scenarioId: string, userId?: string | null): Promise<RoleplayStats> {
+async function fetchRoleplayStats(
+    supabase: SupabaseClient,
+    scenarioId: string,
+    validationThreshold: number,
+    userId?: string | null,
+): Promise<RoleplayStats> {
     let query = supabase
         .from("sessions")
         .select("id, created_at, duration_seconds, notation_json")
@@ -542,7 +547,7 @@ async function fetchRoleplayStats(supabase: SupabaseClient, scenarioId: string, 
         learnerStatus: resolveLearnerContentStatus({
             bestScore: bestScoredSession?.score ?? null,
             hasCompleted: true,
-            validationThreshold: ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
+            validationThreshold,
         }),
         latestEligibleSessionId,
         scoreActuel: latestScoredSession?.score ?? 0,
@@ -552,9 +557,10 @@ async function fetchRoleplayStats(supabase: SupabaseClient, scenarioId: string, 
 
 async function fetchRoleplayLearnerProgress(
     supabase: SupabaseClient,
-    scenarioIds: string[],
+    scenarios: Array<Pick<RoleplayRow, "id" | "validation_threshold">>,
     userId?: string | null,
 ) {
+    const scenarioIds = scenarios.map((scenario) => scenario.id);
     if (scenarioIds.length === 0 || !userId) return new Map<string, RoleplayLearnerProgress>();
 
     const { data, error } = await supabase
@@ -588,9 +594,9 @@ async function fetchRoleplayLearnerProgress(
             .filter((entry): entry is readonly [string, number] => entry[1] !== null),
     );
     const progressByScenarioId = buildLearnerContentProgressById(
-        scenarioIds.map((scenarioId) => ({
-            id: scenarioId,
-            validationThreshold: ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
+        scenarios.map((scenario) => ({
+            id: scenario.id,
+            validationThreshold: normalizeRoleplayValidationThreshold(scenario.validation_threshold),
         })),
         eligibleSessions.flatMap((session) =>
             session.scenario_id
@@ -631,7 +637,7 @@ export async function fetchRoleplayList(supabase: SupabaseClient, userId?: strin
     const adminSupabase = createAdminClient();
     const [scenarioQuizRows, learnerProgressByScenarioId] = await Promise.all([
         fetchScenarioQuizzes(supabase, scenarioIds),
-        fetchRoleplayLearnerProgress(adminSupabase, scenarioIds, userId),
+        fetchRoleplayLearnerProgress(adminSupabase, rows, userId),
     ]);
     const quizCountsByScenarioId = new Map<string, number>();
 
@@ -719,7 +725,12 @@ export async function fetchRoleplayDetail(
         options.statsUserId,
     );
     const resourceRows = await fetchScenarioResources(adminSupabase, roleplayId);
-    const stats = await fetchRoleplayStats(adminSupabase, roleplayId, options.statsUserId);
+    const stats = await fetchRoleplayStats(
+        adminSupabase,
+        roleplayId,
+        normalizeRoleplayValidationThreshold(row.validation_threshold),
+        options.statsUserId,
+    );
 
     return mapRoleplayRowsToDetail(row, quizRows, resourceRows, stats);
 }

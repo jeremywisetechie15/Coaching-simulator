@@ -1,16 +1,29 @@
 import { notFound, redirect } from "next/navigation";
+import { isSelectableContent } from "@/features/content/domain";
 import { EvaluationQuizPage } from "@/features/evaluations/components";
-import { getLatestQuizAttempt, getQuizById } from "@/features/evaluations/server";
+import {
+    getLatestQuizAttempt,
+    getQuizAttempt,
+    getQuizById,
+} from "@/features/evaluations/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { listSkillOptions } from "@/features/skills/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
 import { buildAuthRedirectHref, withReturnTo, withSearchParam } from "@/features/app-shell/domain";
-import { EVALUATION_ROUTES } from "@/features/evaluations/domain";
+import {
+    EVALUATION_ROUTES,
+    type QuizAttemptSession,
+} from "@/features/evaluations/domain";
 
 interface PageProps {
     params: Promise<{ evaluationId: string }>;
-    searchParams?: Promise<{ result?: string; retry?: string; returnTo?: string }>;
+    searchParams?: Promise<{
+        attemptId?: string;
+        result?: string;
+        retry?: string;
+        returnTo?: string;
+    }>;
 }
 
 export async function generateMetadata({ params }: PageProps) {
@@ -46,6 +59,9 @@ export default async function Page({ params, searchParams }: PageProps) {
         let quizHref = EVALUATION_ROUTES.app.quiz(evaluationId);
         if (resolvedSearchParams?.result === "1") quizHref = withSearchParam(quizHref, "result", "1");
         if (resolvedSearchParams?.retry === "1") quizHref = withSearchParam(quizHref, "retry", "1");
+        if (resolvedSearchParams?.attemptId) {
+            quizHref = withSearchParam(quizHref, "attemptId", resolvedSearchParams.attemptId);
+        }
         redirect(buildAuthRedirectHref(withReturnTo(quizHref, resolvedSearchParams?.returnTo)));
     }
 
@@ -61,10 +77,32 @@ export default async function Page({ params, searchParams }: PageProps) {
         throw error;
     }
 
+    if (!isSelectableContent(quiz.status, quiz.isActive)) {
+        redirect(
+            withReturnTo(
+                EVALUATION_ROUTES.app.detail(evaluationId),
+                resolvedSearchParams?.returnTo,
+            ),
+        );
+    }
+
     const skillOptions = await listSkillOptions();
-    const initialAttemptSession = await getLatestQuizAttempt(evaluationId, {
-        preferCompleted: initialView === "results",
-    });
+    let initialAttemptSession: QuizAttemptSession;
+
+    try {
+        initialAttemptSession =
+            initialView === "results" && resolvedSearchParams?.attemptId
+                ? await getQuizAttempt(evaluationId, resolvedSearchParams.attemptId)
+                : await getLatestQuizAttempt(evaluationId, {
+                    preferCompleted: initialView === "results",
+                });
+    } catch (error) {
+        if (error instanceof NotFoundError) {
+            notFound();
+        }
+
+        throw error;
+    }
 
     return (
         <EvaluationQuizPage
@@ -73,6 +111,11 @@ export default async function Page({ params, searchParams }: PageProps) {
             initialView={initialView}
             profileValues={toProfileFormValues(profile)}
             quiz={quiz}
+            selectedAttemptId={
+                initialView === "results"
+                    ? resolvedSearchParams?.attemptId
+                    : undefined
+            }
             skillOptions={skillOptions}
         />
     );

@@ -57,6 +57,34 @@ describe("saveRoleplayDto", () => {
         expect(saveRoleplayDto.parse(roleplay()).aiInstructions).toBe("");
     });
 
+    it("defaults the validation threshold to 80 and keeps duration optional", () => {
+        const result = saveRoleplayDto.parse(roleplay());
+
+        expect(result.estimatedDurationMinutes).toBeNull();
+        expect(result.validationThreshold).toBe(80);
+    });
+
+    it("accepts roleplay duration and validation threshold within their bounds", () => {
+        const result = saveRoleplayDto.parse(
+            roleplay({
+                estimatedDurationMinutes: 12,
+                validationThreshold: 75,
+            }),
+        );
+
+        expect(result.estimatedDurationMinutes).toBe(12);
+        expect(result.validationThreshold).toBe(75);
+    });
+
+    it("rejects invalid roleplay duration and validation threshold", () => {
+        expect(saveRoleplayDto.safeParse(
+            roleplay({ estimatedDurationMinutes: 0 }),
+        ).success).toBe(false);
+        expect(saveRoleplayDto.safeParse(
+            roleplay({ validationThreshold: 101 }),
+        ).success).toBe(false);
+    });
+
     it("accepts an empty learner role while saving a draft", () => {
         const result = saveRoleplayDto.parse(
             roleplay({ learnerRole: "", status: CONTENT_STATUS.draft }),

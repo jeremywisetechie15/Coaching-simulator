@@ -39,7 +39,9 @@ export function EvaluationSessionOverview({
     const categoryStyle = categoryBadgeStyles[roleplay.category] ?? defaultCategoryBadgeStyle;
     const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
     const roleplayTitle = getRoleplayDisplayTitle(roleplay);
-    const scoreTone = t.scoreTone[scoreLevel(session.score)];
+    const scoreTone = t.scoreTone[
+        scoreLevel(session.score, roleplay.validationThreshold)
+    ];
 
     return (
         <>

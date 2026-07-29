@@ -309,6 +309,7 @@ export async function getRoleplayProgress(
     title: string,
     scorecardId?: string | null,
     methodId?: string | null,
+    validationThreshold?: number,
 ): Promise<RoleplayProgress> {
     const context = await requireAuth();
     const supabase = createAdminClient();
@@ -359,6 +360,7 @@ export async function getRoleplayProgress(
             sessions,
             steps: [],
             title,
+            validationThreshold,
         });
     }
 
@@ -432,5 +434,6 @@ export async function getRoleplayProgress(
         sessions,
         steps,
         title,
+        validationThreshold,
     });
 }

@@ -44,7 +44,11 @@ import {
     notifyFormSubmitSuccess,
 } from "@/lib/ui/feedback/form-submit-feedback";
 import { notify } from "@/lib/ui/feedback/toast";
-import { ROLEPLAY_INDEX_DESCRIPTION, ROLEPLAY_INDEX_LABEL } from "@/features/roleplays/domain";
+import {
+    ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT,
+    ROLEPLAY_INDEX_DESCRIPTION,
+    ROLEPLAY_INDEX_LABEL,
+} from "@/features/roleplays/domain";
 import { OrganizationInvitationResendConfirmationModal } from "@/features/organizations/components";
 import {
     getOrganizationInvitationResendSuccessMessage,
@@ -124,7 +128,7 @@ const emptyUserStatistics: UserStatistics = {
     quizVsRoleplayGap: "N/A",
     roleplayProgressLast30Days: "N/A",
     roleplayProgressSinceFirst: "N/A",
-    targetScore: "80%",
+    targetScore: `${ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT}%`,
     targetScoreGap: "N/A",
     topMasteredSkills: [],
     topSkillsToImprove: [],

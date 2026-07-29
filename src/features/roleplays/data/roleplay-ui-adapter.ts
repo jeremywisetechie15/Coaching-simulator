@@ -203,6 +203,7 @@ export function mapDbRoleplayToUi(roleplay: RoleplayListItem | DbRoleplayDetail,
         disc: roleplay.disc,
         domain: textOrMock(roleplay.domain, mock?.domain ?? ""),
         id: roleplay.id,
+        isActive: roleplay.isActive,
         latestEvaluationSessionId:
             "stats" in roleplay ? roleplay.stats.latestEligibleSessionId ?? undefined : undefined,
         learnerStatus: roleplay.learnerStatus,
@@ -212,7 +213,9 @@ export function mapDbRoleplayToUi(roleplay: RoleplayListItem | DbRoleplayDetail,
         prepQuizzes,
         role: textOrMock(roleplay.role, mock?.role ?? ""),
         scenarioId: "scenarioId" in roleplay ? roleplay.scenarioId : roleplay.id,
+        status: roleplay.status,
         title: cardTitle,
+        validationThreshold: roleplay.validationThreshold,
         avatarSrc: roleplay.personaAvatarUrl ?? mock?.avatarSrc ?? "",
     };
 }

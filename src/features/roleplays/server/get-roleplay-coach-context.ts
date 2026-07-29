@@ -1,5 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { NotFoundError } from "@/lib/server/errors";
+import {
+    isSelectableContent,
+    normalizeContentStatus,
+} from "@/features/content/domain";
+import { ConflictError, NotFoundError } from "@/lib/server/errors";
 import { getPersonaAvatarPublicUrl } from "@/features/personas/domain/persona-list";
 import {
     getRoleplayScorecardDefinition,
@@ -24,11 +28,13 @@ interface ScenarioRow {
     disc_profile: string | null;
     domain: string | null;
     id: string;
+    is_active: boolean | null;
     method_id: string | null;
     objective: string | null;
     obstacles: string | null;
     persona_id: string | null;
     scorecard_id: string | null;
+    status: string | null;
     title: string;
 }
 
@@ -228,12 +234,20 @@ async function getPersona(supabase: SupabaseClient, personaId: string | null) {
 async function getScenario(supabase: SupabaseClient, scenarioId: string) {
     const { data, error } = await supabase
         .from("scenarios")
-        .select("id, title, description, context, objective, obstacles, difficulty_level, domain, category, disc_profile, coaching_steps, method_id, persona_id, scorecard_id, background_image_path")
+        .select("id, title, description, context, objective, obstacles, difficulty_level, domain, category, disc_profile, coaching_steps, method_id, persona_id, scorecard_id, background_image_path, status, is_active")
         .eq("id", scenarioId)
         .maybeSingle<ScenarioRow>();
 
     if (error) throw error;
     if (!data) throw new NotFoundError("Roleplay introuvable.");
+    if (
+        !isSelectableContent(
+            normalizeContentStatus(data.status),
+            data.is_active ?? true,
+        )
+    ) {
+        throw new ConflictError("Publiez le roleplay avant de démarrer une session.");
+    }
     return data;
 }
 

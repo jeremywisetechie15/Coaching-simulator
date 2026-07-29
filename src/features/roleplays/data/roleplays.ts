@@ -2,16 +2,22 @@ import { methods, type Method } from "@/features/methods/data/methods";
 import {
     ALL_CONTENT_CATEGORIES,
     CONTENT_DOMAINS,
+    CONTENT_STATUS,
     DISC_PROFILE,
     DISC_PROFILES,
     getCategoriesForDomain,
     LEARNER_CONTENT_STATUS,
     matchesLearnerContentStatusFilter,
+    type ContentStatus,
     type LearnerContentStatus,
     type LearnerContentStatusFilter,
 } from "@/features/content/domain";
 import type { PrepDocument, PrepQuiz } from "./preparation";
-import type { RoleplayDiscProfile, RoleplayIndexSession } from "@/features/roleplays/domain";
+import {
+    ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT,
+    type RoleplayDiscProfile,
+    type RoleplayIndexSession,
+} from "@/features/roleplays/domain";
 
 export type RoleplayDifficulty = "Facile" | "Moyen" | "Difficile";
 export type RoleplayDisc = RoleplayDiscProfile;
@@ -39,6 +45,8 @@ export interface RoleplayDetail {
 
 export interface RoleplayItem {
     id: string;
+    isActive: boolean;
+    status: ContentStatus;
     title?: string;
     /** Coach associé au scénario DB ; absent uniquement pour les anciens mocks. */
     coachId?: string;
@@ -60,6 +68,7 @@ export interface RoleplayItem {
     /** Dernière session de l'utilisateur admissible à l'évaluation (durée >= seuil métier). */
     latestEvaluationSessionId?: string;
     learnerStatus: LearnerContentStatus;
+    validationThreshold: number;
     /** Documents réellement attachés au scénario DB ; absent pour les mocks historiques. */
     prepDocuments?: PrepDocument[];
     /** Quiz réellement attachés au scénario DB ; absent pour les mocks historiques. */
@@ -81,7 +90,10 @@ export const roleplays: RoleplayItem[] = [
         description:
             "Obtenir un RDV avec Rachid HAMRANI pour lui faire découvrir les produits et services de votre Banque et envisager une collaboration.",
         methodId: "dago",
+        isActive: true,
         learnerStatus: LEARNER_CONTENT_STATUS.validated,
+        status: CONTENT_STATUS.published,
+        validationThreshold: ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT,
         scenarioId: "2c31c5c6-761e-4a5f-9770-35ddc9edf4c6",
         detail: {
             lastDate: "25-03-2026",
@@ -116,7 +128,10 @@ export const roleplays: RoleplayItem[] = [
         description:
             "Vous rencontrez Claude SAVARY lors d'un entretien spécifique que vous avez organisé pour comprendre d'où viennent les difficultés et le remobiliser sur ces objectifs non atteints.",
         methodId: "4c",
+        isActive: true,
         learnerStatus: LEARNER_CONTENT_STATUS.retry,
+        status: CONTENT_STATUS.published,
+        validationThreshold: ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT,
         detail: {
             lastDate: "18-03-2026",
             lastDuration: "08:12",
@@ -149,7 +164,10 @@ export const roleplays: RoleplayItem[] = [
         disc: "Influent",
         description: "Défendre votre proposition et aboutir à un accord ferme avec Sophie Martin",
         methodId: "acdc",
+        isActive: true,
         learnerStatus: LEARNER_CONTENT_STATUS.validated,
+        status: CONTENT_STATUS.published,
+        validationThreshold: ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT,
         detail: {
             lastDate: "20-03-2026",
             lastDuration: "05:48",
@@ -183,7 +201,10 @@ export const roleplays: RoleplayItem[] = [
         description:
             "Présenter dans le détail les avantages de la solution « Trainer IA » et organiser une Démo de la plateforme afin de le convaincre définivement",
         methodId: "dago",
+        isActive: true,
         learnerStatus: LEARNER_CONTENT_STATUS.retry,
+        status: CONTENT_STATUS.published,
+        validationThreshold: ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT,
         detail: {
             lastDate: "22-03-2026",
             lastDuration: "09:24",
@@ -217,7 +238,10 @@ export const roleplays: RoleplayItem[] = [
         description:
             "Identifier et comprendre les besoins de formation de Thomas Lion pour le prochain semestre. Récolter les informations nécessaires pour pouvoir établir une proposition de formation de qualité. Se positionner auprès de Thomas Lion comme un l'acteur idéal pour ce projet",
         methodId: "4c",
+        isActive: true,
         learnerStatus: LEARNER_CONTENT_STATUS.validated,
+        status: CONTENT_STATUS.published,
+        validationThreshold: ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT,
         detail: {
             lastDate: "24-03-2026",
             lastDuration: "07:05",

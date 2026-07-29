@@ -46,6 +46,8 @@ import {
     ROLEPLAY_PDF_TEMPLATES,
     ROLEPLAY_PROGRESS_PLAN_SECTION_TITLE,
     ROLEPLAY_ROUTES,
+    ROLEPLAY_CONSOLIDATION_THRESHOLD_PERCENT,
+    ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
     scoreLevel,
     toRoleplayTranscriptMessages,
     type RoleplayLiveTranscriptMessage,
@@ -71,10 +73,10 @@ const stepIcons: Record<EvaluationStep["icon"], { icon: LucideIcon; bg: string; 
 };
 
 function scoreColor(score: number) {
-    if (score >= 80) {
+    if (score >= ROLEPLAY_MASTERY_THRESHOLD_PERCENT) {
         return "#16A34A";
     }
-    if (score >= 60) {
+    if (score >= ROLEPLAY_CONSOLIDATION_THRESHOLD_PERCENT) {
         return "#F59E0B";
     }
     return "#F97316";
@@ -510,7 +512,11 @@ export function EvaluationPageContent({
             {openStep && <StepDetailModal step={openStep} onClose={() => setOpenStep(null)} />}
 
             {scoreInfoOpen && (
-                <ScoreInfoDrawer evaluation={evaluationData} onClose={() => setScoreInfoOpen(false)} />
+                <ScoreInfoDrawer
+                    evaluation={evaluationData}
+                    onClose={() => setScoreInfoOpen(false)}
+                    validationThreshold={roleplay.validationThreshold}
+                />
             )}
 
             {notationRefreshing && (
@@ -1356,9 +1362,17 @@ function TranscriptionTab({
     );
 }
 
-function ScoreInfoDrawer({ evaluation, onClose }: { evaluation: Evaluation; onClose: () => void }) {
+function ScoreInfoDrawer({
+    evaluation,
+    onClose,
+    validationThreshold,
+}: {
+    evaluation: Evaluation;
+    onClose: () => void;
+    validationThreshold: number;
+}) {
     const scoreDetails = buildEvaluationScoreDetails(evaluation);
-    const totalLevel = scoreLevel(scoreDetails.total);
+    const totalLevel = scoreLevel(scoreDetails.total, validationThreshold);
 
     return (
         <Drawer

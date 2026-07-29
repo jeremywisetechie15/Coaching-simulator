@@ -290,7 +290,7 @@ export const uiTokens = {
     quizLibraryCard: {
         action:
             "mt-auto flex h-9 w-full items-center justify-center gap-2 rounded-lg border-2 border-[#4F46E5] bg-transparent px-4 text-[14px] font-medium text-[#4F46E5] transition hover:bg-[#EEF2FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F46E5] focus-visible:ring-offset-2",
-        actionIcon: "h-4 w-4 fill-current",
+        actionIcon: "h-4 w-4",
         badge:
             "!h-[22px] !min-h-[22px] !rounded-lg !px-2 !py-0.5 !text-[12px] !font-medium !leading-4",
         badgeRow: "mb-4 flex flex-wrap items-start gap-2",
@@ -322,6 +322,46 @@ export const uiTokens = {
         stats: "mt-auto flex items-start justify-center gap-10 pb-4 pt-1",
         statValue: "mt-0.5 text-[16px] font-semibold leading-6 text-[#111827]",
         title: "mb-2 text-[18px] font-semibold leading-7 text-[#111827]",
+    },
+    quizHistory: {
+        action:
+            "inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#5140F0] px-5 text-[13px] font-bold text-white shadow-[0_8px_18px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0] focus-visible:ring-offset-2",
+        actionIcon: "h-4 w-4",
+        attemptBadge:
+            "inline-flex h-6 items-center rounded-md border border-[#E5E7EB] bg-[#F7F8FB] px-2 text-[11px] font-bold text-[#667085]",
+        badge: "!min-h-6 !px-2 !py-0.5 !text-[11px]",
+        badgeRow: "mt-2.5 flex flex-wrap items-center gap-2",
+        card:
+            "flex flex-col gap-5 rounded-[14px] border border-[#E1E4EA] bg-white p-5 shadow-none transition duration-200 hover:border-[#C9CED8] hover:shadow-[0_12px_28px_rgba(17,24,39,0.07)] md:flex-row md:items-center md:justify-between",
+        content: "flex min-w-0 items-start gap-4",
+        icon: "flex h-12 w-12 shrink-0 items-center justify-center rounded-[12px] bg-[#EAF7F5] text-[#0F766E]",
+        iconGlyph: "h-5 w-5",
+        meta: "mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-[12px] font-semibold text-[#667085]",
+        metaIcon: "h-3.5 w-3.5 text-[#98A2B3]",
+        page: "px-5 pb-12 md:px-9 lg:px-12",
+        pageBack:
+            "mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[#111827] transition hover:bg-white",
+        pageBackIcon: "h-5 w-5",
+        pageContainer: "mx-auto max-w-[1260px]",
+        pageHeader: "mb-7 flex items-start gap-5",
+        pageSubtitle: "mt-2 text-[14px] font-semibold leading-6 text-[#667085]",
+        pageTitle: "text-[28px] font-extrabold leading-tight text-[#111827] md:text-[32px]",
+        result: "flex items-center justify-between gap-4 md:shrink-0 md:justify-end",
+        scoreRing: "relative h-[66px] w-[66px] shrink-0",
+        scoreTrack: "stroke-[#ECEEF3]",
+        scoreValue:
+            "absolute inset-0 flex items-center justify-center text-[14px] font-extrabold text-[#111827]",
+        scoreTone: {
+            danger: "text-[#EF4444]",
+            success: "text-[#16A34A]",
+            warning: "text-[#F59E0B]",
+        },
+        title: "truncate text-[16px] font-extrabold text-[#111827]",
+        empty:
+            "rounded-[14px] border border-[#E1E4EA] bg-white px-8 py-16 text-center shadow-none",
+        emptyIcon: "mx-auto mb-4 h-11 w-11 text-[#C9CED8]",
+        emptyText: "text-[15px] font-extrabold text-[#111827]",
+        emptyDescription: "mt-2 text-[13px] font-semibold text-[#737B8E]",
     },
     quizDetail: {
         page: "px-5 pb-16 md:px-9 lg:px-12",
@@ -644,6 +684,12 @@ export const uiTokens = {
             "inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white px-3 text-[13px] font-semibold text-[#4B5563] transition hover:border-[#C9C2FB] hover:text-[#5140F0]",
         quickLinkIcon: "h-4 w-4 text-[#9CA3AF]",
         title: "mt-6 text-center text-[18px] font-extrabold leading-6 text-[#5140F0]",
+        trainingDisabled:
+            "flex h-12 items-center justify-center gap-2 rounded-xl bg-[#B9B2F8] px-6 text-[15px] font-bold text-white disabled:cursor-not-allowed",
+        trainingPrimary:
+            "flex h-12 items-center justify-center rounded-xl bg-[#5140F0] px-6 text-[15px] font-bold text-white shadow-[0_12px_24px_rgba(81,64,240,0.24)] transition hover:bg-[#4635E7]",
+        trainingSecondary:
+            "flex h-12 items-center justify-center rounded-xl border border-[#C9C2FB] bg-white px-6 text-[15px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]",
     },
     roleplayEvaluation: {
         aiActionButton:

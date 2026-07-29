@@ -56,7 +56,7 @@ describe("QuizLibraryCard", () => {
         expect(html).toContain("20 min");
         expect(html).toContain("3");
         expect(html).toContain("88%");
-        expect(html).toContain("Commencer le quiz");
+        expect(html).toContain("Retenter le quiz");
     });
 
     it("keeps missing optional data explicit instead of inventing values", () => {
@@ -78,5 +78,20 @@ describe("QuizLibraryCard", () => {
 
         expect(html).toContain("Aucune");
         expect(html).toContain("—");
+        expect(html).toContain("Commencer le quiz");
+        expect(html).not.toContain("Retenter le quiz");
+    });
+
+    it("opens a draft for administration without presenting a start action", () => {
+        const html = renderToStaticMarkup(
+            <QuizLibraryCard
+                detailHref="/evaluations/quiz-1"
+                quiz={{ ...quiz, status: CONTENT_STATUS.draft }}
+            />,
+        );
+
+        expect(html).toContain("Voir le quiz");
+        expect(html).not.toContain("Commencer le quiz");
+        expect(html).not.toContain("Retenter le quiz");
     });
 });

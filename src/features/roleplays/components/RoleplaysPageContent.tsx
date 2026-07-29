@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Archive, Copy, Edit3, History, Info, MoreHorizontal, Phone, Plus } from "lucide-react";
+import { Archive, Copy, Edit3, Eye, History, Info, MoreHorizontal, Phone, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
     ContextualLink,
@@ -15,6 +15,7 @@ import {
 } from "@/features/content/components";
 import {
     isLearnerContentStatusFilter,
+    isSelectableContent,
     LEARNER_CONTENT_STATUS_FILTER,
     LEARNER_CONTENT_STATUS_FILTER_OPTIONS,
     type LearnerContentStatusFilter,
@@ -310,6 +311,7 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                             const cardDescription = getCardDescriptionExcerpt(roleplay.description);
                             const cardTitle = roleplay.title || roleplay.category;
                             const attemptCount = roleplay.detail.simulations;
+                            const canStart = isSelectableContent(roleplay.status, roleplay.isActive);
                             const attemptLabel = `${attemptCount} tentative${attemptCount === 1 ? "" : "s"} réalisée${attemptCount === 1 ? "" : "s"}`;
                             const bestScoreLabel =
                                 attemptCount > 0
@@ -481,8 +483,8 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                                             href={ROLEPLAY_ROUTES.app.detail(roleplay.id)}
                                             className={uiTokens.roleplayCard.action}
                                         >
-                                            <InlineIcon icon={Phone} className="h-4 w-4" />
-                                            S&apos;entraîner
+                                            <InlineIcon icon={canStart ? Phone : Eye} className="h-4 w-4" />
+                                            {canStart ? "S'entraîner" : "Voir le roleplay"}
                                         </ContextualLink>
                                     </Box>
                                 </CardSurface>

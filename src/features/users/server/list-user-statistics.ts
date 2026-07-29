@@ -8,18 +8,21 @@ import type {
 import { createAdminClient } from "@/lib/supabase/admin";
 import {
     MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
-    ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
+    ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT,
+    normalizeRoleplayValidationThreshold,
 } from "@/features/roleplays/domain";
 import { extractAssignmentScore, normalizeAssignmentScore } from "./user-assignment-visibility";
 import { getWeightedProgressScore } from "./user-progress-score";
 
-const DEFAULT_TARGET_SCORE = ROLEPLAY_MASTERY_THRESHOLD_PERCENT;
+const DEFAULT_TARGET_SCORE = ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT;
 
 interface UserSessionStatsRow {
     created_at: string | null;
     duration_seconds: number | null;
     id: string;
     notation_json: unknown;
+    scenario_id?: string | null;
+    scenarios?: { validation_threshold: number | null } | null;
 }
 
 interface RoleplayResultStatsRow {
@@ -334,7 +337,7 @@ export async function listUserStatistics(
     const [sessionsResult, roleplayResultsResult, quizAttemptsResult, criteriaResult] = await Promise.all([
         supabase
             .from("sessions")
-            .select("id, created_at, duration_seconds, notation_json")
+            .select("id, scenario_id, created_at, duration_seconds, notation_json, scenarios(validation_threshold)")
             .eq("user_id", userId)
             .eq("status", "completed")
             .gte("duration_seconds", MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS)
@@ -364,6 +367,26 @@ export async function listUserStatistics(
     if (criteriaResult.error) throw criteriaResult.error;
 
     const criterionRows = criteriaResult.data ?? [];
+    const roleplayScorePoints = (roleplayResultsResult.data ?? []).flatMap((row) => {
+        const score = normalizeAssignmentScore(row.score_percent);
+        if (score === null) return [];
+
+        return [{ completedAt: row.completed_at, score, sessionId: row.session_id }];
+    });
+    const scoreBySessionId = new Map(
+        roleplayScorePoints
+            .filter((point): point is ScorePoint & { sessionId: string } => Boolean(point.sessionId))
+            .map((point) => [point.sessionId, point.score]),
+    );
+    const latestScoredSession = (sessionsResult.data ?? [])
+        .filter((session) =>
+            (scoreBySessionId.get(session.id) ?? extractAssignmentScore(session.notation_json)) !== null,
+        )
+        .sort((first, second) => dateValue(first.created_at) - dateValue(second.created_at))
+        .at(-1);
+    const targetScore = normalizeRoleplayValidationThreshold(
+        latestScoredSession?.scenarios?.validation_threshold,
+    );
     const [skillNamesById, dimensionItemLabelsById] = await Promise.all([
         fetchNames("skills", uniqueValues(criterionRows.map((row) => row.skill_id)), "name"),
         fetchNames("skill_dimension_items", uniqueValues(criterionRows.map((row) => row.dimension_item_id)), "label"),
@@ -380,13 +403,9 @@ export async function listUserStatistics(
         })),
         dimensionItemLabelsById,
         quizAttempts: quizAttemptsResult.data ?? [],
-        roleplayScorePoints: (roleplayResultsResult.data ?? []).flatMap((row) => {
-            const score = normalizeAssignmentScore(row.score_percent);
-            if (score === null) return [];
-
-            return [{ completedAt: row.completed_at, score, sessionId: row.session_id }];
-        }),
+        roleplayScorePoints,
         sessions: sessionsResult.data ?? [],
         skillNamesById,
+        targetScore,
     });
 }

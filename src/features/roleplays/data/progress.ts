@@ -4,6 +4,7 @@
  * Les types et calculs de progression vivent dans le domaine pour garder une SSOT.
  */
 
+import { ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT } from "@/features/roleplays/domain";
 import type { RoleplayProgress as RoleplayProgressModel } from "@/features/roleplays/domain/roleplay-progress";
 
 export { progressCompetencies, scoreLevel } from "@/features/roleplays/domain/roleplay-progress";
@@ -35,7 +36,7 @@ export const roleplayProgress: RoleplayProgressModel = {
     initialScore: 58,
     afterTraining: 63,
     delta: 5,
-    target: 80,
+    target: ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT,
     dimensions: [
         { key: "savoir", label: "Savoir", subtitle: "Théorie", score: 62 },
         { key: "savoir-faire", label: "Savoir-faire", subtitle: "Pratique", score: 53 },

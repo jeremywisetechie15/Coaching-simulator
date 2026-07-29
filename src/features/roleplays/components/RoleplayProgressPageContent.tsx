@@ -62,8 +62,21 @@ const stepIcons: Record<ProgressStep["icon"], { icon: LucideIcon; tone: string }
 const { progression: t } = uiTokens;
 
 /** Pastille de score colorée selon le niveau. */
-function ScorePill({ score }: { score: number }) {
-    return <Text as="span" className={cn(t.scorePill, t.level[scoreLevel(score)].pill)}>{score}%</Text>;
+function ScorePill({
+    greenThreshold,
+    score,
+}: {
+    greenThreshold?: number;
+    score: number;
+}) {
+    return (
+        <Text
+            as="span"
+            className={cn(t.scorePill, t.level[scoreLevel(score, greenThreshold)].pill)}
+        >
+            {score}%
+        </Text>
+    );
 }
 
 const deltaPresentation = {
@@ -99,8 +112,16 @@ function LevelBar({ score }: { score: number }) {
 }
 
 /** Barre avec repère de départ (gris) + repère courant (couleur du niveau), tous deux posés sur la barre. */
-function RangeBar({ current, initial }: { current: number; initial: number }) {
-    const fill = t.level[scoreLevel(current)].fill;
+function RangeBar({
+    current,
+    greenThreshold,
+    initial,
+}: {
+    current: number;
+    greenThreshold?: number;
+    initial: number;
+}) {
+    const fill = t.level[scoreLevel(current, greenThreshold)].fill;
     return (
         <Box className="relative h-3 min-w-[120px] flex-1">
             <Box className="absolute inset-x-0 top-1/2 h-2 -translate-y-1/2 rounded-full bg-[#E5E7EB]" />
@@ -244,9 +265,16 @@ function MasteryHeader({ progress }: { progress: RoleplayProgress }) {
                 <Text className={t.masteryTitle}>{progress.title}</Text>
             </Box>
             <Box className="flex flex-1 items-center gap-3">
-                <ScorePill score={progress.masteryScore} />
+                <ScorePill
+                    greenThreshold={progress.target}
+                    score={progress.masteryScore}
+                />
                 <Box className="flex min-w-[70px] flex-1 items-center">
-                    <RangeBar current={progress.masteryScore} initial={progress.initialScore} />
+                    <RangeBar
+                        current={progress.masteryScore}
+                        greenThreshold={progress.target}
+                        initial={progress.initialScore}
+                    />
                 </Box>
                 <Box className="hidden items-center gap-3 sm:flex">
                     <RangeLegend initial={progress.initialScore} after={progress.afterTraining} />

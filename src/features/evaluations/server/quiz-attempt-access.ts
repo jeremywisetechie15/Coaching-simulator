@@ -1,5 +1,9 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { NotFoundError } from "@/lib/server/errors";
+import {
+    isSelectableContent,
+    normalizeContentStatus,
+} from "@/features/content/domain";
+import { ConflictError, NotFoundError } from "@/lib/server/errors";
 
 export interface QuizAttemptQuizRow {
     id: string;
@@ -20,8 +24,17 @@ export async function getAccessibleQuizForAttempt(
 
     if (error) throw error;
 
-    if (!data || data.is_active === false || data.status === "archived") {
+    if (!data) {
         throw new NotFoundError("Quiz introuvable.");
+    }
+
+    if (
+        !isSelectableContent(
+            normalizeContentStatus(data.status),
+            data.is_active ?? true,
+        )
+    ) {
+        throw new ConflictError("Publiez le quiz avant de démarrer une tentative.");
     }
 
     return data;

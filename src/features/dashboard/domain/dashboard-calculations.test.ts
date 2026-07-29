@@ -39,9 +39,9 @@ describe("dashboard calculations", () => {
             now,
             periodDays: 30,
             scenarios: [
-                { assignedAt: "2026-06-01T10:00:00.000Z", category: "Vente", domain: "Commercial", id: "scenario-a", personaAvatarUrl: null, personaName: "A", title: "Scénario A" },
-                { assignedAt: "2026-06-02T10:00:00.000Z", category: "Vente", domain: "Commercial", id: "scenario-b", personaAvatarUrl: null, personaName: "B", title: "Scénario B" },
-                { assignedAt: "2026-07-18T10:00:00.000Z", category: "Feedback", domain: "Management", id: "scenario-c", personaAvatarUrl: null, personaName: "C", title: "Scénario C" },
+                { assignedAt: "2026-06-01T10:00:00.000Z", category: "Vente", domain: "Commercial", id: "scenario-a", personaAvatarUrl: null, personaName: "A", title: "Scénario A", validationThreshold: 90 },
+                { assignedAt: "2026-06-02T10:00:00.000Z", category: "Vente", domain: "Commercial", id: "scenario-b", personaAvatarUrl: null, personaName: "B", title: "Scénario B", validationThreshold: 60 },
+                { assignedAt: "2026-07-18T10:00:00.000Z", category: "Feedback", domain: "Management", id: "scenario-c", personaAvatarUrl: null, personaName: "C", title: "Scénario C", validationThreshold: 80 },
             ],
             roleplaySessions: [
                 { createdAt: "2026-07-15T10:00:00.000Z", durationSeconds: 180, id: "session-a1", scenarioId: "scenario-a", scorePercent: 50 },
@@ -68,6 +68,12 @@ describe("dashboard calculations", () => {
             { label: "Score moyen quiz", sampleSize: 2, value: 74 },
         ]);
         expect(dashboard.activity.roleplays.find((metric) => metric.id === "validated-scenarios")?.value).toBe("1/2");
+        expect(dashboard.roleplays.items.retry[0]).toMatchObject({
+            date: "Score cible : 90%",
+            title: "Scénario A",
+        });
+        expect(dashboard.roleplays.items.completed.find((item) => item.id === "session-b1")?.statusLabel)
+            .toBe("Validé");
         expect(dashboard.activity.quizzes.find((metric) => metric.id === "validated-quizzes")?.value).toBe("1/2");
         const quizTimeMetric = dashboard.activity.quizzes.find(
             (metric) => metric.id === "quiz-time",

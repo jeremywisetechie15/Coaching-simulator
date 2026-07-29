@@ -18,6 +18,7 @@ function createRoleplayDetail({
     quizzes = [],
     resources = [],
     title = name,
+    validationThreshold = 80,
 }: {
     description?: string;
     id?: string;
@@ -28,6 +29,7 @@ function createRoleplayDetail({
     quizzes?: RoleplayDetail["quizzes"];
     resources?: RoleplayDetail["resources"];
     title?: string;
+    validationThreshold?: number;
 } = {}): RoleplayDetail {
     return {
         assignedUserId: null,
@@ -50,6 +52,7 @@ function createRoleplayDetail({
         difficulty: "Moyen",
         disc: "Stable",
         domain: "Commercial",
+        estimatedDurationMinutes: null,
         groupId: null,
         groupName: null,
         id,
@@ -99,6 +102,7 @@ function createRoleplayDetail({
         status: CONTENT_STATUS.published,
         title,
         updatedAt: null,
+        validationThreshold,
     };
 }
 
@@ -107,6 +111,15 @@ describe("roleplay UI adapter", () => {
         const roleplay = mapDbRoleplayToUi(createRoleplayDetail(), null);
 
         expect(roleplay.detail.learnerRole).toBe("Vous incarnez le conseiller commercial.");
+    });
+
+    it("exposes the scenario validation threshold to global score views", () => {
+        const roleplay = mapDbRoleplayToUi(
+            createRoleplayDetail({ validationThreshold: 90 }),
+            null,
+        );
+
+        expect(roleplay.validationThreshold).toBe(90);
     });
 
     it("keeps a legacy missing learner role empty instead of using mock content", () => {

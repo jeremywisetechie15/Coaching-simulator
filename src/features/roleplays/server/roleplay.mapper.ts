@@ -16,6 +16,7 @@ import {
     isRoleplayDifficulty,
     normalizeRoleplayDifficulty,
     normalizeRoleplayDiscProfile,
+    normalizeRoleplayValidationThreshold,
     normalizeRoleplayVisibilityScope,
     type RoleplayDetail,
     type RoleplayListItem,
@@ -40,6 +41,7 @@ export interface RoleplayRow {
     difficulty_level?: string | null;
     disc_profile?: string | null;
     domain?: string | null;
+    estimated_duration_minutes?: number | null;
     group_id?: string | null;
     group_name?: string | null;
     id: string;
@@ -69,6 +71,7 @@ export interface RoleplayRow {
     status?: string | null;
     title: string;
     updated_at?: string | null;
+    validation_threshold?: number | null;
     visibility_scope?: string | null;
 }
 
@@ -176,6 +179,7 @@ export function mapRoleplayRowToListItem(
         difficulty: normalizeRoleplayDifficulty(row.difficulty_level),
         disc: normalizeRoleplayDiscProfile(row.disc_profile),
         domain: row.domain ?? "",
+        estimatedDurationMinutes: row.estimated_duration_minutes ?? null,
         groupId: row.group_id ?? null,
         groupName: row.group_name ?? null,
         id: row.id,
@@ -202,6 +206,7 @@ export function mapRoleplayRowToListItem(
         status: normalizeContentStatus(row.status, CONTENT_STATUS.draft),
         title: row.title,
         updatedAt: row.updated_at ?? null,
+        validationThreshold: normalizeRoleplayValidationThreshold(row.validation_threshold),
     };
 }
 

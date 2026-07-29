@@ -12,6 +12,7 @@ interface EvaluationQuizPageProps {
     initialView: "quiz" | "results";
     quiz: QuizDetail;
     profileValues: ProfileFormValues;
+    selectedAttemptId?: string;
     skillOptions: SkillOption[];
 }
 
@@ -21,6 +22,7 @@ export function EvaluationQuizPage({
     initialView,
     profileValues,
     quiz,
+    selectedAttemptId,
     skillOptions,
 }: EvaluationQuizPageProps) {
     return (
@@ -38,6 +40,7 @@ export function EvaluationQuizPage({
                 initialRetryRequested={initialRetryRequested}
                 initialView={initialView}
                 quiz={quiz}
+                selectedAttemptId={selectedAttemptId}
                 skillOptions={skillOptions}
             />
         </AppShell>

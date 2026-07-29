@@ -133,7 +133,7 @@ function Header({
     roleplay: RoleplayItem;
     session: RoleplaySession;
 }) {
-    const level = scoreLevel(session.score);
+    const level = scoreLevel(session.score, roleplay.validationThreshold);
 
     return (
         <Box className="rounded-[24px] bg-[#111827] px-8 py-7 text-white">

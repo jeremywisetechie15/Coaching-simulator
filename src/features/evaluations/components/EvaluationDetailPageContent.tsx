@@ -8,6 +8,7 @@ import {
     Eye,
     FileText,
     Gauge,
+    LockKeyhole,
     RefreshCw,
     Star,
     type LucideIcon,
@@ -18,6 +19,7 @@ import {
     ContentStatusBadge,
     LearnerContentStatusBadge,
 } from "@/features/content/components";
+import { isSelectableContent } from "@/features/content/domain";
 import {
     EVALUATION_ROUTES,
     QUIZ_ATTEMPT_STATUS,
@@ -31,7 +33,7 @@ import {
 } from "@/features/evaluations/domain";
 import { METHOD_ROUTES } from "@/features/methods/domain/method";
 import type { SkillOption } from "@/features/skills/domain/skills";
-import { Box, InlineIcon, Text } from "@/lib/ui/atoms";
+import { Box, Button, InlineIcon, Text } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 import { QuizDetailStatCell } from "./QuizDetailStatCell";
@@ -80,6 +82,7 @@ export function EvaluationDetailPageContent({
     const questionCount = getQuizQuestionCount(quiz);
     const competenceCount = getQuizCompetenceCount(quiz);
     const threshold = quiz.validationThreshold ?? QUIZ_DEFAULT_VALIDATION_THRESHOLD;
+    const canStartQuiz = isSelectableContent(quiz.status, quiz.isActive);
     const categoryLabel =
         quiz.categories[0]?.trim()
         || quiz.domain.trim()
@@ -263,30 +266,41 @@ export function EvaluationDetailPageContent({
                     />
 
                     <Box className={uiTokens.quizDetail.actions}>
-                        {hasCompletedAttempt ? (
-                            <>
+                        {hasCompletedAttempt && (
+                            <ContextualLink
+                                href={resultHref}
+                                className={cn(
+                                    uiTokens.action.secondaryButton,
+                                    uiTokens.quizDetail.secondaryAction,
+                                )}
+                            >
+                                <InlineIcon icon={Eye} className="h-4 w-4" />
+                                Revoir mes réponses
+                            </ContextualLink>
+                        )}
+                        {!canStartQuiz ? (
+                            <Button
+                                disabled
+                                className={cn(
+                                    uiTokens.quizDetail.primaryAction,
+                                    uiTokens.action.primaryButtonDisabled,
+                                )}
+                            >
+                                <InlineIcon icon={LockKeyhole} className="h-4 w-4" />
+                                Publiez le quiz pour commencer
+                            </Button>
+                        ) : hasCompletedAttempt ? (
+                            canRetry && (
                                 <ContextualLink
-                                    href={resultHref}
+                                    href={`${quizHref}?retry=1`}
                                     className={cn(
-                                        uiTokens.action.secondaryButton,
-                                        uiTokens.quizDetail.secondaryAction,
+                                        uiTokens.quizDetail.primaryAction,
+                                        uiTokens.action.primaryButton,
                                     )}
                                 >
-                                    <InlineIcon icon={Eye} className="h-4 w-4" />
-                                    Revoir mes réponses
+                                    Retenter le quiz ({retryAttemptsLabel})
                                 </ContextualLink>
-                                {canRetry && (
-                                    <ContextualLink
-                                        href={`${quizHref}?retry=1`}
-                                        className={cn(
-                                            uiTokens.quizDetail.primaryAction,
-                                            uiTokens.action.primaryButton,
-                                        )}
-                                    >
-                                        Retenter le quiz ({retryAttemptsLabel})
-                                    </ContextualLink>
-                                )}
-                            </>
+                            )
                         ) : (
                             <ContextualLink
                                 href={quizHref}

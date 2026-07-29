@@ -133,6 +133,20 @@ describe("roleplay session edit policy server guard", () => {
         ).resolves.toBeUndefined();
     });
 
+    it("allows duration and validation threshold changes after a session", async () => {
+        await expect(
+            assertRoleplaySessionEditPolicy(
+                createFakeSupabase(baseRows(true)) as never,
+                roleplayId,
+                {
+                    ...unchangedInput,
+                    estimatedDurationMinutes: 15,
+                    validationThreshold: 72,
+                },
+            ),
+        ).resolves.toBeUndefined();
+    });
+
     it("rejects a locked configuration change after a session", async () => {
         await expect(
             assertRoleplaySessionEditPolicy(

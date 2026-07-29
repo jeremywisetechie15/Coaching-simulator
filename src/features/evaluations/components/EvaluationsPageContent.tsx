@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Archive, Copy, Edit3, MoreHorizontal, Plus } from "lucide-react";
+import { Archive, Copy, Edit3, History, MoreHorizontal, Plus } from "lucide-react";
 import {
     ContextualLink,
     useCurrentAppHref,
@@ -244,15 +244,24 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                     title="Quiz"
                     tone="quiz"
                     actions={
-                        canManage ? (
-                        <ContextualLink
-                            href={EVALUATION_ROUTES.app.new}
-                            className={uiTokens.entityHeader.action.primary}
-                        >
-                            <InlineIcon icon={Plus} className="h-4 w-4" />
-                            Créer un quiz
-                        </ContextualLink>
-                        ) : undefined
+                        <>
+                            {canManage && (
+                                <ContextualLink
+                                    href={EVALUATION_ROUTES.app.new}
+                                    className={uiTokens.entityHeader.action.primary}
+                                >
+                                    <InlineIcon icon={Plus} className="h-4 w-4" />
+                                    Créer un quiz
+                                </ContextualLink>
+                            )}
+                            <ContextualLink
+                                href={EVALUATION_ROUTES.app.history}
+                                className={uiTokens.entityHeader.action.primary}
+                            >
+                                <InlineIcon icon={History} className="h-4 w-4" />
+                                Historique des quizzes
+                            </ContextualLink>
+                        </>
                     }
                 />
 
