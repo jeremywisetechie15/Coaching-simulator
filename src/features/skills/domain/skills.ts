@@ -110,6 +110,10 @@ export interface SkillDetail extends SkillListItem {
     dimensionItems: SkillDimensionItem[];
 }
 
+export interface SkillEditorDetail extends SkillDetail {
+    hasProtectedUsage: boolean;
+}
+
 export interface SkillOption extends EntitySelectionAvailability {
     dimensionItems: SkillDimensionItem[];
     domain: ContentDomain | null;

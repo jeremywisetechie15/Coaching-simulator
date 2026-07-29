@@ -7,6 +7,7 @@ import {
 import { CreateSkillPage } from "@/features/skills/components";
 import {
     getSkillById,
+    getSkillEditorById,
     listSkillTargetOptions,
 } from "@/features/skills/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
@@ -66,7 +67,7 @@ export default async function Page({ params, searchParams }: PageProps) {
     let skill;
 
     try {
-        skill = await getSkillById(skillId);
+        skill = await getSkillEditorById(skillId);
     } catch (error) {
         if (error instanceof NotFoundError) {
             notFound();

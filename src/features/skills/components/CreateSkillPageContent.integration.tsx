@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { CONTENT_STATUS, CONTENT_VISIBILITY_SCOPE } from "@/features/content/domain";
 import type { SkillDetail } from "@/features/skills/domain/skills";
+import { SKILL_USAGE_EDIT_RESTRICTION_MESSAGE } from "@/features/skills/domain/skill-usage-edit-policy";
 import { CreateSkillPageContent } from "./CreateSkillPageContent";
 
 vi.mock("next/navigation", () => ({
@@ -61,5 +62,53 @@ describe("CreateSkillPageContent", () => {
         expect(html).toContain("Communication");
         expect(html).toContain("Gestion des conflits");
         expect(html).not.toContain("Fonctions");
+    });
+
+    it("locks structural controls and keeps the description editable after protected usage", () => {
+        const html = renderToStaticMarkup(
+            <CreateSkillPageContent
+                groupOptions={[]}
+                initialSkill={{
+                    ...editedSkill,
+                    dimensionItems: [
+                        {
+                            dimension: "savoir",
+                            id: "11111111-1111-4111-8111-111111111111",
+                            isActive: true,
+                            label: "Identifier les signaux",
+                            order: 1,
+                            skillId: editedSkill.id,
+                        },
+                    ],
+                    hasProtectedUsage: true,
+                    status: CONTENT_STATUS.published,
+                }}
+                organizationOptions={[]}
+                userOptions={[]}
+            />,
+        );
+        const inputs = html.match(/<input[^>]*>/g) ?? [];
+        const textarea = html.match(/<textarea[^>]*>[\s\S]*?<\/textarea>/)?.[0] ?? "";
+
+        expect(html).toContain(SKILL_USAGE_EDIT_RESTRICTION_MESSAGE);
+        expect(html).toContain("Dupliquer pour tout modifier");
+        expect(
+            inputs.some(
+                (input) =>
+                    input.includes('value="Gestion des conflits"') &&
+                    input.includes('disabled=""'),
+            ),
+        ).toBe(true);
+        expect(
+            inputs.some(
+                (input) =>
+                    input.includes('value="Identifier les signaux"') &&
+                    input.includes('disabled=""'),
+            ),
+        ).toBe(true);
+        expect(textarea).not.toContain('disabled=""');
+        expect(textarea).toContain(
+            "Prévenir et résoudre un désaccord.",
+        );
     });
 });

@@ -10,12 +10,12 @@ import type {
 } from "@/features/content/domain";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
-import type { SkillDetail } from "@/features/skills/domain/skills";
+import type { SkillEditorDetail } from "@/features/skills/domain/skills";
 import { CreateSkillPageContent } from "./CreateSkillPageContent";
 
 interface CreateSkillPageProps {
     groupOptions: ContentTargetGroupOption[];
-    initialSkill?: SkillDetail;
+    initialSkill?: SkillEditorDetail;
     organizationOptions: ContentTargetOrganizationOption[];
     profileValues: ProfileFormValues;
     userOptions: ContentTargetUserOption[];

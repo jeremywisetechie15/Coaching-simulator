@@ -6,6 +6,7 @@ import { mapDatabaseError, NotFoundError } from "@/lib/server/errors";
 import { assertActiveContentTarget, assertContentStatusTransition } from "@/features/content/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { fetchSkillDetail } from "./skill-query";
+import { assertSkillUsageEditPolicy } from "./skill-usage-edit-policy";
 import { createSkillDimensionItemRows, createSkillUpdate } from "./skills.persistence";
 
 export async function updateSkill(skillId: string, input: SaveSkillDto): Promise<SkillDetail> {
@@ -27,6 +28,7 @@ export async function updateSkill(skillId: string, input: SaveSkillDto): Promise
     }
 
     assertContentStatusTransition(existingSkill.status, input.status);
+    await assertSkillUsageEditPolicy(adminSupabase, skillId, input);
     await assertActiveContentTarget(adminSupabase, {
         groupId: input.groupId,
         organizationId: input.organizationId,
