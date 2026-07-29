@@ -62,12 +62,12 @@ function LoadingState() {
             <Box className={uiTokens.adminDashboard.loading.summary}>
                 <Box className={uiTokens.adminDashboard.summary.metricsGrid}>
                     {Array.from({ length: 6 }, (_, index) => (
-                        <Box className={`${uiTokens.adminDashboard.state.skeleton} h-28`} key={index} />
+                        <Box className={`${uiTokens.adminDashboard.state.skeleton} h-[150px]`} key={index} />
                     ))}
                 </Box>
                 <Box className={uiTokens.adminDashboard.loading.aiGrid}>
                     {Array.from({ length: 6 }, (_, index) => (
-                        <Box className={`${uiTokens.adminDashboard.state.skeleton} h-28`} key={index} />
+                        <Box className={`${uiTokens.adminDashboard.state.skeleton} h-[150px]`} key={index} />
                     ))}
                 </Box>
             </Box>
@@ -138,7 +138,7 @@ function AiOrganizationUsage({ dashboard }: { dashboard: AdminDashboardViewData 
             />
             <Box className={uiTokens.adminDashboard.table.scrollArea}>
                 <Box className={`${uiTokens.adminDashboard.ai.table} ${uiTokens.adminDashboard.ai.tableMinWidth}`}>
-                    <Box className={uiTokens.adminDashboard.ai.header}>
+                    <Box className={`${uiTokens.adminDashboard.table.header} ${uiTokens.adminDashboard.ai.columns}`}>
                         <span>Organisation</span>
                         <span>Learners actifs</span>
                         <span>Simulations IA</span>
@@ -151,7 +151,7 @@ function AiOrganizationUsage({ dashboard }: { dashboard: AdminDashboardViewData 
                     {dashboard.aiUsage.organizations.length === 0 ? (
                         <Box className={uiTokens.adminDashboard.table.empty}>Aucune organisation active.</Box>
                     ) : dashboard.aiUsage.organizations.map((organization) => (
-                        <Box className={uiTokens.adminDashboard.ai.row} key={organization.id}>
+                        <Box className={`${uiTokens.adminDashboard.table.row} ${uiTokens.adminDashboard.ai.columns}`} key={organization.id}>
                             <ContextualLink className={uiTokens.adminDashboard.table.link} href={`/organizations/${organization.id}`}>
                                 {organization.name}
                             </ContextualLink>

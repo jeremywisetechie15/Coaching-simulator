@@ -67,7 +67,7 @@ export function DashboardActivityList({ collection, kind }: DashboardActivityLis
     }
 
     return (
-        <Box className={`${uiTokens.dashboard.panel} p-4`}>
+        <Box className={`${uiTokens.dashboard.panel} p-6`}>
             <Box className="flex items-center justify-between gap-3">
                 <Text as="h2" className={uiTokens.dashboard.sectionTitle}>{labels.title}</Text>
                 <ContextualLink className={uiTokens.dashboard.activityList.viewAll} href={labels.collectionHref}>
@@ -75,7 +75,7 @@ export function DashboardActivityList({ collection, kind }: DashboardActivityLis
                 </ContextualLink>
             </Box>
 
-            <Box aria-label={`Filtrer les ${labels.title.toLowerCase()}`} className="mt-3 flex flex-wrap gap-2" role="tablist">
+            <Box aria-label={`Filtrer les ${labels.title.toLowerCase()}`} className="mt-4 flex flex-wrap gap-2" role="tablist">
                 {DASHBOARD_ACTIVITY_TABS.map((tab) => {
                     const isActive = activeStatus === tab.id;
                     return (

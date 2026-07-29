@@ -5,6 +5,7 @@ import {
     ClipboardCheck,
     Clock3,
     Crosshair,
+    Info,
     ListTodo,
     Target,
     type LucideIcon,
@@ -38,7 +39,7 @@ export function DashboardMetricCard({ metric }: { metric: DashboardMetric }) {
             <Box className="flex items-start justify-between gap-3">
                 <Box className="flex min-w-0 items-center gap-2.5">
                     <Box className={`${uiTokens.dashboard.metric.icon} ${uiTokens.dashboard.metric.tone[metric.tone]}`}>
-                        <InlineIcon icon={Icon} className="h-4 w-4" />
+                        <InlineIcon icon={Icon} className="h-5 w-5" />
                     </Box>
                     <Text className={uiTokens.dashboard.metric.label}>{metric.label}</Text>
                 </Box>
@@ -48,7 +49,7 @@ export function DashboardMetricCard({ metric }: { metric: DashboardMetric }) {
                         className={uiTokens.dashboard.metric.infoIcon}
                         role="img"
                     >
-                        ⓘ
+                        <InlineIcon icon={Info} className="h-4 w-4" />
                     </span>
                 </Tooltip>
             </Box>

@@ -190,7 +190,11 @@ describe("admin dashboard calculations", () => {
             expect.objectContaining({ id: "active-users", value: "2" }),
             expect.objectContaining({ id: "active-organizations", value: "1" }),
             expect.objectContaining({ id: "published-roleplays", value: "2" }),
-            expect.objectContaining({ id: "learning-time", value: "12min" }),
+            expect.objectContaining({
+                detail: "2min roleplay · 10min quiz",
+                id: "learning-time",
+                value: "12min",
+            }),
         ]));
         expect(dashboard.metrics[0]?.id).toBe("learning-time");
         expect(seriesTotal(dashboard, "connections")).toBe(1);
@@ -253,8 +257,7 @@ describe("admin dashboard calculations", () => {
         const learningTime = dashboard.metrics.find((metric) => metric.id === "learning-time");
 
         expect(learningTime).toMatchObject({ value: "0min" });
-        expect(learningTime?.detail).toBe("");
-        expect(learningTime?.valueLines).toEqual(["0min roleplay", "0min quiz"]);
+        expect(learningTime?.detail).toBe("0min roleplay · 0min quiz");
         expect(seriesTotal(dashboard, "quizzes")).toBe(1);
     });
 

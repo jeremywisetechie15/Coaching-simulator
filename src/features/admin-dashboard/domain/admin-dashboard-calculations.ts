@@ -291,11 +291,7 @@ function buildMetrics(
     );
     return [
         {
-            detail: "",
-            valueLines: [
-                `${formatAdminDashboardDuration(roleplaySeconds)} roleplay`,
-                `${formatAdminDashboardDuration(quizSeconds)} quiz`,
-            ],
+            detail: `${formatAdminDashboardDuration(roleplaySeconds)} roleplay · ${formatAdminDashboardDuration(quizSeconds)} quiz`,
             id: ADMIN_DASHBOARD_METRIC_ID.learningTime,
             label: "Temps total d’apprentissage",
             tone: "blue",

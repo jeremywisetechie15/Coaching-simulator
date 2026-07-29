@@ -1,4 +1,4 @@
-import { Info, Sparkles, Target } from "lucide-react";
+import { Info, TrendingUp } from "lucide-react";
 import {
     roundDashboardScore,
     type DashboardPerformanceSnapshot,
@@ -7,8 +7,8 @@ import { Box, InlineIcon, Text, Tooltip } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 
 const CHART_WIDTH = 620;
-const CHART_HEIGHT = 270;
-const CHART_PADDING = { bottom: 34, left: 42, right: 12, top: 14 } as const;
+const CHART_HEIGHT = 200;
+const CHART_PADDING = { bottom: 30, left: 48, right: 12, top: 8 } as const;
 
 function chartPoint(value: number, index: number, valueCount: number) {
     const plotWidth = CHART_WIDTH - CHART_PADDING.left - CHART_PADDING.right;
@@ -31,7 +31,6 @@ export function buildDashboardLinePoints(values: Array<number | null>): string {
 }
 
 function ScoreSummaryCard({ summary }: { summary: DashboardPerformanceSnapshot["scoreSummaries"][number] }) {
-    const Icon = summary.tone === "roleplay" ? Sparkles : Target;
     const displayedScore = summary.value === null ? null : roundDashboardScore(summary.value);
     const displayedTrend = summary.trend === null ? null : roundDashboardScore(summary.trend);
     const scoreLabel = displayedScore === null ? "Pas encore de score" : `${displayedScore}%`;
@@ -43,9 +42,9 @@ function ScoreSummaryCard({ summary }: { summary: DashboardPerformanceSnapshot["
 
     return (
         <Box className={uiTokens.dashboard.scoreCard.root}>
-            <Box className="flex items-center gap-2.5">
+            <Box className={uiTokens.dashboard.scoreCard.header}>
                 <Box className={`${uiTokens.dashboard.scoreCard.icon} ${uiTokens.dashboard.scoreCard.tone[summary.tone]}`}>
-                    <InlineIcon icon={Icon} className="h-4 w-4" />
+                    <InlineIcon icon={TrendingUp} className="h-5 w-5" />
                 </Box>
                 <Text className={uiTokens.dashboard.scoreCard.label}>{summary.label}</Text>
             </Box>
@@ -122,10 +121,10 @@ export function DashboardPerformanceChart({ snapshot }: { snapshot: DashboardPer
                                         <polyline
                                             fill="none"
                                             points={linePoints}
-                                            stroke="currentColor"
-                                            strokeLinecap="round"
-                                            strokeLinejoin="round"
-                                            strokeWidth="3"
+                                        stroke="currentColor"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                        strokeWidth="2.5"
                                         />
                                     )}
                                     {series.values.map((value, index) => {
@@ -138,7 +137,7 @@ export function DashboardPerformanceChart({ snapshot }: { snapshot: DashboardPer
                                                 cy={point.y}
                                                 fill="currentColor"
                                                 key={`${series.label}-${index}`}
-                                                r="5"
+                                                r="4"
                                             />
                                         );
                                     })}

@@ -16,10 +16,7 @@ interface DashboardDomainPerformanceProps {
 }
 
 export function DashboardDomainPerformance({ groups, scoreLabel }: DashboardDomainPerformanceProps) {
-    const [expandedIds, setExpandedIds] = useState<Set<string>>(() => {
-        const firstExpandableGroup = groups.find((group) => group.items?.length);
-        return new Set(firstExpandableGroup ? [firstExpandableGroup.id] : []);
-    });
+    const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
 
     function toggleGroup(groupId: string) {
         setExpandedIds((current) => {

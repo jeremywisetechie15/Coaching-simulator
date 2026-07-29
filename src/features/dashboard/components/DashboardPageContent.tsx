@@ -45,17 +45,17 @@ function todayLabel(): string {
 function DashboardLoadingState() {
     return (
         <Box aria-label="Chargement du tableau de bord" aria-live="polite" className="space-y-4">
-            <Box className={`${uiTokens.dashboard.panel} p-5`}>
+            <Box className={`${uiTokens.dashboard.panel} p-6`}>
                 <Box className={`${uiTokens.dashboard.state.skeleton} h-5 w-56`} />
                 <Box className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                     {Array.from({ length: 5 }, (_, index) => (
-                        <Box className={`${uiTokens.dashboard.state.skeleton} h-[108px]`} key={index} />
+                        <Box className={`${uiTokens.dashboard.state.skeleton} h-[165px]`} key={index} />
                     ))}
                 </Box>
                 <Box className={`${uiTokens.dashboard.state.skeleton} mt-5 h-5 w-52`} />
                 <Box className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                     {Array.from({ length: 5 }, (_, index) => (
-                        <Box className={`${uiTokens.dashboard.state.skeleton} h-[108px]`} key={index} />
+                        <Box className={`${uiTokens.dashboard.state.skeleton} h-[165px]`} key={index} />
                     ))}
                 </Box>
             </Box>
@@ -170,7 +170,7 @@ export function DashboardPageContent({ firstName, initialDashboardData }: Dashbo
                     />
                 ) : (
                     <>
-                        <Box className={`${uiTokens.dashboard.panel} p-5`}>
+                        <Box className={`${uiTokens.dashboard.panel} p-6`}>
                             <Text as="h2" className={uiTokens.dashboard.sectionTitle}>Activité roleplay &amp; scénarios</Text>
                             <Box className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                                 {dashboard.activity.roleplays.map((metric) => (
@@ -186,15 +186,15 @@ export function DashboardPageContent({ firstName, initialDashboardData }: Dashbo
                             </Box>
                         </Box>
 
-                        <Box className="grid gap-4 xl:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]">
-                            <Box className={`${uiTokens.dashboard.panel} p-5`}>
+                        <Box className="grid gap-5 xl:grid-cols-2">
+                            <Box className={`${uiTokens.dashboard.panel} p-6`}>
                                 <Text as="h2" className={`${uiTokens.dashboard.sectionTitle} mb-4`}>Performance synthétique</Text>
                                 <DashboardPerformanceChart snapshot={dashboard.performance} />
                             </Box>
 
-                            <Box className={`${uiTokens.dashboard.panel} flex min-h-0 flex-col p-5`}>
+                            <Box className={`${uiTokens.dashboard.panel} flex min-h-0 flex-col p-6`}>
                                 <Text as="h2" className={`${uiTokens.dashboard.sectionTitle} mb-4`}>Performance par domaine</Text>
-                                <Box className="grid min-h-0 flex-1 gap-4 md:grid-cols-2">
+                                <Box className={uiTokens.dashboard.domain.grid}>
                                     <DashboardDomainPerformance
                                         groups={dashboard.domainPerformance.roleplays}
                                         scoreLabel="Score moyen roleplay"
