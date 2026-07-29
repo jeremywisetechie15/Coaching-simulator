@@ -37,14 +37,18 @@ import {
 } from "@/features/roleplays/data/evaluation";
 import type { Evaluation, EvaluationCriterion, EvaluationStep } from "@/features/roleplays/data/evaluation";
 import {
+    appendRoleplayLiveTranscriptMessage,
     buildEvaluationScoreDetails,
     getRoleplayDisplayTitle,
     getRoleplayNotationApiErrorMessage,
+    isMatchingRoleplayLiveTranscriptEvent,
     ROLEPLAY_NOTATION_FEEDBACK_MESSAGES,
     ROLEPLAY_PDF_TEMPLATES,
     ROLEPLAY_PROGRESS_PLAN_SECTION_TITLE,
     ROLEPLAY_ROUTES,
     scoreLevel,
+    toRoleplayTranscriptMessages,
+    type RoleplayLiveTranscriptMessage,
     type RoleplayPdfTemplate,
 } from "@/features/roleplays/domain";
 import { ROLEPLAY_ANALYSIS_STEPS, ROLEPLAY_PDF_EXPORT_STEPS } from "@/features/roleplays/data/session-analysis";
@@ -111,6 +115,10 @@ function Ring({ score, size = 110, stroke = 11 }: { score: number; size?: number
 const TABS = ["Synthèse globale", "Analyse méthodologique", "Transcription"] as const;
 type TabName = (typeof TABS)[number];
 type SimulationViewMode = "coachDebrief" | "coachFeedback" | "persona";
+interface SimulationViewState {
+    mode: SimulationViewMode;
+    transcriptSessionId: string;
+}
 
 interface EvaluationPageContentProps {
     canManage?: boolean;
@@ -152,7 +160,8 @@ export function EvaluationPageContent({
     const [scoreInfoOpen, setScoreInfoOpen] = useState(false);
     const [openStep, setOpenStep] = useState<EvaluationStep | null>(null);
     const [transcriptQuery, setTranscriptQuery] = useState("");
-    const [simView, setSimView] = useState<SimulationViewMode | null>(null);
+    const [simView, setSimView] = useState<SimulationViewState | null>(null);
+    const [simulationTranscript, setSimulationTranscript] = useState<RoleplayLiveTranscriptMessage[]>([]);
     const [pdfExportStep, setPdfExportStep] = useState<number | null>(null);
     const evaluationData = evaluation ?? fallbackEvaluation;
 
@@ -166,6 +175,38 @@ export function EvaluationPageContent({
         }
         return evaluationData.transcript.filter((message) => message.text.toLowerCase().includes(q));
     }, [evaluationData.transcript, transcriptQuery]);
+
+    const visibleSimulationTranscript = useMemo(
+        () => toRoleplayTranscriptMessages(simulationTranscript),
+        [simulationTranscript],
+    );
+
+    const openSimulationView = (mode: SimulationViewMode) => {
+        setSimulationTranscript([]);
+        setSimView({ mode, transcriptSessionId: crypto.randomUUID() });
+    };
+
+    useEffect(() => {
+        if (!simView) return;
+        const transcriptSessionId = simView.transcriptSessionId;
+
+        function receiveTranscriptMessage(event: MessageEvent<unknown>) {
+            if (event.origin !== window.location.origin) return;
+            if (!roleplay.scenarioId) return;
+            if (!isMatchingRoleplayLiveTranscriptEvent(event.data, {
+                scenarioId: roleplay.scenarioId,
+                transcriptSessionId,
+            })) return;
+            const payload = event.data;
+
+            setSimulationTranscript((current) =>
+                appendRoleplayLiveTranscriptMessage(current, payload.message),
+            );
+        }
+
+        window.addEventListener("message", receiveTranscriptMessage);
+        return () => window.removeEventListener("message", receiveTranscriptMessage);
+    }, [roleplay.scenarioId, simView]);
 
     useEffect(() => {
         if (notationRefreshStep === null) return;
@@ -279,19 +320,31 @@ export function EvaluationPageContent({
     };
 
     if (simView) {
-        const isPersona = simView === "persona";
-        const isCoachFeedback = simView === "coachFeedback";
-        // Embarque le runtime public existant sans le modifier (contrat iframe).
+        const isPersona = simView.mode === "persona";
+        const isCoachFeedback = simView.mode === "coachFeedback";
         const iframeSrc = roleplay.scenarioId
             ? isPersona
-                ? ROLEPLAY_ROUTES.app.personaFeedback(roleplay.scenarioId, session.id)
+                ? ROLEPLAY_ROUTES.app.personaFeedback(
+                      roleplay.scenarioId,
+                      session.id,
+                      simView.transcriptSessionId,
+                  )
                 : isCoachFeedback
-                  ? ROLEPLAY_ROUTES.app.sessionCoachFeedback(roleplay.scenarioId, session.id)
-                  : ROLEPLAY_ROUTES.app.sessionDebrief(roleplay.scenarioId, session.id)
+                  ? ROLEPLAY_ROUTES.app.sessionCoachFeedback(
+                        roleplay.scenarioId,
+                        session.id,
+                        simView.transcriptSessionId,
+                    )
+                  : ROLEPLAY_ROUTES.app.sessionDebrief(
+                        roleplay.scenarioId,
+                        session.id,
+                        simView.transcriptSessionId,
+                    )
             : null;
 
         return (
             <SimulationView
+                assistantName={isPersona ? roleplay.name : roleplay.coachName?.trim() || "Coach IA"}
                 backLabel="Retour à l'évaluation de la session"
                 title={
                     isPersona
@@ -302,8 +355,7 @@ export function EvaluationPageContent({
                 }
                 liveTabLabel={isPersona ? "AI Persona" : "AI Coach"}
                 iframeSrc={iframeSrc}
-                personaName={roleplay.name}
-                transcript={evaluationData.transcript}
+                transcript={visibleSimulationTranscript}
                 onBack={() => setSimView(null)}
                 panel={
                     isPersona ? (
@@ -427,9 +479,9 @@ export function EvaluationPageContent({
                         {activeTab === "Synthèse globale" && (
                             <SyntheseTab
                                 evaluation={evaluationData}
-                                onAskPersona={() => setSimView("persona")}
-                                onAskCoach={() => setSimView("coachFeedback")}
-                                onDebrief={() => setSimView("coachDebrief")}
+                                onAskPersona={() => openSimulationView("persona")}
+                                onAskCoach={() => openSimulationView("coachFeedback")}
+                                onDebrief={() => openSimulationView("coachDebrief")}
                                 stepsHref={`/roleplays/${roleplay.id}/steps?coach=after&sessionId=${encodeURIComponent(session.id)}`}
                             />
                         )}

@@ -11,17 +11,18 @@ import {
     METHOD_STEP_SECTION_LABELS,
     type MethodStepSection,
 } from "@/features/methods/domain/method";
-import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import type { TranscriptMessage } from "@/features/roleplays/data/evaluation";
+import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import {
     ROLEPLAY_COACH_MODE,
     ROLEPLAY_COACH_NOTE_TYPE,
     ROLEPLAY_ROUTES,
-    formatRoleplayCoachMessageTime,
-    isRoleplayCoachTranscriptEvent,
+    appendRoleplayLiveTranscriptMessage,
+    isMatchingRoleplayLiveTranscriptEvent,
+    toRoleplayTranscriptMessages,
     type RoleplayCoachNote,
     type RoleplayCoachNoteType,
-    type RoleplayCoachTranscriptMessage,
+    type RoleplayLiveTranscriptMessage,
 } from "@/features/roleplays/domain";
 import { notify } from "@/lib/ui/feedback/toast";
 import { SimulationView } from "./SimulationView";
@@ -85,7 +86,7 @@ export function RoleplayStepCoachPageContent({
     variant = "prepare",
 }: RoleplayStepCoachPageContentProps) {
     const router = useRouter();
-    const [coachTranscript, setCoachTranscript] = useState<RoleplayCoachTranscriptMessage[]>([]);
+    const [coachTranscript, setCoachTranscript] = useState<RoleplayLiveTranscriptMessage[]>([]);
     const [notes, setNotes] = useState<RoleplayCoachNote[]>([]);
     const [noteDraft, setNoteDraft] = useState("");
     const [noteType, setNoteType] = useState<RoleplayCoachNoteType>(ROLEPLAY_COACH_NOTE_TYPE.keyPoint);
@@ -117,7 +118,7 @@ export function RoleplayStepCoachPageContent({
 
     // Le coach explicite garde l'affichage et le contexte alignés sur l'association courante du scénario.
     const iframeSrc = roleplay.scenarioId
-        ? `/iframe?scenario_id=${roleplay.scenarioId}&mode=coach&coach_mode=${coachMode}&step=${stepNumber}&coach_session_id=${coachSessionId}${coachIdQuery}${
+        ? `/iframe?scenario_id=${roleplay.scenarioId}&mode=coach&coach_mode=${coachMode}&step=${stepNumber}&transcript_session_id=${coachSessionId}${coachIdQuery}${
             referenceSessionId ? `&ref_session_id=${encodeURIComponent(referenceSessionId)}` : ""
         }`
         : null;
@@ -125,15 +126,14 @@ export function RoleplayStepCoachPageContent({
     useEffect(() => {
         function receiveTranscriptMessage(event: MessageEvent<unknown>) {
             if (event.origin !== window.location.origin) return;
-            if (!isRoleplayCoachTranscriptEvent(event.data)) return;
+            if (!roleplay.scenarioId) return;
+            if (!isMatchingRoleplayLiveTranscriptEvent(event.data, {
+                scenarioId: roleplay.scenarioId,
+                transcriptSessionId: coachSessionId,
+            })) return;
             const payload = event.data;
-            if (payload.coachSessionId !== coachSessionId) return;
-            if (payload.scenarioId !== roleplay.scenarioId) return;
 
-            setCoachTranscript((current) => {
-                if (current.some((message) => message.id === payload.message.id)) return current;
-                return [...current, payload.message];
-            });
+            setCoachTranscript((current) => appendRoleplayLiveTranscriptMessage(current, payload.message));
             setSaveFeedback("");
         }
 
@@ -143,12 +143,10 @@ export function RoleplayStepCoachPageContent({
 
     // Le transcript du roleplay reste un contexte IA invisible via referenceSessionId.
     // L'onglet Transcription affiche uniquement l'échange de la session coach courante.
-    const visibleCoachTranscript = useMemo<TranscriptMessage[]>(() => coachTranscript.map((message) => ({
-        id: message.id,
-        speaker: message.role === "assistant" ? "persona" : "you",
-        text: message.content,
-        time: formatRoleplayCoachMessageTime(message.timestamp),
-    })), [coachTranscript]);
+    const visibleCoachTranscript = useMemo(
+        () => toRoleplayTranscriptMessages(coachTranscript),
+        [coachTranscript],
+    );
 
     const addedTranscriptMessageIds = useMemo(
         () => new Set(notes.flatMap((note) => note.sourceMessageId ? [note.sourceMessageId] : [])),
@@ -281,12 +279,12 @@ export function RoleplayStepCoachPageContent({
     return (
         <SimulationView
                 addedTranscriptMessageIds={addedTranscriptMessageIds}
+                assistantName={coachName}
                 backLabel={backLabel}
                 title={`Coach IA — ${verb} sur « ${step.title} » · ${method.name} · Étape ${stepNumber}`}
                 liveTabLabel="AI Coach"
                 iframeSrc={iframeSrc}
                 onAddTranscriptMessage={addTranscriptMessageToNotes}
-                personaName={coachName}
                 transcript={visibleCoachTranscript}
                 transcriptAside={(
                     <MeetingNotesPanel

@@ -35,7 +35,7 @@ export default function CoachRealtimePanel({
     userDraft,
     assistantDraft,
 }: CoachRealtimePanelProps) {
-    const endRef = useRef<HTMLDivElement | null>(null);
+    const scrollContainerRef = useRef<HTMLDivElement | null>(null);
 
     const items = useMemo(() => {
         const drafts: CoachRealtimeMessage[] = [];
@@ -62,7 +62,14 @@ export default function CoachRealtimePanel({
     }, [assistantDraft, messages, userDraft]);
 
     useEffect(() => {
-        endRef.current?.scrollIntoView({ behavior: "smooth" });
+        if (items.length === 0) return;
+        const transcript = scrollContainerRef.current;
+        if (!transcript) return;
+
+        transcript.scrollTo({
+            behavior: "smooth",
+            top: transcript.scrollHeight,
+        });
     }, [items]);
 
     return (
@@ -94,7 +101,10 @@ export default function CoachRealtimePanel({
                 )}
             </div>
 
-            <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-3">
+            <div
+                ref={scrollContainerRef}
+                className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overscroll-contain p-3"
+            >
                 {items.length === 0 ? (
                     <div className="flex flex-1 flex-col items-center justify-center gap-2 px-6 text-center text-[#9CA3AF]">
                         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -158,7 +168,6 @@ export default function CoachRealtimePanel({
                         );
                     })
                 )}
-                <div ref={endRef} />
             </div>
         </div>
     );

@@ -1,15 +1,30 @@
-export const ROLEPLAY_INDEX_RECENT_SESSION_LIMIT = 6;
-export const ROLEPLAY_INDEX_BEST_SESSION_COUNT = 3;
-export const ROLEPLAY_INDEX_MINIMUM_VISIBLE_SESSION_COUNT = ROLEPLAY_INDEX_BEST_SESSION_COUNT;
-export const ROLEPLAY_INDEX_LABEL = "Score INDEX";
+import {
+    SCORE_INDEX_BEST_RESULT_COUNT,
+    SCORE_INDEX_LABEL,
+    SCORE_INDEX_MINIMUM_VISIBLE_RESULT_COUNT,
+    SCORE_INDEX_RECENT_RESULT_LIMIT,
+    calculateScoreIndex,
+    calculateScoreIndexSeries,
+    getScoreIndexDisplayState,
+    getScoreIndexTrend,
+    selectScoreIndexPositions,
+    type ScoreIndexDisplayState,
+    type ScoreIndexTrend,
+} from "@/features/content/domain";
+
+export const ROLEPLAY_INDEX_RECENT_SESSION_LIMIT = SCORE_INDEX_RECENT_RESULT_LIMIT;
+export const ROLEPLAY_INDEX_BEST_SESSION_COUNT = SCORE_INDEX_BEST_RESULT_COUNT;
+export const ROLEPLAY_INDEX_MINIMUM_VISIBLE_SESSION_COUNT =
+    SCORE_INDEX_MINIMUM_VISIBLE_RESULT_COUNT;
+export const ROLEPLAY_INDEX_LABEL = SCORE_INDEX_LABEL;
 export const ROLEPLAY_INDEX_TITLE = `Mon ${ROLEPLAY_INDEX_LABEL}`;
 export const ROLEPLAY_INDEX_DESCRIPTION =
     `${ROLEPLAY_INDEX_LABEL} disponible à partir de ${ROLEPLAY_INDEX_MINIMUM_VISIBLE_SESSION_COUNT} simulations éligibles. ` +
     `Il correspond à la moyenne des ${ROLEPLAY_INDEX_BEST_SESSION_COUNT} meilleurs scores parmi les ` +
     `${ROLEPLAY_INDEX_RECENT_SESSION_LIMIT} dernières simulations éligibles.`;
 
-export type RoleplayIndexTrend = "up" | "down" | "stable" | "unavailable";
-export type RoleplayIndexDisplayState = "available" | "empty" | "pending";
+export type RoleplayIndexTrend = ScoreIndexTrend;
+export type RoleplayIndexDisplayState = ScoreIndexDisplayState;
 
 export interface RoleplayIndexResult {
     delta: number | null;
@@ -27,65 +42,34 @@ export interface RoleplayIndexSession {
     sessionId: string;
 }
 
-export function getRoleplayIndexDisplayState(sessionCount: number): RoleplayIndexDisplayState {
-    if (!Number.isFinite(sessionCount) || sessionCount <= 0) return "empty";
-    if (sessionCount < ROLEPLAY_INDEX_MINIMUM_VISIBLE_SESSION_COUNT) return "pending";
-    return "available";
-}
-
-function normalizeScore(score: number) {
-    return Math.max(0, Math.min(100, score));
+export function getRoleplayIndexDisplayState(
+    sessionCount: number,
+): RoleplayIndexDisplayState {
+    return getScoreIndexDisplayState(sessionCount);
 }
 
 export function selectRoleplayIndexScorePositions(scoresByRecency: number[]) {
-    return scoresByRecency
-        .slice(0, ROLEPLAY_INDEX_RECENT_SESSION_LIMIT)
-        .map((score, position) => ({ position, score }))
-        .filter(({ score }) => Number.isFinite(score))
-        .map(({ position, score }) => ({ position, score: normalizeScore(score) }))
-        .sort((first, second) => second.score - first.score || first.position - second.position)
-        .slice(0, ROLEPLAY_INDEX_BEST_SESSION_COUNT)
-        .map(({ position }) => position);
-}
-
-function averageBestScores(scores: number[]) {
-    if (scores.length === 0) return null;
-
-    const recentScores = scores.slice(0, ROLEPLAY_INDEX_RECENT_SESSION_LIMIT);
-    const bestScores = selectRoleplayIndexScorePositions(recentScores).map((position) => recentScores[position]);
-
-    return Math.round(bestScores.reduce((total, score) => total + score, 0) / bestScores.length);
+    return selectScoreIndexPositions(scoresByRecency);
 }
 
 export function getRoleplayIndexTrend(delta: number | null): RoleplayIndexTrend {
-    if (delta === null) return "unavailable";
-    if (delta > 0) return "up";
-    if (delta < 0) return "down";
-    return "stable";
+    return getScoreIndexTrend(delta);
 }
 
-/**
- * L'INDEX est la moyenne des 3 meilleurs scores parmi les 6 dernières simulations éligibles.
- * Avec moins de 3 simulations, toutes les simulations disponibles sont retenues.
- */
 export function calculateRoleplayIndex(scoresByRecency: number[]): RoleplayIndexResult {
-    const scores = scoresByRecency.filter(Number.isFinite).map(normalizeScore);
-    const recentScores = scores.slice(0, ROLEPLAY_INDEX_RECENT_SESSION_LIMIT);
-    const score = averageBestScores(recentScores);
-    const previousScore = averageBestScores(scores.slice(1, ROLEPLAY_INDEX_RECENT_SESSION_LIMIT + 1));
-    const delta = score === null || previousScore === null ? null : score - previousScore;
+    const result = calculateScoreIndex(scoresByRecency);
 
     return {
-        delta,
-        score,
-        sessionCount: recentScores.length,
-        trend: getRoleplayIndexTrend(delta),
+        delta: result.delta,
+        score: result.score,
+        sessionCount: result.resultCount,
+        trend: result.trend,
     };
 }
 
-/** Calcule l'INDEX disponible après chacune des dernières simulations, de la plus récente à la plus ancienne. */
-export function calculateRoleplayIndexSeries(scoresByRecency: number[], pointCount = ROLEPLAY_INDEX_RECENT_SESSION_LIMIT) {
-    return scoresByRecency
-        .slice(0, pointCount)
-        .map((_, position) => calculateRoleplayIndex(scoresByRecency.slice(position)).score ?? 0);
+export function calculateRoleplayIndexSeries(
+    scoresByRecency: number[],
+    pointCount = ROLEPLAY_INDEX_RECENT_SESSION_LIMIT,
+) {
+    return calculateScoreIndexSeries(scoresByRecency, pointCount);
 }

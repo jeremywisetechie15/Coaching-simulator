@@ -3,18 +3,27 @@ import type { Method } from "@/features/methods/data/methods";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
+import type { RoleplayCoachNoteGroup } from "@/features/roleplays/domain";
 import type { StepCoachVariant } from "./RoleplayStepCoachPageContent";
 import { RoleplayStepsPageContent } from "./RoleplayStepsPageContent";
 
 interface RoleplayStepsPageProps {
     method: Method;
+    noteGroups: RoleplayCoachNoteGroup[];
     profileValues: ProfileFormValues;
     roleplay: RoleplayItem;
     referenceSessionId?: string;
     variant?: StepCoachVariant;
 }
 
-export function RoleplayStepsPage({ profileValues, roleplay, method, referenceSessionId, variant }: RoleplayStepsPageProps) {
+export function RoleplayStepsPage({
+    profileValues,
+    roleplay,
+    method,
+    noteGroups,
+    referenceSessionId,
+    variant,
+}: RoleplayStepsPageProps) {
     return (
         <AppShell
             activePrimaryItem="Roleplays"
@@ -28,6 +37,7 @@ export function RoleplayStepsPage({ profileValues, roleplay, method, referenceSe
             <RoleplayStepsPageContent
                 roleplay={roleplay}
                 method={method}
+                noteGroups={noteGroups}
                 referenceSessionId={referenceSessionId}
                 variant={variant}
             />

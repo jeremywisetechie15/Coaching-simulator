@@ -14,10 +14,10 @@ import { AlertCircle, Camera, Loader2, MicOff, Phone, PhoneOff, VideoOff } from 
 import { prepareIframeSession, type IframeSessionConfig } from "../actions";
 import CoachRealtimePanel, { type CoachRealtimeMessage } from "./CoachRealtimePanel";
 import {
-    ROLEPLAY_COACH_TRANSCRIPT_EVENT,
+    ROLEPLAY_LIVE_TRANSCRIPT_EVENT,
     type RoleplayCoachMode,
-    type RoleplayCoachTranscriptEvent,
-} from "@/features/roleplays/domain/coach-session-notes";
+    type RoleplayLiveTranscriptEvent,
+} from "@/features/roleplays/domain";
 import { useAiConversationTracking } from "@/features/activity-tracking/client";
 import {
     AI_CONVERSATION_STATUS,
@@ -33,7 +33,7 @@ interface CoachHeygenClientProps {
     model: string;
     coachId?: string;
     coachMode?: RoleplayCoachMode;
-    coachSessionId?: string;
+    transcriptSessionId?: string;
     step?: number;
 }
 
@@ -55,7 +55,7 @@ export default function CoachHeygenClient({
     model,
     coachId,
     coachMode,
-    coachSessionId,
+    transcriptSessionId,
     step,
 }: CoachHeygenClientProps) {
     const [status, setStatus] = useState<CoachSessionStatus>("loading");
@@ -231,16 +231,16 @@ export default function CoachHeygenClient({
         markTrackedConversationActivity(role);
         setLiveMessages((previous) => [...previous, newMessage]);
 
-        if (coachSessionId && scenarioId && window.parent !== window) {
-            const messageEvent: RoleplayCoachTranscriptEvent = {
-                coachSessionId,
+        if (transcriptSessionId && scenarioId && window.parent !== window) {
+            const messageEvent: RoleplayLiveTranscriptEvent = {
                 message: newMessage,
                 scenarioId,
-                type: ROLEPLAY_COACH_TRANSCRIPT_EVENT,
+                transcriptSessionId,
+                type: ROLEPLAY_LIVE_TRANSCRIPT_EVENT,
             };
             window.parent.postMessage(messageEvent, window.location.origin);
         }
-    }, [coachSessionId, markTrackedConversationActivity, scenarioId]);
+    }, [markTrackedConversationActivity, scenarioId, transcriptSessionId]);
 
     const syncLocalPreview = useCallback(() => {
         if (localPreviewRef.current && localVideoStreamRef.current && !isCameraOff) {

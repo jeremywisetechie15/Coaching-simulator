@@ -38,10 +38,10 @@ function mapQuizOption(quiz: QuizListItem): QuizOption {
 }
 
 export async function listQuizzes(): Promise<QuizListItem[]> {
-    await requireAuth();
+    const context = await requireAuth();
     const supabase = await createClient();
 
-    return fetchQuizList(supabase);
+    return fetchQuizList(supabase, context.userId);
 }
 
 export async function listQuizOptions(params: ListQuizOptionsParams = {}): Promise<QuizOption[]> {

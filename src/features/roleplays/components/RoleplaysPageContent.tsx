@@ -2,15 +2,23 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Archive, ArrowLeft, Copy, Edit3, History, MoreHorizontal, Phone, Plus } from "lucide-react";
+import { Archive, Copy, Edit3, History, Info, MoreHorizontal, Phone, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
-    ContextualBackLink,
     ContextualLink,
     useCurrentAppHref,
 } from "@/features/app-shell/components";
 import { withReturnTo, withSearchParams } from "@/features/app-shell/domain";
-import { ArchiveContentConfirmationModal, DiscProfileBadge } from "@/features/content/components";
+import {
+    ArchiveContentConfirmationModal,
+    LearnerContentStatusBadge,
+} from "@/features/content/components";
+import {
+    isLearnerContentStatusFilter,
+    LEARNER_CONTENT_STATUS_FILTER,
+    LEARNER_CONTENT_STATUS_FILTER_OPTIONS,
+    type LearnerContentStatusFilter,
+} from "@/features/content/domain";
 import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
 import {
     categoryBadgeStyles,
@@ -24,8 +32,23 @@ import {
 } from "@/features/roleplays/data/roleplays";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import { ROLEPLAY_ROUTES } from "@/features/roleplays/domain";
-import { Box, Button, CardSurface, InlineIcon, Text, Tooltip } from "@/lib/ui/atoms";
-import { CardActionMenu, CardActionMenuButton, CardActionMenuLink, FilterSelect } from "@/lib/ui/molecules";
+import {
+    Box,
+    Button,
+    CardSurface,
+    InlineIcon,
+    Text,
+    Tooltip,
+} from "@/lib/ui/atoms";
+import {
+    AnimatedEntityHeader,
+    CardActionMenu,
+    CardActionMenuButton,
+    CardActionMenuLink,
+    FilterSelect,
+    LibraryFilterBar,
+    LibrarySearchField,
+} from "@/lib/ui/molecules";
 import { ENTITY_ACTION_LABELS } from "@/lib/ui/domain/entity-action";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -78,6 +101,7 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
     const router = useRouter();
     const searchParams = useSearchParams();
     const currentHref = useCurrentAppHref();
+    const [query, setQuery] = useState(searchParams.get("q") ?? "");
     const initialDomain = roleplayDomainFilterOptions.includes(searchParams.get("domain") ?? "")
         ? searchParams.get("domain")!
         : roleplayDomainFilterOptions[0];
@@ -93,10 +117,11 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
             ? searchParams.get("level")!
             : roleplayLevelFilterOptions[0],
     );
-    const [disc, setDisc] = useState(
-        roleplayDiscFilterOptions.includes(searchParams.get("disc") ?? "")
-            ? searchParams.get("disc")!
-            : roleplayDiscFilterOptions[0],
+    const requestedLearnerStatus = searchParams.get("learnerStatus");
+    const [learnerStatus, setLearnerStatus] = useState<LearnerContentStatusFilter>(
+        isLearnerContentStatusFilter(requestedLearnerStatus)
+            ? requestedLearnerStatus
+            : LEARNER_CONTENT_STATUS_FILTER.all,
     );
     const [busyRoleplayId, setBusyRoleplayId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -105,9 +130,24 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
 
     const categoryOptions = useMemo(() => getRoleplayCategoryFilterOptions(domain), [domain]);
     const filteredRoleplays = useMemo(
-        () => filterRoleplaysByLibraryFilters(roleplays, { category, disc, domain, level }),
-        [category, disc, domain, level, roleplays],
+        () =>
+            filterRoleplaysByLibraryFilters(roleplays, {
+                category,
+                disc: roleplayDiscFilterOptions[0],
+                domain,
+                learnerStatus,
+                level,
+                query,
+            }),
+        [category, domain, learnerStatus, level, query, roleplays],
     );
+
+    function updateQuery(value: string) {
+        setQuery(value);
+        router.replace(withSearchParams(currentHref, { q: value.trim() || null }), {
+            scroll: false,
+        });
+    }
 
     function selectDomain(nextDomain: string) {
         setDomain(nextDomain);
@@ -122,7 +162,7 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
     }
 
     function selectFilter(
-        key: "category" | "disc" | "level",
+        key: "category" | "level",
         value: string,
         fallback: string,
         setter: (nextValue: string) => void,
@@ -130,6 +170,19 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
         setter(value);
         router.replace(
             withSearchParams(currentHref, { [key]: value === fallback ? null : value }),
+            { scroll: false },
+        );
+    }
+
+    function selectLearnerStatus(value: string) {
+        if (!isLearnerContentStatusFilter(value)) return;
+
+        setLearnerStatus(value);
+        router.replace(
+            withSearchParams(currentHref, {
+                learnerStatus:
+                    value === LEARNER_CONTENT_STATUS_FILTER.all ? null : value,
+            }),
             { scroll: false },
         );
     }
@@ -170,39 +223,50 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
     return (
         <Box as="main" className="px-5 pb-12 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1260px]">
-                <Box className="mb-7 flex items-start gap-4 md:gap-6">
-                    <ContextualBackLink
-                        fallbackHref="/"
-                        aria-label="Retour"
-                        className="mt-2 flex h-8 w-8 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
-                    >
-                        <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                    </ContextualBackLink>
-                    <Box className="flex min-w-0 flex-1 flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                        <Box className="min-w-0">
-                            <Text as="h1" className="text-[30px] font-extrabold leading-tight text-[#111827] md:text-[34px]">
-                                Bibliothèque de Roleplays
-                            </Text>
-                            <Text className="mt-2 text-[15px] font-semibold leading-6 text-[#596273]">
-                                Pratiquez vos compétences avec des scénarios réalistes
-                            </Text>
-                        </Box>
+                <AnimatedEntityHeader
+                    className="mb-7"
+                    title="Bibliothèque de Roleplays"
+                    tone="roleplay"
+                    actions={
+                        <>
+                            {canManage && (
+                                <ContextualLink
+                                    href="/roleplays/new"
+                                    className={uiTokens.entityHeader.action.primary}
+                                >
+                                    <InlineIcon icon={Plus} className="h-4 w-4" />
+                                    Créer un scénario
+                                </ContextualLink>
+                            )}
                         <ContextualLink
                             href={ROLEPLAY_ROUTES.app.history}
-                            className="flex h-11 shrink-0 items-center justify-center rounded-xl border border-[#C9C2FB] bg-white px-6 text-[14px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
+                            className={uiTokens.entityHeader.action.primary}
                         >
                             Historique des sessions
-                        </ContextualLink>
-                    </Box>
-                </Box>
+                            </ContextualLink>
+                        </>
+                    }
+                />
 
-                <CardSurface className="mb-7 rounded-[16px] border border-[#E9E7FB] p-4 shadow-[0_1px_2px_rgba(17,24,39,0.04)]">
-                    <Box className="flex flex-wrap items-center gap-3">
-                        <Box className="min-w-[160px] flex-1 sm:max-w-[208px]">
-                            <FilterSelect ariaLabel="Filtrer par domaine" options={roleplayDomainFilterOptions} value={domain} onChange={selectDomain} />
-                        </Box>
-                        <Box className="min-w-[160px] flex-1 sm:max-w-[208px]">
+                <LibraryFilterBar>
+                        <LibrarySearchField
+                            ariaLabel="Rechercher un scénario"
+                            onChange={updateQuery}
+                            placeholder="Rechercher un scénario..."
+                            value={query}
+                        />
+                        <Box className={uiTokens.filterBar.librarySelectDomain}>
                             <FilterSelect
+                                appearance="library"
+                                ariaLabel="Filtrer par domaine"
+                                options={roleplayDomainFilterOptions}
+                                value={domain}
+                                onChange={selectDomain}
+                            />
+                        </Box>
+                        <Box className={uiTokens.filterBar.librarySelectCategory}>
+                            <FilterSelect
+                                appearance="library"
                                 ariaLabel="Filtrer par catégorie"
                                 options={categoryOptions}
                                 value={category}
@@ -211,33 +275,25 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                                 }
                             />
                         </Box>
-                        <Box className="min-w-[160px] flex-1 sm:max-w-[208px]">
+                        <Box className={uiTokens.filterBar.librarySelectLevel}>
                             <FilterSelect
+                                appearance="library"
                                 ariaLabel="Filtrer par niveau"
                                 options={roleplayLevelFilterOptions}
                                 value={level}
                                 onChange={(value) => selectFilter("level", value, roleplayLevelFilterOptions[0], setLevel)}
                             />
                         </Box>
-                        <Box className="min-w-[160px] flex-1 sm:max-w-[208px]">
+                        <Box className={uiTokens.filterBar.librarySelectStatus}>
                             <FilterSelect
-                                ariaLabel="Filtrer par profil DISC"
-                                options={roleplayDiscFilterOptions}
-                                value={disc}
-                                onChange={(value) => selectFilter("disc", value, roleplayDiscFilterOptions[0], setDisc)}
+                                appearance="library"
+                                ariaLabel="Filtrer par statut"
+                                options={LEARNER_CONTENT_STATUS_FILTER_OPTIONS}
+                                value={learnerStatus}
+                                onChange={selectLearnerStatus}
                             />
                         </Box>
-                        {canManage && (
-                            <ContextualLink
-                                href="/roleplays/new"
-                                className="ml-auto flex h-11 items-center justify-center gap-2 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7]"
-                            >
-                                <InlineIcon icon={Plus} className="h-4 w-4" />
-                                Créer un scénario
-                            </ContextualLink>
-                        )}
-                    </Box>
-                </CardSurface>
+                </LibraryFilterBar>
 
                 {error && !roleplayToArchive && (
                     <CardSurface className="mb-5 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 shadow-none">
@@ -255,13 +311,17 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                             const cardTitle = roleplay.title || roleplay.category;
                             const attemptCount = roleplay.detail.simulations;
                             const attemptLabel = `${attemptCount} tentative${attemptCount === 1 ? "" : "s"} réalisée${attemptCount === 1 ? "" : "s"}`;
+                            const bestScoreLabel =
+                                attemptCount > 0
+                                    ? `${Math.round(roleplay.detail.meilleurScore)}%`
+                                    : "—";
 
                             return (
                                 <CardSurface
                                     key={roleplay.id}
                                     className="relative flex flex-col rounded-[16px] border border-[#E5E7EB] shadow-none transition duration-200 hover:-translate-y-0.5 hover:shadow-[0_16px_36px_rgba(17,24,39,0.12)]"
                                 >
-                                    <Box className="relative h-[92px] rounded-t-[16px] bg-gradient-to-b from-[#6A57F5] to-[#5B49F2]">
+                                    <Box className={uiTokens.roleplayCard.header}>
                                         <Box
                                             className="absolute left-4 top-4 inline-flex h-5 items-center rounded-lg px-2.5 text-[12px] font-semibold"
                                             style={{ backgroundColor: categoryStyle.bg, color: categoryStyle.text }}
@@ -319,8 +379,8 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                                         </Box>
                                     </Box>
 
-                                    <Box className="-mt-[46px] flex flex-1 flex-col items-center px-6 pb-6">
-                                        <Box className="relative z-10 h-[92px] w-[92px] overflow-hidden rounded-full border-4 border-white bg-[#F1F2F6] shadow-[0_8px_20px_rgba(17,24,39,0.14)]">
+                                    <Box className={uiTokens.roleplayCard.body}>
+                                        <Box className={uiTokens.roleplayCard.avatar}>
                                             <Box
                                                 aria-label={roleplay.name}
                                                 role="img"
@@ -329,17 +389,14 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                                             />
                                         </Box>
 
-                                        <Text as="h3" className="mt-3 text-[19px] font-extrabold leading-6 text-[#111827]">
+                                        <Text as="h3" className={uiTokens.roleplayCard.personaName}>
                                             {roleplay.name}
                                         </Text>
-                                        <Text className="mt-1 text-[14px] font-semibold text-[#596273]">
-                                            {roleplay.role}
-                                        </Text>
-                                        <Text className="mt-0.5 text-[13px] font-semibold text-[#9CA3AF]">
-                                            @ {roleplay.company}
+                                        <Text className={uiTokens.roleplayCard.personaMeta}>
+                                            {roleplay.role} @ {roleplay.company}
                                         </Text>
 
-                                        <Box className="mt-3 flex items-center gap-2">
+                                        <Box className={uiTokens.roleplayCard.badges}>
                                             <Box
                                                 className="inline-flex h-[26px] items-center rounded-lg border px-2.5 text-[12px] font-bold"
                                                 style={{
@@ -350,32 +407,79 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                                             >
                                                 {roleplay.difficulty}
                                             </Box>
-                                            <DiscProfileBadge
-                                                profile={roleplay.disc}
-                                                className="h-[26px] border-0 text-[12px]"
+                                            <LearnerContentStatusBadge
+                                                status={roleplay.learnerStatus}
+                                                className="h-[26px] text-[12px]"
                                             />
                                         </Box>
 
-                                        <Box className="my-4 h-px w-full bg-[#ECEEF3]" />
+                                        <Box className={uiTokens.roleplayCard.divider} />
 
-                                        <Box className="flex-1 text-center">
+                                        <Box className={uiTokens.roleplayCard.content}>
                                             <Text
                                                 title={cardTitle}
-                                                className="text-[14px] font-extrabold leading-5 text-[#111827]"
+                                                className={uiTokens.roleplayCard.title}
                                             >
                                                 {cardTitle}
                                             </Text>
                                             <Text
                                                 title={roleplay.description}
-                                                className="mt-1 text-[14px] font-medium leading-6 text-[#4B5563]"
+                                                className={uiTokens.roleplayCard.description}
                                             >
                                                 {cardDescription}
                                             </Text>
                                         </Box>
 
+                                        <Box className={uiTokens.roleplayCard.stats}>
+                                            <Box className={uiTokens.roleplayCard.stat}>
+                                                <Box className={uiTokens.roleplayCard.statLabelRow}>
+                                                    <Text as="span" className={uiTokens.roleplayCard.statLabel}>
+                                                        Sessions
+                                                    </Text>
+                                                    <Tooltip content="Nombre de sessions réalisées">
+                                                        <Box
+                                                            aria-label="Information sur le nombre de sessions"
+                                                            className={uiTokens.roleplayCard.statInfo}
+                                                            tabIndex={0}
+                                                        >
+                                                            <InlineIcon
+                                                                icon={Info}
+                                                                className={uiTokens.roleplayCard.statInfoIcon}
+                                                            />
+                                                        </Box>
+                                                    </Tooltip>
+                                                </Box>
+                                                <Text className={uiTokens.roleplayCard.statValue}>
+                                                    {attemptCount}
+                                                </Text>
+                                            </Box>
+                                            <Box className={uiTokens.roleplayCard.stat}>
+                                                <Box className={uiTokens.roleplayCard.statLabelRow}>
+                                                    <Text as="span" className={uiTokens.roleplayCard.statLabel}>
+                                                        Meilleur
+                                                    </Text>
+                                                    <Tooltip content="Meilleur score obtenu">
+                                                        <Box
+                                                            aria-label="Information sur le meilleur score"
+                                                            className={uiTokens.roleplayCard.statInfo}
+                                                            tabIndex={0}
+                                                        >
+                                                            <InlineIcon
+                                                                icon={Info}
+                                                                className={uiTokens.roleplayCard.statInfoIcon}
+                                                            />
+                                                        </Box>
+                                                    </Tooltip>
+                                                </Box>
+                                                <Text className={uiTokens.roleplayCard.statValue}>
+                                                    {bestScoreLabel}
+                                                </Text>
+                                            </Box>
+                                        </Box>
+
                                         <ContextualLink
                                             href={ROLEPLAY_ROUTES.app.detail(roleplay.id)}
-                                            className="mt-5 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#5140F0] text-[14px] font-semibold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7]"
+                                            className={uiTokens.roleplayCard.action}
                                         >
                                             <InlineIcon icon={Phone} className="h-4 w-4" />
                                             S&apos;entraîner

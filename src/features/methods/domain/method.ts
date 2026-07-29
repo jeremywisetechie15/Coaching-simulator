@@ -22,6 +22,7 @@ export const METHOD_ROUTES = {
     },
     app: {
         collection: "/methods",
+        create: "/methods/new",
         detail: (methodId: string) => `/methods/${encodeRouteSegment(methodId)}`,
         edit: (methodId: string) => `/methods/${encodeRouteSegment(methodId)}/edit`,
     },

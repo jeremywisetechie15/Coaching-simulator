@@ -1,7 +1,17 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, BookOpen, ChevronDown, ChevronUp, Edit3, Target, TrendingUp, Users } from "lucide-react";
+import {
+    ArrowLeft,
+    BookOpen,
+    ChevronDown,
+    ChevronUp,
+    Edit3,
+    Target,
+    TrendingDown,
+    TrendingUp,
+    Users,
+} from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
 import {
@@ -14,6 +24,7 @@ import {
     type SkillDimension,
     type SkillLevel,
 } from "@/features/skills/domain/skills";
+import type { UserSkillProgress } from "@/features/users/domain/users";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -21,6 +32,7 @@ import { SKILL_TYPE_TONES } from "./skill-ui";
 
 interface SkillDetailPageContentProps {
     canManage?: boolean;
+    progress?: UserSkillProgress | null;
     skill: SkillDetail;
 }
 
@@ -44,23 +56,11 @@ const levelStyles: Record<SkillLevel, { badge: string; bar: string }> = {
     Maîtrisées: { badge: "border-[#BBF7D0] bg-[#F0FDF4] text-[#16A34A]", bar: "#22C55E" },
 };
 
-/**
- * Scores de progression « placeholder » (déterministes par compétence) tant que la
- * logique de scoring apprenant n'est pas branchée.
- * TODO: remplacer par les vrais scores (résultats apprenant) une fois disponibles.
- */
-function placeholderScores(skill: SkillDetail): Record<SkillDimension, number> {
-    const seed = Array.from(skill.id).reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const scoreFor = (offset: number) => 72 + ((seed * 7 + offset * 29) % 24);
-
-    return {
-        savoir: scoreFor(1),
-        savoir_faire: scoreFor(2),
-        savoir_etre: scoreFor(3),
-    };
-}
-
-export function SkillDetailPageContent({ canManage = false, skill }: SkillDetailPageContentProps) {
+export function SkillDetailPageContent({
+    canManage = false,
+    progress = null,
+    skill,
+}: SkillDetailPageContentProps) {
     const [stateOpen, setStateOpen] = useState(false);
     const typeTone = SKILL_TYPE_TONES[skill.type];
 
@@ -70,14 +70,12 @@ export function SkillDetailPageContent({ canManage = false, skill }: SkillDetail
             .filter((item) => item.dimension === dimension && item.isActive)
             .sort((first, second) => first.order - second.order),
     })).filter((entry) => entry.items.length > 0);
-
-    const scores = placeholderScores(skill);
-    const overallScore = Math.round(
-        SKILL_DIMENSIONS.reduce((total, dimension) => total + scores[dimension], 0) / SKILL_DIMENSIONS.length,
+    const overallScore = progress?.score ?? null;
+    const overallLevel = overallScore === null ? null : getSkillLevel(overallScore);
+    const overallStyle = overallLevel ? levelStyles[overallLevel] : null;
+    const scoreByDimension = new Map(
+        (progress?.dimensions ?? []).map((dimension) => [dimension.key, dimension.score]),
     );
-    const overallLevel = getSkillLevel(overallScore);
-    const overallStyle = levelStyles[overallLevel];
-    const deltaScore = 8 + (Array.from(skill.id).reduce((acc, char) => acc + char.charCodeAt(0), 0) % 17);
 
     return (
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
@@ -145,22 +143,45 @@ export function SkillDetailPageContent({ canManage = false, skill }: SkillDetail
                             aria-expanded={stateOpen}
                             className="flex w-full items-center gap-3"
                         >
-                            <Box className={cn("inline-flex h-7 shrink-0 items-center rounded-lg border px-2.5 text-[13px] font-bold", overallStyle.badge)}>
-                                {overallScore}%
+                            <Box
+                                className={cn(
+                                    "inline-flex h-7 shrink-0 items-center rounded-lg border px-2.5 text-[13px] font-bold",
+                                    overallStyle?.badge ?? uiTokens.tone.neutral.soft,
+                                )}
+                            >
+                                {overallScore === null ? "Non évalué" : `${overallScore}%`}
                             </Box>
                             <Box className={cn(uiTokens.progress.track, "h-2.5 flex-1")}>
+                                {overallScore !== null && overallStyle && (
+                                    <Box
+                                        className={uiTokens.progress.fillBase}
+                                        style={{ width: `${overallScore}%`, backgroundColor: overallStyle.bar }}
+                                    />
+                                )}
+                            </Box>
+                            <Box
+                                className={cn(
+                                    "hidden h-7 shrink-0 items-center rounded-lg border px-2.5 text-[12px] font-semibold sm:inline-flex",
+                                    overallStyle?.badge ?? uiTokens.tone.neutral.soft,
+                                )}
+                            >
+                                {overallLevel ?? "Non évalué"}
+                            </Box>
+                            {progress?.delta !== null && progress?.delta !== undefined && (
                                 <Box
-                                    className={uiTokens.progress.fillBase}
-                                    style={{ width: `${overallScore}%`, backgroundColor: overallStyle.bar }}
-                                />
-                            </Box>
-                            <Box className={cn("hidden h-7 shrink-0 items-center rounded-lg border px-2.5 text-[12px] font-semibold sm:inline-flex", overallStyle.badge)}>
-                                {overallLevel}
-                            </Box>
-                            <Box className={cn("hidden shrink-0 items-center gap-1 text-[13px] font-bold sm:flex", uiTokens.text.success)}>
-                                <InlineIcon icon={TrendingUp} className="h-4 w-4" />
-                                +{deltaScore}%
-                            </Box>
+                                    className={cn(
+                                        "hidden shrink-0 items-center gap-1 text-[13px] font-bold sm:flex",
+                                        progress.delta >= 0 ? uiTokens.text.success : uiTokens.text.danger,
+                                    )}
+                                >
+                                    <InlineIcon
+                                        icon={progress.delta < 0 ? TrendingDown : TrendingUp}
+                                        className="h-4 w-4"
+                                    />
+                                    {progress.delta > 0 ? "+" : ""}
+                                    {progress.delta}%
+                                </Box>
+                            )}
                             <InlineIcon
                                 icon={stateOpen ? ChevronUp : ChevronDown}
                                 className={cn("h-4 w-4 shrink-0", uiTokens.text.muted)}
@@ -177,9 +198,9 @@ export function SkillDetailPageContent({ canManage = false, skill }: SkillDetail
                                 </Box>
                                 <Box className="space-y-2.5">
                                     {SKILL_DIMENSIONS.map((dimension) => {
-                                        const score = scores[dimension];
-                                        const level = getSkillLevel(score);
-                                        const style = levelStyles[level];
+                                        const score = scoreByDimension.get(dimension) ?? null;
+                                        const level = score === null ? null : getSkillLevel(score);
+                                        const style = level ? levelStyles[level] : null;
                                         const tone = dimensionTone[dimension];
 
                                         return (
@@ -194,15 +215,24 @@ export function SkillDetailPageContent({ canManage = false, skill }: SkillDetail
                                                         {SKILL_DIMENSION_TITLES[dimension]}
                                                     </Text>
                                                 </Box>
-                                                <Text className={cn("text-[13px] font-bold", uiTokens.text.heading)}>{score}%</Text>
+                                                <Text className={cn("text-[13px] font-bold", uiTokens.text.heading)}>
+                                                    {score === null ? "—" : `${score}%`}
+                                                </Text>
                                                 <Box className={cn(uiTokens.progress.track, "h-2")}>
-                                                    <Box
-                                                        className={uiTokens.progress.fillBase}
-                                                        style={{ width: `${score}%`, backgroundColor: style.bar }}
-                                                    />
+                                                    {score !== null && style && (
+                                                        <Box
+                                                            className={uiTokens.progress.fillBase}
+                                                            style={{ width: `${score}%`, backgroundColor: style.bar }}
+                                                        />
+                                                    )}
                                                 </Box>
-                                                <Box className={cn("inline-flex h-6 w-fit items-center rounded-full border px-2.5 text-[12px] font-semibold", style.badge)}>
-                                                    {level}
+                                                <Box
+                                                    className={cn(
+                                                        "inline-flex h-6 w-fit items-center rounded-full border px-2.5 text-[12px] font-semibold",
+                                                        style?.badge ?? uiTokens.tone.neutral.soft,
+                                                    )}
+                                                >
+                                                    {level ?? "Non évalué"}
                                                 </Box>
                                             </Box>
                                         );

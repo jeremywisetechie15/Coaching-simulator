@@ -3,14 +3,16 @@ import { APP_NAVIGATION_RESOURCE, canManageAppResource } from "@/features/auth/d
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import type { SkillDetail } from "@/features/skills/domain/skills";
+import type { UserSkillProgress } from "@/features/users/domain/users";
 import { SkillDetailPageContent } from "./SkillDetailPageContent";
 
 interface SkillDetailPageProps {
     profileValues: ProfileFormValues;
+    progress: UserSkillProgress | null;
     skill: SkillDetail;
 }
 
-export function SkillDetailPage({ profileValues, skill }: SkillDetailPageProps) {
+export function SkillDetailPage({ profileValues, progress, skill }: SkillDetailPageProps) {
     const canManageSkills = canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.skills);
 
     return (
@@ -23,7 +25,11 @@ export function SkillDetailPage({ profileValues, skill }: SkillDetailPageProps) 
             email={profileValues.email}
             searchPlaceholder="Rechercher..."
         >
-            <SkillDetailPageContent canManage={canManageSkills} skill={skill} />
+            <SkillDetailPageContent
+                canManage={canManageSkills}
+                progress={progress}
+                skill={skill}
+            />
         </AppShell>
     );
 }

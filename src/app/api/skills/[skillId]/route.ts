@@ -1,5 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { archiveSkill, getSkillById, parseSaveSkillRequest, updateSkill } from "@/features/skills/server";
+import {
+    archiveSkill,
+    getCurrentSkillPageData,
+    parseSaveSkillRequest,
+    updateSkill,
+} from "@/features/skills/server";
 import { jsonError } from "@/lib/server/http";
 
 export const dynamic = "force-dynamic";
@@ -11,9 +16,9 @@ interface SkillRouteContext {
 export async function GET(_request: NextRequest, context: SkillRouteContext) {
     try {
         const { skillId } = await context.params;
-        const skill = await getSkillById(skillId);
+        const { progress, skill } = await getCurrentSkillPageData(skillId);
 
-        return NextResponse.json({ skill });
+        return NextResponse.json({ progress, skill });
     } catch (error) {
         return jsonError(error);
     }

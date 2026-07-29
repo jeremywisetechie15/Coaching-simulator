@@ -107,7 +107,8 @@ function mapDbQuizzesToPrepQuizzes(roleplay: DbRoleplayDetail): PrepQuiz[] {
         participation: quiz.participation,
         questionCount: quiz.questionCount,
         recommended: index === 0,
-        status: "not_started",
+        ...(quiz.scorePercent === null ? {} : { scorePercent: quiz.scorePercent }),
+        status: quiz.hasInProgress ? "in_progress" : quiz.learnerStatus,
         title: quiz.title,
         type: getQuizTypeLabel(quiz.type),
         url: EVALUATION_ROUTES.app.quiz(quiz.id),
@@ -170,7 +171,10 @@ function buildDetail(roleplay: RoleplayListItem | DbRoleplayDetail, mock: Rolepl
         lastDate: hasDbStats && dbStats ? dbStats.lastDate : mockDetail.lastDate,
         lastDuration: hasDbStats && dbStats ? dbStats.lastDuration : mockDetail.lastDuration,
         learnerRole: dbDetail ? dbDetail.learnerRole : mockDetail.learnerRole,
-        meilleurScore: hasDbStats && dbStats ? dbStats.bestScore : mockDetail.meilleurScore,
+        meilleurScore:
+            hasDbStats && dbStats
+                ? dbStats.bestScore
+                : roleplay.bestScore ?? 0,
         method: textOrMock(roleplay.methodName, mockDetail.method),
         objections: dbDetail ? textOrMock(dbDetail.obstacles, mockDetail.objections) : mockDetail.objections,
         scoreActuel: hasDbStats && dbStats ? dbStats.scoreActuel : mockDetail.scoreActuel,
@@ -201,6 +205,7 @@ export function mapDbRoleplayToUi(roleplay: RoleplayListItem | DbRoleplayDetail,
         id: roleplay.id,
         latestEvaluationSessionId:
             "stats" in roleplay ? roleplay.stats.latestEligibleSessionId ?? undefined : undefined,
+        learnerStatus: roleplay.learnerStatus,
         methodId: roleplay.methodId ?? mock?.methodId ?? "",
         name: textOrMock(roleplay.name, mock?.name ?? roleplay.title),
         prepDocuments,

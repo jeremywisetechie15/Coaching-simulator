@@ -7,10 +7,10 @@ import { extractRealtimeAssistantTranscript } from "@/lib/openai/realtime-transc
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 import {
-    ROLEPLAY_COACH_TRANSCRIPT_EVENT,
+    ROLEPLAY_LIVE_TRANSCRIPT_EVENT,
     type RoleplayCoachMode,
-    type RoleplayCoachTranscriptEvent,
-} from "@/features/roleplays/domain/coach-session-notes";
+    type RoleplayLiveTranscriptEvent,
+} from "@/features/roleplays/domain";
 import {
     ROLEPLAY_SESSION_LIFECYCLE_EVENT,
     ROLEPLAY_SESSION_LIFECYCLE_STATUS,
@@ -60,12 +60,12 @@ interface IframeClientProps {
     model: string;
     coachId?: string;
     coachMode?: RoleplayCoachMode;
-    coachSessionId?: string;
+    transcriptSessionId?: string;
     step?: number;
     variant?: "coach";
 }
 
-export default function IframeClient({ scenarioId, mode, refSessionId, model, coachId, coachMode, coachSessionId, step, variant }: IframeClientProps) {
+export default function IframeClient({ scenarioId, mode, refSessionId, model, coachId, coachMode, transcriptSessionId, step, variant }: IframeClientProps) {
     const [status, setStatus] = useState<SessionStatus>("loading");
     const [error, setError] = useState<string | null>(null);
     const [config, setConfig] = useState<IframeSessionConfig | null>(null);
@@ -75,7 +75,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
     const [isMicMuted, setIsMicMuted] = useState(false);
     const [isCameraOff, setIsCameraOff] = useState(false);
     const [liveMessages, setLiveMessages] = useState<ConversationMessage[]>([]);
-    const transcriptEndRef = useRef<HTMLDivElement | null>(null);
+    const transcriptScrollRef = useRef<HTMLDivElement | null>(null);
     const trackedInteractionType = mode === "coach"
         ? AI_CONVERSATION_TYPE.coach
         : variant === "coach"
@@ -288,28 +288,33 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
         markTrackedConversationActivity(role);
 
         if (
-            mode === "coach" &&
-            coachSessionId &&
+            trackedInteractionType &&
+            transcriptSessionId &&
             scenarioId &&
             window.parent !== window
         ) {
-            const messageEvent: RoleplayCoachTranscriptEvent = {
-                coachSessionId,
+            const messageEvent: RoleplayLiveTranscriptEvent = {
                 message: newMessage,
                 scenarioId,
-                type: ROLEPLAY_COACH_TRANSCRIPT_EVENT,
+                transcriptSessionId,
+                type: ROLEPLAY_LIVE_TRANSCRIPT_EVENT,
             };
             window.parent.postMessage(messageEvent, window.location.origin);
         }
 
-        // Update live state to trigger re-render of transcript panel
         setLiveMessages(prev => [...prev, newMessage]);
+    }, [markTrackedConversationActivity, scenarioId, trackedInteractionType, transcriptSessionId]);
 
-        // Auto-scroll transcript panel
-        setTimeout(() => {
-            transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
-        }, 50);
-    }, [coachSessionId, markTrackedConversationActivity, mode, scenarioId]);
+    useEffect(() => {
+        if (liveMessages.length === 0) return;
+        const transcript = transcriptScrollRef.current;
+        if (!transcript) return;
+
+        transcript.scrollTo({
+            behavior: "smooth",
+            top: transcript.scrollHeight,
+        });
+    }, [liveMessages]);
 
     const handleRealtimeEvent = useCallback((event: { type: string;[key: string]: unknown }) => {
         const eventId = (event as { event_id?: string }).event_id;
@@ -1235,14 +1240,19 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                     </div>
 
                     {/* Messages list */}
-                    <div style={{
-                        flex: 1,
-                        overflowY: 'auto',
-                        padding: '12px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '12px',
-                    }}>
+                    <div
+                        ref={transcriptScrollRef}
+                        style={{
+                            display: 'flex',
+                            flex: 1,
+                            flexDirection: 'column',
+                            gap: '12px',
+                            minHeight: 0,
+                            overflowY: 'auto',
+                            overscrollBehavior: 'contain',
+                            padding: '12px',
+                        }}
+                    >
                         {liveMessages.length === 0 ? (
                             <div style={{
                                 flex: 1,
@@ -1323,7 +1333,6 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                                 );
                             })
                         )}
-                        <div ref={transcriptEndRef} />
                     </div>
                 </div>
             )}{/* end transcript panel */}

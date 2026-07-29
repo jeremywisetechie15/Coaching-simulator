@@ -12,6 +12,7 @@ function publishedQuiz(overrides: Partial<SaveQuizInput> = {}): SaveQuizInput {
     return {
         categories: ["Prospection"],
         description: "Vérifier la connaissance de la méthode.",
+        difficulty: "Moyen",
         domain: "Commercial",
         durationMinutes: 30,
         maxAttempts: 3,
@@ -53,6 +54,7 @@ describe("saveQuizDto", () => {
         const result = saveQuizDto.parse({ title: "Quiz brouillon" });
 
         expect(result.categories).toEqual([]);
+        expect(result.difficulty).toBeNull();
         expect(result.maxAttempts).toBe(3);
         expect(result.status).toBe(CONTENT_STATUS.draft);
         expect(result.quizKind).toBe(QUIZ_KIND.contextual);
@@ -61,6 +63,23 @@ describe("saveQuizDto", () => {
         expect(result.groupId).toBeNull();
         expect(result.assignedUserId).toBeNull();
         expect(result.steps).toEqual([]);
+    });
+
+    it.each(["Facile", "Moyen", "Difficile"] as const)(
+        "accepts the shared %s difficulty",
+        (difficulty) => {
+            expect(saveQuizDto.parse({ difficulty, title: "Quiz" }).difficulty).toBe(difficulty);
+        },
+    );
+
+    it("rejects a difficulty outside the shared vocabulary", () => {
+        const result = saveQuizDto.safeParse({
+            difficulty: "Expert",
+            title: "Quiz",
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain("difficulty");
     });
 
     it("accepts a published quiz without a domain or categories", () => {

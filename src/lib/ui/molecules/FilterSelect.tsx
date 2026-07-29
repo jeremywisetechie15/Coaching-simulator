@@ -17,13 +17,20 @@ function getOptionLabel(option: FilterSelectOption) {
 }
 
 interface FilterSelectProps {
+    appearance?: keyof typeof uiTokens.filterSelect.triggerAppearance;
     ariaLabel: string;
     onChange: (value: string) => void;
     options: readonly FilterSelectOption[];
     value: string;
 }
 
-export function FilterSelect({ ariaLabel, onChange, options, value }: FilterSelectProps) {
+export function FilterSelect({
+    appearance = "default",
+    ariaLabel,
+    onChange,
+    options,
+    value,
+}: FilterSelectProps) {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
     const selectedOption = options.find((option) => getOptionValue(option) === value);
@@ -46,7 +53,10 @@ export function FilterSelect({ ariaLabel, onChange, options, value }: FilterSele
                 aria-label={ariaLabel}
                 aria-expanded={open}
                 onClick={() => setOpen((current) => !current)}
-                className={uiTokens.filterSelect.trigger}
+                className={cn(
+                    uiTokens.filterSelect.trigger,
+                    uiTokens.filterSelect.triggerAppearance[appearance],
+                )}
             >
                 <Text as="span" className={uiTokens.filterSelect.triggerLabel}>
                     {selectedLabel}
@@ -58,7 +68,12 @@ export function FilterSelect({ ariaLabel, onChange, options, value }: FilterSele
             </Button>
 
             {open && (
-                <CardSurface className={uiTokens.filterSelect.menu}>
+                <CardSurface
+                    className={cn(
+                        uiTokens.filterSelect.menu,
+                        uiTokens.filterSelect.menuOffset[appearance],
+                    )}
+                >
                     {options.map((option) => {
                         const optionValue = getOptionValue(option);
                         const optionLabel = getOptionLabel(option);

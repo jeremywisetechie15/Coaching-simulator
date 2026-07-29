@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+    buildQuizLearnerStats,
     getQuizAttemptsRemaining,
     getQuizDimensionDiagnostic,
     getQuizResumeQuestionIndex,
@@ -8,6 +9,49 @@ import {
     normalizeQuizMaxAttempts,
     scoreQuizAnswers,
 } from "./quiz";
+
+describe("buildQuizLearnerStats", () => {
+    it("uses the latest attempt, historical best score and shared score index", () => {
+        expect(
+            buildQuizLearnerStats([
+                { attemptNumber: 2, score: 60 },
+                { attemptNumber: 1, score: 90 },
+                { attemptNumber: 3, score: 75 },
+            ]),
+        ).toEqual({
+            attemptCount: 3,
+            bestScore: 90,
+            currentScore: 75,
+            indexResultCount: 3,
+            indexScore: 75,
+        });
+    });
+
+    it("keeps the index hidden until three scored attempts exist", () => {
+        expect(
+            buildQuizLearnerStats([
+                { attemptNumber: 2, score: null },
+                { attemptNumber: 1, score: 80 },
+            ]),
+        ).toEqual({
+            attemptCount: 2,
+            bestScore: 80,
+            currentScore: null,
+            indexResultCount: 1,
+            indexScore: null,
+        });
+    });
+
+    it("returns empty real statistics without attempts", () => {
+        expect(buildQuizLearnerStats([])).toEqual({
+            attemptCount: 0,
+            bestScore: null,
+            currentScore: null,
+            indexResultCount: 0,
+            indexScore: null,
+        });
+    });
+});
 
 describe("quiz attempt limits", () => {
     it("uses the default for an omitted limit and preserves unlimited attempts", () => {

@@ -4,8 +4,8 @@ import { createClient } from "@/lib/supabase/server";
 import { fetchQuizDetail } from "./quiz-query";
 
 export async function getQuizById(quizId: string): Promise<QuizDetail> {
-    await requireAuth();
+    const context = await requireAuth();
     const supabase = await createClient();
 
-    return fetchQuizDetail(supabase, quizId);
+    return fetchQuizDetail(supabase, quizId, context.userId);
 }

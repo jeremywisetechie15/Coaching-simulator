@@ -1,4 +1,5 @@
 import type { Evaluation, TranscriptMessage } from "@/features/roleplays/data/evaluation";
+import { formatRoleplayLiveTranscriptMessageTime } from "./roleplay-live-transcript";
 
 export const ROLEPLAY_COACH_MODE = {
     afterTraining: "after_training",
@@ -10,6 +11,13 @@ export const ROLEPLAY_COACH_MODE = {
 export type RoleplayCoachMode = (typeof ROLEPLAY_COACH_MODE)[keyof typeof ROLEPLAY_COACH_MODE];
 
 export const ROLEPLAY_COACH_MODES = Object.values(ROLEPLAY_COACH_MODE);
+
+export const ROLEPLAY_COACH_MODE_LABELS: Record<RoleplayCoachMode, string> = {
+    [ROLEPLAY_COACH_MODE.afterTraining]: "Après l'entraînement",
+    [ROLEPLAY_COACH_MODE.beforeTraining]: "Préparation",
+    [ROLEPLAY_COACH_MODE.feedback]: "Feedback",
+    [ROLEPLAY_COACH_MODE.notation]: "Débrief",
+};
 
 export function isRoleplayCoachMode(value: unknown): value is RoleplayCoachMode {
     return typeof value === "string" && ROLEPLAY_COACH_MODES.includes(value as RoleplayCoachMode);
@@ -41,13 +49,6 @@ export const ROLEPLAY_COACH_NOTE_TYPE_LABELS: Record<RoleplayCoachNoteType, stri
     [ROLEPLAY_COACH_NOTE_TYPE.suggestion]: "Suggestion",
 };
 
-export interface RoleplayCoachTranscriptMessage {
-    content: string;
-    id: string;
-    role: "assistant" | "user";
-    timestamp: string;
-}
-
 export interface RoleplayCoachNote {
     content: string;
     createdAt: string;
@@ -56,41 +57,34 @@ export interface RoleplayCoachNote {
     type: RoleplayCoachNoteType;
 }
 
-export const ROLEPLAY_COACH_TRANSCRIPT_EVENT = "maia:roleplay-coach-transcript-message";
-
-export interface RoleplayCoachTranscriptEvent {
-    coachSessionId: string;
-    message: RoleplayCoachTranscriptMessage;
-    scenarioId: string;
-    type: typeof ROLEPLAY_COACH_TRANSCRIPT_EVENT;
+export interface RoleplayCoachNoteGroup {
+    coachMode: RoleplayCoachMode;
+    methodStepId: string | null;
+    notes: RoleplayCoachNote[];
+    savedAt: string;
+    stepOrder: number;
+    stepTitle: string;
 }
 
-function isRecord(value: unknown): value is Record<string, unknown> {
-    return typeof value === "object" && value !== null;
-}
-
-export function isRoleplayCoachTranscriptEvent(value: unknown): value is RoleplayCoachTranscriptEvent {
-    if (!isRecord(value) || value.type !== ROLEPLAY_COACH_TRANSCRIPT_EVENT) return false;
-    if (typeof value.coachSessionId !== "string" || typeof value.scenarioId !== "string") return false;
-    if (!isRecord(value.message)) return false;
-
-    return (
-        typeof value.message.id === "string" &&
-        (value.message.role === "assistant" || value.message.role === "user") &&
-        typeof value.message.content === "string" &&
-        typeof value.message.timestamp === "string"
-    );
+export function countRoleplayCoachNotes(groups: RoleplayCoachNoteGroup[]) {
+    return groups.reduce((total, group) => total + group.notes.length, 0);
 }
 
 export function formatRoleplayCoachMessageTime(value: string) {
+    return formatRoleplayLiveTranscriptMessageTime(value);
+}
+
+export function formatRoleplayCoachNotesSavedAt(value: string) {
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "";
 
     return new Intl.DateTimeFormat("fr-FR", {
+        day: "numeric",
         hour: "2-digit",
         minute: "2-digit",
-        second: "2-digit",
+        month: "long",
         timeZone: "Europe/Paris",
+        year: "numeric",
     }).format(date);
 }
 

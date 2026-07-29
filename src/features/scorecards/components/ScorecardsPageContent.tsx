@@ -11,7 +11,6 @@ import {
     ListChecks,
     MoreHorizontal,
     Plus,
-    Search,
     Target,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -22,7 +21,16 @@ import { CONTENT_DOMAINS } from "@/features/content/domain";
 import { getQuizStatusLabel } from "@/features/evaluations/domain";
 import { SCORECARD_ROUTES, SCORECARD_VISIBILITY_LABELS, type ScorecardListItem } from "@/features/scorecards/domain";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
-import { CardActionMenu, CardActionMenuButton, CardActionMenuLink } from "@/lib/ui/molecules";
+import {
+    AnimatedEntityHeader,
+    CardActionMenu,
+    CardActionMenuButton,
+    CardActionMenuLink,
+    FilterSelect,
+    LibraryFilterBar,
+    LibrarySearchField,
+    type FilterSelectOption,
+} from "@/lib/ui/molecules";
 import { ENTITY_ACTION_LABELS } from "@/lib/ui/domain/entity-action";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -34,6 +42,13 @@ interface ScorecardsPageContentProps {
 
 interface ApiErrorPayload {
     error?: string;
+}
+
+function getDomainOptions(options: readonly string[]): FilterSelectOption[] {
+    return options.map((option) => ({
+        label: option === "all" ? "Tous les domaines" : option,
+        value: option,
+    }));
 }
 
 async function duplicateScorecardRequest(scorecardId: string) {
@@ -131,52 +146,40 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
     return (
         <Box as="main" className="px-5 pb-12 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1260px]">
-                <Box className={uiTokens.surface.pageBanner}>
-                    <Text as="h1" className={cn("text-[22px] font-extrabold leading-tight", uiTokens.text.heading)}>
-                        Scorecards
-                    </Text>
-                    {canManage && (
-                        <ContextualLink
-                            href="/scorecards/new"
-                            className={cn(
-                                "flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-[14px] font-bold text-white transition",
-                                uiTokens.action.primaryButton,
-                            )}
-                        >
-                            <InlineIcon icon={Plus} className="h-4 w-4" />
-                            Créer une scorecard
-                        </ContextualLink>
-                    )}
-                </Box>
+                <AnimatedEntityHeader
+                    className="mb-7"
+                    title="Scorecards"
+                    tone="scorecard"
+                    actions={
+                        canManage ? (
+                            <ContextualLink
+                                href={SCORECARD_ROUTES.app.create}
+                                className={uiTokens.entityHeader.action.primary}
+                            >
+                                <InlineIcon icon={Plus} className="h-4 w-4" />
+                                Créer une scorecard
+                            </ContextualLink>
+                        ) : undefined
+                    }
+                />
 
-                <CardSurface className={cn("mt-6", uiTokens.surface.listToolbar)}>
-                    <Box className="grid gap-3 lg:grid-cols-[1fr_220px]">
-                        <Box className="relative">
-                            <InlineIcon
-                                icon={Search}
-                                className={cn("pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2", uiTokens.text.muted)}
-                            />
-                            <input
-                                type="search"
-                                value={query}
-                                onChange={(event) => updateQuery(event.target.value)}
-                                placeholder="Rechercher une scorecard..."
-                                className={cn(uiTokens.form.control, "h-11 pl-11 text-[14px]")}
-                            />
-                        </Box>
-                        <select
+                <LibraryFilterBar>
+                    <LibrarySearchField
+                        ariaLabel="Rechercher une scorecard"
+                        onChange={updateQuery}
+                        placeholder="Rechercher une scorecard..."
+                        value={query}
+                    />
+                    <Box className={uiTokens.filterBar.librarySelectScorecardDomain}>
+                        <FilterSelect
+                            appearance="library"
+                            ariaLabel="Filtrer par domaine"
+                            onChange={updateDomain}
+                            options={getDomainOptions(domainOptions)}
                             value={domain}
-                            onChange={(event) => updateDomain(event.target.value)}
-                            className={cn(uiTokens.form.control, "h-11 px-3 text-[14px]")}
-                        >
-                            {domainOptions.map((option) => (
-                                <option key={option} value={option}>
-                                    {option === "all" ? "Tous les domaines" : option}
-                                </option>
-                            ))}
-                        </select>
+                        />
                     </Box>
-                </CardSurface>
+                </LibraryFilterBar>
 
                 {error && !scorecardToArchive && (
                     <CardSurface className="mt-5 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 shadow-none">

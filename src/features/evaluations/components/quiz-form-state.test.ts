@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { CONTENT_STATUS } from "@/features/content/domain";
+import {
+    CONTENT_STATUS,
+    LEARNER_CONTENT_STATUS,
+} from "@/features/content/domain";
 import type { QuizDetail, QuizMethodOption } from "@/features/evaluations/domain";
 import {
     DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE,
@@ -34,12 +37,21 @@ function quizDetail(maxAttempts: number | null): QuizDetail {
         categories: [],
         createdAt: null,
         description: "Quiz",
+        difficulty: "Moyen",
         domain: "",
         durationMinutes: 30,
         groupId: null,
         id: "quiz-1",
         isActive: true,
         kind: "contextual",
+        learnerStats: {
+            attemptCount: 0,
+            bestScore: null,
+            currentScore: null,
+            indexResultCount: 0,
+            indexScore: null,
+        },
+        learnerStatus: LEARNER_CONTENT_STATUS.todo,
         maxAttempts,
         methodId: null,
         methodName: null,
@@ -62,6 +74,7 @@ function quizForm(maxAttempts: string | null): QuizFormState {
         assignedUserId: "",
         categories: [],
         description: "",
+        difficulty: null,
         domain: null,
         durationMinutes: "30",
         groupId: "",
@@ -182,6 +195,10 @@ describe("quizToFormState", () => {
     it("maps a finite attempt limit to an editable text value", () => {
         expect(quizToFormState(quizDetail(5), [], []).maxAttempts).toBe("5");
     });
+
+    it("keeps the persisted difficulty when editing a quiz", () => {
+        expect(quizToFormState(quizDetail(3), [], []).difficulty).toBe("Moyen");
+    });
 });
 
 describe("toSaveQuizInput", () => {
@@ -191,6 +208,13 @@ describe("toSaveQuizInput", () => {
 
     it("maps a finite attempt limit to an integer", () => {
         expect(toSaveQuizInput(quizForm("5"), CONTENT_STATUS.draft).maxAttempts).toBe(5);
+    });
+
+    it("keeps the selected difficulty in the save payload", () => {
+        const form = quizForm("3");
+        form.difficulty = "Difficile";
+
+        expect(toSaveQuizInput(form, CONTENT_STATUS.draft).difficulty).toBe("Difficile");
     });
 
     it("keeps an edited title in the save payload", () => {
@@ -213,6 +237,7 @@ describe("toSaveQuizInput", () => {
             assignedUserId: "",
             categories: ["Prospection"],
             description: "Quiz",
+            difficulty: "Moyen",
             domain: "Commercial",
             durationMinutes: "30",
             groupId: "",
@@ -265,6 +290,7 @@ describe("toSaveQuizInput", () => {
             assignedUserId: "",
             categories: ["Prospection"],
             description: "Quiz",
+            difficulty: "Moyen",
             domain: "Commercial",
             durationMinutes: "30",
             groupId: "",

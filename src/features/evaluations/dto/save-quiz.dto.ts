@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+    CONTENT_DIFFICULTIES,
     CONTENT_STATUSES,
     isContentCategoryForDomain,
     isContentDomain,
@@ -122,6 +123,7 @@ export const saveQuizDto = z
         assignedUserId: z.string().uuid("L'utilisateur sélectionné est invalide.").nullable().optional().default(null),
         categories: categoryArrayDto,
         description: z.string().trim().max(4000, "La description est trop longue.").optional().default(""),
+        difficulty: z.enum(CONTENT_DIFFICULTIES).nullable().optional().default(null),
         domain: z.string().trim().max(120, "Le domaine est trop long.").optional().default(""),
         durationMinutes: z
             .number()

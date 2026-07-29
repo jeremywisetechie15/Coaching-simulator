@@ -3,7 +3,11 @@ import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { RoleplaySessionPage } from "@/features/roleplays/components";
 import { findMockRoleplayById, isUuid, mapDbRoleplayToUi } from "@/features/roleplays/data/roleplay-ui-adapter";
-import { getRoleplayById } from "@/features/roleplays/server";
+import {
+    getRoleplayById,
+    listRoleplayCoachNotes,
+} from "@/features/roleplays/server";
+import type { RoleplayCoachNoteGroup } from "@/features/roleplays/domain";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
 import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
 
@@ -22,6 +26,7 @@ export default async function Page({ params, searchParams }: PageProps) {
     const { roleplayId } = await params;
     const { returnTo } = searchParams ? await searchParams : {};
     let profile;
+    let noteGroups: RoleplayCoachNoteGroup[] = [];
 
     try {
         profile = await getCurrentProfile();
@@ -37,7 +42,12 @@ export default async function Page({ params, searchParams }: PageProps) {
 
     try {
         if (isUuid(roleplayId)) {
-            roleplay = mapDbRoleplayToUi(await getRoleplayById(roleplayId));
+            const [dbRoleplay, savedNoteGroups] = await Promise.all([
+                getRoleplayById(roleplayId),
+                listRoleplayCoachNotes(roleplayId),
+            ]);
+            noteGroups = savedNoteGroups;
+            roleplay = mapDbRoleplayToUi(dbRoleplay);
         }
     } catch (error) {
         if (error instanceof NotFoundError) {
@@ -51,5 +61,11 @@ export default async function Page({ params, searchParams }: PageProps) {
         notFound();
     }
 
-    return <RoleplaySessionPage profileValues={toProfileFormValues(profile)} roleplay={roleplay} />;
+    return (
+        <RoleplaySessionPage
+            noteGroups={noteGroups}
+            profileValues={toProfileFormValues(profile)}
+            roleplay={roleplay}
+        />
+    );
 }

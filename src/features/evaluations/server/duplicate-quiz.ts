@@ -18,6 +18,7 @@ export async function duplicateQuiz(quizId: string) {
         assignedUserId: null,
         categories: source.categories,
         description: source.description,
+        difficulty: source.difficulty,
         domain: source.domain,
         durationMinutes: source.durationMinutes,
         groupId: null,

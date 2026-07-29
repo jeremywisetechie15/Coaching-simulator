@@ -829,7 +829,7 @@ export function EvaluationQuizPageContent({
                             onClick={() => window.location.assign(completionHref)}
                             className={cn("flex h-11 items-center justify-center rounded-xl px-5 text-[14px] font-bold text-white transition", uiTokens.action.primaryButton)}
                         >
-                            Valider et continuer
+                            Continuer
                         </Button>
                     </Box>
                     {attemptError && (

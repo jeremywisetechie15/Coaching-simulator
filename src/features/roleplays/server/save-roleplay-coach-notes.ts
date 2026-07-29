@@ -1,13 +1,18 @@
+import { revalidatePath } from "next/cache";
 import { requireAuth } from "@/features/auth/server";
 import {
     roleplayCoachNotesArraySchema,
     type RoleplayCoachNotesContextInput,
     type SaveRoleplayCoachNotesInput,
 } from "@/features/roleplays/dto";
+import {
+    ROLEPLAY_ROUTES,
+    type RoleplayCoachMode,
+    type RoleplayCoachNoteGroup,
+} from "@/features/roleplays/domain";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ConflictError, NotFoundError } from "@/lib/server/errors";
 import { createClient } from "@/lib/supabase/server";
-import { fetchRoleplayDetail } from "./roleplay-query";
 
 interface CoachNotesRow {
     id: string;
@@ -15,10 +20,26 @@ interface CoachNotesRow {
     saved_at: string;
 }
 
+interface CoachNotesListRow extends CoachNotesRow {
+    coach_mode: RoleplayCoachMode;
+    method_step_id: string | null;
+    step_order: number;
+}
+
 interface MethodStepRow {
     id: string;
     method_id: string;
     step_order: number;
+}
+
+interface MethodStepTitleRow {
+    id: string;
+    title: string;
+}
+
+interface CoachNotesRoleplayRow {
+    id: string;
+    method_id: string | null;
 }
 
 export interface SavedRoleplayCoachNotes {
@@ -28,6 +49,11 @@ export interface SavedRoleplayCoachNotes {
 export interface LoadedRoleplayCoachNotes {
     notes: SaveRoleplayCoachNotesInput["notes"];
     savedAt: string | null;
+}
+
+function revalidateRoleplayCoachNoteConsumers(roleplayId: string) {
+    revalidatePath(ROLEPLAY_ROUTES.app.steps(roleplayId));
+    revalidatePath(ROLEPLAY_ROUTES.app.session(roleplayId));
 }
 
 async function resolveMethodStep(
@@ -59,19 +85,90 @@ async function resolveMethodStep(
     return data;
 }
 
+async function resolveCoachNotesBaseContext(roleplayId: string) {
+    const context = await requireAuth();
+    const authenticatedSupabase = await createClient();
+    const { data: roleplay, error } = await authenticatedSupabase
+        .from("scenarios")
+        .select("id, method_id")
+        .eq("id", roleplayId)
+        .maybeSingle<CoachNotesRoleplayRow>();
+
+    if (error) throw error;
+    if (!roleplay) throw new NotFoundError("Roleplay introuvable.");
+
+    const adminSupabase = createAdminClient();
+
+    return { adminSupabase, context, roleplay };
+}
+
 async function resolveCoachNotesContext(
     roleplayId: string,
     input: RoleplayCoachNotesContextInput,
 ) {
-    const context = await requireAuth();
-    const authenticatedSupabase = await createClient();
-    const roleplay = await fetchRoleplayDetail(authenticatedSupabase, roleplayId, {
-        statsUserId: context.userId,
-    });
-    const adminSupabase = createAdminClient();
-    const methodStep = await resolveMethodStep(adminSupabase, roleplay.methodId, input);
+    const { adminSupabase, context, roleplay } = await resolveCoachNotesBaseContext(roleplayId);
+    const methodStep = await resolveMethodStep(adminSupabase, roleplay.method_id, input);
 
     return { adminSupabase, context, methodStep, roleplay };
+}
+
+export function mapRoleplayCoachNoteGroups(
+    rows: CoachNotesListRow[],
+    stepTitlesById: ReadonlyMap<string, string>,
+): RoleplayCoachNoteGroup[] {
+    return rows.flatMap((row) => {
+        const parsedNotes = roleplayCoachNotesArraySchema.safeParse(row.notes);
+        if (!parsedNotes.success) {
+            throw new Error("Les notes de préparation enregistrées sont invalides.");
+        }
+        if (parsedNotes.data.length === 0) return [];
+
+        return [{
+            coachMode: row.coach_mode,
+            methodStepId: row.method_step_id,
+            notes: parsedNotes.data,
+            savedAt: row.saved_at,
+            stepOrder: row.step_order,
+            stepTitle:
+                (row.method_step_id ? stepTitlesById.get(row.method_step_id) : null)
+                ?? `Étape ${row.step_order}`,
+        }];
+    });
+}
+
+export async function listRoleplayCoachNotes(
+    roleplayId: string,
+): Promise<RoleplayCoachNoteGroup[]> {
+    const { adminSupabase, context, roleplay } = await resolveCoachNotesBaseContext(roleplayId);
+    const { data, error } = await adminSupabase
+        .from("roleplay_coach_notes")
+        .select("id, notes, saved_at, coach_mode, method_step_id, step_order")
+        .eq("scenario_id", roleplay.id)
+        .eq("user_id", context.userId)
+        .order("step_order", { ascending: true })
+        .returns<CoachNotesListRow[]>();
+
+    if (error) throw error;
+
+    const rows = data ?? [];
+    const methodStepIds = Array.from(
+        new Set(rows.flatMap((row) => row.method_step_id ? [row.method_step_id] : [])),
+    );
+    let stepTitlesById = new Map<string, string>();
+
+    if (roleplay.method_id && methodStepIds.length > 0) {
+        const { data: stepRows, error: stepError } = await adminSupabase
+            .from("method_steps")
+            .select("id, title")
+            .eq("method_id", roleplay.method_id)
+            .in("id", methodStepIds)
+            .returns<MethodStepTitleRow[]>();
+
+        if (stepError) throw stepError;
+        stepTitlesById = new Map((stepRows ?? []).map((step) => [step.id, step.title]));
+    }
+
+    return mapRoleplayCoachNoteGroups(rows, stepTitlesById);
 }
 
 export async function getRoleplayCoachNotes(
@@ -82,7 +179,7 @@ export async function getRoleplayCoachNotes(
     const { data, error } = await adminSupabase
         .from("roleplay_coach_notes")
         .select("id, notes, saved_at")
-        .eq("scenario_id", roleplay.scenarioId)
+        .eq("scenario_id", roleplay.id)
         .eq("user_id", context.userId)
         .eq("method_step_id", methodStep.id)
         .eq("coach_mode", input.coachMode)
@@ -109,7 +206,7 @@ export async function saveRoleplayCoachNotes(
     const { data: existing, error: existingError } = await adminSupabase
         .from("roleplay_coach_notes")
         .select("id, notes, saved_at")
-        .eq("scenario_id", roleplay.scenarioId)
+        .eq("scenario_id", roleplay.id)
         .eq("user_id", context.userId)
         .eq("method_step_id", methodStep.id)
         .eq("coach_mode", input.coachMode)
@@ -131,6 +228,7 @@ export async function saveRoleplayCoachNotes(
             .eq("id", existing.id);
 
         if (error) throw error;
+        revalidateRoleplayCoachNoteConsumers(roleplay.id);
         return { savedAt };
     }
 
@@ -140,12 +238,13 @@ export async function saveRoleplayCoachNotes(
         method_step_id: methodStep.id,
         notes: input.notes,
         saved_at: savedAt,
-        scenario_id: roleplay.scenarioId,
+        scenario_id: roleplay.id,
         step_order: methodStep.step_order,
         updated_at: savedAt,
         user_id: context.userId,
     });
 
     if (error) throw error;
+    revalidateRoleplayCoachNoteConsumers(roleplay.id);
     return { savedAt };
 }

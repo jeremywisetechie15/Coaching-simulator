@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { CONTENT_STATUS, CONTENT_VISIBILITY_SCOPE } from "@/features/content/domain";
+import {
+    CONTENT_STATUS,
+    CONTENT_VISIBILITY_SCOPE,
+    LEARNER_CONTENT_STATUS,
+} from "@/features/content/domain";
 import { EVALUATION_ROUTES } from "@/features/evaluations/domain";
 import { ROLEPLAY_ROUTES, type RoleplayDetail } from "@/features/roleplays/domain";
 import { mapDbRoleplayListToUi, mapDbRoleplayToUi, mergeRoleplayListWithMocks } from "./roleplay-ui-adapter";
@@ -30,6 +34,7 @@ function createRoleplayDetail({
         assignedUserName: null,
         attemptCount: 0,
         backgroundImagePath: null,
+        bestScore: null,
         category: "Vente",
         coachAvatarUrl: null,
         coachId: null,
@@ -49,6 +54,7 @@ function createRoleplayDetail({
         groupName: null,
         id,
         isActive: true,
+        learnerStatus: LEARNER_CONTENT_STATUS.todo,
         learnerRole,
         methodId: "method-1",
         methodName: "DAGO",
@@ -85,6 +91,7 @@ function createRoleplayDetail({
             indexTrend: "unavailable",
             lastDate: "Aucune session",
             lastDuration: "0s",
+            learnerStatus: LEARNER_CONTENT_STATUS.todo,
             latestEligibleSessionId: null,
             scoreActuel: 0,
             simulations: 0,
@@ -223,17 +230,23 @@ describe("roleplay UI adapter", () => {
                 quizzes: [
                     {
                         durationMinutes: 20,
+                        hasInProgress: false,
                         id: "quiz-1",
+                        learnerStatus: LEARNER_CONTENT_STATUS.validated,
                         participation: "mandatory",
                         questionCount: 12,
+                        scorePercent: 86,
                         title: "Quiz méthode DAGO",
                         type: "knowledge",
                     },
                     {
                         durationMinutes: 15,
+                        hasInProgress: true,
                         id: "quiz-2",
+                        learnerStatus: LEARNER_CONTENT_STATUS.todo,
                         participation: "optional",
                         questionCount: 8,
+                        scorePercent: null,
                         title: "Auto-positionnement",
                         type: "self_assessment",
                     },
@@ -249,7 +262,8 @@ describe("roleplay UI adapter", () => {
                 participation: "mandatory",
                 questionCount: 12,
                 recommended: true,
-                status: "not_started",
+                scorePercent: 86,
+                status: LEARNER_CONTENT_STATUS.validated,
                 title: "Quiz méthode DAGO",
                 type: "Quiz de Connaissance",
                 url: EVALUATION_ROUTES.app.quiz("quiz-1"),
@@ -260,7 +274,7 @@ describe("roleplay UI adapter", () => {
                 participation: "optional",
                 questionCount: 8,
                 recommended: false,
-                status: "not_started",
+                status: "in_progress",
                 title: "Auto-positionnement",
                 type: "Quiz d'Auto-Positionnement",
                 url: EVALUATION_ROUTES.app.quiz("quiz-2"),
@@ -303,6 +317,23 @@ describe("roleplay UI adapter", () => {
         expect(mappedRoleplays[0]).toMatchObject({
             id: "5beb42b6-3f59-411c-b826-7fb739d5174a",
             name: "Nouveau persona",
+        });
+    });
+
+    it("uses the learner list statistics instead of historical mock scores", () => {
+        const { stats, ...roleplay } = createRoleplayDetail();
+        void stats;
+        const listRoleplay = {
+            ...roleplay,
+            attemptCount: 2,
+            bestScore: 84,
+        };
+
+        const [mappedRoleplay] = mapDbRoleplayListToUi([listRoleplay]);
+
+        expect(mappedRoleplay?.detail).toMatchObject({
+            meilleurScore: 84,
+            simulations: 2,
         });
     });
 

@@ -1,5 +1,18 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { QuizDetail, QuizListItem } from "@/features/evaluations/domain/quiz";
+import {
+    LEARNER_CONTENT_STATUS,
+    resolveLearnerContentStatus,
+    type LearnerContentStatus,
+} from "@/features/content/domain";
+import {
+    QUIZ_ATTEMPT_STATUS,
+    QUIZ_DEFAULT_VALIDATION_THRESHOLD,
+    buildQuizLearnerStats,
+    type QuizAttemptStatus,
+    type QuizDetail,
+    type QuizLearnerStats,
+    type QuizListItem,
+} from "@/features/evaluations/domain/quiz";
 import { NotFoundError } from "@/lib/server/errors";
 import {
     mapQuizRowsToDetail,
@@ -20,6 +33,99 @@ import {
     QUIZ_STEP_SELECT,
 } from "./quiz.persistence";
 import { fetchQuizQuestionCounts } from "./quiz-question-counts";
+
+interface QuizAttemptProgressRow {
+    attempt_number: number;
+    quiz_id: string;
+    score_percent: number | string | null;
+    status: QuizAttemptStatus;
+}
+
+export interface QuizLearnerProgress {
+    hasInProgress: boolean;
+    stats: QuizLearnerStats;
+    status: LearnerContentStatus;
+}
+
+function normalizeScore(value: number | string | null) {
+    const score = typeof value === "string" ? Number(value) : value;
+    if (typeof score !== "number" || !Number.isFinite(score)) return null;
+
+    return Math.max(0, Math.min(100, score));
+}
+
+export async function fetchQuizLearnerProgress(
+    supabase: SupabaseClient,
+    quizzes: Array<Pick<QuizListItem, "id" | "validationThreshold">>,
+    userId?: string | null,
+) {
+    if (!userId || quizzes.length === 0) {
+        return new Map<string, QuizLearnerProgress>();
+    }
+
+    const { data, error } = await supabase
+        .from("quiz_attempts")
+        .select("quiz_id, attempt_number, score_percent, status")
+        .in("quiz_id", quizzes.map((quiz) => quiz.id))
+        .eq("user_id", userId)
+        .order("attempt_number", { ascending: false })
+        .returns<QuizAttemptProgressRow[]>();
+
+    if (error) throw error;
+
+    const attemptsByQuizId = new Map<string, QuizAttemptProgressRow[]>();
+    for (const attempt of data ?? []) {
+        const current = attemptsByQuizId.get(attempt.quiz_id) ?? [];
+        current.push(attempt);
+        attemptsByQuizId.set(attempt.quiz_id, current);
+    }
+
+    return new Map<string, QuizLearnerProgress>(
+        quizzes.map((quiz) => {
+            const attempts = attemptsByQuizId.get(quiz.id) ?? [];
+            const completedAttempts = attempts.filter(
+                (attempt) => attempt.status === QUIZ_ATTEMPT_STATUS.completed,
+            );
+            const stats = buildQuizLearnerStats(
+                completedAttempts.map((attempt) => ({
+                    attemptNumber: attempt.attempt_number,
+                    score: normalizeScore(attempt.score_percent),
+                })),
+            );
+
+            return [
+                quiz.id,
+                {
+                    hasInProgress: attempts.some(
+                        (attempt) => attempt.status === QUIZ_ATTEMPT_STATUS.inProgress,
+                    ),
+                    stats,
+                    status: resolveLearnerContentStatus({
+                        bestScore: stats.bestScore,
+                        hasCompleted: stats.attemptCount > 0,
+                        validationThreshold:
+                            quiz.validationThreshold ?? QUIZ_DEFAULT_VALIDATION_THRESHOLD,
+                    }),
+                },
+            ];
+        }),
+    );
+}
+
+async function withQuizLearnerProgress<T extends QuizDetail>(
+    supabase: SupabaseClient,
+    quiz: T,
+    userId?: string | null,
+): Promise<T> {
+    const progress = await fetchQuizLearnerProgress(supabase, [quiz], userId);
+    const learnerProgress = progress.get(quiz.id);
+
+    return {
+        ...quiz,
+        learnerStats: learnerProgress?.stats ?? quiz.learnerStats,
+        learnerStatus: learnerProgress?.status ?? LEARNER_CONTENT_STATUS.todo,
+    };
+}
 
 async function withMethodNames(supabase: SupabaseClient, rows: QuizRow[]) {
     const methodIds = Array.from(
@@ -52,7 +158,10 @@ async function withMethodNames(supabase: SupabaseClient, rows: QuizRow[]) {
     }));
 }
 
-export async function fetchQuizList(supabase: SupabaseClient): Promise<QuizListItem[]> {
+export async function fetchQuizList(
+    supabase: SupabaseClient,
+    userId?: string | null,
+): Promise<QuizListItem[]> {
     const { data: rows, error } = await supabase
         .from("quizzes")
         .select(QUIZ_SELECT)
@@ -65,14 +174,26 @@ export async function fetchQuizList(supabase: SupabaseClient): Promise<QuizListI
 
     const quizRows = await withMethodNames(supabase, (rows ?? []) as QuizRow[]);
     const quizIds = quizRows.map((row) => row.id);
-    const questionCountByQuizId = await fetchQuizQuestionCounts(supabase, quizIds);
+    const quizzes = quizRows.map((row) => mapQuizRowToListItem(row));
+    const [questionCountByQuizId, learnerProgressByQuizId] = await Promise.all([
+        fetchQuizQuestionCounts(supabase, quizIds),
+        fetchQuizLearnerProgress(supabase, quizzes, userId),
+    ]);
 
-    return quizRows.map((row) => mapQuizRowToListItem(row, questionCountByQuizId.get(row.id) ?? 0));
+    return quizzes.map((quiz) => ({
+        ...quiz,
+        questionCount: questionCountByQuizId.get(quiz.id) ?? 0,
+        learnerStats:
+            learnerProgressByQuizId.get(quiz.id)?.stats ?? quiz.learnerStats,
+        learnerStatus:
+            learnerProgressByQuizId.get(quiz.id)?.status ?? LEARNER_CONTENT_STATUS.todo,
+    }));
 }
 
 export async function fetchQuizDetail(
     supabase: SupabaseClient,
     quizId: string,
+    userId?: string | null,
 ): Promise<QuizDetail> {
     const { data: row, error } = await supabase
         .from("quizzes")
@@ -104,7 +225,11 @@ export async function fetchQuizDetail(
     const stepIds = steps.map((step) => step.id);
 
     if (stepIds.length === 0) {
-        return mapQuizRowsToDetail(rowWithMethodName, [], [], [], [], []);
+        return withQuizLearnerProgress(
+            supabase,
+            mapQuizRowsToDetail(rowWithMethodName, [], [], [], [], []),
+            userId,
+        );
     }
 
     const [
@@ -134,13 +259,17 @@ export async function fetchQuizDetail(
     const questionIds = questions.map((question) => question.id);
 
     if (questionIds.length === 0) {
-        return mapQuizRowsToDetail(
-            rowWithMethodName,
-            steps,
-            (competencyRows ?? []) as QuizStepCompetencyRow[],
-            [],
-            [],
-            [],
+        return withQuizLearnerProgress(
+            supabase,
+            mapQuizRowsToDetail(
+                rowWithMethodName,
+                steps,
+                (competencyRows ?? []) as QuizStepCompetencyRow[],
+                [],
+                [],
+                [],
+            ),
+            userId,
         );
     }
 
@@ -168,12 +297,16 @@ export async function fetchQuizDetail(
         throw attachmentsError;
     }
 
-    return mapQuizRowsToDetail(
-        rowWithMethodName,
-        steps,
-        (competencyRows ?? []) as QuizStepCompetencyRow[],
-        questions,
-        (choiceRows ?? []) as QuizChoiceRow[],
-        (attachmentRows ?? []) as QuizAttachmentRow[],
+    return withQuizLearnerProgress(
+        supabase,
+        mapQuizRowsToDetail(
+            rowWithMethodName,
+            steps,
+            (competencyRows ?? []) as QuizStepCompetencyRow[],
+            questions,
+            (choiceRows ?? []) as QuizChoiceRow[],
+            (attachmentRows ?? []) as QuizAttachmentRow[],
+        ),
+        userId,
     );
 }

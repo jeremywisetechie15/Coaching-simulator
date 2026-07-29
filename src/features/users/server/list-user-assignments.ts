@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/features/auth/server";
+import { requireAdmin, requirePlatformUser } from "@/features/auth/server";
 import { getQuizTypeLabel, type QuizType } from "@/features/evaluations/domain";
 import {
     calculateRoleplayIndex,
@@ -68,6 +68,12 @@ interface QuizRow {
 interface AssignedQuizRow extends QuizRow {
     assignmentAssignedAt: string | null;
     assignmentSource: UserAssignedQuiz["assignmentSource"];
+}
+
+export interface CurrentUserAssignedContentIds {
+    quizIds: string[];
+    roleplayIds: string[];
+    userId: string;
 }
 
 interface QuizAttemptRow {
@@ -296,6 +302,24 @@ async function fetchAssignedQuizRows(
         .sort((first, second) => {
             return (second.assignmentAssignedAt ?? "").localeCompare(first.assignmentAssignedAt ?? "");
         });
+}
+
+export async function listCurrentUserAssignedContentIds(): Promise<CurrentUserAssignedContentIds> {
+    const auth = await requirePlatformUser();
+    const [context, userCreatedAt] = await Promise.all([
+        getActiveUserTargetContext(auth.userId),
+        getUserAccountCreatedAt(auth.userId),
+    ]);
+    const [roleplays, quizzes] = await Promise.all([
+        fetchAssignedScenarioRows(auth.userId, context, userCreatedAt),
+        fetchAssignedQuizRows(auth.userId, context, userCreatedAt),
+    ]);
+
+    return {
+        quizIds: quizzes.map((quiz) => quiz.id),
+        roleplayIds: roleplays.map((roleplay) => roleplay.id),
+        userId: auth.userId,
+    };
 }
 
 export async function listUserAssignedRoleplays(userId: string): Promise<UserAssignedRoleplay[]> {

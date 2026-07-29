@@ -54,6 +54,7 @@ function quizInput(): SaveQuizDto {
         assignedUserId: null,
         categories: ["Prospection"],
         description: "Description",
+        difficulty: "Moyen",
         domain: "Commercial",
         durationMinutes: 10,
         groupId: null,

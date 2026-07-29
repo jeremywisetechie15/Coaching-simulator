@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { SkillsPage } from "@/features/skills/components";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
-import { listSkills } from "@/features/skills/server";
+import { listSkillsForCurrentUser } from "@/features/skills/server";
 import { SKILL_ROUTES } from "@/features/skills/domain/skills";
 import { UnauthorizedError } from "@/lib/server/errors";
 import { buildAuthRedirectHref, withReturnTo, withSearchParams } from "@/features/app-shell/domain";
@@ -47,7 +47,7 @@ export default async function Page({ searchParams }: PageProps) {
         );
     }
 
-    const skills = await listSkills();
+    const skills = await listSkillsForCurrentUser();
 
     return <SkillsPage profileValues={toProfileFormValues(profile)} skills={skills} />;
 }

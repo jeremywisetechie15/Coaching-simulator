@@ -1,16 +1,21 @@
 "use client";
 
-import { Archive, ArrowLeft, Copy, Edit3, MoreHorizontal, Plus, UserRoundCog } from "lucide-react";
+import { Archive, Copy, Edit3, MoreHorizontal, Plus, UserRoundCog } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
+import { ContextualLink } from "@/features/app-shell/components";
 import {
     ArchiveContentConfirmationModal,
     EntityDetailsModalFeedback,
 } from "@/features/content/components";
 import { requestContentCardAction } from "@/features/content/data/content-card-action.request";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
-import { CardActionMenu, CardActionMenuButton, CardActionMenuLink } from "@/lib/ui/molecules";
+import {
+    AnimatedEntityHeader,
+    CardActionMenu,
+    CardActionMenuButton,
+    CardActionMenuLink,
+} from "@/lib/ui/molecules";
 import { ENTITY_ACTION_LABELS } from "@/lib/ui/domain/entity-action";
 import type { PersonaDetail, PersonaListItem } from "@/features/personas/domain/persona-list";
 import { getPersonaInitials } from "@/features/personas/domain/persona-list";
@@ -129,35 +134,22 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
     return (
         <Box as="main" className="px-5 pb-12 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1260px]">
-                <Box className="mb-9 flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-                    <Box className="flex items-start gap-6">
-                        <ContextualBackLink
-                            fallbackHref="/"
-                            aria-label="Retour"
-                            className="mt-2 flex h-8 w-8 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
-                        >
-                            <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                        </ContextualBackLink>
-                        <Box>
-                            <Text as="h1" className="text-[30px] font-extrabold leading-tight text-[#111827] md:text-[34px]">
-                                Mes Personas IA
-                            </Text>
-                            <Text className="mt-2 max-w-[780px] text-[15px] font-semibold leading-6 text-[#596273]">
-                                Créez et gérez vos personas IA pour vos scénarios de roleplay et de formation
-                            </Text>
-                        </Box>
-                    </Box>
-
-                    {canManage && (
-                        <ContextualLink
-                            href="/personas/new"
-                            className="mt-1 flex h-9 items-center justify-center gap-2.5 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7] md:mt-2"
-                        >
-                            <InlineIcon icon={Plus} className="h-4 w-4" />
-                            Créer un persona IA
-                        </ContextualLink>
-                    )}
-                </Box>
+                <AnimatedEntityHeader
+                    className="mb-7"
+                    title="Mes Personas IA"
+                    tone="persona"
+                    actions={
+                        canManage ? (
+                            <ContextualLink
+                                href={PERSONA_ROUTES.app.create}
+                                className={uiTokens.entityHeader.action.primary}
+                            >
+                                <InlineIcon icon={Plus} className="h-4 w-4" />
+                                Créer un persona IA
+                            </ContextualLink>
+                        ) : undefined
+                    }
+                />
 
                 {personasQuery.isError && (
                     <Box className="mb-5 rounded-lg border border-[#F3C7C7] bg-[#FFF4F4] px-4 py-3 text-[13px] font-semibold text-[#A43A3A]">

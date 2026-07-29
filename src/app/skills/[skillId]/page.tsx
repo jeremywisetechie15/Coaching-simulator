@@ -1,6 +1,6 @@
 import { notFound, redirect } from "next/navigation";
 import { SkillDetailPage } from "@/features/skills/components";
-import { getSkillById } from "@/features/skills/server";
+import { getCurrentSkillPageData, getSkillById } from "@/features/skills/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
@@ -43,10 +43,10 @@ export default async function Page({ params, searchParams }: PageProps) {
         redirect(buildAuthRedirectHref(withReturnTo(SKILL_ROUTES.app.detail(skillId), returnTo)));
     }
 
-    let skill;
+    let pageData;
 
     try {
-        skill = await getSkillById(skillId);
+        pageData = await getCurrentSkillPageData(skillId);
     } catch (error) {
         if (error instanceof NotFoundError) {
             notFound();
@@ -55,5 +55,11 @@ export default async function Page({ params, searchParams }: PageProps) {
         throw error;
     }
 
-    return <SkillDetailPage profileValues={toProfileFormValues(profile)} skill={skill} />;
+    return (
+        <SkillDetailPage
+            profileValues={toProfileFormValues(profile)}
+            progress={pageData.progress}
+            skill={pageData.skill}
+        />
+    );
 }

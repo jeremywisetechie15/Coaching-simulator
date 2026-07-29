@@ -2,6 +2,10 @@
 
 import { ArrowRight, Check } from "lucide-react";
 import { ContextualLink } from "@/features/app-shell/components";
+import {
+    LEARNER_CONTENT_STATUS,
+    LEARNER_CONTENT_STATUS_LABELS,
+} from "@/features/content/domain";
 import { QUIZ_PARTICIPATION, QUIZ_PARTICIPATION_LABELS, type QuizParticipation } from "@/features/evaluations/domain";
 import type { PrepQuiz, PrepQuizStatus } from "@/features/roleplays/data/preparation";
 import { Box, Button, InlineIcon, Text } from "@/lib/ui/atoms";
@@ -12,15 +16,19 @@ import { cn } from "@/lib/ui/utils/cn";
 type ToneKey = keyof typeof uiTokens.tone;
 
 const statusConfig: Record<PrepQuizStatus, { actionLabel: string; primary: boolean; tone: ToneKey }> = {
-    completed: { actionLabel: "Refaire", primary: false, tone: "success" },
+    completed: { actionLabel: "Voir le résultat", primary: false, tone: "success" },
     in_progress: { actionLabel: "Reprendre", primary: true, tone: "warning" },
-    not_started: { actionLabel: "Commencer", primary: true, tone: "neutral" },
+    retry: { actionLabel: "Refaire", primary: true, tone: "warning" },
+    todo: { actionLabel: "Commencer", primary: true, tone: "neutral" },
+    validated: { actionLabel: "Voir le résultat", primary: false, tone: "success" },
 };
 
 function statusLabel(quiz: PrepQuiz) {
-    if (quiz.status === "completed") return `Terminé (${quiz.scorePercent ?? 0}%)`;
-    if (quiz.status === "in_progress") return `En cours (${quiz.scorePercent ?? 0}%)`;
-    return "Non commencé";
+    if (quiz.status === "in_progress") return "En cours";
+    if (quiz.status === LEARNER_CONTENT_STATUS.todo) return "Non commencé";
+
+    const score = quiz.scorePercent === undefined ? "" : ` (${Math.round(quiz.scorePercent)}%)`;
+    return `Quiz ${LEARNER_CONTENT_STATUS_LABELS[quiz.status].toLocaleLowerCase("fr-FR")}${score}`;
 }
 
 function participationTone(participation: QuizParticipation) {
@@ -99,7 +107,10 @@ export function RoleplayQuizModal({ onClose, quizzes, returnHref }: RoleplayQuiz
                                         uiTokens.tone[config.tone].text,
                                     )}
                                 >
-                                    {quiz.status === "completed" && <InlineIcon icon={Check} className="h-4 w-4" />}
+                                    {(quiz.status === LEARNER_CONTENT_STATUS.completed
+                                        || quiz.status === LEARNER_CONTENT_STATUS.validated) && (
+                                        <InlineIcon icon={Check} className="h-4 w-4" />
+                                    )}
                                     {statusLabel(quiz)}
                                 </Box>
                             </Box>

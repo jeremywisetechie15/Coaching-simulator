@@ -1,15 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildQuizSkillCriteria } from "@/features/evaluations/server/quiz-skill-criteria";
 import { MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS } from "@/features/roleplays/domain";
-import { buildUserSkillProgresses, listUserSkillProgresses } from "./list-user-skills";
+import {
+    buildUserSkillProgresses,
+    listCurrentUserSkillProgresses,
+    listUserSkillProgresses,
+} from "./list-user-skills";
 
 const mocks = vi.hoisted(() => ({
     createAdminClient: vi.fn(),
     fetchCompletedQuizSkillCriteria: vi.fn(),
     requireAdmin: vi.fn(),
+    requirePlatformUser: vi.fn(),
 }));
 
-vi.mock("@/features/auth/server", () => ({ requireAdmin: mocks.requireAdmin }));
+vi.mock("@/features/auth/server", () => ({
+    requireAdmin: mocks.requireAdmin,
+    requirePlatformUser: mocks.requirePlatformUser,
+}));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: mocks.createAdminClient }));
 vi.mock("@/features/evaluations/server/quiz-skill-criteria", async (importOriginal) => ({
     ...(await importOriginal<typeof import("@/features/evaluations/server/quiz-skill-criteria")>()),
@@ -19,6 +27,7 @@ vi.mock("@/features/evaluations/server/quiz-skill-criteria", async (importOrigin
 beforeEach(() => {
     vi.resetAllMocks();
     mocks.requireAdmin.mockResolvedValue({ userId: "admin-1" });
+    mocks.requirePlatformUser.mockResolvedValue({ userId: "user-1" });
     mocks.fetchCompletedQuizSkillCriteria.mockResolvedValue([]);
 });
 
@@ -40,6 +49,21 @@ describe("listUserSkillProgresses", () => {
             "sessions.duration_seconds",
             MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
         );
+    });
+
+    it("loads the authenticated learner's own progress", async () => {
+        const returns = vi.fn().mockResolvedValue({ data: [], error: null });
+        const gte = vi.fn().mockReturnValue({ returns });
+        const eq = vi.fn().mockReturnValue({ gte });
+        const select = vi.fn().mockReturnValue({ eq });
+        const from = vi.fn().mockReturnValue({ select });
+        mocks.createAdminClient.mockReturnValue({ from });
+
+        await expect(listCurrentUserSkillProgresses()).resolves.toEqual([]);
+
+        expect(mocks.requirePlatformUser).toHaveBeenCalledOnce();
+        expect(eq).toHaveBeenCalledWith("user_id", "user-1");
+        expect(mocks.requireAdmin).not.toHaveBeenCalled();
     });
 });
 

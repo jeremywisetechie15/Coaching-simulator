@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { LEARNER_CONTENT_STATUS } from "@/features/content/domain";
 import { personaAvatarOptions } from "@/features/personas/data/persona-creation";
 import { mapDbRoleplayToUi } from "@/features/roleplays/data/roleplay-ui-adapter";
 import {
@@ -70,6 +71,28 @@ describe("roleplay card persona avatar", () => {
 
         expect(proposedAvatarUrl).toBeDefined();
         expect(mapAvatarToRoleplayCard(proposedAvatarUrl ?? "")).toBe(proposedAvatarUrl);
+    });
+});
+
+describe("roleplay card learner statistics", () => {
+    it("maps the eligible attempt count and best score to the card model", () => {
+        const row: RoleplayRow = {
+            id: "roleplay-1",
+            title: "Prospection commerciale",
+        };
+        const roleplay = mapDbRoleplayToUi(
+            mapRoleplayRowToListItem(
+                row,
+                0,
+                2,
+                LEARNER_CONTENT_STATUS.validated,
+                84,
+            ),
+            null,
+        );
+
+        expect(roleplay.detail.simulations).toBe(2);
+        expect(roleplay.detail.meilleurScore).toBe(84);
     });
 });
 

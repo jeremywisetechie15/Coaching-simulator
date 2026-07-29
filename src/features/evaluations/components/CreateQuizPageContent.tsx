@@ -16,11 +16,13 @@ import {
 } from "lucide-react";
 import { ContextualBackLink, useContextualReturnHref } from "@/features/app-shell/components";
 import { buildPostSaveHref } from "@/features/app-shell/domain";
-import type { ContentStatus } from "@/features/content/domain";
 import {
+    CONTENT_DIFFICULTIES,
     CONTENT_STATUS,
     getCategoriesForDomain,
     getEntitySelectionLabel,
+    type ContentDifficulty,
+    type ContentStatus,
 } from "@/features/content/domain";
 import {
     EVALUATION_ROUTES,
@@ -606,6 +608,28 @@ export function CreateQuizPageContent({
                                     value={form.quizType}
                                     placeholder="Sélectionner un type"
                                     onChange={(value) => patch("quizType", value as QuizType)}
+                                />
+                            </Box>
+                            <Box>
+                                <FieldLabel className={uiTokens.form.label}>
+                                    Niveau de difficulté (optionnel)
+                                </FieldLabel>
+                                <SingleSelectField
+                                    options={[
+                                        { label: "Non renseigné", value: "" },
+                                        ...CONTENT_DIFFICULTIES.map((difficulty) => ({
+                                            label: difficulty,
+                                            value: difficulty,
+                                        })),
+                                    ]}
+                                    value={form.difficulty ?? ""}
+                                    placeholder="Non renseigné"
+                                    onChange={(value) =>
+                                        patch(
+                                            "difficulty",
+                                            value ? value as ContentDifficulty : null,
+                                        )
+                                    }
                                 />
                             </Box>
                             <Box>

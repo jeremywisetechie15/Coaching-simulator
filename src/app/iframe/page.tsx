@@ -17,6 +17,7 @@ export default async function IframePage({
         coach_id?: string;
         coach_mode?: string;
         coach_session_id?: string;
+        transcript_session_id?: string;
         step?: string;        // "1" | "2" | "3" | "4"
         variant?: string;     // "coach" (pour mode persona avec coaching)
         coach_provider?: string;
@@ -73,7 +74,7 @@ export default async function IframePage({
                 model={params.model || "gpt-realtime-1.5"}
                 coachId={params.coach_id}
                 coachMode={coachMode}
-                coachSessionId={params.coach_session_id}
+                transcriptSessionId={params.transcript_session_id ?? params.coach_session_id}
                 step={params.step ? parseInt(params.step, 10) : undefined}
             />
         );
@@ -87,7 +88,7 @@ export default async function IframePage({
             model={params.model || "gpt-realtime-1.5"}
             coachId={params.coach_id}
             coachMode={coachMode}
-            coachSessionId={params.coach_session_id}
+            transcriptSessionId={params.transcript_session_id ?? params.coach_session_id}
             step={params.step ? parseInt(params.step, 10) : undefined}
             variant={params.variant as "coach" | undefined}
         />

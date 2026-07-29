@@ -9,7 +9,10 @@ import {
     useCurrentAppHref,
 } from "@/features/app-shell/components";
 import { withSearchParam, withoutSearchParam } from "@/features/app-shell/domain";
-import { DiscProfileBadge } from "@/features/content/components";
+import {
+    DiscProfileBadge,
+    LearnerContentStatusBadge,
+} from "@/features/content/components";
 import {
     categoryBadgeStyles,
     difficultyBadgeStyles,
@@ -130,6 +133,7 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
                             >
                                 {roleplay.difficulty}
                             </Box>
+                            <LearnerContentStatusBadge status={roleplay.learnerStatus} />
                         </Box>
                         <Box className="flex flex-wrap items-center gap-2">
                             <ContextualLink

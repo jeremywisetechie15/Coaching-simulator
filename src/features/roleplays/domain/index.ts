@@ -4,6 +4,7 @@ export * from "./evaluation-score-details";
 export * from "./coach-session-notes";
 export * from "./roleplay";
 export * from "./roleplay-index";
+export * from "./roleplay-live-transcript";
 export * from "./roleplay-notation";
 export * from "./roleplay-notation-feedback";
 export * from "./roleplay-notation-tabs";

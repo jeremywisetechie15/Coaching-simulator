@@ -8,6 +8,8 @@ export const COACH_ROUTES = {
         duplicate: (coachId: string) => `/api/coaches/${encodeRouteSegment(coachId)}/duplicate`,
     },
     app: {
+        collection: "/coaches",
+        create: "/coaches/new",
         edit: (coachId: string) => `/coaches/${encodeRouteSegment(coachId)}`,
     },
 } as const;

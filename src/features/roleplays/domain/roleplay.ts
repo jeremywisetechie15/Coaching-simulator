@@ -1,23 +1,28 @@
 import {
+    CONTENT_DIFFICULTIES,
+    CONTENT_DIFFICULTY,
     DISC_PROFILE,
     DISC_PROFILES,
     CONTENT_VISIBILITY_SCOPE,
     CONTENT_VISIBILITY_SCOPE_LABELS,
     CONTENT_VISIBILITY_SCOPES,
+    isContentDifficulty,
     type ContentStatus,
+    type ContentDifficulty,
     type ContentVisibilityScope,
     type DiscProfile,
     type EntitySelectionAvailability,
+    type LearnerContentStatus,
 } from "@/features/content/domain";
 import type { QuizKind, QuizParticipation, QuizType } from "@/features/evaluations/domain";
 import type { MethodSelectionOption } from "@/features/methods/domain/method";
 import type { RoleplayIndexSession, RoleplayIndexTrend } from "./roleplay-index";
 
-export const ROLEPLAY_DIFFICULTIES = ["Facile", "Moyen", "Difficile"] as const;
+export const ROLEPLAY_DIFFICULTIES = CONTENT_DIFFICULTIES;
 
 export const ROLEPLAY_LEARNER_ROLE_MAX_LENGTH = 2500;
 
-export type RoleplayDifficulty = (typeof ROLEPLAY_DIFFICULTIES)[number];
+export type RoleplayDifficulty = ContentDifficulty;
 
 export const ROLEPLAY_DISC_PROFILES = DISC_PROFILES;
 
@@ -80,9 +85,12 @@ export interface RoleplayUserOption extends EntitySelectionAvailability {
 
 export interface RoleplayQuizLink {
     durationMinutes: number;
+    hasInProgress: boolean;
     id: string;
+    learnerStatus: LearnerContentStatus;
     participation: QuizParticipation;
     questionCount: number;
+    scorePercent: number | null;
     title: string;
     type: QuizType;
 }
@@ -106,6 +114,7 @@ export interface RoleplayStats {
     indexTrend: RoleplayIndexTrend;
     lastDate: string;
     lastDuration: string;
+    learnerStatus: LearnerContentStatus;
     latestEligibleSessionId: string | null;
     scoreActuel: number;
     simulations: number;
@@ -122,6 +131,7 @@ export interface RoleplayListItem {
     assignedUserId: string | null;
     assignedUserName: string | null;
     attemptCount: number;
+    bestScore: number | null;
     category: string;
     coachAvatarUrl: string | null;
     coachId: string | null;
@@ -138,6 +148,7 @@ export interface RoleplayListItem {
     groupName: string | null;
     id: string;
     isActive: boolean;
+    learnerStatus: LearnerContentStatus;
     methodId: string | null;
     methodName: string | null;
     name: string;
@@ -179,11 +190,11 @@ export interface RoleplayEditorDetail extends RoleplayDetail {
 }
 
 export function isRoleplayDifficulty(value: unknown): value is RoleplayDifficulty {
-    return typeof value === "string" && ROLEPLAY_DIFFICULTIES.includes(value as RoleplayDifficulty);
+    return isContentDifficulty(value);
 }
 
 export function normalizeRoleplayDifficulty(value: unknown): RoleplayDifficulty {
-    return isRoleplayDifficulty(value) ? value : "Moyen";
+    return isRoleplayDifficulty(value) ? value : CONTENT_DIFFICULTY.medium;
 }
 
 export function getRoleplayDisplayTitle(roleplay: { name: string; title?: string | null }) {

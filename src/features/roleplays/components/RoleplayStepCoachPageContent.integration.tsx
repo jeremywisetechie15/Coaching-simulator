@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { LEARNER_CONTENT_STATUS } from "@/features/content/domain";
 import type { Method, MethodStep } from "@/features/methods/data/methods";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import { RoleplayStepCoachPageContent } from "./RoleplayStepCoachPageContent";
@@ -62,6 +63,7 @@ const roleplay: RoleplayItem = {
     disc: "Stable",
     domain: "Commercial",
     id: "roleplay-1",
+    learnerStatus: LEARNER_CONTENT_STATUS.todo,
     methodId: "method-1",
     name: "Persona test",
     role: "Dirigeant",
@@ -87,6 +89,9 @@ describe("RoleplayStepCoachPageContent", () => {
         expect(html).toContain("Verbatims préconisés");
         expect(html).toContain("Objectif réel de l&#x27;étape");
         expect(html).toContain("coach_id=coach-1");
+        expect(html).toContain(
+            "transcript_session_id=c1295bce-cbe8-4b2c-965b-2ba64a865d1e",
+        );
         expect(html).not.toContain("Conseils de préparation");
         expect(html).not.toContain("Pièges à éviter");
     });
@@ -114,6 +119,7 @@ describe("RoleplayStepsPageContent", () => {
         const html = renderToStaticMarkup(
             <RoleplayStepsPageContent
                 method={method}
+                noteGroups={[]}
                 roleplay={roleplay}
             />,
         );
@@ -127,6 +133,7 @@ describe("RoleplayStepsPageContent", () => {
         const html = renderToStaticMarkup(
             <RoleplayStepsPageContent
                 method={method}
+                noteGroups={[]}
                 referenceSessionId="1fef1dae-97db-4bce-9624-88bf84306db8"
                 roleplay={roleplay}
                 variant="improve"
@@ -135,5 +142,40 @@ describe("RoleplayStepsPageContent", () => {
 
         expect(html).toContain("S&#x27;améliorer avec le coach IA");
         expect(html).not.toContain("Commencer l&#x27;entraînement complet");
+    });
+
+    it("shows the real saved-note count on the matching preparation step", () => {
+        const html = renderToStaticMarkup(
+            <RoleplayStepsPageContent
+                method={method}
+                noteGroups={[{
+                    coachMode: "before_training",
+                    methodStepId: null,
+                    notes: [
+                        {
+                            content: "Note 1",
+                            createdAt: "2026-07-29T14:09:00.000Z",
+                            id: "cb27bd22-4207-40aa-92ba-64d01965616f",
+                            sourceMessageId: null,
+                            type: "key_point",
+                        },
+                        {
+                            content: "Note 2",
+                            createdAt: "2026-07-29T14:10:00.000Z",
+                            id: "5f25b537-5249-421f-a46a-c851594b84ba",
+                            sourceMessageId: null,
+                            type: "suggestion",
+                        },
+                    ],
+                    savedAt: "2026-07-29T14:10:00.000Z",
+                    stepOrder: 1,
+                    stepTitle: "Ouverture",
+                }]}
+                roleplay={roleplay}
+            />,
+        );
+
+        expect(html).toContain("Voir mes notes (2)");
+        expect(html).not.toContain("Résumé");
     });
 });

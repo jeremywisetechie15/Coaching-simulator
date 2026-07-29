@@ -18,6 +18,7 @@ describe("quiz persistence helpers", () => {
     it("maps a save DTO to quiz, step, question, choice and attachment rows", () => {
         const input = saveQuizDto.parse({
             description: "Quiz de méthode.",
+            difficulty: "Moyen",
             durationMinutes: 20,
             maxAttempts: 2,
             methodId: "11111111-1111-4111-8111-111111111111",
@@ -77,6 +78,7 @@ describe("quiz persistence helpers", () => {
 
         const quizInsert = createQuizInsert(input, "33333333-3333-4333-8333-333333333333");
         expect(quizInsert).toMatchObject({
+            difficulty_level: "Moyen",
             is_active: true,
             method_id: "11111111-1111-4111-8111-111111111111",
             organization_id: "22222222-2222-4222-8222-222222222222",
@@ -212,6 +214,18 @@ describe("quiz persistence helpers", () => {
 });
 
 describe("quiz mapper", () => {
+    it("preserves a valid difficulty and leaves legacy values empty", () => {
+        expect(mapQuizRowToListItem({
+            difficulty_level: "Difficile",
+            id: "quiz-difficult",
+            title: "Quiz difficile",
+        }).difficulty).toBe("Difficile");
+        expect(mapQuizRowToListItem({
+            id: "quiz-legacy",
+            title: "Quiz historique",
+        }).difficulty).toBeNull();
+    });
+
     it("preserves unlimited attempts from persistence", () => {
         const quiz = mapQuizRowToListItem({
             id: "quiz-unlimited",

@@ -1,11 +1,11 @@
 import type { LucideIcon } from "lucide-react";
+import { uiTokens } from "@/lib/ui/tokens";
 
 interface InputIconProps {
     icon: LucideIcon;
+    variant?: keyof typeof uiTokens.inputIcon;
 }
 
-export function InputIcon({ icon: Icon }: InputIconProps) {
-    return (
-        <Icon className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-    );
+export function InputIcon({ icon: Icon, variant = "default" }: InputIconProps) {
+    return <Icon className={uiTokens.inputIcon[variant]} />;
 }

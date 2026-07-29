@@ -4,10 +4,15 @@ import { listMethods } from "@/features/methods/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { UnauthorizedError } from "@/lib/server/errors";
-import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
+import { buildAuthRedirectHref, withReturnTo, withSearchParams } from "@/features/app-shell/domain";
 
 interface PageProps {
-    searchParams?: Promise<{ returnTo?: string }>;
+    searchParams?: Promise<{
+        category?: string;
+        domain?: string;
+        q?: string;
+        returnTo?: string;
+    }>;
 }
 
 export const metadata = {
@@ -15,7 +20,7 @@ export const metadata = {
 };
 
 export default async function Page({ searchParams }: PageProps) {
-    const { returnTo } = searchParams ? await searchParams : {};
+    const filters = searchParams ? await searchParams : {};
     let profile;
 
     try {
@@ -25,7 +30,18 @@ export default async function Page({ searchParams }: PageProps) {
             throw error;
         }
 
-        redirect(buildAuthRedirectHref(withReturnTo("/methods", returnTo)));
+        redirect(
+            buildAuthRedirectHref(
+                withReturnTo(
+                    withSearchParams("/methods", {
+                        category: filters.category,
+                        domain: filters.domain,
+                        q: filters.q,
+                    }),
+                    filters.returnTo,
+                ),
+            ),
+        );
     }
 
     const methods = await listMethods();

@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { LEARNER_CONTENT_STATUS_FILTER } from "@/features/content/domain";
 import {
     filterRoleplaysByLibraryFilters,
     getRoleplayCategoryFilterOptions,
@@ -15,7 +16,9 @@ describe("roleplay library filters", () => {
             category: roleplayCategoryFilterOptions[0],
             disc: roleplayDiscFilterOptions[0],
             domain: "Management",
+            learnerStatus: LEARNER_CONTENT_STATUS_FILTER.all,
             level: roleplayLevelFilterOptions[0],
+            query: "",
         });
 
         expect(filtered).toHaveLength(1);
@@ -28,7 +31,38 @@ describe("roleplay library filters", () => {
             category: "Négociation",
             disc: "Influent",
             domain: "Commercial",
+            learnerStatus: LEARNER_CONTENT_STATUS_FILTER.all,
             level: "Facile",
+            query: "",
+        });
+
+        expect(filtered.map((roleplay) => roleplay.name)).toEqual(["Sophie Martin"]);
+    });
+
+    it("filters roleplays by learner status", () => {
+        const filtered = filterRoleplaysByLibraryFilters(roleplays, {
+            category: roleplayCategoryFilterOptions[0],
+            disc: roleplayDiscFilterOptions[0],
+            domain: roleplayDomainFilterOptions[0],
+            learnerStatus: LEARNER_CONTENT_STATUS_FILTER.retry,
+            level: roleplayLevelFilterOptions[0],
+            query: "",
+        });
+
+        expect(filtered.map((roleplay) => roleplay.name)).toEqual([
+            "Claude SAVARY",
+            "Marc Dubois",
+        ]);
+    });
+
+    it("searches across scenario and persona content without accent sensitivity", () => {
+        const filtered = filterRoleplaysByLibraryFilters(roleplays, {
+            category: roleplayCategoryFilterOptions[0],
+            disc: roleplayDiscFilterOptions[0],
+            domain: roleplayDomainFilterOptions[0],
+            learnerStatus: LEARNER_CONTENT_STATUS_FILTER.all,
+            level: roleplayLevelFilterOptions[0],
+            query: "negociation",
         });
 
         expect(filtered.map((roleplay) => roleplay.name)).toEqual(["Sophie Martin"]);

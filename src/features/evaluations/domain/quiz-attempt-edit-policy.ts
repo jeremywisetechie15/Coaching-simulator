@@ -1,5 +1,5 @@
 export const QUIZ_ATTEMPT_EDIT_RESTRICTION_MESSAGE =
-    "Ce quiz possède déjà des tentatives. Seuls les champs texte et numériques existants peuvent être modifiés.";
+    "Ce quiz possède déjà des tentatives. Ses contenus et paramètres structurels sont verrouillés ; les champs éditoriaux, numériques et le niveau de difficulté restent modifiables.";
 
 export interface QuizAttemptLockedAttachment {
     deliveryType: "file" | "url";

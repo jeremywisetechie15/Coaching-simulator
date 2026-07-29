@@ -1,6 +1,8 @@
 import {
     CONTENT_STATUS,
+    LEARNER_CONTENT_STATUS,
     normalizeContentStatus,
+    type LearnerContentStatus,
 } from "@/features/content/domain";
 import {
     QUIZ_PARTICIPATION,
@@ -71,10 +73,13 @@ export interface RoleplayRow {
 }
 
 export interface ScenarioQuizRow {
+    quiz_has_in_progress?: boolean;
     quiz_duration_minutes?: number | null;
+    quiz_learner_status?: LearnerContentStatus;
     participation?: string | null;
     quiz_id: string;
     quiz_question_count?: number | null;
+    quiz_score_percent?: number | null;
     quiz_title?: string | null;
     quiz_type?: string | null;
     scenario_id: string;
@@ -147,12 +152,19 @@ export function formatRoleplayTime(value: string | null | undefined) {
     }).format(new Date(value));
 }
 
-export function mapRoleplayRowToListItem(row: RoleplayRow, quizCount = 0, attemptCount = 0): RoleplayListItem {
+export function mapRoleplayRowToListItem(
+    row: RoleplayRow,
+    quizCount = 0,
+    attemptCount = 0,
+    learnerStatus: LearnerContentStatus = LEARNER_CONTENT_STATUS.todo,
+    bestScore: number | null = null,
+): RoleplayListItem {
     return {
         assignedUserId: row.assigned_user_id ?? null,
         assignedUserName: row.assigned_user_name ?? null,
         backgroundImagePath: row.background_image_path ?? null,
         attemptCount,
+        bestScore,
         category: row.category ?? "",
         coachAvatarUrl: getCoachAvatarPublicUrl(row.coach_avatar_url),
         coachId: row.coach_id ?? null,
@@ -168,6 +180,7 @@ export function mapRoleplayRowToListItem(row: RoleplayRow, quizCount = 0, attemp
         groupName: row.group_name ?? null,
         id: row.id,
         isActive: row.is_active ?? true,
+        learnerStatus,
         methodId: row.method_id ?? null,
         methodName: row.method_name ?? null,
         name: row.persona_name ?? row.title,
@@ -202,7 +215,13 @@ export function mapRoleplayRowsToDetail(
     const sortedResourceRows = resourceRows.slice().sort((first, second) => first.sort_order - second.sort_order);
 
     return {
-        ...mapRoleplayRowToListItem(row, sortedQuizRows.length),
+        ...mapRoleplayRowToListItem(
+            row,
+            sortedQuizRows.length,
+            stats.simulations,
+            stats.learnerStatus,
+            stats.bestScore,
+        ),
         coachingSteps: row.coaching_steps ?? "",
         configuredDifficulty: isRoleplayDifficulty(row.difficulty_level) ? row.difficulty_level : null,
         context: row.context ?? "",
@@ -214,9 +233,12 @@ export function mapRoleplayRowsToDetail(
         quizIds: sortedQuizRows.map((quiz) => quiz.quiz_id),
         quizzes: sortedQuizRows.map((quiz) => ({
             durationMinutes: quiz.quiz_duration_minutes ?? 30,
+            hasInProgress: quiz.quiz_has_in_progress ?? false,
             id: quiz.quiz_id,
+            learnerStatus: quiz.quiz_learner_status ?? LEARNER_CONTENT_STATUS.todo,
             participation: normalizeParticipation(quiz.participation),
             questionCount: quiz.quiz_question_count ?? 0,
+            scorePercent: quiz.quiz_score_percent ?? null,
             title: quiz.quiz_title ?? "Quiz",
             type: normalizeQuizType(quiz.quiz_type),
         })),
@@ -239,6 +261,7 @@ export function mapRoleplayRowsToDetail(
             indexTrend: stats.indexTrend,
             lastDate: stats.lastDate || formatRoleplayDate(null),
             lastDuration: stats.lastDuration || formatRoleplayDuration(0),
+            learnerStatus: stats.learnerStatus,
             latestEligibleSessionId: stats.latestEligibleSessionId,
             scoreActuel: stats.scoreActuel,
             simulations: stats.simulations,
@@ -257,6 +280,7 @@ export function createEmptyRoleplayStats(): RoleplayStats {
         indexTrend: "unavailable",
         lastDate: formatRoleplayDate(null),
         lastDuration: formatRoleplayDuration(0),
+        learnerStatus: LEARNER_CONTENT_STATUS.todo,
         latestEligibleSessionId: null,
         scoreActuel: 0,
         simulations: 0,

@@ -40,4 +40,13 @@ describe("SkillsPageContent", () => {
         expect(html).toContain("Catégorie · Gestion des conflits");
         expect(html).not.toContain("Fonctions");
     });
+
+    it("explains the empty assigned state to a learner", () => {
+        const html = renderToStaticMarkup(
+            <SkillsPageContent canManage={false} skills={[]} />,
+        );
+
+        expect(html).toContain("Aucune compétence assignée");
+        expect(html).toContain("via un roleplay ou un quiz");
+    });
 });

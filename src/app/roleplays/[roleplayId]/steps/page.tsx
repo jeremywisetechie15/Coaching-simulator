@@ -8,7 +8,11 @@ import {
     mapDbRoleplayToUi,
     mapMethodDetailToUi,
 } from "@/features/roleplays/data/roleplay-ui-adapter";
-import { getRoleplayById } from "@/features/roleplays/server";
+import {
+    getRoleplayById,
+    listRoleplayCoachNotes,
+} from "@/features/roleplays/server";
+import type { RoleplayCoachNoteGroup } from "@/features/roleplays/domain";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
@@ -31,6 +35,7 @@ export default async function Page({ params, searchParams }: PageProps) {
     const variant = coach === "after" ? "improve" : "prepare";
     let profile;
     let dbMethodId: string | null = null;
+    let noteGroups: RoleplayCoachNoteGroup[] = [];
 
     try {
         profile = await getCurrentProfile();
@@ -50,8 +55,12 @@ export default async function Page({ params, searchParams }: PageProps) {
 
     try {
         if (isUuid(roleplayId)) {
-            const dbRoleplay = await getRoleplayById(roleplayId);
+            const [dbRoleplay, savedNoteGroups] = await Promise.all([
+                getRoleplayById(roleplayId),
+                listRoleplayCoachNotes(roleplayId),
+            ]);
             dbMethodId = dbRoleplay.methodId;
+            noteGroups = savedNoteGroups;
             roleplay = mapDbRoleplayToUi(dbRoleplay);
         }
     } catch (error) {
@@ -87,6 +96,7 @@ export default async function Page({ params, searchParams }: PageProps) {
             profileValues={toProfileFormValues(profile)}
             roleplay={roleplay}
             method={method}
+            noteGroups={noteGroups}
             referenceSessionId={sessionId}
             variant={variant}
         />

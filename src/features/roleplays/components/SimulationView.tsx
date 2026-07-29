@@ -9,6 +9,7 @@ import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
 interface SimulationViewProps {
+    assistantName: string;
     backLabel?: string;
     /** URL de l'iframe runtime public (`/iframe?...`) — embarquée telle quelle, jamais modifiée. */
     iframeSrc: string | null;
@@ -17,7 +18,6 @@ interface SimulationViewProps {
     onBack: () => void;
     /** Panneau contextuel affiché sous l'iframe (sous-onglets, feedback…). */
     panel?: ReactNode;
-    personaName: string;
     title: string;
     transcript: TranscriptMessage[];
     transcriptAside?: ReactNode;
@@ -26,12 +26,12 @@ interface SimulationViewProps {
 }
 
 export function SimulationView({
+    assistantName,
     backLabel = "Retour",
     iframeSrc,
     liveTabLabel,
     onBack,
     panel,
-    personaName,
     title,
     transcript,
     transcriptAside,
@@ -57,7 +57,10 @@ export function SimulationView({
                         <Text
                             as="h1"
                             title={title}
-                            className={cn("min-w-0 flex-1 break-words text-[18px] font-extrabold leading-6", uiTokens.text.heading)}
+                            className={cn(
+                                "min-w-0 flex-1 break-words text-[18px] font-extrabold leading-6",
+                                uiTokens.text.heading,
+                            )}
                         >
                             {title}
                         </Text>
@@ -86,92 +89,99 @@ export function SimulationView({
                     </Box>
                 </Box>
 
-                {tab === "live" ? (
-                    <Box className="space-y-5">
-                        <CardSurface className={uiTokens.session.frameCard}>
-                            {iframeSrc ? (
-                                <iframe
-                                    title={title}
-                                    src={iframeSrc}
-                                    className={uiTokens.session.frame}
-                                    allow="microphone; camera; autoplay"
-                                />
-                            ) : (
-                                <Box className={uiTokens.session.frameFallback}>
-                                    <InlineIcon icon={AlertCircle} className="h-12 w-12 text-[#DC2626]" />
-                                    <Text className="text-[15px] font-bold text-[#374151]">
-                                        Simulation indisponible pour ce scénario
-                                    </Text>
-                                    <Text className="max-w-[420px] text-[13px] font-medium leading-6 text-[#6B7280]">
-                                        Aucun identifiant de scénario n&apos;est associé à ce roleplay.
-                                    </Text>
-                                </Box>
-                            )}
-                        </CardSurface>
-                        {panel}
-                    </Box>
-                ) : (
-                    <Box className={cn(Boolean(transcriptAside) && uiTokens.transcript.grid)}>
-                        <CardSurface className={uiTokens.transcript.card}>
-                            {transcript.length === 0 ? (
-                                <Text className={uiTokens.transcript.empty}>Aucune transcription disponible.</Text>
-                            ) : (
-                                <Box className="space-y-5">
-                                    {transcript.map((message, index) => {
-                                        const isPersona = message.speaker === "persona";
-                                        const isAdded = Boolean(message.id && addedTranscriptMessageIds?.has(message.id));
-                                        return (
+                <Box className={cn("space-y-5", tab !== "live" && "hidden")}>
+                    <CardSurface className={uiTokens.session.frameCard}>
+                        {iframeSrc ? (
+                            <iframe
+                                title={title}
+                                src={iframeSrc}
+                                className={uiTokens.session.frame}
+                                allow="microphone; camera; autoplay"
+                            />
+                        ) : (
+                            <Box className={uiTokens.session.frameFallback}>
+                                <InlineIcon icon={AlertCircle} className="h-12 w-12 text-[#DC2626]" />
+                                <Text className="text-[15px] font-bold text-[#374151]">
+                                    Simulation indisponible pour ce scénario
+                                </Text>
+                                <Text className="max-w-[420px] text-[13px] font-medium leading-6 text-[#6B7280]">
+                                    Aucun identifiant de scénario n&apos;est associé à ce roleplay.
+                                </Text>
+                            </Box>
+                        )}
+                    </CardSurface>
+                    {panel}
+                </Box>
+                <Box
+                    className={cn(
+                        Boolean(transcriptAside) && uiTokens.transcript.grid,
+                        tab !== "transcription" && "hidden",
+                    )}
+                >
+                    <CardSurface className={uiTokens.transcript.card}>
+                        {transcript.length === 0 ? (
+                            <Text className={uiTokens.transcript.empty}>Aucune transcription disponible.</Text>
+                        ) : (
+                            <Box className="space-y-5">
+                                {transcript.map((message, index) => {
+                                    const isPersona = message.speaker === "persona";
+                                    const isAdded = Boolean(message.id && addedTranscriptMessageIds?.has(message.id));
+                                    return (
+                                        <Box
+                                            key={message.id ?? index}
+                                            className={cn(
+                                                "group/message flex gap-3",
+                                                isPersona ? "flex-row-reverse" : "flex-row",
+                                            )}
+                                        >
                                             <Box
-                                                key={message.id ?? index}
                                                 className={cn(
-                                                    "group/message flex gap-3",
-                                                    isPersona ? "flex-row-reverse" : "flex-row",
+                                                    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
+                                                    isPersona ? uiTokens.transcript.avatarAi : uiTokens.transcript.avatarUser,
                                                 )}
                                             >
+                                                {isPersona ? "AI" : "Moi"}
+                                            </Box>
+                                            <Box className={cn("max-w-[78%]", isPersona ? "text-right" : "text-left")}>
                                                 <Box
                                                     className={cn(
-                                                        "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[11px] font-bold",
-                                                        isPersona ? uiTokens.transcript.avatarAi : uiTokens.transcript.avatarUser,
+                                                        uiTokens.transcript.meta,
+                                                        isPersona ? "justify-end" : "justify-start",
                                                     )}
                                                 >
-                                                    {isPersona ? "AI" : "Moi"}
+                                                    <Text as="span">{isPersona ? assistantName : "Moi"}</Text>
+                                                    <Text as="span">{message.time}</Text>
                                                 </Box>
-                                                <Box className={cn("max-w-[78%]", isPersona ? "text-right" : "text-left")}>
-                                                    <Box className={cn(uiTokens.transcript.meta, isPersona ? "justify-end" : "justify-start")}>
-                                                        <Text as="span">{isPersona ? personaName : "Moi"}</Text>
-                                                        <Text as="span">{message.time}</Text>
-                                                    </Box>
-                                                    <Box
-                                                        className={cn(
-                                                            "mt-1.5 rounded-2xl px-4 py-2.5 text-[14px] font-medium leading-6",
-                                                            isPersona ? uiTokens.transcript.bubbleAi : uiTokens.transcript.bubbleUser,
-                                                        )}
+                                                <Box
+                                                    className={cn(
+                                                        "mt-1.5 rounded-2xl px-4 py-2.5 text-[14px] font-medium leading-6",
+                                                        isPersona ? uiTokens.transcript.bubbleAi : uiTokens.transcript.bubbleUser,
+                                                    )}
+                                                >
+                                                    {message.text}
+                                                </Box>
+                                                {onAddTranscriptMessage ? (
+                                                    <Button
+                                                        className={uiTokens.transcript.action}
+                                                        disabled={isAdded}
+                                                        onClick={() => onAddTranscriptMessage(message)}
                                                     >
-                                                        {message.text}
-                                                    </Box>
-                                                    {onAddTranscriptMessage ? (
-                                                        <Button
-                                                            className={uiTokens.transcript.action}
-                                                            disabled={isAdded}
-                                                            onClick={() => onAddTranscriptMessage(message)}
-                                                        >
-                                                            <InlineIcon
-                                                                icon={isAdded ? Check : Plus}
-                                                                className={uiTokens.transcript.actionIcon}
-                                                            />
-                                                            {isAdded ? "Ajouté aux notes" : "Ajouter aux notes"}
-                                                        </Button>
-                                                    ) : null}
-                                                </Box>
+                                                        <InlineIcon
+                                                            icon={isAdded ? Check : Plus}
+                                                            className={uiTokens.transcript.actionIcon}
+                                                        />
+                                                        {isAdded ? "Ajouté aux notes" : "Ajouter aux notes"}
+                                                    </Button>
+                                                ) : null}
                                             </Box>
-                                        );
-                                    })}
-                                </Box>
-                            )}
-                        </CardSurface>
-                        {transcriptAside}
-                    </Box>
-                )}
+                                        </Box>
+                                    );
+                                })}
+                            </Box>
+                        )}
+                    </CardSurface>
+                    {transcriptAside}
+                </Box>
             </Box>
         </Box>
     );

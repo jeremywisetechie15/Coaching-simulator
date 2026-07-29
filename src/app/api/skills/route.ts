@@ -1,12 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSkill, listSkills, parseSaveSkillRequest } from "@/features/skills/server";
+import {
+    createSkill,
+    listSkillsForCurrentUser,
+    parseSaveSkillRequest,
+} from "@/features/skills/server";
 import { jsonError } from "@/lib/server/http";
 
 export const dynamic = "force-dynamic";
 
 export async function GET() {
     try {
-        const skills = await listSkills();
+        const skills = await listSkillsForCurrentUser();
 
         return NextResponse.json({ skills });
     } catch (error) {

@@ -1,11 +1,18 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { CONTENT_STATUS } from "@/features/content/domain";
+import {
+    buildLearnerContentProgressById,
+    CONTENT_STATUS,
+    resolveLearnerContentStatus,
+    type LearnerContentStatus,
+} from "@/features/content/domain";
 import { QUIZ_KIND } from "@/features/evaluations/domain";
+import { fetchQuizLearnerProgress } from "@/features/evaluations/server/quiz-query";
 import {
     calculateRoleplayIndex,
     calculateRoleplayIndexSeries,
     isRoleplaySessionEligibleForEvaluation,
     ROLEPLAY_INDEX_RECENT_SESSION_LIMIT,
+    ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
     selectRoleplayIndexScorePositions,
     type RoleplayDetail,
     type RoleplayListItem,
@@ -72,6 +79,7 @@ interface QuizRelationRow {
     id: string;
     quiz_type: string | null;
     title: string | null;
+    validation_threshold: number | null;
 }
 
 interface QuizStepRelationRow {
@@ -100,9 +108,17 @@ interface RoleplaySessionResultStatsRow {
     session_id: string;
 }
 
-interface RoleplaySessionAttemptRow {
+interface RoleplaySessionProgressRow {
     duration_seconds: number | null;
+    id: string;
+    notation_json: unknown;
     scenario_id: string | null;
+}
+
+interface RoleplayLearnerProgress {
+    attemptCount: number;
+    bestScore: number | null;
+    learnerStatus: LearnerContentStatus;
 }
 
 function uniqueValues(values: Array<string | null | undefined>) {
@@ -267,13 +283,17 @@ async function fetchMethodKnowledgeQuizId(supabase: SupabaseClient, methodId: st
     return data?.id ?? null;
 }
 
-async function withQuizDetails(supabase: SupabaseClient, rows: ScenarioQuizRow[]) {
+async function withQuizDetails(
+    supabase: SupabaseClient,
+    rows: ScenarioQuizRow[],
+    userId?: string | null,
+) {
     const quizIds = uniqueValues(rows.map((row) => row.quiz_id));
     if (quizIds.length === 0) return rows;
 
     const { data, error } = await supabase
         .from("quizzes")
-        .select("id, title, duration_minutes, quiz_type")
+        .select("id, title, duration_minutes, quiz_type, validation_threshold")
         .in("id", quizIds)
         .returns<QuizRelationRow[]>();
 
@@ -312,15 +332,31 @@ async function withQuizDetails(supabase: SupabaseClient, rows: ScenarioQuizRow[]
         }
     }
 
+    const learnerProgressByQuizId = await fetchQuizLearnerProgress(
+        supabase,
+        (data ?? []).map((quiz) => ({
+            id: quiz.id,
+            validationThreshold: quiz.validation_threshold,
+        })),
+        userId,
+    );
+
     return rows
         .filter((row) => quizById.has(row.quiz_id))
-        .map((row) => ({
-            ...row,
-            quiz_duration_minutes: quizById.get(row.quiz_id)?.duration_minutes ?? null,
-            quiz_question_count: quizQuestionCounts.get(row.quiz_id) ?? 0,
-            quiz_title: quizById.get(row.quiz_id)?.title ?? "Quiz",
-            quiz_type: quizById.get(row.quiz_id)?.quiz_type ?? null,
-        }));
+        .map((row) => {
+            const learnerProgress = learnerProgressByQuizId.get(row.quiz_id);
+
+            return {
+                ...row,
+                quiz_duration_minutes: quizById.get(row.quiz_id)?.duration_minutes ?? null,
+                quiz_has_in_progress: learnerProgress?.hasInProgress ?? false,
+                quiz_learner_status: learnerProgress?.status,
+                quiz_question_count: quizQuestionCounts.get(row.quiz_id) ?? 0,
+                quiz_score_percent: learnerProgress?.stats.bestScore ?? null,
+                quiz_title: quizById.get(row.quiz_id)?.title ?? "Quiz",
+                quiz_type: quizById.get(row.quiz_id)?.quiz_type ?? null,
+            };
+        });
 }
 
 async function withRoleplayRelations(rows: RoleplayRow[]) {
@@ -503,36 +539,81 @@ async function fetchRoleplayStats(supabase: SupabaseClient, scenarioId: string, 
         indexTrend: index.trend,
         lastDate: formatRoleplayDate(latestScoredSession?.session.created_at),
         lastDuration: formatRoleplayDuration(latestScoredSession?.session.duration_seconds),
+        learnerStatus: resolveLearnerContentStatus({
+            bestScore: bestScoredSession?.score ?? null,
+            hasCompleted: true,
+            validationThreshold: ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
+        }),
         latestEligibleSessionId,
         scoreActuel: latestScoredSession?.score ?? 0,
         simulations: eligibleSessions.length,
     };
 }
 
-async function fetchRoleplayAttemptCounts(
+async function fetchRoleplayLearnerProgress(
     supabase: SupabaseClient,
     scenarioIds: string[],
     userId?: string | null,
 ) {
-    if (scenarioIds.length === 0 || !userId) return new Map<string, number>();
+    if (scenarioIds.length === 0 || !userId) return new Map<string, RoleplayLearnerProgress>();
 
     const { data, error } = await supabase
         .from("sessions")
-        .select("scenario_id, duration_seconds")
+        .select("id, scenario_id, duration_seconds, notation_json")
         .in("scenario_id", scenarioIds)
         .eq("user_id", userId)
         .eq("status", "completed")
-        .returns<RoleplaySessionAttemptRow[]>();
+        .returns<RoleplaySessionProgressRow[]>();
 
     if (error) throw error;
 
-    const counts = new Map<string, number>();
-    for (const session of data ?? []) {
-        if (!session.scenario_id || !isRoleplaySessionEligibleForEvaluation(session.duration_seconds)) continue;
-        counts.set(session.scenario_id, (counts.get(session.scenario_id) ?? 0) + 1);
-    }
+    const eligibleSessions = (data ?? []).filter(
+        (session) =>
+            Boolean(session.scenario_id)
+            && isRoleplaySessionEligibleForEvaluation(session.duration_seconds),
+    );
+    if (eligibleSessions.length === 0) return new Map<string, RoleplayLearnerProgress>();
 
-    return counts;
+    const { data: resultRows, error: resultError } = await supabase
+        .from("roleplay_session_results")
+        .select("session_id, score_percent, completed_at")
+        .in("session_id", eligibleSessions.map((session) => session.id))
+        .returns<RoleplaySessionResultStatsRow[]>();
+
+    if (resultError) throw resultError;
+
+    const scoresBySessionId = new Map(
+        (resultRows ?? [])
+            .map((result) => [result.session_id, normalizeScore(result.score_percent)] as const)
+            .filter((entry): entry is readonly [string, number] => entry[1] !== null),
+    );
+    const progressByScenarioId = buildLearnerContentProgressById(
+        scenarioIds.map((scenarioId) => ({
+            id: scenarioId,
+            validationThreshold: ROLEPLAY_MASTERY_THRESHOLD_PERCENT,
+        })),
+        eligibleSessions.flatMap((session) =>
+            session.scenario_id
+                ? [{
+                      contentId: session.scenario_id,
+                      score:
+                          scoresBySessionId.get(session.id)
+                          ?? extractScore(session.notation_json),
+                  }]
+                : [],
+        ),
+    );
+
+    return new Map<string, RoleplayLearnerProgress>(
+        [...progressByScenarioId.entries()].map(([scenarioId, progress]) => [
+            scenarioId,
+            {
+                attemptCount: progress.completedCount,
+                bestScore: progress.bestScore,
+                learnerStatus: progress.status,
+            },
+        ]),
+    );
 }
 
 export async function fetchRoleplayList(supabase: SupabaseClient, userId?: string | null): Promise<RoleplayListItem[]> {
@@ -548,9 +629,9 @@ export async function fetchRoleplayList(supabase: SupabaseClient, userId?: strin
     const rows = await withRoleplayRelations(data ?? []);
     const scenarioIds = rows.map((row) => row.id);
     const adminSupabase = createAdminClient();
-    const [scenarioQuizRows, attemptCountsByScenarioId] = await Promise.all([
+    const [scenarioQuizRows, learnerProgressByScenarioId] = await Promise.all([
         fetchScenarioQuizzes(supabase, scenarioIds),
-        fetchRoleplayAttemptCounts(adminSupabase, scenarioIds, userId),
+        fetchRoleplayLearnerProgress(adminSupabase, scenarioIds, userId),
     ]);
     const quizCountsByScenarioId = new Map<string, number>();
 
@@ -558,13 +639,17 @@ export async function fetchRoleplayList(supabase: SupabaseClient, userId?: strin
         quizCountsByScenarioId.set(row.scenario_id, (quizCountsByScenarioId.get(row.scenario_id) ?? 0) + 1);
     }
 
-    return rows.map((row) =>
-        mapRoleplayRowToListItem(
+    return rows.map((row) => {
+        const learnerProgress = learnerProgressByScenarioId.get(row.id);
+
+        return mapRoleplayRowToListItem(
             row,
             quizCountsByScenarioId.get(row.id) ?? 0,
-            attemptCountsByScenarioId.get(row.id) ?? 0,
-        ),
-    );
+            learnerProgress?.attemptCount ?? 0,
+            learnerProgress?.learnerStatus,
+            learnerProgress?.bestScore ?? null,
+        );
+    });
 }
 
 interface QuizAccessOptions {
@@ -631,6 +716,7 @@ export async function fetchRoleplayDetail(
             scenarioId: roleplayId,
             scenarioQuizRows,
         }),
+        options.statsUserId,
     );
     const resourceRows = await fetchScenarioResources(adminSupabase, roleplayId);
     const stats = await fetchRoleplayStats(adminSupabase, roleplayId, options.statsUserId);

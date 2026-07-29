@@ -1,3 +1,4 @@
+import type { LearnerContentStatus } from "@/features/content/domain";
 import type { QuizParticipation } from "@/features/evaluations/domain";
 
 /**
@@ -16,7 +17,7 @@ export interface PrepDocument {
     url?: string;
 }
 
-export type PrepQuizStatus = "not_started" | "in_progress" | "completed";
+export type PrepQuizStatus = "in_progress" | LearnerContentStatus;
 
 export interface PrepQuiz {
     durationMinutes: number;

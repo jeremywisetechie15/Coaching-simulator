@@ -11,13 +11,13 @@ import {
     ExternalLink,
     FileText,
     GraduationCap,
+    NotebookPen,
     Target,
     User,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
     ContextualBackLink,
-    ContextualLink,
     useContextualReturnHref,
 } from "@/features/app-shell/components";
 import { withReturnTo } from "@/features/app-shell/domain";
@@ -34,13 +34,17 @@ import { cn } from "@/lib/ui/utils/cn";
 import {
     getRoleplayNotationApiErrorMessage,
     isRoleplaySessionLifecycleEvent,
+    ROLEPLAY_COACH_MODE,
     ROLEPLAY_NOTATION_FEEDBACK_MESSAGES,
     ROLEPLAY_ROUTES,
     ROLEPLAY_SESSION_LIFECYCLE_STATUS,
+    countRoleplayCoachNotes,
     type RoleplaySessionLifecycleStatus,
+    type RoleplayCoachNoteGroup,
 } from "@/features/roleplays/domain";
 import { notify, notifyHttpError } from "@/lib/ui/feedback/toast";
 import { RoleplayDocumentsModal } from "./RoleplayDocumentsModal";
+import { RoleplayCoachNotesModal } from "./RoleplayCoachNotesModal";
 import { roleplayChipIcons } from "./roleplayChipIcons";
 
 function FactRow({ icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
@@ -61,11 +65,20 @@ function SectionRow({ icon, children }: { icon: LucideIcon; children: React.Reac
     );
 }
 
-export function RoleplaySessionPageContent({ roleplay }: { roleplay: RoleplayItem }) {
+interface RoleplaySessionPageContentProps {
+    noteGroups: RoleplayCoachNoteGroup[];
+    roleplay: RoleplayItem;
+}
+
+export function RoleplaySessionPageContent({
+    noteGroups,
+    roleplay,
+}: RoleplaySessionPageContentProps) {
     const router = useRouter();
     const roleplayReturnHref = useContextualReturnHref(ROLEPLAY_ROUTES.app.detail(roleplay.id));
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
     const [documentsOpen, setDocumentsOpen] = useState(false);
+    const [notesOpen, setNotesOpen] = useState(false);
     const [analysisStep, setAnalysisStep] = useState<number | null>(null);
     const [completedSessionId, setCompletedSessionId] = useState<string | null>(null);
     const [sessionLifecycleStatus, setSessionLifecycleStatus] = useState<RoleplaySessionLifecycleStatus | null>(null);
@@ -73,6 +86,10 @@ export function RoleplaySessionPageContent({ roleplay }: { roleplay: RoleplayIte
     const { detail } = roleplay;
     const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
     const prepDocuments = roleplay.prepDocuments ?? [];
+    const preparationNoteGroups = noteGroups.filter(
+        (group) => group.coachMode === ROLEPLAY_COACH_MODE.beforeTraining,
+    );
+    const preparationNoteCount = countRoleplayCoachNotes(preparationNoteGroups);
     const analyzing = analysisStep !== null;
 
     // Embarque le runtime public existant sans le modifier (contrat iframe public).
@@ -325,24 +342,34 @@ export function RoleplaySessionPageContent({ roleplay }: { roleplay: RoleplayIte
                             <SectionRow icon={Target}>{roleplay.description}</SectionRow>
                         </Box>
 
-                        <Box className="mt-5 space-y-4 border-t border-[#EDEEF3] pt-4">
-                            <Button onClick={() => setDocumentsOpen(true)} className={uiTokens.session.documentsButton}>
-                                <Box className="flex items-center gap-2.5">
-                                    <InlineIcon icon={BookOpen} className={uiTokens.session.panelHeaderIcon} />
-                                    Documents utiles
-                                    <Text as="span" className={uiTokens.session.countBadge}>
-                                        {prepDocuments.length}
-                                    </Text>
-                                </Box>
-                                <InlineIcon icon={ExternalLink} className="h-4 w-4 text-[#9CA3AF]" />
-                            </Button>
-                            <ContextualLink
-                                href={`/roleplays/${roleplay.id}/steps`}
-                                className="flex items-center gap-2.5 text-[14px] font-bold text-[#374151] transition hover:text-[#5140F0]"
-                            >
-                                <InlineIcon icon={BookOpen} className={uiTokens.session.panelHeaderIcon} />
-                                Voir les notes de préparation
-                            </ContextualLink>
+                        <Box className={uiTokens.session.resourceList}>
+                            <Box className={uiTokens.session.resourceRow}>
+                                <Button onClick={() => setDocumentsOpen(true)} className={uiTokens.session.documentsButton}>
+                                    <Box className="flex items-center gap-2.5">
+                                        <InlineIcon icon={BookOpen} className={uiTokens.session.panelHeaderIcon} />
+                                        Documents utiles
+                                        <Text as="span" className={uiTokens.session.countBadge}>
+                                            {prepDocuments.length}
+                                        </Text>
+                                    </Box>
+                                    <InlineIcon icon={ExternalLink} className="h-4 w-4 text-[#9CA3AF]" />
+                                </Button>
+                            </Box>
+                            <Box className={uiTokens.session.resourceRowLast}>
+                                <Button
+                                    className={uiTokens.session.documentsButton}
+                                    onClick={() => setNotesOpen(true)}
+                                >
+                                    <Box className="flex items-center gap-2.5">
+                                        <InlineIcon icon={NotebookPen} className={uiTokens.session.panelHeaderIcon} />
+                                        Notes de préparation
+                                        <Text as="span" className={uiTokens.session.countBadge}>
+                                            {preparationNoteCount}
+                                        </Text>
+                                    </Box>
+                                    <InlineIcon icon={ExternalLink} className="h-4 w-4 text-[#9CA3AF]" />
+                                </Button>
+                            </Box>
                         </Box>
                     </CardSurface>
                 </Box>
@@ -350,6 +377,13 @@ export function RoleplaySessionPageContent({ roleplay }: { roleplay: RoleplayIte
 
             {documentsOpen && (
                 <RoleplayDocumentsModal documents={prepDocuments} onClose={() => setDocumentsOpen(false)} />
+            )}
+            {notesOpen && (
+                <RoleplayCoachNotesModal
+                    groups={preparationNoteGroups}
+                    onClose={() => setNotesOpen(false)}
+                    title="Mes notes de préparation"
+                />
             )}
 
             {analyzing && (

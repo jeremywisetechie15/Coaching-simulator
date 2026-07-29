@@ -1,15 +1,24 @@
 import {
+    CONTENT_DIFFICULTIES,
     CONTENT_STATUS_LABELS,
     CONTENT_VISIBILITY_SCOPE,
     CONTENT_VISIBILITY_SCOPE_LABELS,
     CONTENT_VISIBILITY_SCOPES,
+    calculateScoreIndex,
+    getScoreIndexDisplayState,
+    type ContentDifficulty,
     type ContentStatus,
     type ContentVisibilityScope,
     type EntitySelectionAvailability,
+    type LearnerContentStatus,
 } from "@/features/content/domain";
 import type { MethodSelectionOption } from "@/features/methods/domain/method";
 
 export const QUIZ_DEFAULT_VALIDATION_THRESHOLD = 70;
+
+export const QUIZ_DIFFICULTIES = CONTENT_DIFFICULTIES;
+
+export type QuizDifficulty = ContentDifficulty;
 
 export const QUIZ_KIND = {
     contextual: "contextual",
@@ -201,11 +210,14 @@ export interface QuizStep {
 export interface QuizListItem {
     categories: string[];
     description: string;
+    difficulty: QuizDifficulty | null;
     domain: string;
     durationMinutes: number;
     id: string;
     isActive: boolean;
     kind: QuizKind;
+    learnerStats: QuizLearnerStats;
+    learnerStatus: LearnerContentStatus;
     maxAttempts: QuizMaxAttempts;
     methodId: string | null;
     methodName: string | null;
@@ -218,6 +230,48 @@ export interface QuizListItem {
     type: QuizType;
     updatedAt: string | null;
     validationThreshold: number | null;
+}
+
+export interface QuizLearnerStats {
+    attemptCount: number;
+    bestScore: number | null;
+    currentScore: number | null;
+    indexResultCount: number;
+    indexScore: number | null;
+}
+
+interface QuizCompletedAttemptScore {
+    attemptNumber: number;
+    score: number | null;
+}
+
+function normalizeQuizScore(score: number | null) {
+    if (score === null || !Number.isFinite(score)) return null;
+    return Math.max(0, Math.min(100, score));
+}
+
+export function buildQuizLearnerStats(
+    completedAttempts: QuizCompletedAttemptScore[],
+): QuizLearnerStats {
+    const attemptsByRecency = completedAttempts
+        .slice()
+        .sort((first, second) => second.attemptNumber - first.attemptNumber);
+    const scoresByRecency = attemptsByRecency.flatMap((attempt) => {
+        const score = normalizeQuizScore(attempt.score);
+        return score === null ? [] : [score];
+    });
+    const index = calculateScoreIndex(scoresByRecency);
+
+    return {
+        attemptCount: attemptsByRecency.length,
+        bestScore: scoresByRecency.length > 0 ? Math.max(...scoresByRecency) : null,
+        currentScore: normalizeQuizScore(attemptsByRecency[0]?.score ?? null),
+        indexResultCount: index.resultCount,
+        indexScore:
+            getScoreIndexDisplayState(index.resultCount) === "available"
+                ? index.score
+                : null,
+    };
 }
 
 export interface QuizDetail extends QuizListItem {
@@ -261,15 +315,23 @@ export function getQuizCompetenceCount(quiz: Pick<QuizDetail, "steps">) {
     const competenceIds = new Set<string>();
 
     for (const step of quiz.steps) {
-        step.competenceIds.forEach((competenceId) => competenceIds.add(competenceId));
-        step.questions.forEach((question) => {
-            if (question.competenceId) {
-                competenceIds.add(question.competenceId);
-            }
-        });
+        getQuizStepCompetenceIds(step).forEach((competenceId) =>
+            competenceIds.add(competenceId),
+        );
     }
 
     return competenceIds.size;
+}
+
+export function getQuizStepCompetenceIds(step: QuizStep) {
+    return Array.from(
+        new Set([
+            ...step.competenceIds,
+            ...step.questions.flatMap((question) =>
+                question.competenceId ? [question.competenceId] : [],
+            ),
+        ]),
+    );
 }
 
 export function scoreQuizAnswers(
@@ -347,7 +409,13 @@ export function getQuizDimensionDiagnostic(scorePercent: number, threshold: numb
     return "Des lacunes importantes ont été identifiées. Une révision approfondie de cette compétence est nécessaire.";
 }
 
-export type QuizAttemptStatus = "in_progress" | "completed";
+export const QUIZ_ATTEMPT_STATUS = {
+    completed: "completed",
+    inProgress: "in_progress",
+} as const;
+
+export type QuizAttemptStatus =
+    (typeof QUIZ_ATTEMPT_STATUS)[keyof typeof QUIZ_ATTEMPT_STATUS];
 
 export interface QuizAttemptAnswer {
     choiceIds: string[];

@@ -14,7 +14,9 @@ import {
 interface PageProps {
     searchParams?: Promise<{
         category?: string;
+        difficulty?: string;
         domain?: string;
+        learnerStatus?: string;
         q?: string;
         returnTo?: string;
         type?: string;
@@ -41,7 +43,9 @@ export default async function Page({ searchParams }: PageProps) {
                 withReturnTo(
                     withSearchParams("/evaluations", {
                         category: filters.category,
+                        difficulty: filters.difficulty,
                         domain: filters.domain,
+                        learnerStatus: filters.learnerStatus,
                         q: filters.q,
                         type: filters.type,
                     }),

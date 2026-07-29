@@ -1,5 +1,6 @@
 export * from "./AlertMessage";
 export * from "./AnalysisStepRow";
+export * from "./AnimatedEntityHeader";
 export * from "./AvatarSourceField";
 export * from "./CardActionMenu";
 export * from "./DateRangeFilter";
@@ -12,6 +13,7 @@ export * from "./FormSkeleton";
 export * from "./GroupedTableSectionHeader";
 export * from "./IconDetailField";
 export * from "./ImageUploadField";
+export * from "./LibraryFilterBar";
 export * from "./PasswordField";
 export * from "./SearchableMultiSelectField";
 export * from "./SegmentedControl";

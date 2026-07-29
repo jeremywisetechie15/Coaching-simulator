@@ -113,6 +113,42 @@ export const uiTokens = {
             skeleton: "animate-pulse rounded-[10px] border border-[#E4E7EC] bg-[#F8F9FB]",
         },
     },
+    entityHeader: {
+        root:
+            "relative isolate flex min-h-[94px] flex-col items-stretch justify-between gap-4 overflow-hidden rounded-[16px] border px-6 py-7 sm:flex-row sm:items-center",
+        title:
+            "relative z-10 text-[20px] font-[var(--entity-header-title-weight)] leading-[30px] tracking-normal text-white drop-shadow-sm",
+        actions: "relative z-10 flex shrink-0 flex-wrap items-center gap-2",
+        haloPrimary:
+            "pointer-events-none absolute -left-10 -top-16 h-64 w-64 rounded-full blur-3xl",
+        haloSecondary:
+            "pointer-events-none absolute -top-10 right-10 h-72 w-72 rounded-full blur-3xl",
+        haloTertiary:
+            "pointer-events-none absolute -bottom-24 left-1/3 h-80 w-80 rounded-full blur-3xl",
+        waves:
+            "pointer-events-none absolute inset-x-0 bottom-0 h-24 overflow-hidden text-white",
+        wave: "absolute bottom-0 left-0 h-24 w-[200%]",
+        action: {
+            primary:
+                "inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-white px-3 text-[14px] font-medium text-[var(--entity-header-action-text)] shadow-[0_4px_12px_rgba(30,27,75,0.12)] transition hover:bg-[var(--entity-header-action-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--entity-header-action-ring)]",
+        },
+        tone: {
+            coach:
+                "border-white/20 [--entity-header-action-hover:#FFF1F2] [--entity-header-action-ring:#BE123C] [--entity-header-action-text:#BE123C] [--entity-header-gradient-from:#BE123C] [--entity-header-gradient-middle:#E11D48] [--entity-header-gradient-to:#FB7185] [--entity-header-glow-primary:rgba(251,113,133,0.85)] [--entity-header-glow-secondary:rgba(244,63,94,0.8)] [--entity-header-glow-tertiary:rgba(253,164,175,0.8)] [--entity-header-title-weight:400]",
+            method:
+                "border-white/20 [--entity-header-action-hover:#FAF5FF] [--entity-header-action-ring:#6D28D9] [--entity-header-action-text:#6D28D9] [--entity-header-gradient-from:#6D28D9] [--entity-header-gradient-middle:#9333EA] [--entity-header-gradient-to:#DB2777] [--entity-header-glow-primary:rgba(167,139,250,0.85)] [--entity-header-glow-secondary:rgba(217,70,239,0.8)] [--entity-header-glow-tertiary:rgba(244,114,182,0.8)] [--entity-header-title-weight:400]",
+            persona:
+                "border-white/20 [--entity-header-action-hover:#FAF5FF] [--entity-header-action-ring:#7C3AED] [--entity-header-action-text:#7C3AED] [--entity-header-gradient-from:#7C3AED] [--entity-header-gradient-middle:#C026D3] [--entity-header-gradient-to:#6366F1] [--entity-header-glow-primary:rgba(217,70,239,0.85)] [--entity-header-glow-secondary:rgba(167,139,250,0.8)] [--entity-header-glow-tertiary:rgba(129,140,248,0.8)] [--entity-header-title-weight:400]",
+            quiz:
+                "border-white/20 [--entity-header-action-hover:#F0FDFA] [--entity-header-action-ring:#0F766E] [--entity-header-action-text:#0F766E] [--entity-header-gradient-from:#0F766E] [--entity-header-gradient-middle:#0891B2] [--entity-header-gradient-to:#22C55E] [--entity-header-glow-primary:rgba(45,212,191,0.85)] [--entity-header-glow-secondary:rgba(56,189,248,0.8)] [--entity-header-glow-tertiary:rgba(74,222,128,0.8)] [--entity-header-title-weight:400]",
+            roleplay:
+                "border-[#818CF8]/30 [--entity-header-action-hover:#EEF2FF] [--entity-header-action-ring:#4338CA] [--entity-header-action-text:#4338CA] [--entity-header-gradient-from:#4338CA] [--entity-header-gradient-middle:#6D28D9] [--entity-header-gradient-to:#0EA5E9] [--entity-header-glow-primary:rgba(129,140,248,0.9)] [--entity-header-glow-secondary:rgba(56,189,248,0.85)] [--entity-header-glow-tertiary:rgba(192,132,252,0.8)] [--entity-header-title-weight:700]",
+            scorecard:
+                "border-white/20 [--entity-header-action-hover:#FFFBEB] [--entity-header-action-ring:#B45309] [--entity-header-action-text:#B45309] [--entity-header-gradient-from:#B45309] [--entity-header-gradient-middle:#EA580C] [--entity-header-gradient-to:#F59E0B] [--entity-header-glow-primary:rgba(251,191,36,0.85)] [--entity-header-glow-secondary:rgba(251,146,60,0.8)] [--entity-header-glow-tertiary:rgba(253,224,71,0.8)] [--entity-header-title-weight:400]",
+            skill:
+                "border-white/20 [--entity-header-action-hover:#EFF6FF] [--entity-header-action-ring:#1D4ED8] [--entity-header-action-text:#1D4ED8] [--entity-header-gradient-from:#1D4ED8] [--entity-header-gradient-middle:#2563EB] [--entity-header-gradient-to:#06B6D4] [--entity-header-glow-primary:rgba(96,165,250,0.85)] [--entity-header-glow-secondary:rgba(56,189,248,0.8)] [--entity-header-glow-tertiary:rgba(34,211,238,0.8)] [--entity-header-title-weight:400]",
+        },
+    },
     adminDashboard: {
         page: "px-4 pb-14 md:px-6 lg:px-8 print:px-0",
         container: "mx-auto max-w-[1460px] space-y-4",
@@ -221,6 +257,10 @@ export const uiTokens = {
         stepNumberMuted:
             "flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#F3F4F6] text-[13px] font-bold text-[#9CA3AF]",
     },
+    contentStatus: {
+        badge:
+            "inline-flex h-7 items-center rounded-lg border px-2.5 text-[11px] font-bold",
+    },
     metadata: {
         dateBadge:
             "inline-flex h-7 items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-[#F7F8FB] px-2.5 text-[12px] font-bold text-[#4B5563]",
@@ -239,6 +279,112 @@ export const uiTokens = {
             red: "border-[#DC2626] bg-[#FEF2F2] text-[#B91C1C]",
             yellow: "border-[#EAB308] bg-[#FEFCE8] text-[#A16207]",
         },
+    },
+    learnerContentStatus: {
+        badge: "inline-flex h-7 items-center rounded-md border px-2.5 text-[12px] font-bold",
+    },
+    quizBadge: {
+        base:
+            "inline-flex min-h-7 items-center rounded-lg border px-3 py-1 text-[12px] font-bold",
+    },
+    quizLibraryCard: {
+        action:
+            "mt-auto flex h-9 w-full items-center justify-center gap-2 rounded-lg border-2 border-[#4F46E5] bg-transparent px-4 text-[14px] font-medium text-[#4F46E5] transition hover:bg-[#EEF2FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F46E5] focus-visible:ring-offset-2",
+        actionIcon: "h-4 w-4 fill-current",
+        badge:
+            "!h-[22px] !min-h-[22px] !rounded-lg !px-2 !py-0.5 !text-[12px] !font-medium !leading-4",
+        badgeRow: "mb-4 flex flex-wrap items-start gap-2",
+        body: "flex flex-1 flex-col px-6 pb-6 pt-3",
+        category:
+            "inline-flex h-6 w-fit max-w-[220px] items-center truncate rounded-md bg-white/95 px-2 text-[12px] font-medium text-[#0F766E]",
+        categoryPosition: "absolute left-3 top-3",
+        description:
+            "mb-6 line-clamp-2 min-h-10 text-[14px] font-normal leading-5 text-[#4B5563]",
+        header:
+            "relative h-16 shrink-0 rounded-t-[14px] [background:linear-gradient(120deg,#0F766E_0%,#0891B2_55%,#22C55E_100%)]",
+        menuButton:
+            "flex h-8 w-8 items-center justify-center rounded-full text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60",
+        menuIcon: "h-4 w-4",
+        menuPosition: "absolute right-3 top-3 z-20",
+        metadata: "mb-4 space-y-2",
+        metadataIcon: "h-4 w-4 shrink-0 text-[#6B7280]",
+        metadataMethod: "text-[#4F46E5]",
+        metadataRow:
+            "flex min-h-5 items-center gap-2 text-[14px] font-normal leading-5 text-[#4B5563]",
+        root:
+            "relative flex min-h-[484px] flex-col gap-6 rounded-[14px] border border-[#E5E7EB] bg-white shadow-none transition-shadow hover:shadow-lg",
+        stat: "min-w-0 flex-1 text-center",
+        statInfo:
+            "flex h-4 w-4 items-center justify-center rounded-full text-[#9CA3AF]",
+        statInfoIcon: "h-3 w-3",
+        statLabel: "text-[12px] font-normal leading-4 text-[#6B7280]",
+        statLabelRow: "flex items-center justify-center gap-1",
+        stats: "mt-auto flex items-start justify-center gap-10 pb-4 pt-1",
+        statValue: "mt-0.5 text-[16px] font-semibold leading-6 text-[#111827]",
+        title: "mb-2 text-[18px] font-semibold leading-7 text-[#111827]",
+    },
+    quizDetail: {
+        page: "px-5 pb-16 md:px-9 lg:px-12",
+        container: "mx-auto max-w-[1260px]",
+        topActions: "mb-5 flex items-center justify-between",
+        shell:
+            "rounded-[18px] border border-[#E1E4EA] bg-white px-6 py-7 shadow-[0_1px_2px_rgba(17,24,39,0.03)] sm:px-8 sm:py-9",
+        badgeRow: "flex flex-wrap items-center gap-2",
+        description: "mt-4 text-[15px] font-medium leading-7 text-[#4B5563]",
+        factsPanel: "mt-6 space-y-3 rounded-[14px] bg-[#F7F8FA] px-5 py-5",
+        factIcon: "h-[18px] w-[18px] shrink-0 text-[#7A8494]",
+        factRow: "flex items-center gap-3 text-[14px] text-[#374151]",
+        factStrong: "font-extrabold",
+        sectionTitle: "text-[16px] font-extrabold text-[#111827]",
+        statsSection: "mt-7",
+        statsGrid: "mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4",
+        statCell:
+            "flex min-h-[112px] flex-col items-center justify-center rounded-[12px] border border-[#D9DDE5] bg-white px-4 py-4 text-center",
+        statHelper: "mt-2 text-[11px] font-semibold text-[#7A8494]",
+        statLabel: "text-[13px] font-bold text-[#4B5563]",
+        statValue: "mt-2 text-[22px] font-extrabold leading-none",
+        statValueAccent: "text-[#5140F0]",
+        statValueDefault: "text-[#111827]",
+        statValueMuted: "text-[#98A2B3]",
+        methodPanel:
+            "mt-6 flex flex-col gap-4 rounded-[14px] border border-[#E1E4EA] bg-[#FAFAFB] px-5 py-5 sm:flex-row sm:items-center sm:justify-between",
+        methodText: "text-[14px] font-medium text-[#111827]",
+        methodLink:
+            "inline-flex shrink-0 items-center gap-2 text-[14px] font-extrabold text-[#5140F0] transition hover:text-[#4433D8]",
+        methodLinkIcon: "h-4 w-4",
+        stepsAccordion:
+            "mt-6 overflow-hidden rounded-[14px] border border-[#E1E4EA] bg-white",
+        stepsHeader:
+            "flex min-h-[82px] flex-col gap-3 bg-[#FAFAFB] px-5 py-4 sm:flex-row sm:items-center sm:justify-between",
+        stepsHeading: "text-[14px] font-medium text-[#6B7280]",
+        stepsHeadingStrong: "font-bold text-[#111827]",
+        stepsToggle:
+            "inline-flex h-9 w-fit shrink-0 items-center gap-2 text-[14px] font-extrabold text-[#5140F0] transition hover:text-[#4433D8]",
+        stepsToggleIcon: "h-4 w-4 transition-transform",
+        stepsBody: "border-t border-[#E1E4EA] px-5 py-6",
+        stepsDescription: "text-[14px] font-medium leading-6 text-[#6B7280]",
+        stepList: "mt-5 space-y-3",
+        stepItem: "overflow-hidden rounded-[12px] border border-[#D9DDE5] bg-white",
+        stepItemHeader:
+            "flex min-h-[62px] items-center gap-3 border-b border-[#D5DCFC] bg-[#EEF1FF] px-4 py-3",
+        stepNumber:
+            "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#5140F0] text-[13px] font-extrabold text-white",
+        stepTitle: "min-w-0 flex-1 text-[14px] font-bold leading-5 text-[#302B89]",
+        stepWeight:
+            "inline-flex h-7 shrink-0 items-center rounded-full border border-[#BFCBFF] bg-[#E7ECFF] px-2.5 text-[12px] font-bold text-[#5140F0]",
+        stepCompetencies:
+            "flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center sm:gap-3",
+        stepCompetenciesLabel: "shrink-0 text-[12px] font-semibold text-[#98A2B3]",
+        stepCompetencyList: "flex min-w-0 flex-wrap gap-2",
+        stepCompetency:
+            "inline-flex min-h-7 items-center gap-1.5 rounded-full border border-[#BFCBFF] bg-[#F4F6FF] px-3 py-1 text-[12px] font-semibold text-[#4338CA]",
+        stepCompetencyIcon: "h-3.5 w-3.5 shrink-0 text-[#6F80FF]",
+        stepCompetencyEmpty: "text-[12px] font-semibold text-[#98A2B3]",
+        stepsEmpty: "mt-5 text-[13px] font-semibold text-[#98A2B3]",
+        actions: "mt-7 flex flex-wrap gap-3",
+        primaryAction:
+            "flex h-11 items-center justify-center rounded-xl px-6 text-[14px] font-bold text-white transition",
+        secondaryAction: "h-11 gap-2 px-5",
     },
     detailField: {
         icon: "h-4 w-4",
@@ -420,23 +566,51 @@ export const uiTokens = {
         check: "h-4 w-4 shrink-0 text-[#5140F0]",
         chevron: "ml-auto h-4 w-4 shrink-0 text-[#9CA3AF] transition-transform",
         container: "relative min-w-0",
-        menu: "absolute left-0 right-0 top-[48px] z-30 max-h-[260px] overflow-y-auto rounded-xl border border-[#E5E7EB] p-1.5 shadow-[0_18px_40px_rgba(17,24,39,0.16)]",
+        menu: "absolute left-0 right-0 z-30 max-h-[260px] overflow-y-auto rounded-xl border border-[#E5E7EB] p-1.5 shadow-[0_18px_40px_rgba(17,24,39,0.16)]",
+        menuOffset: {
+            default: "top-[48px]",
+            library: "top-[44px]",
+        },
         option: "flex min-h-10 w-full min-w-0 items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-[14px] font-medium transition hover:bg-[#F6F7FB]",
         optionActive: "text-[#5140F0]",
         optionIdle: "text-[#111827]",
         optionLabel: "min-w-0 flex-1 whitespace-normal break-words leading-5",
-        trigger: "flex h-11 w-full min-w-0 items-center justify-between gap-2 rounded-lg border border-[#E5E7EB] bg-white px-3.5 text-[14px] font-medium text-[#374151] transition hover:border-[#D5D7DE]",
+        trigger:
+            "flex w-full min-w-0 items-center justify-between gap-2 border border-[#E5E7EB] text-[14px] text-[#111827] transition hover:border-[#D5D7DE]",
+        triggerAppearance: {
+            default: "h-11 rounded-lg bg-white px-3.5 font-medium",
+            library: "h-9 rounded-lg bg-[#F9FAFB] px-3 py-2 font-normal",
+        },
         triggerLabel: "min-w-0 flex-1 truncate text-left",
     },
     filterBar: {
         activeCount: "inline-flex h-6 min-w-6 items-center justify-center rounded-full bg-[#5140F0] px-1.5 text-[11px] font-bold text-white",
         controls: "grid min-w-0 gap-3 sm:grid-cols-2 lg:grid-cols-4",
         header: "mb-3 flex flex-wrap items-center justify-between gap-3",
+        libraryControls: "flex min-w-0 flex-wrap items-center gap-3",
+        librarySearch: "min-w-[200px] flex-1",
+        librarySearchInput:
+            "!h-10 !bg-[#F9FAFB] !py-1 !pl-9 text-[14px] font-normal focus:!bg-[#F9FAFB] focus:!ring-0",
+        librarySelectCategory: "w-[188px]",
+        librarySelectDomain: "w-[180px]",
+        librarySelectLevel: "w-[156px]",
+        librarySelectQuizLevel: "w-[160px]",
+        librarySelectScorecardDomain: "w-[192px]",
+        librarySelectStatus: "w-[160px]",
+        librarySelectType: "w-[180px]",
+        librarySurface:
+            "mb-7 rounded-[14px] border border-[#E5E7EB] bg-white p-4 shadow-none",
         resetButton: "inline-flex h-9 items-center gap-1.5 rounded-lg px-3 text-[13px] font-semibold text-[#6B7280] transition hover:bg-[#F4F3FE] hover:text-[#5140F0]",
         resetIcon: "h-3.5 w-3.5",
         surface: "mb-7 rounded-[16px] border border-[#E9E7FB] p-4 shadow-[0_1px_2px_rgba(17,24,39,0.04)]",
         title: "flex items-center gap-2 text-[13px] font-bold text-[#374151]",
         titleIcon: "h-4 w-4 text-[#5140F0]",
+    },
+    inputIcon: {
+        default:
+            "pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400",
+        library:
+            "pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]",
     },
     radio: {
         dot: "h-2.5 w-2.5 rounded-full bg-[#5140F0]",
@@ -633,8 +807,32 @@ export const uiTokens = {
         trend: "mt-1 inline-flex items-center justify-center gap-1 text-[12px] font-semibold",
     },
     roleplayCard: {
+        action:
+            "mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#5140F0] text-[14px] font-semibold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7]",
         attemptBadge:
             "inline-flex h-7 min-w-10 items-center justify-center gap-1 rounded-lg border border-white/25 bg-white/15 px-2 text-[12px] font-bold text-white backdrop-blur-sm",
+        avatar:
+            "relative z-10 h-20 w-20 overflow-hidden rounded-full border-[3px] border-white bg-[#F1F2F6] shadow-[0_8px_20px_rgba(17,24,39,0.14)]",
+        badges: "mt-2.5 flex items-center gap-2",
+        body: "-mt-6 flex flex-1 flex-col items-center px-6 pb-6",
+        content: "flex-1 text-center",
+        description: "mt-1 text-[13px] font-medium leading-5 text-[#4B5563]",
+        divider: "my-3 h-px w-full bg-[#ECEEF3]",
+        header:
+            "relative h-16 rounded-t-[16px] bg-gradient-to-r from-indigo-600 to-indigo-700",
+        personaMeta:
+            "mt-1 text-center text-[13px] font-semibold leading-5 text-[#737B8E]",
+        personaName: "mt-2 text-[17px] font-extrabold leading-6 text-[#111827]",
+        stat: "min-w-0 text-center",
+        statInfo:
+            "flex h-4 w-4 items-center justify-center rounded-full text-[#9CA3AF]",
+        statInfoIcon: "h-3 w-3",
+        statLabel:
+            "text-[10px] font-bold uppercase leading-4 text-[#7A8494]",
+        statLabelRow: "flex items-center justify-center gap-1",
+        stats: "mt-4 grid w-full grid-cols-2 gap-4",
+        statValue: "mt-1 text-[15px] font-bold leading-5 text-[#111827]",
+        title: "text-[14px] font-extrabold leading-5 text-[#111827]",
     },
     routeStatus: {
         card: "w-full max-w-[560px] rounded-[20px] border border-[#E9E7FB] px-7 py-8 text-center shadow-[0_18px_50px_rgba(17,24,39,0.08)] md:px-10 md:py-10",
@@ -791,6 +989,19 @@ export const uiTokens = {
                 surface: "border-[#DDD6FE] bg-[#F5F3FF]",
             },
         },
+        viewer: {
+            empty: "rounded-xl border border-[#E5E7EB] bg-[#F8F9FC] px-5 py-8 text-center text-[13px] font-semibold text-[#9CA3AF]",
+            group: "rounded-[14px] border border-[#E5E7EB] bg-white p-4",
+            groupHeader: "flex min-w-0 items-start gap-3 border-b border-[#ECEEF3] pb-3",
+            groupIcon: "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EEF0FE] text-[#5140F0]",
+            groupIconSvg: "h-5 w-5",
+            groupMeta: "mt-1 text-[12px] font-semibold text-[#6B7280]",
+            groupTitle: "text-[14px] font-extrabold leading-5 text-[#111827]",
+            list: "max-h-[min(64vh,620px)] space-y-3 overflow-y-auto pr-1",
+            note: "rounded-[10px] border p-3",
+            noteText: "mt-2 whitespace-pre-wrap text-[13px] font-medium leading-5 text-[#374151]",
+            notes: "space-y-2.5 pt-3",
+        },
     },
     transcript: {
         action:
@@ -823,13 +1034,17 @@ export const uiTokens = {
         factIcon: "h-4 w-4 shrink-0 text-[#9CA3AF]",
         factRow: "flex items-center gap-2.5 text-[14px] font-semibold text-[#374151]",
         frame: "h-[680px] w-full border-0",
-        frameCard: "overflow-hidden rounded-[20px] border border-[#E9E7FB] shadow-[0_1px_2px_rgba(17,24,39,0.04)]",
+        frameCard:
+            "self-start overflow-hidden rounded-[20px] border border-[#E9E7FB] shadow-[0_1px_2px_rgba(17,24,39,0.04)]",
         frameFallback:
             "flex h-[680px] flex-col items-center justify-center gap-3 bg-[#F8F9FC] p-6 text-center",
         panel: "rounded-[20px] border border-[#E9E7FB] bg-white p-6 shadow-[0_1px_2px_rgba(17,24,39,0.04)]",
         panelHeader: "flex items-center gap-2 border-b border-[#EDEEF3] pb-4",
         panelHeaderIcon: "h-5 w-5 shrink-0 text-[#5140F0]",
         panelHeaderTitle: "text-[15px] font-extrabold text-[#111827]",
+        resourceList: "mt-5 divide-y divide-[#EDEEF3] border-t border-[#EDEEF3]",
+        resourceRow: "py-4",
+        resourceRowLast: "pt-4",
         sectionIcon: "mt-0.5 h-4 w-4 shrink-0 text-[#5140F0]",
         sectionRow: "flex gap-2.5",
         sectionText: "text-[14px] font-medium leading-6 text-[#4B5563]",

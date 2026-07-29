@@ -9,6 +9,8 @@ export const PERSONA_ROUTES = {
         duplicate: (personaId: string) => `/api/personas/${encodeRouteSegment(personaId)}/duplicate`,
     },
     app: {
+        collection: "/personas",
+        create: "/personas/new",
         edit: (personaId: string) => `/personas/${encodeRouteSegment(personaId)}`,
     },
 } as const;

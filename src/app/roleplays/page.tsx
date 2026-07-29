@@ -12,7 +12,9 @@ interface PageProps {
         category?: string;
         disc?: string;
         domain?: string;
+        learnerStatus?: string;
         level?: string;
+        q?: string;
         returnTo?: string;
     }>;
 }
@@ -39,7 +41,9 @@ export default async function Page({ searchParams }: PageProps) {
                         category: filters.category,
                         disc: filters.disc,
                         domain: filters.domain,
+                        learnerStatus: filters.learnerStatus,
                         level: filters.level,
+                        q: filters.q,
                     }),
                     filters.returnTo,
                 ),

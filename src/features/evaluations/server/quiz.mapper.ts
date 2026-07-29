@@ -1,4 +1,9 @@
-import { CONTENT_STATUS, normalizeContentStatus } from "@/features/content/domain";
+import {
+    CONTENT_STATUS,
+    LEARNER_CONTENT_STATUS,
+    normalizeContentDifficulty,
+    normalizeContentStatus,
+} from "@/features/content/domain";
 import {
     QUIZ_ATTACHMENT_TYPES,
     QUIZ_DIMENSIONS,
@@ -11,6 +16,7 @@ import {
     QUIZ_TYPES,
     QUIZ_VISIBILITY_SCOPE,
     QUIZ_VISIBILITY_SCOPES,
+    buildQuizLearnerStats,
     normalizeQuizMaxAttempts,
     type QuizAttachmentType,
     type QuizChoice,
@@ -32,6 +38,7 @@ export interface QuizRow {
     categories?: string[] | null;
     created_at?: string | null;
     description?: string | null;
+    difficulty_level?: string | null;
     domain?: string | null;
     duration_minutes?: number | null;
     group_id?: string | null;
@@ -139,11 +146,14 @@ export function mapQuizRowToListItem(row: QuizRow, questionCount = 0): QuizListI
     return {
         categories: cleanArray(row.categories),
         description: row.description ?? "",
+        difficulty: normalizeContentDifficulty(row.difficulty_level),
         domain: row.domain ?? "",
         durationMinutes: row.duration_minutes ?? 30,
         id: row.id,
         isActive: row.is_active ?? true,
         kind: normalizeKind(row.quiz_kind),
+        learnerStats: buildQuizLearnerStats([]),
+        learnerStatus: LEARNER_CONTENT_STATUS.todo,
         maxAttempts: normalizeQuizMaxAttempts(row.max_attempts),
         methodId: row.method_id ?? null,
         methodName: row.method_name ?? null,

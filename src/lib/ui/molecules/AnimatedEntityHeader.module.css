@@ -1,0 +1,111 @@
+.root {
+    background-image: linear-gradient(
+        120deg,
+        var(--entity-header-gradient-from) 0%,
+        var(--entity-header-gradient-middle) 55%,
+        var(--entity-header-gradient-to) 100%
+    );
+}
+
+.haloPrimary {
+    background: radial-gradient(
+        circle at 30% 30%,
+        var(--entity-header-glow-primary),
+        transparent 70%
+    );
+    animation: entity-header-halo-primary 8s ease-in-out infinite alternate;
+}
+
+.haloSecondary {
+    background: radial-gradient(
+        circle,
+        var(--entity-header-glow-secondary),
+        transparent 70%
+    );
+    animation: entity-header-halo-secondary 10s ease-in-out infinite alternate;
+}
+
+.haloTertiary {
+    background: radial-gradient(
+        circle,
+        var(--entity-header-glow-tertiary),
+        transparent 70%
+    );
+    animation: entity-header-halo-tertiary 9s ease-in-out infinite alternate;
+}
+
+.waveForward {
+    animation: entity-header-wave-forward 12s linear infinite;
+}
+
+.waveBackward {
+    animation: entity-header-wave-backward 9s linear infinite;
+}
+
+@keyframes entity-header-halo-primary {
+    from {
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+
+    to {
+        transform: translate3d(40px, 30px, 0) scale(1.15);
+    }
+}
+
+@keyframes entity-header-halo-secondary {
+    from {
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+
+    to {
+        transform: translate3d(20px, -15px, 0) scale(1.2);
+    }
+}
+
+@keyframes entity-header-halo-tertiary {
+    from {
+        transform: translate3d(0, 0, 0) scale(1);
+    }
+
+    to {
+        transform: translate3d(-25px, 15px, 0) scale(0.9);
+    }
+}
+
+@keyframes entity-header-wave-forward {
+    from {
+        transform: translateX(0);
+    }
+
+    to {
+        transform: translateX(-50%);
+    }
+}
+
+@keyframes entity-header-wave-backward {
+    from {
+        transform: translateX(-50%);
+    }
+
+    to {
+        transform: translateX(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .haloPrimary,
+    .haloSecondary,
+    .haloTertiary,
+    .waveForward,
+    .waveBackward {
+        animation: none;
+    }
+
+    .waveForward {
+        transform: translateX(-12%);
+    }
+
+    .waveBackward {
+        transform: translateX(-38%);
+    }
+}

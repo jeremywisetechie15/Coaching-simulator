@@ -228,8 +228,11 @@ describe("roleplay mapper", () => {
                 {
                     participation: "mandatory",
                     quiz_duration_minutes: 18,
+                    quiz_has_in_progress: false,
                     quiz_id: quizId,
+                    quiz_learner_status: "validated",
                     quiz_question_count: 9,
+                    quiz_score_percent: 84,
                     quiz_title: "Quiz méthode DAGO",
                     quiz_type: "self_assessment",
                     scenario_id: "scenario-1",
@@ -243,9 +246,12 @@ describe("roleplay mapper", () => {
         expect(detail.quizzes).toEqual([
             {
                 durationMinutes: 18,
+                hasInProgress: false,
                 id: quizId,
+                learnerStatus: "validated",
                 participation: "mandatory",
                 questionCount: 9,
+                scorePercent: 84,
                 title: "Quiz méthode DAGO",
                 type: "self_assessment",
             },

@@ -1,21 +1,30 @@
 "use client";
 
-import { ArrowLeft, Lightbulb } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeft, Lightbulb, NotebookPen } from "lucide-react";
 import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
 import { DiscProfileBadge } from "@/features/content/components";
-import { Box, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
+import { cn } from "@/lib/ui/utils/cn";
 import { difficultyBadgeStyles } from "@/features/roleplays/data/roleplays";
 import type { Method } from "@/features/methods/data/methods";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
-import { ROLEPLAY_ROUTES } from "@/features/roleplays/domain";
+import {
+    ROLEPLAY_COACH_MODE,
+    ROLEPLAY_ROUTES,
+    countRoleplayCoachNotes,
+    type RoleplayCoachNoteGroup,
+} from "@/features/roleplays/domain";
 import { getCoachInitials } from "@/features/coaches/domain/coach-list";
+import { RoleplayCoachNotesModal } from "./RoleplayCoachNotesModal";
 import type { StepCoachVariant } from "./RoleplayStepCoachPageContent";
 
 interface RoleplayStepsPageContentProps {
     roleplay: RoleplayItem;
     referenceSessionId?: string;
     method: Method;
+    noteGroups: RoleplayCoachNoteGroup[];
     variant?: StepCoachVariant;
 }
 
@@ -30,6 +39,7 @@ const stepPalette = [
 export function RoleplayStepsPageContent({
     roleplay,
     method,
+    noteGroups,
     referenceSessionId,
     variant = "prepare",
 }: RoleplayStepsPageContentProps) {
@@ -38,6 +48,11 @@ export function RoleplayStepsPageContent({
     const verb = isImprove ? "S'améliorer" : "Se préparer";
     const coachName = roleplay.coachName?.trim() || "Coach IA";
     const coachAvatarSrc = roleplay.coachAvatarSrc?.trim() || "";
+    const [activeNotesStepOrder, setActiveNotesStepOrder] = useState<number | null>(null);
+    const coachMode = isImprove
+        ? ROLEPLAY_COACH_MODE.afterTraining
+        : ROLEPLAY_COACH_MODE.beforeTraining;
+    const visibleNoteGroups = noteGroups.filter((group) => group.coachMode === coachMode);
     const stepSuffix = isImprove
         ? `?coach=after${referenceSessionId ? `&sessionId=${encodeURIComponent(referenceSessionId)}` : ""}`
         : "";
@@ -111,6 +126,12 @@ export function RoleplayStepsPageContent({
                         {method.steps.map((step, index) => {
                             const palette = stepPalette[index % stepPalette.length];
                             const stepNumber = index + 1;
+                            const stepNoteGroups = visibleNoteGroups.filter((group) =>
+                                step.id
+                                    ? group.methodStepId === step.id
+                                    : group.stepOrder === stepNumber,
+                            );
+                            const stepNoteCount = countRoleplayCoachNotes(stepNoteGroups);
 
                             return (
                                 <Box
@@ -131,16 +152,29 @@ export function RoleplayStepsPageContent({
                                     >
                                         {step.title}
                                     </Text>
-                                    <Text className="mt-1.5 flex-1 text-[12px] font-medium leading-5 text-[#4B5563]">
-                                        {step.summary}
-                                    </Text>
-                                    <ContextualLink
-                                        href={`/roleplays/${roleplay.id}/steps/${stepNumber}${stepSuffix}`}
-                                        className="mt-3 flex h-9 items-center justify-center gap-2 rounded-lg border border-[#C9C2FB] bg-white text-[12px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
+                                    <Box
+                                        className={cn(
+                                            "mt-auto grid gap-2 pt-3",
+                                            stepNoteCount > 0 && "sm:grid-cols-2",
+                                        )}
                                     >
-                                        <InlineIcon icon={Lightbulb} className="h-3.5 w-3.5" />
-                                        {verb} avec l&apos;IA
-                                    </ContextualLink>
+                                        <ContextualLink
+                                            href={`/roleplays/${roleplay.id}/steps/${stepNumber}${stepSuffix}`}
+                                            className="flex h-9 items-center justify-center gap-2 rounded-lg border border-[#C9C2FB] bg-white text-[12px] font-bold text-[#5140F0] transition hover:bg-[#F4F3FE]"
+                                        >
+                                            <InlineIcon icon={Lightbulb} className="h-3.5 w-3.5" />
+                                            {verb} avec l&apos;IA
+                                        </ContextualLink>
+                                        {stepNoteCount > 0 && (
+                                            <Button
+                                                className={cn(uiTokens.action.accentSecondaryButton, "w-full")}
+                                                onClick={() => setActiveNotesStepOrder(stepNumber)}
+                                            >
+                                                <InlineIcon icon={NotebookPen} className="h-4 w-4" />
+                                                Voir mes notes ({stepNoteCount})
+                                            </Button>
+                                        )}
+                                    </Box>
                                 </Box>
                             );
                         })}
@@ -158,6 +192,16 @@ export function RoleplayStepsPageContent({
                     )}
                 </CardSurface>
             </Box>
+
+            {activeNotesStepOrder !== null && (
+                <RoleplayCoachNotesModal
+                    groups={visibleNoteGroups.filter((group) =>
+                        group.stepOrder === activeNotesStepOrder,
+                    )}
+                    onClose={() => setActiveNotesStepOrder(null)}
+                    title={`Mes notes - ${method.steps[activeNotesStepOrder - 1]?.title ?? `Étape ${activeNotesStepOrder}`}`}
+                />
+            )}
         </Box>
     );
 }

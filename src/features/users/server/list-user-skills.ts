@@ -1,4 +1,4 @@
-import { requireAdmin } from "@/features/auth/server";
+import { requireAdmin, requirePlatformUser } from "@/features/auth/server";
 import { MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS } from "@/features/roleplays/domain";
 import type {
     UserSkillDimensionItemProgress,
@@ -186,9 +186,7 @@ export function buildUserSkillProgresses({
         .sort((first, second) => first.label.localeCompare(second.label, "fr"));
 }
 
-export async function listUserSkillProgresses(userId: string): Promise<UserSkillProgress[]> {
-    await requireAdmin();
-
+async function loadUserSkillProgresses(userId: string): Promise<UserSkillProgress[]> {
     const supabase = createAdminClient();
     const [{ data: roleplayCriteria, error: criteriaError }, quizCriteria] = await Promise.all([
         supabase
@@ -257,4 +255,16 @@ export async function listUserSkillProgresses(userId: string): Promise<UserSkill
         dimensionItems: dimensionItemsResult.data ?? [],
         skillNamesById: new Map((skillsResult.data ?? []).map((skill) => [skill.id, skill.name ?? ""])),
     });
+}
+
+export async function listCurrentUserSkillProgresses(): Promise<UserSkillProgress[]> {
+    const auth = await requirePlatformUser();
+
+    return loadUserSkillProgresses(auth.userId);
+}
+
+export async function listUserSkillProgresses(userId: string): Promise<UserSkillProgress[]> {
+    await requireAdmin();
+
+    return loadUserSkillProgresses(userId);
 }

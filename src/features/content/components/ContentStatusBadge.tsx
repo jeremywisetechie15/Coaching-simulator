@@ -4,10 +4,11 @@ import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
 interface ContentStatusBadgeProps {
+    className?: string;
     status: ContentStatus;
 }
 
-export function ContentStatusBadge({ status }: ContentStatusBadgeProps) {
+export function ContentStatusBadge({ className, status }: ContentStatusBadgeProps) {
     const tone = status === CONTENT_STATUS.published
         ? uiTokens.tone.success.soft
         : status === CONTENT_STATUS.draft
@@ -15,7 +16,7 @@ export function ContentStatusBadge({ status }: ContentStatusBadgeProps) {
           : uiTokens.tone.neutral.soft;
 
     return (
-        <Box className={cn("inline-flex h-7 items-center rounded-lg border px-2.5 text-[11px] font-bold", tone)}>
+        <Box className={cn(uiTokens.contentStatus.badge, tone, className)}>
             {CONTENT_STATUS_LABELS[status]}
         </Box>
     );

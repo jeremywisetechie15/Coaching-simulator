@@ -1,19 +1,32 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
-import { Archive, ArrowLeft, BookOpen, Copy, Edit3, MoreHorizontal, Plus } from "lucide-react";
+import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Archive, BookOpen, Copy, Edit3, MoreHorizontal, Plus } from "lucide-react";
 import {
-    ContextualBackLink,
     ContextualLink,
     useCurrentAppHref,
 } from "@/features/app-shell/components";
-import { withReturnTo } from "@/features/app-shell/domain";
-import { CONTENT_STATUS_LABELS } from "@/features/content/domain";
+import { withReturnTo, withSearchParams } from "@/features/app-shell/domain";
+import {
+    ALL_CONTENT_CATEGORIES,
+    CONTENT_DOMAINS,
+    CONTENT_STATUS_LABELS,
+    getCategoriesForDomain,
+} from "@/features/content/domain";
 import { ArchiveContentConfirmationModal } from "@/features/content/components";
 import { getMethodScopeLabel, METHOD_ROUTES, type MethodListItem } from "@/features/methods/domain/method";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
-import { CardActionMenu, CardActionMenuButton, CardActionMenuLink } from "@/lib/ui/molecules";
+import {
+    AnimatedEntityHeader,
+    CardActionMenu,
+    CardActionMenuButton,
+    CardActionMenuLink,
+    FilterSelect,
+    LibraryFilterBar,
+    LibrarySearchField,
+    type FilterSelectOption,
+} from "@/lib/ui/molecules";
 import { ENTITY_ACTION_LABELS } from "@/lib/ui/domain/entity-action";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -25,6 +38,13 @@ interface MethodsPageContentProps {
 
 interface ApiErrorPayload {
     error?: string;
+}
+
+function getFilterOptions(options: readonly string[], allLabel: string): FilterSelectOption[] {
+    return options.map((option) => ({
+        label: option === "all" ? allLabel : option,
+        value: option,
+    }));
 }
 
 async function duplicateMethodRequest(methodId: string) {
@@ -47,11 +67,85 @@ async function archiveMethodRequest(methodId: string) {
 
 export function MethodsPageContent({ canManage, methods }: MethodsPageContentProps) {
     const router = useRouter();
+    const searchParams = useSearchParams();
     const currentHref = useCurrentAppHref();
+    const domainOptions = ["all", ...CONTENT_DOMAINS];
+    const initialDomain = domainOptions.includes(searchParams.get("domain") ?? "")
+        ? searchParams.get("domain")!
+        : "all";
+    const initialCategoryOptions = [
+        "all",
+        ...(initialDomain === "all"
+            ? ALL_CONTENT_CATEGORIES
+            : getCategoriesForDomain(initialDomain)),
+    ];
+    const [query, setQuery] = useState(searchParams.get("q") ?? "");
+    const [domain, setDomain] = useState(initialDomain);
+    const [category, setCategory] = useState(
+        initialCategoryOptions.includes(searchParams.get("category") ?? "")
+            ? searchParams.get("category")!
+            : "all",
+    );
     const [busyMethodId, setBusyMethodId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [methodToArchive, setMethodToArchive] = useState<MethodListItem | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const categoryOptions = [
+        "all",
+        ...(domain === "all" ? ALL_CONTENT_CATEGORIES : getCategoriesForDomain(domain)),
+    ];
+    const filteredMethods = useMemo(() => {
+        const term = query.trim().toLowerCase();
+
+        return methods.filter((method) => {
+            const matchesQuery =
+                !term ||
+                [
+                    method.name,
+                    method.subtitle,
+                    method.description,
+                    method.domain,
+                    method.category,
+                ]
+                    .join(" ")
+                    .toLowerCase()
+                    .includes(term);
+            const matchesDomain = domain === "all" || method.domain === domain;
+            const matchesCategory = category === "all" || method.category === category;
+
+            return matchesQuery && matchesDomain && matchesCategory;
+        });
+    }, [category, domain, methods, query]);
+
+    function updateQuery(value: string) {
+        setQuery(value);
+        router.replace(
+            withSearchParams(currentHref, { q: value.trim() || null }),
+            { scroll: false },
+        );
+    }
+
+    function updateDomain(value: string) {
+        setDomain(value);
+        setCategory("all");
+        router.replace(
+            withSearchParams(currentHref, {
+                category: null,
+                domain: value === "all" ? null : value,
+            }),
+            { scroll: false },
+        );
+    }
+
+    function updateCategory(value: string) {
+        setCategory(value);
+        router.replace(
+            withSearchParams(currentHref, {
+                category: value === "all" ? null : value,
+            }),
+            { scroll: false },
+        );
+    }
 
     async function handleDuplicate(methodId: string) {
         setError(null);
@@ -87,35 +181,49 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
     return (
         <Box as="main" className="px-5 pb-12 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1260px]">
-                <Box className="mb-9 flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
-                    <Box className="flex items-start gap-6">
-                        <ContextualBackLink
-                            fallbackHref="/"
-                            aria-label="Retour"
-                            className="mt-2 flex h-8 w-8 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
-                        >
-                            <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                        </ContextualBackLink>
-                        <Box>
-                            <Text as="h1" className="text-[30px] font-extrabold leading-tight text-[#111827] md:text-[34px]">
-                                Méthodes et Playbooks
-                            </Text>
-                            <Text className="mt-2 max-w-[680px] text-[15px] font-semibold leading-6 text-[#596273]">
-                                Découvrez les méthodologies éprouvées pour évaluer votre apprentissage et pratique
-                            </Text>
-                        </Box>
-                    </Box>
+                <AnimatedEntityHeader
+                    className="mb-7"
+                    title="Méthodes et Playbooks"
+                    tone="method"
+                    actions={
+                        canManage ? (
+                            <ContextualLink
+                                href={METHOD_ROUTES.app.create}
+                                className={uiTokens.entityHeader.action.primary}
+                            >
+                                <InlineIcon icon={Plus} className="h-4 w-4" />
+                                Créer une méthode
+                            </ContextualLink>
+                        ) : undefined
+                    }
+                />
 
-                    {canManage && (
-                        <ContextualLink
-                            href="/methods/new"
-                            className="mt-1 flex h-9 items-center justify-center gap-2.5 rounded-lg bg-[#5140F0] px-4 text-[13px] font-bold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7] md:mt-2"
-                        >
-                            <InlineIcon icon={Plus} className="h-4 w-4" />
-                            Créer une méthode
-                        </ContextualLink>
-                    )}
-                </Box>
+                <LibraryFilterBar>
+                    <LibrarySearchField
+                        ariaLabel="Rechercher une méthode"
+                        onChange={updateQuery}
+                        placeholder="Rechercher une méthode..."
+                        value={query}
+                    />
+                    <Box className={uiTokens.filterBar.librarySelectDomain}>
+                        <FilterSelect
+                            appearance="library"
+                            ariaLabel="Filtrer par domaine"
+                            onChange={updateDomain}
+                            options={getFilterOptions(domainOptions, "Tous les domaines")}
+                            value={domain}
+                        />
+                    </Box>
+                    <Box className={uiTokens.filterBar.librarySelectCategory}>
+                        <FilterSelect
+                            appearance="library"
+                            ariaLabel="Filtrer par catégorie"
+                            onChange={updateCategory}
+                            options={getFilterOptions(categoryOptions, "Toutes les catégories")}
+                            value={category}
+                        />
+                    </Box>
+                </LibraryFilterBar>
 
                 {error && !methodToArchive && (
                     <CardSurface className="mb-5 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 shadow-none">
@@ -124,7 +232,7 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
                 )}
 
                 <Box className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-                    {methods.map((method) => (
+                    {filteredMethods.map((method) => (
                         <CardSurface
                             key={method.id}
                             className="relative flex min-h-[180px] flex-col rounded-[14px] border border-[#E5E7EB] shadow-none transition duration-200 hover:-translate-y-0.5 hover:border-[#D8DCE6] hover:shadow-[0_14px_34px_rgba(17,24,39,0.10)]"
@@ -200,7 +308,7 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
                     ))}
                 </Box>
 
-                {methods.length === 0 && (
+                {filteredMethods.length === 0 && (
                     <CardSurface className="rounded-[16px] border border-[#E5E7EB] px-8 py-16 text-center shadow-none">
                         <InlineIcon icon={BookOpen} className="mx-auto mb-5 h-12 w-12 text-[#C9CED8]" />
                         <Text className="text-[16px] font-extrabold text-[#111827]">Aucune méthode trouvée</Text>

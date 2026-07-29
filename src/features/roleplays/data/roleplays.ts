@@ -5,6 +5,10 @@ import {
     DISC_PROFILE,
     DISC_PROFILES,
     getCategoriesForDomain,
+    LEARNER_CONTENT_STATUS,
+    matchesLearnerContentStatusFilter,
+    type LearnerContentStatus,
+    type LearnerContentStatusFilter,
 } from "@/features/content/domain";
 import type { PrepDocument, PrepQuiz } from "./preparation";
 import type { RoleplayDiscProfile, RoleplayIndexSession } from "@/features/roleplays/domain";
@@ -55,6 +59,7 @@ export interface RoleplayItem {
     scenarioId?: string;
     /** Dernière session de l'utilisateur admissible à l'évaluation (durée >= seuil métier). */
     latestEvaluationSessionId?: string;
+    learnerStatus: LearnerContentStatus;
     /** Documents réellement attachés au scénario DB ; absent pour les mocks historiques. */
     prepDocuments?: PrepDocument[];
     /** Quiz réellement attachés au scénario DB ; absent pour les mocks historiques. */
@@ -76,6 +81,7 @@ export const roleplays: RoleplayItem[] = [
         description:
             "Obtenir un RDV avec Rachid HAMRANI pour lui faire découvrir les produits et services de votre Banque et envisager une collaboration.",
         methodId: "dago",
+        learnerStatus: LEARNER_CONTENT_STATUS.validated,
         scenarioId: "2c31c5c6-761e-4a5f-9770-35ddc9edf4c6",
         detail: {
             lastDate: "25-03-2026",
@@ -110,6 +116,7 @@ export const roleplays: RoleplayItem[] = [
         description:
             "Vous rencontrez Claude SAVARY lors d'un entretien spécifique que vous avez organisé pour comprendre d'où viennent les difficultés et le remobiliser sur ces objectifs non atteints.",
         methodId: "4c",
+        learnerStatus: LEARNER_CONTENT_STATUS.retry,
         detail: {
             lastDate: "18-03-2026",
             lastDuration: "08:12",
@@ -142,6 +149,7 @@ export const roleplays: RoleplayItem[] = [
         disc: "Influent",
         description: "Défendre votre proposition et aboutir à un accord ferme avec Sophie Martin",
         methodId: "acdc",
+        learnerStatus: LEARNER_CONTENT_STATUS.validated,
         detail: {
             lastDate: "20-03-2026",
             lastDuration: "05:48",
@@ -175,6 +183,7 @@ export const roleplays: RoleplayItem[] = [
         description:
             "Présenter dans le détail les avantages de la solution « Trainer IA » et organiser une Démo de la plateforme afin de le convaincre définivement",
         methodId: "dago",
+        learnerStatus: LEARNER_CONTENT_STATUS.retry,
         detail: {
             lastDate: "22-03-2026",
             lastDuration: "09:24",
@@ -208,6 +217,7 @@ export const roleplays: RoleplayItem[] = [
         description:
             "Identifier et comprendre les besoins de formation de Thomas Lion pour le prochain semestre. Récolter les informations nécessaires pour pouvoir établir une proposition de formation de qualité. Se positionner auprès de Thomas Lion comme un l'acteur idéal pour ce projet",
         methodId: "4c",
+        learnerStatus: LEARNER_CONTENT_STATUS.validated,
         detail: {
             lastDate: "24-03-2026",
             lastDuration: "07:05",
@@ -262,7 +272,9 @@ export interface RoleplayLibraryFilters {
     category: string;
     disc: string;
     domain: string;
+    learnerStatus: LearnerContentStatusFilter;
     level: string;
+    query: string;
 }
 
 export function getRoleplayCategoryFilterOptions(domain: string) {
@@ -273,16 +285,47 @@ export function getRoleplayCategoryFilterOptions(domain: string) {
     return [roleplayCategoryFilterOptions[0], ...getCategoriesForDomain(domain)];
 }
 
+function normalizeRoleplaySearchValue(value: string) {
+    return value
+        .normalize("NFD")
+        .replace(/\p{Diacritic}/gu, "")
+        .toLocaleLowerCase("fr")
+        .trim();
+}
+
 export function filterRoleplaysByLibraryFilters(roleplayItems: RoleplayItem[], filters: RoleplayLibraryFilters) {
+    const searchTerm = normalizeRoleplaySearchValue(filters.query);
+
     return roleplayItems.filter((roleplay) => {
+        const searchableContent = normalizeRoleplaySearchValue(
+            [
+                roleplay.title ?? "",
+                roleplay.name,
+                roleplay.company,
+                roleplay.role,
+                roleplay.domain,
+                roleplay.category,
+                roleplay.description,
+            ].join(" "),
+        );
+        const matchesQuery = !searchTerm || searchableContent.includes(searchTerm);
         const matchesDomain =
             filters.domain === roleplayDomainFilterOptions[0] || roleplay.domain === filters.domain;
         const matchesCategory =
             filters.category === roleplayCategoryFilterOptions[0] || roleplay.category === filters.category;
         const matchesLevel = filters.level === roleplayLevelFilterOptions[0] || roleplay.difficulty === filters.level;
         const matchesDisc = filters.disc === roleplayDiscFilterOptions[0] || roleplay.disc === filters.disc;
+        const matchesLearnerStatus = matchesLearnerContentStatusFilter(
+            roleplay.learnerStatus,
+            filters.learnerStatus,
+        );
 
-        return matchesDomain && matchesCategory && matchesLevel && matchesDisc;
+        return matchesQuery
+            && matchesDomain
+            && matchesCategory
+            && matchesLevel
+            && matchesDisc
+            && matchesLearnerStatus;
     });
 }
 

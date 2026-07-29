@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { LEARNER_CONTENT_STATUS } from "@/features/content/domain";
 import type { QuizDetail } from "@/features/evaluations/domain";
 import { QUIZ_ATTEMPT_EDIT_RESTRICTION_MESSAGE } from "@/features/evaluations/domain";
 import type { SaveQuizDto } from "@/features/evaluations/dto";
@@ -81,12 +82,21 @@ function currentQuiz(): QuizDetail {
         categories: ["Prospection"],
         createdAt: null,
         description: "Description initiale",
+        difficulty: "Moyen",
         domain: "Commercial",
         durationMinutes: 10,
         groupId: null,
         id: "quiz-1",
         isActive: true,
         kind: "contextual",
+        learnerStats: {
+            attemptCount: 0,
+            bestScore: null,
+            currentScore: null,
+            indexResultCount: 0,
+            indexScore: null,
+        },
+        learnerStatus: LEARNER_CONTENT_STATUS.todo,
         maxAttempts: 3,
         methodId: null,
         methodName: null,
@@ -141,6 +151,7 @@ function unchangedInput(): SaveQuizDto {
         assignedUserId: null,
         categories: ["Prospection"],
         description: "Description initiale",
+        difficulty: "Moyen",
         domain: "Commercial",
         durationMinutes: 10,
         groupId: null,
@@ -211,6 +222,19 @@ describe("quiz attempt edit policy server guard", () => {
         input.steps[0]!.questions[0]!.choices[0]!.label = "Réponse reformulée";
         input.steps[0]!.questions[0]!.attachments[0]!.label = "Nouveau guide";
         input.steps[0]!.questions[0]!.attachments[0]!.externalUrl = "https://example.com/nouveau";
+
+        await expect(
+            assertQuizAttemptEditPolicy(
+                createFakeSupabase(true) as never,
+                "quiz-1",
+                input,
+            ),
+        ).resolves.toBeUndefined();
+    });
+
+    it("allows difficulty metadata to change after an attempt", async () => {
+        const input = unchangedInput();
+        input.difficulty = "Difficile";
 
         await expect(
             assertQuizAttemptEditPolicy(

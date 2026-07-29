@@ -1,4 +1,8 @@
-import { CONTENT_DOMAINS, type ContentStatus } from "@/features/content/domain";
+import {
+    CONTENT_DOMAINS,
+    type ContentDifficulty,
+    type ContentStatus,
+} from "@/features/content/domain";
 import {
     DEFAULT_QUIZ_MAX_ATTEMPTS,
     QUIZ_KIND,
@@ -89,6 +93,7 @@ export interface QuizFormState {
     assignedUserId: string;
     categories: string[];
     description: string;
+    difficulty: ContentDifficulty | null;
     domain: string | null;
     durationMinutes: string;
     groupId: string;
@@ -249,6 +254,7 @@ export function quizToFormState(
             assignedUserId: "",
             categories: [],
             description: "",
+            difficulty: null,
             domain: null,
             durationMinutes: "30",
             groupId: "",
@@ -286,6 +292,7 @@ export function quizToFormState(
         assignedUserId,
         categories: quiz.domain ? cleanList(quiz.categories) : [],
         description: quiz.description,
+        difficulty: quiz.difficulty,
         domain: textOrNull(quiz.domain),
         durationMinutes: String(quiz.durationMinutes),
         groupId,
@@ -349,6 +356,7 @@ export function toSaveQuizInput(form: QuizFormState, status: ContentStatus): Sav
         assignedUserId: form.scope === "user" ? textOrNull(form.assignedUserId) : null,
         categories: form.domain ? cleanList(form.categories) : [],
         description: form.description,
+        difficulty: form.difficulty,
         domain: form.domain ?? "",
         durationMinutes: integerFromText(form.durationMinutes, 30),
         groupId: form.scope === "group" ? textOrNull(form.groupId) : null,
