@@ -26,6 +26,11 @@ interface RecordedFilter {
     value: unknown;
 }
 
+interface RecordedSelect {
+    columns: string;
+    table: string;
+}
+
 function queryResult(table: string) {
     if (table === "sessions") {
         return {
@@ -65,7 +70,11 @@ function queryResult(table: string) {
     return { data: [], error: null };
 }
 
-function createQuery(table: string, filters: RecordedFilter[]) {
+function createQuery(
+    table: string,
+    filters: RecordedFilter[],
+    selects: RecordedSelect[],
+) {
     const query = {
         eq(column: string, value: unknown) {
             filters.push({ column, table, value });
@@ -74,7 +83,10 @@ function createQuery(table: string, filters: RecordedFilter[]) {
         gte() { return query; },
         in() { return query; },
         order() { return query; },
-        select() { return query; },
+        select(columns: string) {
+            selects.push({ columns, table });
+            return query;
+        },
         then<TResult1 = unknown, TResult2 = never>(
             onFulfilled?: ((value: unknown) => TResult1 | PromiseLike<TResult1>) | null,
             onRejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
@@ -100,6 +112,7 @@ describe("getCurrentUserDashboard", () => {
 
     it("always scopes personal activity queries to the authenticated user", async () => {
         const filters: RecordedFilter[] = [];
+        const selects: RecordedSelect[] = [];
         mocks.createClient.mockResolvedValue({
             auth: {
                 getUser: vi.fn().mockResolvedValue({
@@ -107,7 +120,7 @@ describe("getCurrentUserDashboard", () => {
                     error: null,
                 }),
             },
-            from: (table: string) => createQuery(table, filters),
+            from: (table: string) => createQuery(table, filters, selects),
         });
 
         const dashboard = await getCurrentUserDashboard(30);
@@ -120,6 +133,10 @@ describe("getCurrentUserDashboard", () => {
         expect(dashboard.quizzes.items.todo[0]).toMatchObject({
             attemptsRemaining: 3,
             questionCount: 2,
+        });
+        expect(selects).toContainEqual({
+            columns: expect.stringContaining("active_duration_seconds"),
+            table: "quiz_attempts",
         });
     });
 });

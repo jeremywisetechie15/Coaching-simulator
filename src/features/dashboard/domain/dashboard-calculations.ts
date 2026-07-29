@@ -54,6 +54,7 @@ export interface DashboardRoleplaySessionRecord {
 }
 
 export interface DashboardQuizAttemptRecord {
+    activeDurationSeconds: number | null;
     attemptNumber: number;
     completedAt: string | null;
     id: string;
@@ -676,23 +677,54 @@ function buildQuizMetrics(
     range: DashboardPeriodRange,
 ): DashboardMetric[] {
     const completedAttempts = attempts.filter((attempt) => attempt.status === "completed" && attempt.completedAt);
-    const currentQuizIds = new Set(
-        completedAttempts
-            .filter((attempt) => attempt.completedAt && inRange(attempt.completedAt, range.currentStart, range.currentEndExclusive))
-            .map((attempt) => attempt.quizId),
+    const currentAttempts = completedAttempts.filter(
+        (attempt) =>
+            attempt.completedAt &&
+            inRange(
+                attempt.completedAt,
+                range.currentStart,
+                range.currentEndExclusive,
+            ),
     );
-    const previousQuizIds = new Set(
-        completedAttempts
-            .filter((attempt) => attempt.completedAt && inRange(attempt.completedAt, range.previousStart, range.currentStart))
-            .map((attempt) => attempt.quizId),
+    const currentQuizIds = new Set(currentAttempts.map((attempt) => attempt.quizId));
+    const previousAttempts = completedAttempts.filter(
+        (attempt) =>
+            attempt.completedAt &&
+            inRange(
+                attempt.completedAt,
+                range.previousStart,
+                range.currentStart,
+            ),
     );
+    const previousQuizIds = new Set(previousAttempts.map((attempt) => attempt.quizId));
     const visibleQuizIds = new Set(quizzes.map((quiz) => quiz.id));
     const evaluatedTotal = new Set(
         completedAttempts.filter((attempt) => visibleQuizIds.has(attempt.quizId)).map((attempt) => attempt.quizId),
     ).size;
     const validatedCount = Math.max(0, evaluatedTotal - collection.counts.retry);
+    const currentDuration = currentAttempts.reduce(
+        (sum, attempt) =>
+            sum + Math.max(0, attempt.activeDurationSeconds ?? 0),
+        0,
+    );
+    const previousDuration = previousAttempts.reduce(
+        (sum, attempt) =>
+            sum + Math.max(0, attempt.activeDurationSeconds ?? 0),
+        0,
+    );
 
     return [
+        {
+            detail: "",
+            id: "quiz-time",
+            label: "Temps total des quiz",
+            tone: "blue",
+            trend: formatDurationDelta(
+                currentDuration - previousDuration,
+                periodDays,
+            ),
+            value: formatDuration(currentDuration),
+        },
         {
             detail: "Au moins une tentative terminée",
             id: "completed-quizzes",

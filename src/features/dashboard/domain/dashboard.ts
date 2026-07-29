@@ -19,6 +19,7 @@ export const DASHBOARD_METRIC_HELP = {
     "pending-quizzes": "Les quiz accessibles sans tentative terminée. Un quiz en cours reste ici.",
     "pending-scenarios": "Les scénarios accessibles que vous n’avez encore jamais commencés.",
     "quizzes-to-review": "Les quiz terminés dont votre meilleur score reste sous le seuil de réussite.",
+    "quiz-time": "Le temps actif mesuré dans vos tentatives de quiz terminées pendant la période choisie.",
     "scenarios-to-review": "Les scénarios dont votre meilleur score reste sous le seuil attendu.",
     "simulation-time": "Le temps cumulé passé dans vos simulations terminées pendant la période choisie.",
     "validated-quizzes": "Les quiz dont votre meilleur score atteint leur seuil de réussite.",

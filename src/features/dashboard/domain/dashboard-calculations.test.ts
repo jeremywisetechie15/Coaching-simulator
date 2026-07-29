@@ -54,10 +54,10 @@ describe("dashboard calculations", () => {
                 { assignedAt: "2026-07-18T10:00:00.000Z", categories: ["Feedback"], domain: "Management", durationMinutes: 10, id: "quiz-c", maxAttempts: 3, questionCount: 9, title: "Quiz C", validationThreshold: 70 },
             ],
             quizAttempts: [
-                { attemptNumber: 1, completedAt: "2026-07-14T10:00:00.000Z", id: "attempt-a1", quizId: "quiz-a", scorePercent: 44, startedAt: "2026-07-14T09:00:00.000Z", status: "completed" },
-                { attemptNumber: 2, completedAt: "2026-07-15T10:00:00.000Z", id: "attempt-a2", quizId: "quiz-a", scorePercent: 68, startedAt: "2026-07-15T09:00:00.000Z", status: "completed" },
-                { attemptNumber: 1, completedAt: "2026-07-16T10:00:00.000Z", id: "attempt-b1", quizId: "quiz-b", scorePercent: 80, startedAt: "2026-07-16T09:00:00.000Z", status: "completed" },
-                { attemptNumber: 1, completedAt: null, id: "attempt-c1", quizId: "quiz-c", scorePercent: null, startedAt: "2026-07-18T09:00:00.000Z", status: "in_progress" },
+                { activeDurationSeconds: 180, attemptNumber: 1, completedAt: "2026-07-14T10:00:00.000Z", id: "attempt-a1", quizId: "quiz-a", scorePercent: 44, startedAt: "2026-07-14T09:00:00.000Z", status: "completed" },
+                { activeDurationSeconds: 240, attemptNumber: 2, completedAt: "2026-07-15T10:00:00.000Z", id: "attempt-a2", quizId: "quiz-a", scorePercent: 68, startedAt: "2026-07-15T09:00:00.000Z", status: "completed" },
+                { activeDurationSeconds: 300, attemptNumber: 1, completedAt: "2026-07-16T10:00:00.000Z", id: "attempt-b1", quizId: "quiz-b", scorePercent: 80, startedAt: "2026-07-16T09:00:00.000Z", status: "completed" },
+                { activeDurationSeconds: 600, attemptNumber: 1, completedAt: null, id: "attempt-c1", quizId: "quiz-c", scorePercent: null, startedAt: "2026-07-18T09:00:00.000Z", status: "in_progress" },
             ],
         });
 
@@ -69,6 +69,11 @@ describe("dashboard calculations", () => {
         ]);
         expect(dashboard.activity.roleplays.find((metric) => metric.id === "validated-scenarios")?.value).toBe("1/2");
         expect(dashboard.activity.quizzes.find((metric) => metric.id === "validated-quizzes")?.value).toBe("1/2");
+        const quizTimeMetric = dashboard.activity.quizzes.find(
+            (metric) => metric.id === "quiz-time",
+        );
+        expect(quizTimeMetric?.value).toBe("12 min");
+        expect(quizTimeMetric?.trend).toBe("+12 min vs 30 derniers jours");
         expect(dashboard.quizzes.items.todo[0]).toMatchObject({
             actionLabel: "Reprendre",
             attemptsRemaining: 3,
@@ -90,6 +95,64 @@ describe("dashboard calculations", () => {
         expect(range.currentStart.toISOString()).toBe("2026-07-13T22:00:00.000Z");
         expect(range.currentEndExclusive.toISOString()).toBe("2026-07-20T22:00:00.000Z");
         expect(range.currentStart.getTime() - range.previousStart.getTime()).toBe(7 * 86_400_000);
+    });
+
+    it("counts only measured time from completed quiz attempts in the selected period", () => {
+        const dashboard = buildDashboardViewData({
+            now,
+            periodDays: 7,
+            quizAttempts: [
+                {
+                    activeDurationSeconds: 90,
+                    attemptNumber: 1,
+                    completedAt: "2026-07-19T10:00:00.000Z",
+                    id: "current-measured",
+                    quizId: "quiz-a",
+                    scorePercent: 80,
+                    startedAt: "2026-07-19T09:00:00.000Z",
+                    status: "completed",
+                },
+                {
+                    activeDurationSeconds: null,
+                    attemptNumber: 2,
+                    completedAt: "2026-07-19T12:00:00.000Z",
+                    id: "current-legacy",
+                    quizId: "quiz-a",
+                    scorePercent: 90,
+                    startedAt: "2026-07-19T11:00:00.000Z",
+                    status: "completed",
+                },
+                {
+                    activeDurationSeconds: 600,
+                    attemptNumber: 3,
+                    completedAt: null,
+                    id: "current-in-progress",
+                    quizId: "quiz-a",
+                    scorePercent: null,
+                    startedAt: "2026-07-20T09:00:00.000Z",
+                    status: "in_progress",
+                },
+                {
+                    activeDurationSeconds: 900,
+                    attemptNumber: 1,
+                    completedAt: "2026-07-10T10:00:00.000Z",
+                    id: "previous",
+                    quizId: "quiz-a",
+                    scorePercent: 70,
+                    startedAt: "2026-07-10T09:00:00.000Z",
+                    status: "completed",
+                },
+            ],
+            quizzes: [],
+            roleplaySessions: [],
+            scenarios: [],
+        });
+
+        const quizTimeMetric = dashboard.activity.quizzes.find(
+            (metric) => metric.id === "quiz-time",
+        );
+        expect(quizTimeMetric?.value).toBe("1 min");
+        expect(quizTimeMetric?.trend).toBe("-13 min vs 7 derniers jours");
     });
 
     it("shows unavailable scores instead of zero when there is no result", () => {

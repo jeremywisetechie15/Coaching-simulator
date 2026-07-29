@@ -19,6 +19,7 @@ import { uiTokens } from "@/lib/ui/tokens";
 
 const metricIcons: Record<DashboardMetricId, LucideIcon> = {
     "simulation-time": Clock3,
+    "quiz-time": Clock3,
     "completed-simulations": BadgeCheck,
     "pending-scenarios": AlarmClock,
     "validated-scenarios": Target,

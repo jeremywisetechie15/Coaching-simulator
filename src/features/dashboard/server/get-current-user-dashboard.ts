@@ -54,6 +54,7 @@ interface RoleplayResultRow {
 }
 
 interface QuizAttemptRow {
+    active_duration_seconds: number | null;
     attempt_number: number;
     completed_at: string | null;
     id: string;
@@ -134,7 +135,7 @@ export async function getCurrentUserDashboard(
             .returns<RoleplayResultRow[]>(),
         supabase
             .from("quiz_attempts")
-            .select("id, quiz_id, status, attempt_number, started_at, completed_at, score_percent")
+            .select("id, quiz_id, status, attempt_number, started_at, completed_at, active_duration_seconds, score_percent")
             .eq("user_id", context.userId)
             .order("started_at", { ascending: false })
             .returns<QuizAttemptRow[]>(),
@@ -220,6 +221,7 @@ export async function getCurrentUserDashboard(
         if (attempt.status !== "completed" && attempt.status !== "in_progress") return [];
 
         return [{
+            activeDurationSeconds: attempt.active_duration_seconds,
             attemptNumber: attempt.attempt_number,
             completedAt: attempt.completed_at,
             id: attempt.id,

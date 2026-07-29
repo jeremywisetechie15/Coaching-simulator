@@ -53,8 +53,8 @@ function DashboardLoadingState() {
                     ))}
                 </Box>
                 <Box className={`${uiTokens.dashboard.state.skeleton} mt-5 h-5 w-52`} />
-                <Box className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                    {Array.from({ length: 4 }, (_, index) => (
+                <Box className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+                    {Array.from({ length: 5 }, (_, index) => (
                         <Box className={`${uiTokens.dashboard.state.skeleton} h-[108px]`} key={index} />
                     ))}
                 </Box>
@@ -179,7 +179,7 @@ export function DashboardPageContent({ firstName, initialDashboardData }: Dashbo
                             </Box>
 
                             <Text as="h2" className={`${uiTokens.dashboard.sectionTitle} mt-5`}>Activité quiz &amp; évaluations</Text>
-                            <Box className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            <Box className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
                                 {dashboard.activity.quizzes.map((metric) => (
                                     <DashboardMetricCard key={metric.id} metric={metric} />
                                 ))}
