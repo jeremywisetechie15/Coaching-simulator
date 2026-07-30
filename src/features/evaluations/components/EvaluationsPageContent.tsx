@@ -241,7 +241,7 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
             <Box className="mx-auto max-w-[1260px]">
                 <AnimatedEntityHeader
                     className="mb-7"
-                    title="Quiz"
+                    title="Quiz et évaluations"
                     tone="quiz"
                     actions={
                         <>
