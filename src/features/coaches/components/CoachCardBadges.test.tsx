@@ -6,6 +6,7 @@ import { CoachCardBadges } from "./CoachCardBadges";
 const coach: CoachListItem = {
     avatarSrc: null,
     backgroundImagePath: null,
+    backgroundImageUrl: null,
     certifications: "ICF",
     coachingStyle: "Optimiste",
     createdAt: "",

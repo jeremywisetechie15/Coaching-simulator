@@ -1,3 +1,4 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import {
     getCoachAvatarPublicUrl,
     type CoachDetail,
@@ -24,6 +25,7 @@ import {
     getOpenAIRealtimeVoice,
     resolveOpenAIRealtimeVoiceId,
 } from "@/lib/openai/realtime-voices";
+import { createSessionBackgroundSignedUrl } from "@/lib/uploads/session-background";
 
 export const COACH_SELECT =
     "id, name, voice_id, system_instructions, avatar_url, background_image_path, expertise_domain, coaching_style, disc_profile, diploma, certifications, created_at, updated_at, status";
@@ -71,12 +73,16 @@ function formatDate(value: string | null) {
     }).format(new Date(value));
 }
 
-export function mapCoachRowToListItem(row: CoachRow): CoachListItem {
+export function mapCoachRowToListItem(
+    row: CoachRow,
+    backgroundImageUrl: string | null = null,
+): CoachListItem {
     const voice = getOpenAIRealtimeVoice(row.voice_id);
 
     return {
         avatarSrc: getCoachAvatarPublicUrl(row.avatar_url),
         backgroundImagePath: row.background_image_path ?? null,
+        backgroundImageUrl,
         certifications: row.certifications ?? "",
         coachingStyle: normalizeCoachingStyle(row.coaching_style),
         createdAt: formatDate(row.created_at),
@@ -90,6 +96,18 @@ export function mapCoachRowToListItem(row: CoachRow): CoachListItem {
         voiceId: row.voice_id,
         voiceName: voice?.name ?? row.voice_id ?? "Non configurée",
     };
+}
+
+export async function mapCoachRowToListItemWithAssets(
+    row: CoachRow,
+    supabase: SupabaseClient,
+) {
+    const backgroundImageUrl = await createSessionBackgroundSignedUrl(
+        supabase,
+        row.background_image_path,
+    );
+
+    return mapCoachRowToListItem(row, backgroundImageUrl ?? null);
 }
 
 export function mapCoachRowToEditorValues(row: CoachRow): CoachEditorValues {
@@ -110,12 +128,16 @@ export function mapCoachRowToEditorValues(row: CoachRow): CoachEditorValues {
     };
 }
 
-export function mapCoachRowToDetail(row: CoachRow): CoachDetail {
+export function mapCoachRowToDetail(
+    row: CoachRow,
+    backgroundImageUrl: string | null = null,
+): CoachDetail {
     const voice = getOpenAIRealtimeVoice(row.voice_id);
 
     return {
         ...mapCoachRowToEditorValues(row),
         avatarSrc: getCoachAvatarPublicUrl(row.avatar_url) ?? "",
+        backgroundImageUrl,
         createdAt: row.created_at,
         id: row.id,
         status: normalizeContentStatus(row.status, CONTENT_STATUS.published),
@@ -123,4 +145,16 @@ export function mapCoachRowToDetail(row: CoachRow): CoachDetail {
         voiceCharacteristic: voice?.characteristic ?? null,
         voiceName: voice?.name ?? row.voice_id ?? "Non configurée",
     };
+}
+
+export async function mapCoachRowToDetailWithAssets(
+    row: CoachRow,
+    supabase: SupabaseClient,
+) {
+    const backgroundImageUrl = await createSessionBackgroundSignedUrl(
+        supabase,
+        row.background_image_path,
+    );
+
+    return mapCoachRowToDetail(row, backgroundImageUrl ?? null);
 }

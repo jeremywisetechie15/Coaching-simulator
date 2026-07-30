@@ -195,7 +195,7 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
                         </Text>
                     </Box>
                 ) : (
-                    <Box className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                    <Box className={cn("mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3", uiTokens.motion.cardGridReveal)}>
                         {filtered.map((scorecard) => (
                             <ScorecardCard
                                 key={scorecard.id}

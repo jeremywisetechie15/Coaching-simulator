@@ -16,7 +16,7 @@ import {
     isOwnedCoachAvatarPath,
     removeCoachAvatar,
 } from "./coach-avatar";
-import { COACH_SELECT, mapCoachRowToListItem, type CoachRow } from "./coach.mapper";
+import { COACH_SELECT, mapCoachRowToListItemWithAssets, type CoachRow } from "./coach.mapper";
 import { getCoachById } from "./get-coach-by-id";
 
 export async function duplicateCoach(coachId: string): Promise<CoachListItem> {
@@ -87,5 +87,5 @@ export async function duplicateCoach(coachId: string): Promise<CoachListItem> {
         throw error;
     }
 
-    return mapCoachRowToListItem(data);
+    return mapCoachRowToListItemWithAssets(data, adminSupabase);
 }

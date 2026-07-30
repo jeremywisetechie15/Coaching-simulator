@@ -2,7 +2,7 @@ import { requireAuth } from "@/features/auth/server";
 import type { CoachListItem } from "@/features/coaches/domain/coach-list";
 import { CONTENT_STATUS } from "@/features/content/domain";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { COACH_SELECT, mapCoachRowToListItem, type CoachRow } from "./coach.mapper";
+import { COACH_SELECT, mapCoachRowToListItemWithAssets, type CoachRow } from "./coach.mapper";
 
 export async function listCoaches(): Promise<CoachListItem[]> {
     const context = await requireAuth();
@@ -25,5 +25,7 @@ export async function listCoaches(): Promise<CoachListItem[]> {
         throw error;
     }
 
-    return (data ?? []).map(mapCoachRowToListItem);
+    return Promise.all(
+        (data ?? []).map((row) => mapCoachRowToListItemWithAssets(row, adminSupabase)),
+    );
 }

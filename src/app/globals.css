@@ -9,6 +9,20 @@
   --accent-green: 34, 197, 94;
   --accent-red: 239, 68, 68;
   --accent-orange: 249, 115, 22;
+
+  /* Semantic feedback colors — SSOT for alerts, badges and toasts */
+  --feedback-danger-border: #FECACA;
+  --feedback-danger-surface: #FEF2F2;
+  --feedback-danger-foreground: #DC2626;
+  --feedback-info-border: #BFDBFE;
+  --feedback-info-surface: #EFF6FF;
+  --feedback-info-foreground: #2563EB;
+  --feedback-success-border: #BBF7D0;
+  --feedback-success-surface: #F0FDF4;
+  --feedback-success-foreground: #16A34A;
+  --feedback-warning-border: #FDE68A;
+  --feedback-warning-surface: #FFFBEB;
+  --feedback-warning-foreground: #B45309;
 }
 
 * {
@@ -33,6 +47,198 @@ body {
   background: #FAFAFB;
   color: #171B2A;
   overflow-x: hidden;
+}
+
+/* Page content entrance */
+@keyframes app-page-reveal {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0) scale(0.992);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.app-page-reveal {
+  animation: app-page-reveal 620ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  transform-origin: center top;
+}
+
+/* Shared staggered entrance for entity card grids */
+@keyframes app-card-reveal {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 18px, 0) scale(0.98);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.app-card-grid-reveal > * {
+  animation: app-card-reveal 540ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  transform-origin: center top;
+}
+
+.app-card-grid-reveal > :nth-child(1) {
+  animation-delay: 120ms;
+}
+
+.app-card-grid-reveal > :nth-child(2) {
+  animation-delay: 180ms;
+}
+
+.app-card-grid-reveal > :nth-child(3) {
+  animation-delay: 240ms;
+}
+
+.app-card-grid-reveal > :nth-child(4) {
+  animation-delay: 300ms;
+}
+
+.app-card-grid-reveal > :nth-child(5) {
+  animation-delay: 360ms;
+}
+
+.app-card-grid-reveal > :nth-child(6) {
+  animation-delay: 420ms;
+}
+
+.app-card-grid-reveal > :nth-child(7) {
+  animation-delay: 480ms;
+}
+
+.app-card-grid-reveal > :nth-child(8) {
+  animation-delay: 540ms;
+}
+
+.app-card-grid-reveal > :nth-child(n + 9) {
+  animation-delay: 600ms;
+}
+
+/* Desktop sidebar and navigation entrance */
+@keyframes app-sidebar-reveal {
+  from {
+    opacity: 0;
+    transform: translate3d(-100%, 0, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes app-sidebar-item-reveal {
+  from {
+    opacity: 0;
+    transform: translate3d(-16px, 0, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.app-sidebar-reveal {
+  animation: app-sidebar-reveal 560ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.app-sidebar-reveal .app-sidebar-items-reveal > * {
+  animation: app-sidebar-item-reveal 420ms cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.app-sidebar-reveal .app-sidebar-items-reveal > :nth-child(1) {
+  animation-delay: 180ms;
+}
+
+.app-sidebar-reveal .app-sidebar-items-reveal > :nth-child(2) {
+  animation-delay: 225ms;
+}
+
+.app-sidebar-reveal .app-sidebar-items-reveal > :nth-child(3) {
+  animation-delay: 270ms;
+}
+
+.app-sidebar-reveal .app-sidebar-items-reveal > :nth-child(4) {
+  animation-delay: 315ms;
+}
+
+.app-sidebar-reveal .app-sidebar-items-reveal > :nth-child(5) {
+  animation-delay: 360ms;
+}
+
+.app-sidebar-reveal .app-sidebar-items-reveal > :nth-child(6) {
+  animation-delay: 405ms;
+}
+
+.app-sidebar-reveal .app-sidebar-items-reveal > :nth-child(7) {
+  animation-delay: 450ms;
+}
+
+.app-sidebar-reveal .app-sidebar-items-reveal > :nth-child(8) {
+  animation-delay: 495ms;
+}
+
+.app-sidebar-reveal .app-sidebar-items-reveal > :nth-child(9) {
+  animation-delay: 540ms;
+}
+
+.app-sidebar-reveal .app-sidebar-items-reveal > :nth-child(10) {
+  animation-delay: 585ms;
+}
+
+.app-sidebar-reveal .app-sidebar-items-reveal > :nth-child(n + 11) {
+  animation-delay: 630ms;
+}
+
+/* Shared modal entrance */
+@keyframes app-modal-overlay-reveal {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes app-modal-panel-reveal {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.985);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.app-modal-overlay-reveal {
+  animation: app-modal-overlay-reveal 140ms ease-out backwards;
+}
+
+.app-modal-panel-reveal {
+  animation: app-modal-panel-reveal 210ms cubic-bezier(0.22, 1, 0.36, 1) 20ms backwards;
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .app-page-reveal,
+  .app-card-grid-reveal > *,
+  .app-modal-overlay-reveal,
+  .app-modal-panel-reveal,
+  .app-sidebar-reveal,
+  .app-sidebar-reveal .app-sidebar-items-reveal > * {
+    animation: none;
+  }
 }
 
 /* Animated gradient background */

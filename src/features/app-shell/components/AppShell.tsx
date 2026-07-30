@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type PropsWithChildren } from "react";
+import { usePathname } from "next/navigation";
 import { Box } from "@/lib/ui/atoms";
 import type { PlatformRole } from "@/features/users/domain/users";
 import { AppSidebar } from "./AppSidebar";
@@ -31,6 +32,7 @@ export function AppShell({
     fullName,
     email,
 }: AppShellProps) {
+    const pathname = usePathname();
     const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
     useEffect(() => {
@@ -70,7 +72,7 @@ export function AppShell({
                     email={email}
                     onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
                 />
-                {children}
+                <Box className="app-page-reveal" key={pathname}>{children}</Box>
             </Box>
             <FloatingSupportButton />
         </Box>

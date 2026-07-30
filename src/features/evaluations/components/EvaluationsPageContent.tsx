@@ -326,7 +326,7 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                 </LibraryFilterBar>
 
                 {filtered.length > 0 ? (
-                    <Box className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                    <Box className={cn("grid gap-6 md:grid-cols-2 lg:grid-cols-3", uiTokens.motion.cardGridReveal)}>
                         {filtered.map((quiz) => (
                             <QuizLibraryCard
                                 key={quiz.id}

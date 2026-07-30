@@ -15,10 +15,12 @@ interface EntityProfileDetailsModalProps {
     avatarUrl?: string | null;
     createdAt?: string | null;
     description?: string;
+    headerBadge?: ReactNode;
     initials: string;
     name: string;
     onClose: () => void;
     sections: EntityProfileDetailSection[];
+    sidebarExtra?: ReactNode;
     status?: ReactNode;
     updatedAt?: string | null;
 }
@@ -27,17 +29,21 @@ export function EntityProfileDetailsModal({
     avatarUrl,
     createdAt,
     description,
+    headerBadge,
     initials,
     name,
     onClose,
     sections,
+    sidebarExtra,
     status,
     updatedAt,
 }: EntityProfileDetailsModalProps) {
     return (
         <Modal
             className="max-w-[900px]"
+            fixedHeader
             title={name}
+            titleAside={headerBadge}
             description={description}
             onClose={onClose}
             headerAside={(
@@ -67,10 +73,11 @@ export function EntityProfileDetailsModal({
                             <Text className={uiTokens.entityDetails.avatarInitials}>{initials}</Text>
                         )}
                     </Box>
+                    {sidebarExtra}
                     {status}
                 </Box>
 
-                <Box className="min-w-0 space-y-5">
+                <Box className={uiTokens.entityDetails.content}>
                     {sections.map((section) => (
                         <Box key={section.title} className={uiTokens.entityDetails.section}>
                             <Text as="h3" className={uiTokens.entityDetails.sectionTitle}>

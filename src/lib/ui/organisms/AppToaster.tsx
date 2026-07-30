@@ -32,15 +32,16 @@ export function AppToaster() {
                     closeButton: uiTokens.toast.closeButton,
                     content: uiTokens.toast.content,
                     description: uiTokens.toast.description,
-                    error: uiTokens.toast.error,
+                    error: uiTokens.toast.tone.error,
                     icon: uiTokens.toast.iconSlot,
-                    info: uiTokens.toast.info,
-                    loading: uiTokens.toast.loading,
-                    success: uiTokens.toast.success,
+                    info: uiTokens.toast.tone.info,
+                    loading: uiTokens.toast.tone.loading,
+                    success: uiTokens.toast.tone.success,
                     title: uiTokens.toast.title,
                     toast: uiTokens.toast.root,
-                    warning: uiTokens.toast.warning,
+                    warning: uiTokens.toast.tone.warning,
                 },
+                unstyled: true,
             }}
             visibleToasts={4}
         />

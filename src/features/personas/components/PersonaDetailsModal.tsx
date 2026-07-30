@@ -1,5 +1,4 @@
 import {
-    AudioLines,
     Baby,
     Banknote,
     BadgeEuro,
@@ -20,20 +19,20 @@ import {
     ContentStatusBadge,
     DiscProfileBadge,
     EntityProfileDetailsModal,
-    VoiceDescriptor,
     type EntityProfileDetailSection,
 } from "@/features/content/components";
 import type { PersonaDetail } from "@/features/personas/domain/persona-list";
 import { getPersonaInitials } from "@/features/personas/domain/persona-list";
 
 interface PersonaDetailsModalProps {
+    canManage: boolean;
     onClose: () => void;
     persona: PersonaDetail;
 }
 
 const optionalValue = (value: string) => value.trim() || "Non renseigné";
 
-export function PersonaDetailsModal({ onClose, persona }: PersonaDetailsModalProps) {
+export function PersonaDetailsModal({ canManage, onClose, persona }: PersonaDetailsModalProps) {
     const sections: EntityProfileDetailSection[] = [
         {
             title: "Identité",
@@ -77,22 +76,14 @@ export function PersonaDetailsModal({ onClose, persona }: PersonaDetailsModalPro
                     label: "Voix",
                     value: `${persona.voiceName}${persona.voiceId ? ` (${persona.voiceId})` : ""}`,
                 },
-                {
-                    icon: AudioLines,
-                    label: "Caractéristique vocale",
-                    value: (
-                        <VoiceDescriptor
-                            characteristic={persona.voiceCharacteristic}
-                            fallback="Non renseignée"
-                        />
-                    ),
-                },
-                {
-                    className: "sm:col-span-2",
-                    icon: MessageSquareText,
-                    label: "Informations complémentaires",
-                    value: optionalValue(persona.systemInstructions),
-                },
+                ...(canManage
+                    ? [{
+                        className: "sm:col-span-2",
+                        icon: MessageSquareText,
+                        label: "Informations complémentaires",
+                        value: optionalValue(persona.systemInstructions),
+                    }]
+                    : []),
             ],
         },
     ];
@@ -102,11 +93,11 @@ export function PersonaDetailsModal({ onClose, persona }: PersonaDetailsModalPro
             avatarUrl={persona.avatarUrl}
             createdAt={persona.createdAt}
             description="Informations complètes du persona IA"
+            headerBadge={canManage ? <ContentStatusBadge status={persona.status} /> : undefined}
             initials={getPersonaInitials(persona.name)}
             name={persona.name}
             onClose={onClose}
             sections={sections}
-            status={<ContentStatusBadge status={persona.status} />}
             updatedAt={persona.updatedAt}
         />
     );

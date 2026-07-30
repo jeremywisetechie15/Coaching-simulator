@@ -1,12 +1,17 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { X } from "lucide-react";
 import { Box, Button, InlineIcon, Text } from "@/lib/ui/atoms";
 import { canViewAppNavigationResource } from "@/features/auth/domain/access-control";
+import { signOutAction } from "@/features/auth/server/sign-out";
 import type { PlatformRole } from "@/features/users/domain/users";
+import { uiTokens } from "@/lib/ui/tokens";
 import { accountNavigation, logoutNavigation, primaryNavigation } from "./appNavigation";
+
+const DESKTOP_SIDEBAR_ID = "desktop-navigation-sidebar";
+const SIDEBAR_ENTRANCE_PLAYED_KEY = "sidebarEntrancePlayed";
 
 interface AppSidebarProps {
     activeAccountItem?: string;
@@ -51,7 +56,10 @@ function SidebarContent({ activeAccountItem, activePrimaryItem, onNavigate, plat
                 <Text className="text-[24px] font-black tracking-[-0.02em] text-[#5140F0]">MaiaCoach</Text>
             </Box>
 
-            <Box as="nav" className="flex-1 space-y-1 overflow-y-auto px-4 pb-6 pt-4">
+            <Box
+                as="nav"
+                className={`flex-1 space-y-1 overflow-y-auto px-4 pb-6 pt-4 ${uiTokens.motion.sidebarItemsReveal}`}
+            >
                 {visiblePrimaryNavigation.map((item) => {
                     const isActive = activePrimaryItem === item.label;
                     const content = (
@@ -125,10 +133,15 @@ function SidebarContent({ activeAccountItem, activePrimaryItem, onNavigate, plat
             </Box>
 
             <Box className="border-t border-[#EEF0F5] px-5 py-3">
-                <Button className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-[14px] font-normal leading-5 text-[#0A0A0A] transition hover:bg-[#F7F7FB] hover:text-[#5140F0]">
-                    <InlineIcon icon={logoutNavigation.icon} className="h-5 w-5 shrink-0" />
-                    <Text as="span">{logoutNavigation.label}</Text>
-                </Button>
+                <form action={signOutAction} className="w-full">
+                    <Button
+                        type="submit"
+                        className="flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left text-[14px] font-normal leading-5 text-[#0A0A0A] transition hover:bg-[#F7F7FB] hover:text-[#5140F0]"
+                    >
+                        <InlineIcon icon={logoutNavigation.icon} className="h-5 w-5 shrink-0" />
+                        <Text as="span">{logoutNavigation.label}</Text>
+                    </Button>
+                </form>
             </Box>
         </>
     );
@@ -141,9 +154,24 @@ export function AppSidebar({
     onMobileClose,
     platformRole,
 }: AppSidebarProps) {
+    useLayoutEffect(() => {
+        const documentRoot = document.documentElement;
+
+        if (documentRoot.dataset[SIDEBAR_ENTRANCE_PLAYED_KEY] === "true") {
+            return;
+        }
+
+        const sidebar = document.getElementById(DESKTOP_SIDEBAR_ID);
+        if (!sidebar) return;
+
+        documentRoot.dataset[SIDEBAR_ENTRANCE_PLAYED_KEY] = "true";
+        sidebar.classList.add(uiTokens.motion.sidebarReveal);
+    }, []);
+
     return (
         <>
             <Box
+                id={DESKTOP_SIDEBAR_ID}
                 as="aside"
                 className="fixed left-0 top-0 z-30 hidden h-screen w-[256px] border-r border-[#E6E8EF] bg-white lg:flex lg:flex-col"
             >

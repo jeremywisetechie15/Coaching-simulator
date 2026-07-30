@@ -1,4 +1,11 @@
 export const uiTokens = {
+    motion: {
+        cardGridReveal: "app-card-grid-reveal",
+        modalOverlayReveal: "app-modal-overlay-reveal",
+        modalPanelReveal: "app-modal-panel-reveal",
+        sidebarItemsReveal: "app-sidebar-items-reveal",
+        sidebarReveal: "app-sidebar-reveal",
+    },
     auth: {
         card: "max-w-[400px] rounded-[18px] border border-white px-6 py-7 shadow-[0_20px_45px_rgba(15,23,42,0.11)] sm:px-7 sm:py-8",
         container: "min-h-[calc(100vh-4rem)] max-w-5xl",
@@ -438,40 +445,50 @@ export const uiTokens = {
         avatarFallback: "flex h-full w-full items-center justify-center bg-[#F1F2F6]",
         avatarImage: "h-full w-full bg-cover bg-center",
         avatarInitials: "text-[24px] font-extrabold text-[#5140F0]",
+        backgroundPreview:
+            "h-[72px] w-[124px] overflow-hidden rounded-[10px] border border-[#E1E4EB] bg-[#F1F2F6] bg-cover bg-center shadow-[0_8px_18px_rgba(17,24,39,0.10)]",
+        backgroundPreviewLabel:
+            "mb-1.5 text-center text-[10px] font-bold uppercase tracking-[0.04em] text-[#8A91A0]",
+        backgroundPreviewWrapper: "mt-1",
         dates: "hidden max-w-[190px] space-y-1.5 text-right sm:block",
         dateRow: "flex items-center justify-end gap-1.5 text-[11px] font-semibold text-[#737B8E]",
+        content:
+            "min-h-0 min-w-0 space-y-5 overflow-y-auto pr-2 [scrollbar-gutter:stable]",
         grid: "grid gap-x-6 sm:grid-cols-2",
-        layout: "grid gap-6 md:grid-cols-[140px_minmax(0,1fr)]",
+        layout:
+            "grid h-full min-h-0 grid-rows-[auto_minmax(0,1fr)] gap-6 md:grid-cols-[140px_minmax(0,1fr)] md:grid-rows-1",
         section: "border-t border-[#ECEEF3] pt-5 first:border-t-0 first:pt-0",
         sectionTitle: "mb-1 text-[14px] font-extrabold text-[#111827]",
         sidebar: "flex flex-col items-center gap-3",
     },
     toast: {
         actionButton:
-            "!h-8 !rounded-lg !bg-[linear-gradient(135deg,#5140F0_0%,#7C3AED_100%)] !px-3 !font-bold !text-white !shadow-[0_6px_16px_rgba(81,64,240,0.24)] transition hover:!brightness-95",
+            "!inline-flex !h-8 !items-center !justify-center !rounded-lg !border-0 !bg-[linear-gradient(135deg,#5140F0_0%,#7C3AED_100%)] !px-3 !font-bold !text-white !shadow-[0_6px_16px_rgba(81,64,240,0.24)] transition hover:!brightness-95",
         cancelButton:
-            "!h-8 !rounded-lg !border !border-[#E5E7EB] !bg-white/75 !px-3 !font-bold !text-[#4B5563] transition hover:!bg-white",
+            "!inline-flex !h-8 !items-center !justify-center !rounded-lg !border !border-[#E5E7EB] !bg-white/75 !px-3 !font-bold !text-[#4B5563] transition hover:!bg-white",
         closeButton:
-            "!left-auto !right-2 !top-2 !h-7 !w-7 !transform-none !border-white/80 !bg-white/80 !text-[#6B7280] !opacity-70 !shadow-[0_4px_12px_rgba(17,24,39,0.08)] !backdrop-blur-md transition hover:!border-white hover:!text-[#111827] hover:!opacity-100",
-        content: "!min-w-0 !flex-1 !gap-0.5 !pr-4",
-        description: "!text-[12px] !font-medium !leading-[18px] !text-[#667085]",
-        error:
-            "!border-[#FECACA] !bg-[linear-gradient(135deg,#FEF2F2_0%,#FFF8F8_52%,#FFFFFF_100%)] !text-[#B91C1C]",
+            "!absolute !left-auto !right-2 !top-2 !flex !h-7 !w-7 !transform-none !cursor-pointer !items-center !justify-center !rounded-full !border !border-white/80 !bg-white/80 !p-0 !text-[#6B7280] !opacity-70 !shadow-[0_4px_12px_rgba(17,24,39,0.08)] !backdrop-blur-md transition hover:!border-white hover:!text-[#111827] hover:!opacity-100",
+        content: "!flex !min-w-0 !flex-1 !flex-col !gap-1 !pr-4",
+        description: "!text-[12px] !font-semibold !leading-[18px] !text-current !opacity-80",
         icon: "h-[18px] w-[18px]",
         iconSlot:
-            "!m-0 !flex !h-9 !w-9 !shrink-0 !items-center !justify-center !rounded-[10px] !border !border-white/90 !bg-white/75 !shadow-[0_6px_16px_rgba(17,24,39,0.09)] !backdrop-blur-md",
-        info:
-            "!border-[#BFDBFE] !bg-[linear-gradient(135deg,#EFF6FF_0%,#F7FAFF_52%,#FFFFFF_100%)] !text-[#1D4ED8]",
-        loading:
-            "!border-[#DDD6FE] !bg-[linear-gradient(135deg,#F5F3FF_0%,#FAF9FF_52%,#FFFFFF_100%)] !text-[#5140F0]",
+            "!m-0 !flex !h-9 !w-9 !shrink-0 !items-center !justify-center !rounded-[10px] !border !border-white/90 !bg-white/70 !text-current !shadow-[0_6px_16px_rgba(17,24,39,0.08)]",
         loadingIcon: "h-[18px] w-[18px] animate-spin",
         root:
-            "!relative !flex !w-full !items-start !gap-3 !overflow-hidden !rounded-xl !border !border-[#E5E7EB] !bg-white !px-4 !py-4 !text-[#111827] !shadow-[0_18px_46px_rgba(17,24,39,0.18)] !backdrop-blur-xl transition-shadow hover:!shadow-[0_22px_54px_rgba(17,24,39,0.22)]",
-        success:
-            "!border-[#BBF7D0] !bg-[linear-gradient(135deg,#ECFDF3_0%,#F7FFF9_52%,#FFFFFF_100%)] !text-[#15803D]",
-        title: "!text-[14px] !font-extrabold !leading-5 !tracking-normal",
-        warning:
-            "!border-[#FED7AA] !bg-[linear-gradient(135deg,#FFF7ED_0%,#FFFBF7_52%,#FFFFFF_100%)] !text-[#C2410C]",
+            "!relative !flex !w-full !items-start !gap-3 !overflow-hidden !rounded-[14px] !border !px-4 !py-4 !shadow-[0_18px_46px_rgba(17,24,39,0.16)] transition-shadow data-[type=action]:!border-[#E5E7EB] data-[type=action]:!bg-white data-[type=action]:!text-[#111827] data-[type=default]:!border-[#E5E7EB] data-[type=default]:!bg-white data-[type=default]:!text-[#111827] data-[type=normal]:!border-[#E5E7EB] data-[type=normal]:!bg-white data-[type=normal]:!text-[#111827] hover:!shadow-[0_22px_54px_rgba(17,24,39,0.20)]",
+        title: "!text-[14px] !font-extrabold !leading-5 !tracking-normal !text-current",
+        tone: {
+            error:
+                "!border-[var(--feedback-danger-border)] !bg-[var(--feedback-danger-surface)] !text-[var(--feedback-danger-foreground)]",
+            info:
+                "!border-[var(--feedback-info-border)] !bg-[var(--feedback-info-surface)] !text-[var(--feedback-info-foreground)]",
+            loading:
+                "!border-[#DDD6FE] !bg-[#F5F3FF] !text-[#5140F0]",
+            success:
+                "!border-[var(--feedback-success-border)] !bg-[var(--feedback-success-surface)] !text-[var(--feedback-success-foreground)]",
+            warning:
+                "!border-[var(--feedback-warning-border)] !bg-[var(--feedback-warning-surface)] !text-[var(--feedback-warning-foreground)]",
+        },
     },
     voice: {
         field: "flex min-w-0 items-center gap-2",
@@ -494,6 +511,8 @@ export const uiTokens = {
         expertiseBadge: "border-[#DDD6FE] bg-[#F5F3FF] text-[#6D28D9]",
         primaryBadges: "flex flex-wrap items-center justify-center gap-2",
         profileBadges: "flex flex-wrap items-center justify-center gap-2",
+        root:
+            "relative cursor-pointer overflow-hidden rounded-[14px] border border-[#E1E4EB] bg-cover bg-center bg-no-repeat px-5 pb-6 pt-5 text-center shadow-none transition duration-200 hover:-translate-y-0.5 hover:border-[#D8DCE6] hover:shadow-[0_14px_34px_rgba(17,24,39,0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0]/40",
         styleBadge: "border-[#E5E7EB] bg-white text-[#111827]",
     },
     progress: {
@@ -1179,10 +1198,16 @@ export const uiTokens = {
     modal: {
         closeButton:
             "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#6B7280] transition hover:bg-[#F3F4F7] hover:text-[#111827]",
+        contentFixed: "min-h-0 flex-1",
+        header: "mb-5 flex shrink-0 items-start justify-between gap-4",
+        headerFixed: "border-b border-[#ECEEF3] pb-5",
         overlay:
             "fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-[#111827]/55 px-4 py-8 backdrop-blur-[1px]",
-        panel: "w-full max-h-[85vh] overflow-y-auto rounded-2xl bg-white p-6 shadow-[0_22px_60px_rgba(17,24,39,0.26)] md:p-7",
+        panel: "w-full max-h-[85vh] rounded-2xl bg-white p-6 shadow-[0_22px_60px_rgba(17,24,39,0.26)] md:p-7",
+        panelFixed: "flex h-[min(85vh,720px)] flex-col overflow-hidden",
+        panelScrollable: "overflow-y-auto",
         title: "text-[20px] font-extrabold leading-tight",
+        titleRow: "flex flex-wrap items-center gap-2.5",
     },
     profile: {
         security: {
@@ -1218,12 +1243,24 @@ export const uiTokens = {
     },
     /** Palettes de tons sémantiques (badges, pastilles d'icônes, textes de statut). */
     tone: {
-        danger: { soft: "border-[#FECACA] bg-[#FEF2F2] text-[#DC2626]", text: "text-[#DC2626]" },
-        info: { soft: "border-[#BFDBFE] bg-[#EFF6FF] text-[#2563EB]", text: "text-[#2563EB]" },
+        danger: {
+            soft: "border-[var(--feedback-danger-border)] bg-[var(--feedback-danger-surface)] text-[var(--feedback-danger-foreground)]",
+            text: "text-[var(--feedback-danger-foreground)]",
+        },
+        info: {
+            soft: "border-[var(--feedback-info-border)] bg-[var(--feedback-info-surface)] text-[var(--feedback-info-foreground)]",
+            text: "text-[var(--feedback-info-foreground)]",
+        },
         neutral: { soft: "border-[#E5E7EB] bg-[#F3F4F6] text-[#4B5563]", text: "text-[#4B5563]" },
         primary: { soft: "border-[#DDD6FE] bg-[#F5F3FF] text-[#6D28D9]", text: "text-[#6D28D9]" },
-        success: { soft: "border-[#BBF7D0] bg-[#F0FDF4] text-[#16A34A]", text: "text-[#16A34A]" },
-        warning: { soft: "border-[#FDE68A] bg-[#FFFBEB] text-[#B45309]", text: "text-[#B45309]" },
+        success: {
+            soft: "border-[var(--feedback-success-border)] bg-[var(--feedback-success-surface)] text-[var(--feedback-success-foreground)]",
+            text: "text-[var(--feedback-success-foreground)]",
+        },
+        warning: {
+            soft: "border-[var(--feedback-warning-border)] bg-[var(--feedback-warning-surface)] text-[var(--feedback-warning-foreground)]",
+            text: "text-[var(--feedback-warning-foreground)]",
+        },
     },
     tooltip: {
         bubble:

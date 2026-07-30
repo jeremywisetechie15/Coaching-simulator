@@ -17,7 +17,12 @@ import {
     CardActionMenuLink,
 } from "@/lib/ui/molecules";
 import { ENTITY_ACTION_LABELS } from "@/lib/ui/domain/entity-action";
-import { getCoachInitials, type CoachDetail, type CoachListItem } from "@/features/coaches/domain/coach-list";
+import {
+    getCoachBackgroundImageUrl,
+    getCoachInitials,
+    type CoachDetail,
+    type CoachListItem,
+} from "@/features/coaches/domain/coach-list";
 import { COACH_ROUTES } from "@/features/coaches/domain/coach-routes";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -164,8 +169,9 @@ export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageCon
                 )}
 
                 {coaches.length > 0 ? (
-                    <Box className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                    <Box className={cn("grid gap-5 md:grid-cols-2 xl:grid-cols-3", uiTokens.motion.cardGridReveal)}>
                         {coaches.map((coach) => {
+                            const backgroundImageUrl = getCoachBackgroundImageUrl(coach.backgroundImageUrl);
                             const isMenuOpen = openMenuId === coach.id;
 
                             return (
@@ -183,7 +189,13 @@ export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageCon
                                             openCoachDetails(coach.id);
                                         }
                                     }}
-                                    className="relative cursor-pointer rounded-[14px] border border-[#E1E4EB] px-5 pb-6 pt-5 text-center shadow-none transition duration-200 hover:-translate-y-0.5 hover:border-[#D8DCE6] hover:shadow-[0_14px_34px_rgba(17,24,39,0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0]/40"
+                                    className={uiTokens.coachCard.root}
+                                    style={{
+                                        backgroundImage: [
+                                            "linear-gradient(180deg, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.76) 52%, rgba(255,255,255,0.95) 100%)",
+                                            `url("${backgroundImageUrl}")`,
+                                        ].join(", "),
+                                    }}
                                 >
                                     {canManage && (
                                         <Box className="flex justify-end">
@@ -195,7 +207,10 @@ export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageCon
                                                 <Button
                                                     aria-label={`Actions pour ${coach.name}`}
                                                     onClick={() => setOpenMenuId(isMenuOpen ? null : coach.id)}
-                                                    className={cn(uiTokens.action.iconButtonGhost, "opacity-100")}
+                                                    className={cn(
+                                                        uiTokens.action.iconButtonGhost,
+                                                        "bg-white/70 opacity-100 backdrop-blur-sm",
+                                                    )}
                                                 >
                                                     <InlineIcon icon={MoreHorizontal} className="h-4 w-4" />
                                                 </Button>
@@ -273,6 +288,7 @@ export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageCon
                 )}
                 {selectedCoachId && coachDetailQuery.data && (
                     <CoachDetailsModal
+                        canManage={canManage}
                         coach={coachDetailQuery.data}
                         onClose={() => setSelectedCoachId(null)}
                     />

@@ -203,7 +203,7 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
                 )}
 
                 {filteredSkills.length > 0 ? (
-                    <Box className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                    <Box className={cn("grid gap-5 md:grid-cols-2 xl:grid-cols-3", uiTokens.motion.cardGridReveal)}>
                         {filteredSkills.map((skill) => {
                             const typeTone = SKILL_TYPE_TONES[skill.type];
                             return (

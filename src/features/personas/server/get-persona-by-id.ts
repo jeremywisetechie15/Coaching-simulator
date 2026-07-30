@@ -1,5 +1,8 @@
 import { requireAdmin, requireAuth } from "@/features/auth/server";
-import { CONTENT_STATUS } from "@/features/content/domain";
+import {
+    CONTENT_STATUS,
+    hideSystemInstructionsFromLearner,
+} from "@/features/content/domain";
 import type { PersonaDetail, PersonaEditorValues } from "@/features/personas/domain/persona-list";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapPersonaRowToDetail, mapPersonaRowToEditorValues, PERSONA_SELECT, type PersonaRow } from "./persona.mapper";
@@ -36,5 +39,10 @@ export async function getPersonaDetailById(personaId: string): Promise<PersonaDe
     const { data, error } = await query.maybeSingle<PersonaRow>();
 
     if (error) throw error;
-    return data ? mapPersonaRowToDetail(data) : null;
+    if (!data) return null;
+
+    return hideSystemInstructionsFromLearner(
+        mapPersonaRowToDetail(data),
+        context.platformRole === "admin",
+    );
 }

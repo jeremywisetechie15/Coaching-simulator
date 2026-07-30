@@ -11,6 +11,7 @@ import {
 export interface CoachListItem {
     avatarSrc: string | null;
     backgroundImagePath: string | null;
+    backgroundImageUrl: string | null;
     certifications: string;
     coachingStyle: CoachingStyle;
     createdAt: string;
@@ -40,6 +41,7 @@ export interface CoachEditorValues {
 }
 
 export interface CoachDetail extends CoachEditorValues {
+    backgroundImageUrl: string | null;
     createdAt: string | null;
     id: string;
     updatedAt: string | null;
@@ -62,6 +64,11 @@ export const EMPTY_COACH_EDITOR_VALUES: CoachEditorValues = {
 };
 
 export const COACH_AVATAR_BUCKET = "coaches-avatars";
+export const DEFAULT_COACH_BACKGROUND_IMAGE_URL = "/bg_coach_ai.png";
+
+export function getCoachBackgroundImageUrl(backgroundImageUrl: string | null | undefined) {
+    return backgroundImageUrl || DEFAULT_COACH_BACKGROUND_IMAGE_URL;
+}
 
 export function getCoachAvatarPublicUrl(avatarPath: string | null | undefined) {
     return getStorageAvatarPublicUrl(avatarPath, COACH_AVATAR_BUCKET);

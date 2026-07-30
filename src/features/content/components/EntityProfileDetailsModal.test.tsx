@@ -8,10 +8,12 @@ describe("EntityProfileDetailsModal", () => {
         const html = renderToStaticMarkup(
             <EntityProfileDetailsModal
                 createdAt="2026-06-27T10:00:00.000Z"
+                headerBadge={<span>Publié</span>}
                 updatedAt="2026-06-27T11:00:00.000Z"
                 initials="SM"
                 name="Sophie Martin"
                 onClose={() => undefined}
+                sidebarExtra={<span>Fond de session</span>}
                 sections={[
                     {
                         title: "Identité",
@@ -27,6 +29,8 @@ describe("EntityProfileDetailsModal", () => {
         expect(html).toContain("Identité");
         expect(html).toContain("Fonction");
         expect(html).toContain("Directrice");
+        expect(html).toContain("Fond de session");
+        expect(html).toContain("Publié");
         expect(html).toContain("<svg");
     });
 });

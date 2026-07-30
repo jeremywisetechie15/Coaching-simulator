@@ -1,8 +1,16 @@
 import { requireAdmin, requireAuth } from "@/features/auth/server";
-import { CONTENT_STATUS } from "@/features/content/domain";
+import {
+    CONTENT_STATUS,
+    hideSystemInstructionsFromLearner,
+} from "@/features/content/domain";
 import type { CoachDetail, CoachEditorValues } from "@/features/coaches/domain/coach-list";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { COACH_SELECT, mapCoachRowToDetail, mapCoachRowToEditorValues, type CoachRow } from "./coach.mapper";
+import {
+    COACH_SELECT,
+    mapCoachRowToDetailWithAssets,
+    mapCoachRowToEditorValues,
+    type CoachRow,
+} from "./coach.mapper";
 
 export async function getCoachById(coachId: string): Promise<CoachEditorValues | null> {
     await requireAdmin();
@@ -36,5 +44,11 @@ export async function getCoachDetailById(coachId: string): Promise<CoachDetail |
     const { data, error } = await query.maybeSingle<CoachRow>();
 
     if (error) throw error;
-    return data ? mapCoachRowToDetail(data) : null;
+    if (!data) return null;
+
+    const detail = await mapCoachRowToDetailWithAssets(data, adminSupabase);
+    return hideSystemInstructionsFromLearner(
+        detail,
+        context.platformRole === "admin",
+    );
 }

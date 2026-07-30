@@ -164,7 +164,7 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
                 )}
 
                 {personas.length > 0 ? (
-                    <Box className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                    <Box className={cn("grid gap-5 md:grid-cols-2 xl:grid-cols-3", uiTokens.motion.cardGridReveal)}>
                         {personas.map((persona) => {
                             const isMenuOpen = openMenuId === persona.id;
 
@@ -276,6 +276,7 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
                 )}
                 {selectedPersonaId && personaDetailQuery.data && (
                     <PersonaDetailsModal
+                        canManage={canManage}
                         persona={personaDetailQuery.data}
                         onClose={() => setSelectedPersonaId(null)}
                     />

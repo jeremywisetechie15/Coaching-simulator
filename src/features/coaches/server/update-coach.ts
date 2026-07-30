@@ -12,7 +12,7 @@ import {
     SESSION_BACKGROUND_OWNER,
     uploadSessionBackground,
 } from "@/lib/uploads/session-background";
-import { COACH_SELECT, mapCoachRowToListItem, type CoachRow } from "./coach.mapper";
+import { COACH_SELECT, mapCoachRowToListItemWithAssets, type CoachRow } from "./coach.mapper";
 import {
     isOwnedCoachAvatarPath,
     removeCoachAvatar,
@@ -138,5 +138,5 @@ export async function updateCoach(
         });
     }
 
-    return mapCoachRowToListItem(data);
+    return mapCoachRowToListItemWithAssets(data, adminSupabase);
 }

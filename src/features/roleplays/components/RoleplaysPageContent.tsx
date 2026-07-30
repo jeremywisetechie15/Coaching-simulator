@@ -303,7 +303,7 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                 )}
 
                 {filteredRoleplays.length > 0 ? (
-                    <Box className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
+                    <Box className={cn("grid gap-6 md:grid-cols-2 xl:grid-cols-3", uiTokens.motion.cardGridReveal)}>
                         {filteredRoleplays.map((roleplay) => {
                             const categoryStyle =
                                 categoryBadgeStyles[roleplay.category] ?? { bg: "#F3E8FD", text: "#8B2FD6" };

@@ -231,7 +231,7 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
                     </CardSurface>
                 )}
 
-                <Box className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                <Box className={cn("grid gap-5 md:grid-cols-2 xl:grid-cols-3", uiTokens.motion.cardGridReveal)}>
                     {filteredMethods.map((method) => (
                         <CardSurface
                             key={method.id}

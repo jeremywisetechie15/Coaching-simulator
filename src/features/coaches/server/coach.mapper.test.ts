@@ -66,9 +66,10 @@ describe("coach.mapper", () => {
             diploma: "Master coaching",
             disc_profile: "Consciencieux",
             expertise_domain: "Management",
-        });
+        }, "https://example.com/background.webp");
 
         expect(item).toMatchObject({
+            backgroundImageUrl: "https://example.com/background.webp",
             certifications: "ICF",
             coachingStyle: "Exigeant",
             diploma: "Master coaching",
@@ -78,9 +79,10 @@ describe("coach.mapper", () => {
     });
 
     it("maps detail metadata and voice presentation", () => {
-        const detail = mapCoachRowToDetail(baseCoachRow);
+        const detail = mapCoachRowToDetail(baseCoachRow, "https://example.com/background.webp");
 
         expect(detail).toMatchObject({
+            backgroundImageUrl: "https://example.com/background.webp",
             createdAt: "2026-06-27T10:00:00.000Z",
             id: baseCoachRow.id,
             name: "Pierre Laurent",
