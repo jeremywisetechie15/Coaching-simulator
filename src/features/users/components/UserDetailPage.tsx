@@ -11,7 +11,6 @@ import {
     ChevronDown,
     ChevronRight,
     Clock3,
-    Eye,
     Info,
     Mail,
     Pencil,
@@ -267,23 +266,6 @@ function InfoBlock({ label, value }: { label: string; value: string }) {
     );
 }
 
-function PasswordBlock() {
-    return (
-        <Box>
-            <Text className="text-[15px] font-extrabold leading-6 text-[#171B2A]">Mot de passe</Text>
-            <Box className="mt-1.5 flex items-center gap-3 text-[#4F5868]">
-                <Text className="text-[15px] font-semibold leading-6 tracking-[0.16em]">••••••••••••</Text>
-                <Button
-                    aria-label="Afficher"
-                    className="flex h-8 w-8 items-center justify-center rounded-lg text-[#8C94A4] transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
-                >
-                    <InlineIcon icon={Eye} className="h-4 w-4" />
-                </Button>
-            </Box>
-        </Box>
-    );
-}
-
 function DetailInput({
     disabled = false,
     id,
@@ -483,9 +465,8 @@ function ProfileTab({
                 <Text as="h3" className="text-[20px] font-extrabold tracking-[-0.02em] text-[#171B2A]">
                     Identifiants de connexion
                 </Text>
-                <Box className="mt-5 grid gap-7 lg:grid-cols-2">
+                <Box className="mt-5">
                     <InfoBlock label="Nom d'utilisateur" value={getUsernameFromEmail(currentUser.email)} />
-                    <PasswordBlock />
                 </Box>
             </Box>
         </Box>
