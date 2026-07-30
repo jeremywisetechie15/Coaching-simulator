@@ -19,7 +19,7 @@ export function PasswordField({
     disabled = false,
     id,
     isVisible,
-    label = "Password",
+    label = "Mot de passe",
     name,
     onChange,
     onToggleVisibility,

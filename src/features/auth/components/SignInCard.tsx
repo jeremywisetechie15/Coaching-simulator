@@ -12,6 +12,7 @@ import {
     DEFAULT_AUTH_REDIRECT,
     buildAuthPath,
 } from "@/features/auth/domain/password-recovery";
+import { SIGN_IN_COPY } from "@/features/auth/domain/sign-in-copy";
 import { FormRoot } from "@/lib/ui/atoms";
 import {
     createFormSubmitError,
@@ -65,7 +66,7 @@ export function SignInCard() {
     };
 
     return (
-        <AuthCardFrame title="Welcome Back" description="Sign in to continue your training">
+        <AuthCardFrame title={SIGN_IN_COPY.title} description={SIGN_IN_COPY.description}>
             <FormRoot onSubmit={handleSubmit}>
                 {didResetPassword && (
                     <StatusMessage
@@ -83,7 +84,7 @@ export function SignInCard() {
                     required
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
-                    placeholder="you@example.com"
+                    placeholder={SIGN_IN_COPY.emailPlaceholder}
                 />
                 <PasswordField
                     id="password"
@@ -99,7 +100,11 @@ export function SignInCard() {
                     </Link>
                 </div>
                 {error && <AlertMessage message={error} />}
-                <SubmitButton isSubmitting={isSubmitting} label="Sign In" loadingLabel="Connexion..." />
+                <SubmitButton
+                    isSubmitting={isSubmitting}
+                    label={SIGN_IN_COPY.submitLabel}
+                    loadingLabel={SIGN_IN_COPY.loadingLabel}
+                />
             </FormRoot>
         </AuthCardFrame>
     );

@@ -1,9 +1,10 @@
 import { FormSkeleton } from "@/lib/ui/molecules";
+import { SIGN_IN_COPY } from "@/features/auth/domain/sign-in-copy";
 import { AuthCardFrame } from "./AuthCardFrame";
 
 export function SignInCardFallback() {
     return (
-        <AuthCardFrame title="Welcome Back" description="Sign in to continue your training">
+        <AuthCardFrame title={SIGN_IN_COPY.title} description={SIGN_IN_COPY.description}>
             <FormSkeleton />
         </AuthCardFrame>
     );

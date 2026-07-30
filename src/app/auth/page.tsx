@@ -2,11 +2,12 @@ import { Suspense } from "react";
 import { redirect } from "next/navigation";
 import { SignInCard, SignInCardFallback } from "@/features/auth/components";
 import { DEFAULT_AUTH_REDIRECT } from "@/features/auth/domain/password-recovery";
+import { SIGN_IN_COPY } from "@/features/auth/domain/sign-in-copy";
 import { createClient } from "@/lib/supabase/server";
 import { resolveInternalHref } from "@/features/app-shell/domain";
 
 export const metadata = {
-    title: "Sign In | MaiaCoach",
+    title: SIGN_IN_COPY.metadataTitle,
 };
 
 interface AuthPageProps {
