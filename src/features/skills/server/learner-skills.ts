@@ -9,6 +9,7 @@ import type { SkillDetail, SkillListItem } from "@/features/skills/domain/skills
 import {
     listCurrentUserAssignedContentIds,
     listCurrentUserSkillProgresses,
+    listUserSkillProgresses,
 } from "@/features/users/server";
 import type { UserSkillProgress } from "@/features/users/domain/users";
 import { NotFoundError } from "@/lib/server/errors";
@@ -205,9 +206,14 @@ export async function getCurrentSkillPageData(skillId: string): Promise<CurrentS
     const auth = await requireAuth();
 
     if (isPlatformAdmin(auth.platformRole)) {
+        const [progresses, skill] = await Promise.all([
+            listUserSkillProgresses(auth.userId),
+            getSkillById(skillId),
+        ]);
+
         return {
-            progress: null,
-            skill: await getSkillById(skillId),
+            progress: progresses.find((progress) => progress.id === skillId) ?? null,
+            skill,
         };
     }
 

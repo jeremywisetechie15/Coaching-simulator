@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { calculateAssignedRoleplayIndex } from "./list-user-assignments";
+import {
+    calculateAssignedQuizProgress,
+    calculateAssignedRoleplayIndex,
+} from "./list-user-assignments";
 
 describe("calculateAssignedRoleplayIndex", () => {
     it("uses the three best scores from the six most recent scored sessions", () => {
@@ -14,9 +17,17 @@ describe("calculateAssignedRoleplayIndex", () => {
         ])).toBe(80);
     });
 
-    it("averages every available score when fewer than three sessions exist", () => {
+    it("keeps the index pending when fewer than three scored sessions exist", () => {
         expect(calculateAssignedRoleplayIndex([
             { completedAt: "2026-01-02T10:00:00.000Z", score: 70 },
+            { completedAt: "2026-01-01T10:00:00.000Z", score: 50 },
+        ])).toBeNull();
+    });
+
+    it("returns the index from three scored sessions", () => {
+        expect(calculateAssignedRoleplayIndex([
+            { completedAt: "2026-01-03T10:00:00.000Z", score: 70 },
+            { completedAt: "2026-01-02T10:00:00.000Z", score: 60 },
             { completedAt: "2026-01-01T10:00:00.000Z", score: 50 },
         ])).toBe(60);
     });
@@ -25,5 +36,29 @@ describe("calculateAssignedRoleplayIndex", () => {
         expect(calculateAssignedRoleplayIndex([
             { completedAt: "2026-01-01T10:00:00.000Z", score: null },
         ])).toBeNull();
+    });
+});
+
+describe("calculateAssignedQuizProgress", () => {
+    it("counts completed attempts and keeps the best completed score", () => {
+        expect(calculateAssignedQuizProgress([
+            { scorePercent: 55, status: "completed" },
+            { scorePercent: 85, status: "completed" },
+            { scorePercent: null, status: "in_progress" },
+        ])).toEqual({
+            attempts: 2,
+            score: 85,
+            status: "completed",
+        });
+    });
+
+    it("keeps an unfinished first attempt in progress without consuming an attempt", () => {
+        expect(calculateAssignedQuizProgress([
+            { scorePercent: null, status: "in_progress" },
+        ])).toEqual({
+            attempts: 0,
+            score: null,
+            status: "in_progress",
+        });
     });
 });

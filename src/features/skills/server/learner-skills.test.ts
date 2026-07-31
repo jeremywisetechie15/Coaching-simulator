@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
     getSkillById: vi.fn(),
     listCurrentUserAssignedContentIds: vi.fn(),
     listCurrentUserSkillProgresses: vi.fn(),
+    listUserSkillProgresses: vi.fn(),
     listSkills: vi.fn(),
     requireAuth: vi.fn(),
 }));
@@ -24,6 +25,7 @@ vi.mock("@/features/auth/server", () => ({
 vi.mock("@/features/users/server", () => ({
     listCurrentUserAssignedContentIds: mocks.listCurrentUserAssignedContentIds,
     listCurrentUserSkillProgresses: mocks.listCurrentUserSkillProgresses,
+    listUserSkillProgresses: mocks.listUserSkillProgresses,
 }));
 vi.mock("@/lib/supabase/admin", () => ({
     createAdminClient: mocks.createAdminClient,
@@ -134,6 +136,7 @@ beforeEach(() => {
         userId: "user-1",
     });
     mocks.listCurrentUserSkillProgresses.mockResolvedValue([progress]);
+    mocks.listUserSkillProgresses.mockResolvedValue([]);
 });
 
 describe("learner skills", () => {
@@ -151,6 +154,69 @@ describe("learner skills", () => {
             column: "id",
             table: "skills",
             values: ["skill-direct", "skill-roleplay", "skill-quiz"],
+        });
+    });
+
+    it("keeps the complete skill catalogue available to admins", async () => {
+        const adminSkills = [
+            skillRow("skill-with-progress", "Compétence évaluée"),
+            skillRow("skill-without-progress", "Compétence non évaluée"),
+        ];
+        mocks.requireAuth.mockResolvedValue({
+            platformRole: "admin",
+            userId: "admin-1",
+        });
+        mocks.listSkills.mockResolvedValue(adminSkills);
+
+        await expect(listSkillsForCurrentUser()).resolves.toEqual(adminSkills);
+
+        expect(mocks.listSkills).toHaveBeenCalledOnce();
+        expect(mocks.listCurrentUserAssignedContentIds).not.toHaveBeenCalled();
+    });
+
+    it("exposes an admin's own progress on a skill detail", async () => {
+        const detail = {
+            ...skillRow("skill-roleplay", "Compétence roleplay"),
+            assignedUserId: null,
+            dimensionItems: [],
+            groupId: null,
+            scope: CONTENT_VISIBILITY_SCOPE.public,
+            type: "Métier",
+        } as unknown as SkillDetail;
+        mocks.requireAuth.mockResolvedValue({
+            platformRole: "admin",
+            userId: "admin-1",
+        });
+        mocks.getSkillById.mockResolvedValue(detail);
+        mocks.listUserSkillProgresses.mockResolvedValue([progress]);
+
+        await expect(getCurrentSkillPageData("skill-roleplay")).resolves.toEqual({
+            progress,
+            skill: detail,
+        });
+
+        expect(mocks.listUserSkillProgresses).toHaveBeenCalledWith("admin-1");
+        expect(mocks.listCurrentUserSkillProgresses).not.toHaveBeenCalled();
+    });
+
+    it("keeps an unevaluated skill detail available to admins", async () => {
+        const detail = {
+            ...skillRow("skill-without-progress", "Compétence non évaluée"),
+            assignedUserId: null,
+            dimensionItems: [],
+            groupId: null,
+            scope: CONTENT_VISIBILITY_SCOPE.public,
+            type: "Métier",
+        } as unknown as SkillDetail;
+        mocks.requireAuth.mockResolvedValue({
+            platformRole: "admin",
+            userId: "admin-1",
+        });
+        mocks.getSkillById.mockResolvedValue(detail);
+
+        await expect(getCurrentSkillPageData("skill-without-progress")).resolves.toEqual({
+            progress: null,
+            skill: detail,
         });
     });
 

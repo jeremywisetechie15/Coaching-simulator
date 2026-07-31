@@ -22,13 +22,12 @@ import {
     SKILL_ROUTES,
     type SkillDetail,
     type SkillDimension,
-    type SkillLevel,
 } from "@/features/skills/domain/skills";
 import type { UserSkillProgress } from "@/features/users/domain/users";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
-import { SKILL_TYPE_TONES } from "./skill-ui";
+import { SKILL_LEVEL_STYLES, SKILL_TYPE_TONES } from "./skill-ui";
 
 interface SkillDetailPageContentProps {
     canManage?: boolean;
@@ -49,13 +48,6 @@ const dimensionTone: Record<SkillDimension, (typeof uiTokens.tone)[keyof typeof 
     savoir_etre: uiTokens.tone.success,
 };
 
-const levelStyles: Record<SkillLevel, { badge: string; bar: string }> = {
-    Faible: { badge: "border-[#FECACA] bg-[#FEF2F2] text-[#DC2626]", bar: "#EF4444" },
-    "À renforcer": { badge: "border-[#FDE68A] bg-[#FFFBEB] text-[#B45309]", bar: "#F59E0B" },
-    "En progression": { badge: "border-[#BFDBFE] bg-[#EFF6FF] text-[#2563EB]", bar: "#3B82F6" },
-    Maîtrisées: { badge: "border-[#BBF7D0] bg-[#F0FDF4] text-[#16A34A]", bar: "#22C55E" },
-};
-
 export function SkillDetailPageContent({
     canManage = false,
     progress = null,
@@ -72,7 +64,7 @@ export function SkillDetailPageContent({
     })).filter((entry) => entry.items.length > 0);
     const overallScore = progress?.score ?? null;
     const overallLevel = overallScore === null ? null : getSkillLevel(overallScore);
-    const overallStyle = overallLevel ? levelStyles[overallLevel] : null;
+    const overallStyle = overallLevel ? SKILL_LEVEL_STYLES[overallLevel] : null;
     const scoreByDimension = new Map(
         (progress?.dimensions ?? []).map((dimension) => [dimension.key, dimension.score]),
     );
@@ -200,7 +192,7 @@ export function SkillDetailPageContent({
                                     {SKILL_DIMENSIONS.map((dimension) => {
                                         const score = scoreByDimension.get(dimension) ?? null;
                                         const level = score === null ? null : getSkillLevel(score);
-                                        const style = level ? levelStyles[level] : null;
+                                        const style = level ? SKILL_LEVEL_STYLES[level] : null;
                                         const tone = dimensionTone[dimension];
 
                                         return (

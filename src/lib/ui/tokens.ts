@@ -296,8 +296,10 @@ export const uiTokens = {
     },
     quizLibraryCard: {
         action:
-            "mt-auto flex h-9 w-full items-center justify-center gap-2 rounded-lg border-2 border-[#4F46E5] bg-transparent px-4 text-[14px] font-medium text-[#4F46E5] transition hover:bg-[#EEF2FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F46E5] focus-visible:ring-offset-2",
+            "mt-auto flex h-9 w-full items-center justify-center gap-2 rounded-lg border-2 border-[#4F46E5] bg-white px-4 text-[14px] font-medium text-[#4F46E5] transition hover:bg-[#EEF2FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F46E5] focus-visible:ring-offset-2",
         actionIcon: "h-4 w-4",
+        attemptBadge:
+            "inline-flex h-7 min-w-10 items-center justify-center gap-1 rounded-lg border border-white/25 bg-white/15 px-2 text-[12px] font-bold text-white backdrop-blur-sm",
         badge:
             "!h-[22px] !min-h-[22px] !rounded-lg !px-2 !py-0.5 !text-[12px] !font-medium !leading-4",
         badgeRow: "mb-4 flex flex-wrap items-start gap-2",
@@ -312,7 +314,7 @@ export const uiTokens = {
         menuButton:
             "flex h-8 w-8 items-center justify-center rounded-full text-white transition hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/60",
         menuIcon: "h-4 w-4",
-        menuPosition: "absolute right-3 top-3 z-20",
+        menuPosition: "absolute right-3 top-3 z-20 flex items-center gap-1.5",
         metadata: "mb-4 space-y-2",
         metadataIcon: "h-4 w-4 shrink-0 text-[#6B7280]",
         metadataMethod: "text-[#4F46E5]",
@@ -540,6 +542,179 @@ export const uiTokens = {
     },
     interaction: {
         button: "cursor-pointer disabled:cursor-not-allowed",
+    },
+    dataTable: {
+        cell: "px-6 py-4",
+        cellNowrap: "whitespace-nowrap",
+        emptyCell: "py-12 text-center",
+        frame: "overflow-hidden rounded-xl border border-[#E5E7EB] bg-white",
+        header: "border-b border-[#E5E7EB] bg-[#F9FAFB]",
+        headerCell:
+            "px-6 py-3 text-left text-[12px] font-medium uppercase tracking-wider text-[#6B7280]",
+        headerInfoButton:
+            "inline-flex h-5 w-5 items-center justify-center rounded-full text-[#6B7280]",
+        headerInfoIcon: "h-3.5 w-3.5",
+        headerLabelWithInfo: "inline-flex items-center gap-1.5",
+        row: "transition-colors hover:bg-[#F9FAFB]",
+        scroll: "overflow-x-auto",
+        table: "w-full",
+        text: {
+            body: "text-[14px] font-normal text-[#111827]",
+            muted: "text-[14px] font-normal text-[#9CA3AF]",
+            primary: "text-[14px] font-medium text-[#111827]",
+            secondary: "text-[14px] font-normal text-[#4B5563]",
+        },
+        width: {
+            standard: "min-w-[720px]",
+            wide: "min-w-[900px]",
+        },
+    },
+    userDetail: {
+        action: {
+            cancel:
+                "flex h-[42px] items-center justify-center gap-2.5 rounded-[10px] border border-[#DADDE4] bg-white px-5 text-[15px] font-extrabold text-[#111827] transition hover:bg-[#F7F8FB]",
+            icon: "h-4 w-4",
+            light:
+                "inline-flex h-9 items-center justify-center gap-2 rounded-md bg-[#E0E7FF] px-6 text-[14px] font-medium text-[#4338CA] transition hover:bg-[#C7D2FE] disabled:cursor-not-allowed disabled:opacity-60",
+            primary:
+                "flex h-[42px] items-center justify-center gap-2.5 rounded-[10px] bg-[#5140F0] px-5 text-[15px] font-extrabold text-white shadow-[0_12px_24px_rgba(81,64,240,0.22)] transition hover:bg-[#4635E7]",
+            primaryWide:
+                "flex h-[42px] items-center justify-center gap-3 rounded-[10px] bg-[#5140F0] px-5 text-[15px] font-extrabold text-white shadow-[0_12px_24px_rgba(81,64,240,0.22)] transition hover:bg-[#4635E7]",
+        },
+        aiInteraction: {
+            card: "rounded-lg border border-[#E5E7EB] bg-white p-4",
+            cardGrid: "grid gap-3 sm:grid-cols-2 xl:grid-cols-4",
+            cardIcon: "mb-3 flex h-8 w-8 items-center justify-center rounded-lg",
+            cardLabel: "text-[13px] font-normal text-[#6B7280]",
+            cardValue: "mb-1 text-[20px] font-semibold leading-7 text-[#111827]",
+            content: "space-y-6 p-6",
+            icon: "h-4 w-4",
+            tableTypeLayout: "flex items-center gap-2",
+            tone: {
+                askPersona: {
+                    card: "bg-[#DBEAFE] text-[#2563EB]",
+                    table: "text-[#3B82F6]",
+                },
+                coach: {
+                    card: "bg-[#F3E8FF] text-[#9333EA]",
+                    table: "text-[#A855F7]",
+                },
+                simulation: {
+                    card: "bg-[#E0E7FF] text-[#4F46E5]",
+                    table: "text-[#6366F1]",
+                },
+                total: {
+                    card: "bg-[#F3F4F6] text-[#4B5563]",
+                },
+            },
+        },
+        card: "overflow-hidden rounded-xl border border-[#E5E7EB] shadow-none",
+        header: {
+            back:
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#111827] transition hover:bg-white",
+            title:
+                "text-[26px] font-extrabold tracking-[-0.03em] text-[#171B2A]",
+        },
+        groupHeader: {
+            button:
+                "flex w-full items-center gap-2 text-left text-[14px] font-medium text-[#111827] transition-colors hover:text-[#374151]",
+            cell: "px-6 py-3",
+            icon: "h-4 w-4 text-[#4B5563]",
+            row: "bg-[#F9FAFB]",
+        },
+        group: {
+            error:
+                "mb-5 rounded-lg border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 text-[13px] font-semibold text-[#991B1B]",
+            icon: "flex h-9 w-9 items-center justify-center rounded-lg bg-[#E0E7FF] text-[#4F46E5]",
+            iconGlyph: "h-5 w-5",
+            nameLayout: "flex items-center gap-4",
+            removeAction:
+                "inline-flex items-center gap-2 text-[14px] font-medium text-[#DC2626] transition hover:text-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-60",
+            removeIcon: "h-4 w-4",
+        },
+        pill: {
+            group:
+                "inline-flex h-[28px] items-center rounded-full border border-[#C8D2FF] bg-[#E8ECFF] px-4 text-[13px] font-extrabold text-[#5140F0]",
+            persona:
+                "inline-flex items-center rounded-md border border-[#C7D2FE] bg-[#EEF2FF] px-2.5 py-1 text-[12px] font-normal text-[#4338CA]",
+            quiz:
+                "inline-flex items-center rounded-md border border-[#BFDBFE] bg-[#EFF6FF] px-2.5 py-1 text-[12px] font-normal text-[#1D4ED8]",
+            score: "inline-flex items-center justify-center rounded-md px-2.5 py-1 text-[12px] font-semibold",
+            scoreEmpty: "text-[14px] font-normal italic text-[#9CA3AF]",
+            scoreSuccess: "bg-[#D1FAE5] text-[#047857]",
+            scoreWarning: "bg-[#FEF3C7] text-[#B45309]",
+        },
+        profile: {
+            avatar:
+                "flex h-[92px] w-[92px] items-center justify-center rounded-full bg-[#E4E6EB] text-[#344054]",
+            divider: "mt-8 border-t border-[#DDE1E8] pt-7",
+            empty: "text-[14px] font-semibold text-[#8C94A4]",
+            fieldLabel: "text-[14px] font-extrabold text-[#171B2A]",
+            infoLabel: "text-[15px] font-extrabold leading-6 text-[#171B2A]",
+            infoValue:
+                "mt-1.5 text-[15px] font-semibold leading-6 text-[#4F5868]",
+            input:
+                "h-10 rounded-[8px] border border-[#D6DAE3] bg-white text-[14px] font-semibold text-[#4F5868] shadow-none",
+            role:
+                "inline-flex h-[28px] items-center rounded-[8px] border border-[#CBD2DC] bg-white px-3 text-[13px] font-semibold text-[#344054]",
+            sectionTitle:
+                "text-[20px] font-extrabold tracking-[-0.02em] text-[#171B2A]",
+            selectChevron:
+                "pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8C94A4]",
+            status: {
+                active: "bg-[#DDF8E6] text-[#17A34A]",
+                base:
+                    "inline-flex h-[28px] items-center rounded-[9px] px-3 text-[13px] font-bold",
+                inactive: "bg-[#F1F2F5] text-[#697184]",
+                pending: "bg-[#FFF3D6] text-[#B77900]",
+            },
+        },
+        section: {
+            content: "p-6",
+            heading: "text-[16px] font-semibold text-[#111827]",
+            headingRow:
+                "mb-4 flex flex-col gap-4 md:flex-row md:items-center md:justify-between",
+        },
+        skill: {
+            acquired:
+                "inline-flex items-center rounded bg-[#DCFCE7] px-2 py-0.5 text-[12px] font-semibold text-[#166534]",
+            delta: "whitespace-nowrap text-[14px] font-bold text-[#0D9488]",
+            detailCell: "px-6 py-4",
+            detailRow: "border-b border-[#E5E7EB] bg-[#F9FAFB]",
+            detailSummary:
+                "flex min-w-0 flex-wrap gap-2 rounded-xl border border-[#E6E9F0] bg-white p-4",
+            initialLabel: "text-[12px] font-normal text-[#6B7280]",
+            initialValue: "font-semibold",
+            nameHeader: "w-1/4",
+            name: "max-w-[250px] text-[14px] font-medium text-[#111827]",
+            nameCell: "px-6 py-4",
+            nameLayout: "flex items-center gap-3",
+            progressCell: "px-6 py-4",
+            progressLayout: "flex items-center gap-4",
+            progressMeta: "flex items-center gap-3 whitespace-nowrap",
+            progressMiddle: "flex min-w-0 flex-1 items-center gap-3",
+            progressTrack: "relative h-2 flex-1 overflow-hidden rounded-full bg-[#E5E7EB]",
+            progressInitial: "absolute left-0 top-0 h-full bg-[#D1D5DB]",
+            progressValue: "absolute left-0 top-0 h-full",
+            row:
+                "cursor-pointer border-b border-[#E5E7EB] transition-colors hover:bg-[#F9FAFB]",
+            score:
+                "inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-[14px] font-bold",
+            scoreNeutral: "bg-[#F3F4F6] text-[#6B7280]",
+            scoreSuccess: "bg-[#D1FAE5] text-[#047857]",
+            scoreWarning: "bg-[#FEF3C7] text-[#B45309]",
+            statusDot: "h-2 w-2 shrink-0 rounded-full",
+            tableFrame: "rounded-lg",
+            chevron: "h-4 w-4 shrink-0 text-[#9CA3AF]",
+        },
+        tabs: {
+            active: "border-[#4F46E5] text-[#4F46E5]",
+            idle:
+                "border-transparent text-[#6B7280] hover:border-[#D1D5DB] hover:text-[#374151]",
+            item: "border-b-2 py-4 text-[14px] font-medium transition-colors",
+            list: "flex min-w-max gap-8 px-6",
+            scroll: "overflow-x-auto border-b border-[#E5E7EB]",
+        },
     },
     organizationInvitation: {
         confirmation: {
@@ -873,7 +1048,7 @@ export const uiTokens = {
     },
     roleplayCard: {
         action:
-            "mt-4 flex h-10 w-full items-center justify-center gap-2 rounded-lg bg-[#5140F0] text-[14px] font-semibold text-white shadow-[0_10px_20px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7]",
+            "mt-4 flex h-9 w-full items-center justify-center gap-2 rounded-lg border-2 border-[#4F46E5] bg-white px-4 text-[14px] font-medium text-[#4F46E5] transition hover:bg-[#EEF2FF] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F46E5] focus-visible:ring-offset-2",
         attemptBadge:
             "inline-flex h-7 min-w-10 items-center justify-center gap-1 rounded-lg border border-white/25 bg-white/15 px-2 text-[12px] font-bold text-white backdrop-blur-sm",
         avatar:
@@ -1139,6 +1314,7 @@ export const uiTokens = {
             yellow: { pill: "bg-[#FEF3C7] text-[#B45309]", fill: "#F59E0B", dot: "bg-[#F59E0B]" },
             orange: { pill: "bg-[#FFEDD5] text-[#C2410C]", fill: "#F97316", dot: "bg-[#F97316]" },
             red: { pill: "bg-[#FEE2E2] text-[#DC2626]", fill: "#EF4444", dot: "bg-[#EF4444]" },
+            neutral: { pill: "bg-[#F3F4F6] text-[#6B7280]", fill: "#D1D5DB", dot: "bg-[#D1D5DB]" },
         },
         /** Teintes d'icône des 3 dimensions (résumé + tableau détaillé). */
         dimensionTone: {

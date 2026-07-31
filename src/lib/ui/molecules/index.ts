@@ -4,6 +4,7 @@ export * from "./AnimatedEntityHeader";
 export * from "./AvatarSourceField";
 export * from "./CardActionMenu";
 export * from "./DateRangeFilter";
+export * from "./DataTable";
 export * from "./EditableTextListField";
 export * from "./FilePreviewCard";
 export * from "./FileUploadField";

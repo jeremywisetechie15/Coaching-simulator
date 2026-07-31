@@ -239,11 +239,12 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                                     Créer un scénario
                                 </ContextualLink>
                             )}
-                        <ContextualLink
-                            href={ROLEPLAY_ROUTES.app.history}
-                            className={uiTokens.entityHeader.action.primary}
-                        >
-                            Historique des sessions
+                            <ContextualLink
+                                href={ROLEPLAY_ROUTES.app.history}
+                                className={uiTokens.entityHeader.action.primary}
+                            >
+                                <InlineIcon icon={History} className="h-4 w-4" />
+                                Historique des sessions
                             </ContextualLink>
                         </>
                     }

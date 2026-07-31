@@ -69,17 +69,38 @@ export const SKILL_DIMENSION_LABELS: Record<SkillDimension, string> = {
     savoir_etre: "Dimensions comportementales",
 };
 
-/** Niveaux de maîtrise d'une compétence (du plus faible au plus élevé). */
-export const SKILL_LEVELS = ["Faible", "À renforcer", "En progression", "Maîtrisées"] as const;
+/** Libellés SSOT des niveaux de maîtrise d'une compétence. */
+export const SKILL_LEVEL = {
+    weak: "Faible",
+    needsStrengthening: "À renforcer",
+    progressing: "En progression",
+    mastered: "Maîtrisée",
+} as const;
 
-export type SkillLevel = (typeof SKILL_LEVELS)[number];
+export type SkillLevel = (typeof SKILL_LEVEL)[keyof typeof SKILL_LEVEL];
+
+/** Seuils SSOT, ordonnés du niveau le plus faible au plus élevé. */
+export const SKILL_LEVEL_DEFINITIONS = [
+    { level: SKILL_LEVEL.weak, minimumScore: 0 },
+    { level: SKILL_LEVEL.needsStrengthening, minimumScore: 40 },
+    { level: SKILL_LEVEL.progressing, minimumScore: 60 },
+    { level: SKILL_LEVEL.mastered, minimumScore: 80 },
+] as const satisfies readonly {
+    level: SkillLevel;
+    minimumScore: number;
+}[];
+
+export const SKILL_LEVELS: readonly SkillLevel[] = SKILL_LEVEL_DEFINITIONS.map(
+    ({ level }) => level,
+);
 
 /** Déduit le niveau de maîtrise à partir d'un score (0-100). */
 export function getSkillLevel(score: number): SkillLevel {
-    if (score >= 80) return "Maîtrisées";
-    if (score >= 60) return "En progression";
-    if (score >= 40) return "À renforcer";
-    return "Faible";
+    return SKILL_LEVEL_DEFINITIONS.reduce<SkillLevel>(
+        (level, definition) =>
+            score >= definition.minimumScore ? definition.level : level,
+        SKILL_LEVEL.weak,
+    );
 }
 
 export interface SkillDimensionItem {

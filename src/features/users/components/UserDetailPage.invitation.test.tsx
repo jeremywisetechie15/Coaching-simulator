@@ -49,6 +49,11 @@ const invitationResendTargets: OrganizationInvitationResendTarget[] = [
     { organizationId: "organization-1", organizationName: "Alpha" },
 ];
 
+const aiInteractions = {
+    items: [],
+    totalDurationSeconds: 0,
+};
+
 function renderPage(
     initialMode: "edit" | "view",
     targets = invitationResendTargets,
@@ -58,6 +63,7 @@ function renderPage(
     return renderToStaticMarkup(
         <QueryClientProvider client={queryClient}>
             <UserDetailPage
+                aiInteractions={aiInteractions}
                 avatarUrl={null}
                 initialMode={initialMode}
                 initials="AD"
@@ -70,6 +76,13 @@ function renderPage(
 }
 
 describe("UserDetailPage invitation resend action", () => {
+    it("uses the Interaction IA tab instead of the former Statistics tab", () => {
+        const html = renderPage("view");
+
+        expect(html).toContain("Interaction IA");
+        expect(html).not.toContain("Statistiques");
+    });
+
     it("renders the resend action next to Edit in view mode", () => {
         const html = renderPage("view");
 

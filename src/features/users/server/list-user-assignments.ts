@@ -1,8 +1,14 @@
 import { requireAdmin, requirePlatformUser } from "@/features/auth/server";
-import { getQuizTypeLabel, type QuizType } from "@/features/evaluations/domain";
+import {
+    getQuizTypeLabel,
+    QUIZ_DEFAULT_VALIDATION_THRESHOLD,
+    type QuizType,
+} from "@/features/evaluations/domain";
 import {
     calculateRoleplayIndex,
+    getRoleplayIndexDisplayState,
     MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
+    normalizeRoleplayValidationThreshold,
 } from "@/features/roleplays/domain";
 import type {
     UserAssignedQuiz,
@@ -33,6 +39,7 @@ interface ScenarioRow {
     id: string;
     persona_id: string | null;
     title: string;
+    validation_threshold: number | null;
 }
 
 interface AssignedScenarioRow extends ScenarioRow {
@@ -63,6 +70,7 @@ interface QuizRow {
     id: string;
     quiz_type: string | null;
     title: string;
+    validation_threshold: number | null;
 }
 
 interface AssignedQuizRow extends QuizRow {
@@ -80,6 +88,25 @@ interface QuizAttemptRow {
     quiz_id: string | null;
     score_percent: number | null;
     status: string | null;
+}
+
+export function calculateAssignedQuizProgress(
+    attempts: Array<{ scorePercent: number | null; status: string | null }>,
+) {
+    const completedAttempts = attempts.filter(
+        (attempt) => attempt.status === "completed",
+    );
+    const scores = completedAttempts
+        .map((attempt) => attempt.scorePercent)
+        .filter((score): score is number =>
+            typeof score === "number" && Number.isFinite(score),
+        );
+
+    return {
+        attempts: completedAttempts.length,
+        score: scores.length > 0 ? Math.max(...scores) : null,
+        status: getStatus(attempts.map((attempt) => attempt.status ?? "")),
+    };
 }
 
 function uniqueValues(values: Array<string | null | undefined>) {
@@ -114,7 +141,11 @@ export function calculateAssignedRoleplayIndex(
         .sort((first, second) => (second.completedAt ?? "").localeCompare(first.completedAt ?? ""))
         .map((session) => session.score);
 
-    return calculateRoleplayIndex(scoresByRecency).score;
+    const index = calculateRoleplayIndex(scoresByRecency);
+
+    return getRoleplayIndexDisplayState(index.sessionCount) === "available"
+        ? index.score
+        : null;
 }
 
 async function getActiveUserTargetContext(userId: string): Promise<UserTargetContext> {
@@ -135,7 +166,7 @@ async function getUserAccountCreatedAt(userId: string) {
 function buildScenarioVisibilityQuery(adminSupabase: ReturnType<typeof createAdminClient>, target: UserVisibleAssignmentScope) {
     const query = adminSupabase
         .from("scenarios")
-        .select("id, title, persona_id")
+        .select("id, title, persona_id, validation_threshold")
         .eq("is_active", USER_VISIBLE_ASSIGNMENT_ACTIVE)
         .eq("status", USER_VISIBLE_ASSIGNMENT_STATUS)
         .eq("visibility_scope", target.scope);
@@ -180,7 +211,7 @@ async function fetchAssignedScenarioRows(
     if (explicitIds.length > 0) {
         const { data, error } = await adminSupabase
             .from("scenarios")
-            .select("id, title, persona_id")
+            .select("id, title, persona_id, validation_threshold")
             .in("id", explicitIds)
             .eq("is_active", USER_VISIBLE_ASSIGNMENT_ACTIVE)
             .eq("status", USER_VISIBLE_ASSIGNMENT_STATUS)
@@ -216,7 +247,7 @@ async function fetchAssignedScenarioRows(
 function buildQuizVisibilityQuery(adminSupabase: ReturnType<typeof createAdminClient>, target: UserVisibleAssignmentScope) {
     const query = adminSupabase
         .from("quizzes")
-        .select("id, title, quiz_type")
+        .select("id, title, quiz_type, validation_threshold")
         .eq("is_active", USER_VISIBLE_ASSIGNMENT_ACTIVE)
         .eq("status", USER_VISIBLE_ASSIGNMENT_STATUS)
         .eq("visibility_scope", target.scope);
@@ -265,7 +296,7 @@ async function fetchAssignedQuizRows(
     if (additionalIds.length > 0) {
         const { data, error } = await adminSupabase
             .from("quizzes")
-            .select("id, title, quiz_type")
+            .select("id, title, quiz_type, validation_threshold")
             .in("id", additionalIds)
             .eq("is_active", USER_VISIBLE_ASSIGNMENT_ACTIVE)
             .eq("status", USER_VISIBLE_ASSIGNMENT_STATUS)
@@ -404,6 +435,9 @@ export async function listUserAssignedRoleplays(userId: string): Promise<UserAss
             sessions: sessions.length,
             status: getStatus(sessions.map((session) => session.status ?? "")),
             title: scenario.title,
+            validationThreshold: normalizeRoleplayValidationThreshold(
+                scenario.validation_threshold,
+            ),
         };
     });
 }
@@ -444,19 +478,24 @@ export async function listUserAssignedQuizzes(userId: string): Promise<UserAssig
 
     return rows.map((quiz) => {
         const attempts = attemptsByQuizId.get(quiz.id) ?? [];
-        const scores = attempts
-            .map((attempt) => attempt.score_percent)
-            .filter((score): score is number => typeof score === "number" && Number.isFinite(score));
+        const progress = calculateAssignedQuizProgress(
+            attempts.map((attempt) => ({
+                scorePercent: attempt.score_percent,
+                status: attempt.status,
+            })),
+        );
 
         return {
             assignmentSource: quiz.assignmentSource,
             assignedAt: formatLongDate(quiz.assignmentAssignedAt),
-            attempts: attempts.length,
+            attempts: progress.attempts,
             id: quiz.id,
-            score: scores.length > 0 ? Math.max(...scores) : null,
-            status: getStatus(attempts.map((attempt) => attempt.status ?? "")),
+            score: progress.score,
+            status: progress.status,
             title: quiz.title,
             type: getQuizTypeLabel(getQuizType(quiz.quiz_type)),
+            validationThreshold:
+                quiz.validation_threshold ?? QUIZ_DEFAULT_VALIDATION_THRESHOLD,
         };
     });
 }

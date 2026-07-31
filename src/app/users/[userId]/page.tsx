@@ -8,10 +8,10 @@ import {
 import { UserDetailPage } from "@/features/users/components";
 import {
     getUserById,
+    listUserAiInteractions,
     listUserAssignedQuizzes,
     listUserAssignedRoleplays,
     listUserSkillProgresses,
-    listUserStatistics,
 } from "@/features/users/server";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
@@ -91,21 +91,23 @@ export default async function Page({ params, searchParams }: PageProps) {
         notFound();
     }
 
-    const [assignedRoleplays, assignedQuizzes, invitationResendTargets] = await Promise.all([
+    const [
+        assignedRoleplays,
+        assignedQuizzes,
+        invitationResendTargets,
+        aiInteractions,
+        skills,
+    ] = await Promise.all([
         listUserAssignedRoleplays(user.id),
         listUserAssignedQuizzes(user.id),
         listUserPendingOrganizationInvitations(user.id),
-    ]);
-    const [statistics, skills] = await Promise.all([
-        listUserStatistics(user.id, {
-            assignedQuizzes,
-            assignedRoleplays,
-        }),
+        listUserAiInteractions(user.id),
         listUserSkillProgresses(user.id),
     ]);
 
     return (
         <UserDetailPage
+            aiInteractions={aiInteractions}
             assignedQuizzes={assignedQuizzes}
             assignedRoleplays={assignedRoleplays}
             avatarUrl={profileValues.avatarUrl}
@@ -114,7 +116,6 @@ export default async function Page({ params, searchParams }: PageProps) {
             invitationResendTargets={invitationResendTargets}
             platformRole={profileValues.platformRole}
             skills={skills}
-            statistics={statistics}
             user={user}
         />
     );

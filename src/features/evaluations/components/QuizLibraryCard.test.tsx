@@ -57,6 +57,7 @@ describe("QuizLibraryCard", () => {
         expect(html).toContain("3");
         expect(html).toContain("88%");
         expect(html).toContain("Retenter le quiz");
+        expect(html).toContain('aria-label="Nombre de tentatives : 3"');
     });
 
     it("keeps missing optional data explicit instead of inventing values", () => {

@@ -14,6 +14,7 @@ describe("buildUserStatistics", () => {
                     status: "completed",
                     title: "Quiz",
                     type: "Quiz de Connaissance",
+                    validationThreshold: 70,
                 },
             ],
             assignedRoleplays: [
@@ -26,6 +27,7 @@ describe("buildUserStatistics", () => {
                     sessions: 2,
                     status: "completed",
                     title: "Roleplay",
+                    validationThreshold: 80,
                 },
             ],
             criterionRows: [],

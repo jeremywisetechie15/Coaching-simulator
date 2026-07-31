@@ -1,3 +1,8 @@
+import type {
+    SkillDimension,
+    SkillLevel,
+} from "@/features/skills/domain/skills";
+
 export const PLATFORM_ROLE = {
     admin: "admin",
     user: "user",
@@ -112,6 +117,7 @@ export interface UserAssignedRoleplay {
     sessions: number;
     status: UserAssignmentStatus;
     title: string;
+    validationThreshold: number;
 }
 
 export interface UserAssignedQuiz {
@@ -123,6 +129,29 @@ export interface UserAssignedQuiz {
     status: UserAssignmentStatus;
     title: string;
     type: string;
+    validationThreshold: number;
+}
+
+export const USER_AI_INTERACTION_TYPE = {
+    askPersona: "ask_persona",
+    coach: "coach",
+    simulation: "simulation",
+} as const;
+
+export type UserAiInteractionType =
+    (typeof USER_AI_INTERACTION_TYPE)[keyof typeof USER_AI_INTERACTION_TYPE];
+
+export interface UserAiInteractionMetric {
+    durationSeconds: number;
+    label: string;
+    lastUsedAt: string | null;
+    sessions: number;
+    type: UserAiInteractionType;
+}
+
+export interface UserAiInteractions {
+    items: UserAiInteractionMetric[];
+    totalDurationSeconds: number;
 }
 
 export interface UserSkillStatistic {
@@ -130,7 +159,7 @@ export interface UserSkillStatistic {
     score: number;
 }
 
-export type UserSkillDimensionKey = "savoir" | "savoir_faire" | "savoir_etre";
+export type UserSkillDimensionKey = SkillDimension;
 
 export interface UserSkillDimensionProgress {
     itemCount: number;
@@ -178,7 +207,7 @@ export interface UserStatistics {
 export interface UserSkill {
     id: string;
     label: string;
-    level: "Faible" | "À renforcer" | "En progression" | "Maîtrisée";
+    level: SkillLevel;
     score: number;
 }
 

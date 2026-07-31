@@ -5,18 +5,17 @@ import { Fragment, type ReactNode, useCallback, useEffect, useMemo, useRef, useS
 import { useQueryClient } from "@tanstack/react-query";
 import {
     ArrowLeft,
-    BarChart3,
     Check,
-    CheckCircle2,
     ChevronDown,
     ChevronRight,
     Clock3,
     Info,
     Mail,
+    MessageSquare,
     Pencil,
+    Phone,
     Plus,
-    Target,
-    TrendingUp,
+    Sparkles,
     Trash2,
     UserCheck,
     UsersRound,
@@ -35,8 +34,16 @@ import {
     TextInput,
     Tooltip,
 } from "@/lib/ui/atoms";
-import { GroupedTableSectionHeader } from "@/lib/ui/molecules";
+import {
+    DataTable,
+    DataTableCell,
+    DataTableFrame,
+    DataTableHead,
+    DataTableHeaderCell,
+    DataTableRow,
+} from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
+import { cn } from "@/lib/ui/utils/cn";
 import {
     createFormSubmitError,
     notifyFormSubmitError,
@@ -44,10 +51,14 @@ import {
 } from "@/lib/ui/feedback/form-submit-feedback";
 import { notify } from "@/lib/ui/feedback/toast";
 import {
-    ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT,
+    getRoleplayIndexDisplayState,
     ROLEPLAY_INDEX_DESCRIPTION,
     ROLEPLAY_INDEX_LABEL,
 } from "@/features/roleplays/domain";
+import {
+    getSkillLevel,
+    SKILL_LEVEL,
+} from "@/features/skills/domain/skills";
 import { OrganizationInvitationResendConfirmationModal } from "@/features/organizations/components";
 import {
     getOrganizationInvitationResendSuccessMessage,
@@ -63,13 +74,14 @@ import {
     type PlatformRole,
     type UserAssignedQuiz,
     type UserAssignedRoleplay,
+    type UserAiInteractions,
     type UserAssignmentStatus,
     type UserContentAssignmentCandidate,
     type UserListItem,
     type UserRole,
     type UserSkillProgress,
-    type UserStatistics,
     type UserStatus,
+    USER_AI_INTERACTION_TYPE,
     USER_STATUS_ACTION,
     USER_STATUS_ACTION_LABELS,
     type UserStatusAction,
@@ -85,9 +97,10 @@ import { createLatestAbortableRequestCoordinator } from "./latest-abortable-requ
 import { refreshUserViews } from "./user-detail-refresh";
 import { shouldResetUserDraft } from "./user-detail-state";
 
-type UserDetailTab = "profile" | "groups" | "roleplays" | "evaluations" | "statistics" | "skills";
+type UserDetailTab = "profile" | "groups" | "roleplays" | "evaluations" | "ai-interactions" | "skills";
 
 interface UserDetailPageProps {
+    aiInteractions: UserAiInteractions;
     assignedQuizzes?: UserAssignedQuiz[];
     assignedRoleplays?: UserAssignedRoleplay[];
     avatarUrl: string | null;
@@ -96,7 +109,6 @@ interface UserDetailPageProps {
     invitationResendTargets?: OrganizationInvitationResendTarget[];
     platformRole: PlatformRole;
     skills?: UserSkillProgress[];
-    statistics?: UserStatistics;
     user: UserListItem;
 }
 
@@ -111,28 +123,9 @@ const tabs: Array<{ id: UserDetailTab; label: string }> = [
     { id: "groups", label: "Groupes" },
     { id: "roleplays", label: "Roleplays" },
     { id: "evaluations", label: "Évaluations" },
-    { id: "statistics", label: "Statistiques" },
+    { id: "ai-interactions", label: "Interaction IA" },
     { id: "skills", label: "Compétences" },
 ];
-
-const emptyUserStatistics: UserStatistics = {
-    averageQuizScore: "N/A",
-    averageRoleplayScore: "N/A",
-    bestRoleplayScore: "N/A",
-    completedQuizzes: "0/0",
-    completedRoleplays: "0/0",
-    completionRate: "N/A",
-    lastActivity: "Aucune",
-    latestRoleplayScore: "N/A",
-    quizVsRoleplayGap: "N/A",
-    roleplayProgressLast30Days: "N/A",
-    roleplayProgressSinceFirst: "N/A",
-    targetScore: `${ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT}%`,
-    targetScoreGap: "N/A",
-    topMasteredSkills: [],
-    topSkillsToImprove: [],
-    trainingTime: "0min",
-};
 
 function splitName(name: string) {
     const [firstName = "", ...rest] = name.split(" ");
@@ -193,14 +186,14 @@ function normalizeUserGroupsPayload(payload: UserGroupsResult | null): UserGroup
 }
 
 function getStatusClasses(status: UserStatus) {
-    if (status === "active") return "bg-[#DDF8E6] text-[#17A34A]";
-    if (status === "pending") return "bg-[#FFF3D6] text-[#B77900]";
-    return "bg-[#F1F2F5] text-[#697184]";
+    if (status === "active") return uiTokens.userDetail.profile.status.active;
+    if (status === "pending") return uiTokens.userDetail.profile.status.pending;
+    return uiTokens.userDetail.profile.status.inactive;
 }
 
 function StatusBadge({ status }: { status: UserStatus }) {
     return (
-        <Box className={`inline-flex h-[28px] items-center rounded-[9px] px-3 text-[13px] font-bold ${getStatusClasses(status)}`}>
+        <Box className={cn(uiTokens.userDetail.profile.status.base, getStatusClasses(status))}>
             {getUserStatusLabel(status)}
         </Box>
     );
@@ -208,7 +201,7 @@ function StatusBadge({ status }: { status: UserStatus }) {
 
 function RolePill({ role }: { role: UserRole }) {
     return (
-        <Box className="inline-flex h-[28px] items-center rounded-[8px] border border-[#CBD2DC] bg-white px-3 text-[13px] font-semibold text-[#344054]">
+        <Box className={uiTokens.userDetail.profile.role}>
             {getUserRoleLabel(role)}
         </Box>
     );
@@ -216,7 +209,7 @@ function RolePill({ role }: { role: UserRole }) {
 
 function GroupChip({ label }: { label: string }) {
     return (
-        <Box className="inline-flex h-[28px] items-center rounded-full border border-[#C8D2FF] bg-[#E8ECFF] px-4 text-[13px] font-extrabold text-[#5140F0]">
+        <Box className={uiTokens.userDetail.pill.group}>
             {label}
         </Box>
     );
@@ -224,7 +217,7 @@ function GroupChip({ label }: { label: string }) {
 
 function PersonaPill({ label }: { label: string }) {
     return (
-        <Box className="inline-flex items-center rounded-full border border-[#D9DEF0] bg-[#F1F3FB] px-3 py-1 text-[13px] font-semibold text-[#3B4358]">
+        <Box className={uiTokens.userDetail.pill.persona}>
             {label}
         </Box>
     );
@@ -232,36 +225,66 @@ function PersonaPill({ label }: { label: string }) {
 
 function QuizTypePill({ label }: { label: string }) {
     return (
-        <Box className="inline-flex items-center rounded-lg bg-[#E8ECFF] px-3 py-1 text-[13px] font-semibold text-[#5140F0]">
+        <Box className={uiTokens.userDetail.pill.quiz}>
             {label}
         </Box>
     );
 }
 
-function ScoreBadge({ emptyLabel = "—", score }: { emptyLabel?: string; score: number | null }) {
+function ScoreBadge({
+    emptyLabel = "—",
+    score,
+    validationThreshold,
+}: {
+    emptyLabel?: string;
+    score: number | null;
+    validationThreshold: number;
+}) {
+    const thresholdTooltip = `Seuil recommandé pour être validé : ${validationThreshold}%`;
+
     if (score === null) {
-        return <Text className="text-[15px] font-semibold text-[#9AA2B2]">{emptyLabel}</Text>;
+        return (
+            <Tooltip content={thresholdTooltip}>
+                <Text
+                    className={uiTokens.userDetail.pill.scoreEmpty}
+                    tabIndex={0}
+                >
+                    {emptyLabel}
+                </Text>
+            </Tooltip>
+        );
     }
 
-    const isStrong = score >= 80;
+    const isValidated = score >= validationThreshold;
 
     return (
-        <Box
-            className={[
-                "inline-flex h-7 items-center justify-center rounded-[8px] px-2.5 text-[13px] font-extrabold",
-                isStrong ? "bg-[#D9FBE8] text-[#048A45]" : "bg-[#FFF1C8] text-[#C76000]",
-            ].join(" ")}
-        >
-            {score}%
-        </Box>
+        <Tooltip content={thresholdTooltip}>
+            <Box
+                className={cn(
+                    uiTokens.userDetail.pill.score,
+                    isValidated
+                        ? uiTokens.userDetail.pill.scoreSuccess
+                        : uiTokens.userDetail.pill.scoreWarning,
+                )}
+                tabIndex={0}
+            >
+                {score}%
+            </Box>
+        </Tooltip>
     );
+}
+
+export function getAssignedRoleplayIndexEmptyLabel(sessionCount: number) {
+    return getRoleplayIndexDisplayState(sessionCount) === "empty"
+        ? "N/A"
+        : "En cours";
 }
 
 function InfoBlock({ label, value }: { label: string; value: string }) {
     return (
         <Box>
-            <Text className="text-[15px] font-extrabold leading-6 text-[#171B2A]">{label}</Text>
-            <Text className="mt-1.5 text-[15px] font-semibold leading-6 text-[#4F5868]">{value || "-"}</Text>
+            <Text className={uiTokens.userDetail.profile.infoLabel}>{label}</Text>
+            <Text className={uiTokens.userDetail.profile.infoValue}>{value || "-"}</Text>
         </Box>
     );
 }
@@ -283,7 +306,7 @@ function DetailInput({
 }) {
     return (
         <Box className="space-y-2">
-            <FieldLabel htmlFor={id} className="text-[14px] font-extrabold text-[#171B2A]">
+            <FieldLabel htmlFor={id} className={uiTokens.userDetail.profile.fieldLabel}>
                 {label}
             </FieldLabel>
             <TextInput
@@ -296,7 +319,7 @@ function DetailInput({
                 className={
                     disabled
                         ? `${uiTokens.form.controlReadonly} !h-10 !cursor-not-allowed`
-                        : "h-10 rounded-[8px] border border-[#D6DAE3] bg-white text-[14px] font-semibold text-[#4F5868] shadow-none"
+                        : uiTokens.userDetail.profile.input
                 }
             />
         </Box>
@@ -318,7 +341,7 @@ function DetailSelect({
 }) {
     return (
         <Box className="space-y-2">
-            <FieldLabel htmlFor={id} className="text-[14px] font-extrabold text-[#171B2A]">
+            <FieldLabel htmlFor={id} className={uiTokens.userDetail.profile.fieldLabel}>
                 {label}
             </FieldLabel>
             <Box className="relative">
@@ -326,7 +349,7 @@ function DetailSelect({
                     id={id}
                     onChange={(event) => onChange(event.target.value)}
                     value={value}
-                    className="h-10 rounded-[8px] border border-[#D6DAE3] bg-white text-[14px] font-semibold text-[#4F5868] shadow-none"
+                    className={uiTokens.userDetail.profile.input}
                 >
                     {options.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -336,7 +359,7 @@ function DetailSelect({
                 </SelectInput>
                 <InlineIcon
                     icon={ChevronDown}
-                    className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8C94A4]"
+                    className={uiTokens.userDetail.profile.selectChevron}
                 />
             </Box>
         </Box>
@@ -363,13 +386,13 @@ function ProfileTab({
     const roleOptions = getEditableUserRoleOptions(currentUser.platformRole);
 
     return (
-        <Box className="px-6 pb-7 pt-7 md:px-7">
-            <Text as="h2" className="text-[20px] font-extrabold tracking-[-0.02em] text-[#171B2A]">
+        <Box className={uiTokens.userDetail.section.content}>
+            <Text as="h2" className={uiTokens.userDetail.profile.sectionTitle}>
                 Informations de base
             </Text>
 
             <Box className="mt-6 grid gap-6 xl:grid-cols-[112px_minmax(0,1fr)]">
-                <Box className="flex h-[92px] w-[92px] items-center justify-center rounded-full bg-[#E4E6EB] text-[#344054]">
+                <Box className={uiTokens.userDetail.profile.avatar}>
                     <Text as="span" className="text-[24px] font-extrabold tracking-[-0.02em]">
                         {currentUser.initials}
                     </Text>
@@ -406,7 +429,7 @@ function ProfileTab({
                                 value={draft.role}
                             />
                             <Box>
-                                <Text className="text-[15px] font-extrabold leading-6 text-[#171B2A]">Statut</Text>
+                                <Text className={uiTokens.userDetail.profile.infoLabel}>Statut</Text>
                                 <Box className="mt-2">
                                     <StatusBadge status={currentUser.status} />
                                 </Box>
@@ -419,13 +442,13 @@ function ProfileTab({
                             <InfoBlock label="Email" value={currentUser.email} />
                             <InfoBlock label="Entreprise" value={currentUser.organization} />
                             <Box>
-                                <Text className="text-[15px] font-extrabold leading-6 text-[#171B2A]">Rôle</Text>
+                                <Text className={uiTokens.userDetail.profile.infoLabel}>Rôle</Text>
                                 <Box className="mt-2">
                                     <RolePill role={currentUser.role} />
                                 </Box>
                             </Box>
                             <Box>
-                                <Text className="text-[15px] font-extrabold leading-6 text-[#171B2A]">Statut</Text>
+                                <Text className={uiTokens.userDetail.profile.infoLabel}>Statut</Text>
                                 <Box className="mt-2">
                                     <StatusBadge status={currentUser.status} />
                                 </Box>
@@ -437,22 +460,22 @@ function ProfileTab({
                     <InfoBlock label="Évaluations" value={`${quizCount} quizzes`} />
 
                     <Box className="lg:col-span-2">
-                        <Text className="text-[15px] font-extrabold leading-6 text-[#171B2A]">Groupe(s)</Text>
+                        <Text className={uiTokens.userDetail.profile.infoLabel}>Groupe(s)</Text>
                         <Box className="mt-3 flex flex-wrap gap-2.5">
                             {groups.length > 0 ? (
                                 groups.map((group) => (
                                     <GroupChip key={group.id} label={group.name} />
                                 ))
                             ) : (
-                                <Text className="text-[14px] font-semibold text-[#8C94A4]">Aucun groupe assigné</Text>
+                                <Text className={uiTokens.userDetail.profile.empty}>Aucun groupe assigné</Text>
                             )}
                         </Box>
                     </Box>
                 </Box>
             </Box>
 
-            <Box className="mt-8 border-t border-[#DDE1E8] pt-7">
-                <Text as="h3" className="text-[20px] font-extrabold tracking-[-0.02em] text-[#171B2A]">
+            <Box className={uiTokens.userDetail.profile.divider}>
+                <Text as="h3" className={uiTokens.userDetail.profile.sectionTitle}>
                     Dates importantes
                 </Text>
                 <Box className="mt-5 grid gap-7 lg:grid-cols-2">
@@ -461,8 +484,8 @@ function ProfileTab({
                 </Box>
             </Box>
 
-            <Box className="mt-8 border-t border-[#DDE1E8] pt-7">
-                <Text as="h3" className="text-[20px] font-extrabold tracking-[-0.02em] text-[#171B2A]">
+            <Box className={uiTokens.userDetail.profile.divider}>
+                <Text as="h3" className={uiTokens.userDetail.profile.sectionTitle}>
                     Identifiants de connexion
                 </Text>
                 <Box className="mt-5">
@@ -481,8 +504,8 @@ function SectionHeading({
     title: string;
 }) {
     return (
-        <Box className="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-            <Text as="h2" className="text-[19px] font-extrabold tracking-[-0.02em] text-[#171B2A]">
+        <Box className={uiTokens.userDetail.section.headingRow}>
+            <Text as="h2" className={uiTokens.userDetail.section.heading}>
                 {title}
             </Text>
             {action}
@@ -503,18 +526,50 @@ function LightActionButton({
         <Button
             disabled={disabled}
             onClick={onClick}
-            className="inline-flex h-10 items-center justify-center gap-3 rounded-[10px] bg-[#EEF2FF] px-5 text-[15px] font-extrabold text-[#5140F0] transition hover:bg-[#E5EAFF] disabled:cursor-not-allowed disabled:opacity-60"
+            className={uiTokens.userDetail.action.light}
         >
-            <InlineIcon icon={Plus} className="h-5 w-5" />
+            <InlineIcon icon={Plus} className={uiTokens.userDetail.action.icon} />
             {children}
         </Button>
     );
 }
 
+function UserTableSectionHeader({
+    colSpan,
+    count,
+    isCollapsed,
+    label,
+    onToggle,
+}: {
+    colSpan: number;
+    count: number;
+    isCollapsed: boolean;
+    label: string;
+    onToggle: () => void;
+}) {
+    return (
+        <Box as="tr" className={uiTokens.userDetail.groupHeader.row}>
+            <Box as="td" colSpan={colSpan} className={uiTokens.userDetail.groupHeader.cell}>
+                <Button
+                    aria-expanded={!isCollapsed}
+                    className={uiTokens.userDetail.groupHeader.button}
+                    onClick={onToggle}
+                >
+                    <InlineIcon
+                        icon={isCollapsed ? ChevronRight : ChevronDown}
+                        className={uiTokens.userDetail.groupHeader.icon}
+                    />
+                    {label} ({count})
+                </Button>
+            </Box>
+        </Box>
+    );
+}
+
 function IconGroupBadge() {
     return (
-        <Box className="flex h-9 w-9 items-center justify-center rounded-[9px] bg-[#E6EBFF] text-[#5140F0]">
-            <InlineIcon icon={UsersRound} className="h-5 w-5" />
+        <Box className={uiTokens.userDetail.group.icon}>
+            <InlineIcon icon={UsersRound} className={uiTokens.userDetail.group.iconGlyph} />
         </Box>
     );
 }
@@ -537,7 +592,7 @@ function GroupsTab({
     const columns = ["Groupe", "Description", "Date d'assignation", "Actions"];
 
     return (
-        <Box className="px-6 pb-7 pt-7 md:px-7">
+        <Box className={uiTokens.userDetail.section.content}>
             <SectionHeading
                 title="Groupes assignés"
                 action={<LightActionButton disabled={isLoading || isActionPending} onClick={onAddGroup}>Ajouter au groupe</LightActionButton>}
@@ -546,82 +601,76 @@ function GroupsTab({
             {error && (
                 <Box
                     aria-live="polite"
-                    className="mb-5 rounded-lg border border-[#F3C7C7] bg-[#FFF4F4] px-4 py-3 text-[13px] font-semibold text-[#A43A3A]"
+                    className={uiTokens.userDetail.group.error}
                 >
                     {error}
                 </Box>
             )}
 
-            <Box className="overflow-hidden rounded-[12px] border border-[#E1E4EB]">
-                <Box className="overflow-x-auto">
-                    <Box as="table" className="w-full min-w-[920px] border-collapse">
-                        <Box as="thead">
-                            <Box as="tr" className="h-[48px] border-b border-[#E6E9F0] bg-[#F7F8FA]">
-                                {columns.map((column) => (
-                                    <Box
-                                        as="th"
-                                        key={column}
-                                        className="px-7 text-left text-[12px] font-extrabold uppercase tracking-[0.12em] text-[#737B8E]"
-                                    >
-                                        {column}
-                                    </Box>
-                                ))}
-                            </Box>
+            <DataTableFrame>
+                <DataTable>
+                    <DataTableHead>
+                        <Box as="tr">
+                            {columns.map((column) => (
+                                <DataTableHeaderCell key={column}>
+                                    {column}
+                                </DataTableHeaderCell>
+                            ))}
                         </Box>
+                    </DataTableHead>
                         <Box as="tbody">
                             {isLoading && (
                                 <Box as="tr">
-                                    <Box as="td" colSpan={columns.length} className="px-7 py-12 text-center">
-                                        <Text className="text-[14px] font-semibold text-[#737B8E]">
+                                    <DataTableCell colSpan={columns.length} className={uiTokens.dataTable.emptyCell}>
+                                        <Text className={uiTokens.dataTable.text.secondary}>
                                             Chargement des groupes...
                                         </Text>
-                                    </Box>
+                                    </DataTableCell>
                                 </Box>
                             )}
 
                             {!isLoading && groups.map((group) => (
-                                <Box as="tr" key={group.id} className="border-b border-[#EEF0F4] last:border-b-0">
-                                    <Box as="td" className="px-7 py-[17px]">
-                                        <Box className="flex items-center gap-4">
+                                <DataTableRow key={group.id}>
+                                    <DataTableCell>
+                                        <Box className={uiTokens.userDetail.group.nameLayout}>
                                             <IconGroupBadge />
-                                            <Text className="text-[15px] font-extrabold text-[#171B2A]">{group.name}</Text>
+                                            <Text className={uiTokens.dataTable.text.primary}>{group.name}</Text>
                                         </Box>
-                                    </Box>
-                                    <Box as="td" className="px-7 py-[17px]">
-                                        <Text className="text-[15px] font-semibold text-[#4F5868]">{group.description}</Text>
-                                    </Box>
-                                    <Box as="td" className="px-7 py-[17px]">
-                                        <Text className="text-[15px] font-semibold text-[#4F5868]">{group.assignedAt}</Text>
-                                    </Box>
-                                    <Box as="td" className="px-7 py-[17px]">
+                                    </DataTableCell>
+                                    <DataTableCell>
+                                        <Text className={uiTokens.dataTable.text.secondary}>{group.description}</Text>
+                                    </DataTableCell>
+                                    <DataTableCell>
+                                        <Text className={uiTokens.dataTable.text.secondary}>{group.assignedAt}</Text>
+                                    </DataTableCell>
+                                    <DataTableCell>
                                         <Button
                                             disabled={isActionPending}
                                             onClick={() => onRemoveGroup(group)}
-                                            className="inline-flex items-center gap-2 text-[15px] font-extrabold text-[#F00613] transition hover:text-[#C8000B] disabled:cursor-not-allowed disabled:opacity-60"
+                                            className={uiTokens.userDetail.group.removeAction}
                                         >
-                                            <InlineIcon icon={Trash2} className="h-4 w-4" />
+                                            <InlineIcon icon={Trash2} className={uiTokens.userDetail.group.removeIcon} />
                                             Retirer
                                         </Button>
-                                    </Box>
-                                </Box>
+                                    </DataTableCell>
+                                </DataTableRow>
                             ))}
 
                             {!isLoading && groups.length === 0 && (
                                 <Box as="tr">
-                                    <Box as="td" colSpan={columns.length} className="px-7 py-12 text-center">
-                                        <Text className="text-[14px] font-bold text-[#171B2A]">
+                                    <DataTableCell colSpan={columns.length} className={uiTokens.dataTable.emptyCell}>
+                                        <Text className={uiTokens.dataTable.text.primary}>
                                             Aucun groupe assigné
                                         </Text>
-                                        <Text className="mt-2 text-[14px] font-semibold text-[#A0A6B5]">
+                                        <Text className={cn("mt-2", uiTokens.dataTable.text.muted)}>
                                             Ajoutez cet utilisateur à un groupe de son organisation.
                                         </Text>
-                                    </Box>
+                                    </DataTableCell>
                                 </Box>
                             )}
                         </Box>
-                    </Box>
-                </Box>
-            </Box>
+                </DataTable>
+            </DataTableFrame>
         </Box>
     );
 }
@@ -656,47 +705,48 @@ function RoleplaysTab({
 
     const renderRows = (items: UserAssignedRoleplay[]) =>
         items.map((roleplay) => (
-            <Box as="tr" key={roleplay.id} className="border-b border-[#EEF0F4] last:border-b-0">
-                <Box as="td" className="px-7 py-[17px]">
-                    <Text className="text-[15px] font-extrabold text-[#171B2A]">{roleplay.title}</Text>
-                </Box>
-                <Box as="td" className="px-7 py-[17px]">
+            <DataTableRow key={roleplay.id}>
+                <DataTableCell nowrap>
+                    <Text className={uiTokens.dataTable.text.primary}>{roleplay.title}</Text>
+                </DataTableCell>
+                <DataTableCell nowrap>
                     <PersonaPill label={roleplay.persona} />
-                </Box>
-                <Box as="td" className="px-7 py-[17px]">
-                    <ScoreBadge emptyLabel="N/A" score={roleplay.index} />
-                </Box>
-                <Box as="td" className="px-7 py-[17px]">
-                    <Text className="text-[15px] font-semibold text-[#4F5868]">
+                </DataTableCell>
+                <DataTableCell nowrap>
+                    <ScoreBadge
+                        emptyLabel={getAssignedRoleplayIndexEmptyLabel(roleplay.sessions)}
+                        score={roleplay.index}
+                        validationThreshold={roleplay.validationThreshold}
+                    />
+                </DataTableCell>
+                <DataTableCell nowrap>
+                    <Text className={uiTokens.dataTable.text.secondary}>
                         {roleplay.sessions} session{roleplay.sessions > 1 ? "s" : ""}
                     </Text>
-                </Box>
-                <Box as="td" className="px-7 py-[17px]">
-                    <Text className="text-[15px] font-semibold text-[#4F5868]">{roleplay.assignedAt}</Text>
-                </Box>
-            </Box>
+                </DataTableCell>
+                <DataTableCell nowrap>
+                    <Text className={uiTokens.dataTable.text.secondary}>{roleplay.assignedAt}</Text>
+                </DataTableCell>
+            </DataTableRow>
         ));
 
     return (
-        <Box className="px-6 pb-7 pt-7 md:px-7">
+        <Box className={uiTokens.userDetail.section.content}>
             <SectionHeading
                 title="Roleplays assignés"
                 action={<LightActionButton onClick={onAssign}>Assigner un roleplay</LightActionButton>}
             />
 
-            <Box className="overflow-hidden rounded-[12px] border border-[#DDE1E8]">
-                <Box className="overflow-x-auto">
-                    <Box as="table" className="w-full min-w-[1000px] border-collapse">
-                        <Box as="thead">
-                            <Box as="tr" className="h-[48px] border-b border-[#E3E6EE] bg-[#F7F8FA]">
+            <DataTableFrame>
+                <DataTable>
+                    <DataTableHead>
+                        <Box as="tr">
                                 {["Roleplay", "Persona", ROLEPLAY_INDEX_LABEL, "Sessions", "Date d'assignation"].map((column) => (
-                                    <Box
-                                        as="th"
+                                    <DataTableHeaderCell
                                         key={column}
-                                        className="px-7 text-left text-[12px] font-extrabold uppercase tracking-[0.12em] text-[#737B8E]"
                                     >
                                         {column === ROLEPLAY_INDEX_LABEL ? (
-                                            <Box className="inline-flex items-center gap-1.5">
+                                            <Box className={uiTokens.dataTable.headerLabelWithInfo}>
                                                 {column}
                                                 <Tooltip
                                                     className="normal-case tracking-normal"
@@ -705,21 +755,21 @@ function RoleplaysTab({
                                                     <button
                                                         type="button"
                                                         aria-label={`Afficher la règle de calcul du ${ROLEPLAY_INDEX_LABEL}`}
-                                                        className="inline-flex h-5 w-5 items-center justify-center rounded-full"
+                                                        className={uiTokens.dataTable.headerInfoButton}
                                                     >
-                                                        <InlineIcon icon={Info} className="h-3.5 w-3.5" />
+                                                        <InlineIcon icon={Info} className={uiTokens.dataTable.headerInfoIcon} />
                                                     </button>
                                                 </Tooltip>
                                             </Box>
                                         ) : column}
-                                    </Box>
+                                    </DataTableHeaderCell>
                                 ))}
-                            </Box>
                         </Box>
+                    </DataTableHead>
                         <Box as="tbody">
                             {sections.map((section) => (
                                 <Fragment key={section.status}>
-                                    <GroupedTableSectionHeader
+                                    <UserTableSectionHeader
                                         colSpan={5}
                                         count={section.items.length}
                                         isCollapsed={collapsedSections[section.status]}
@@ -730,14 +780,13 @@ function RoleplaysTab({
                                 </Fragment>
                             ))}
                         </Box>
-                    </Box>
-                </Box>
-            </Box>
+                </DataTable>
+            </DataTableFrame>
         </Box>
     );
 }
 
-function EvaluationsTab({
+export function EvaluationsTab({
     onAssign,
     quizzes,
 }: {
@@ -767,54 +816,70 @@ function EvaluationsTab({
 
     const renderRows = (items: UserAssignedQuiz[]) =>
         items.map((quiz) => (
-            <Box as="tr" key={quiz.id} className="border-b border-[#EEF0F4] last:border-b-0">
-                <Box as="td" className="px-7 py-[17px]">
-                    <Text className="text-[15px] font-extrabold text-[#171B2A]">{quiz.title}</Text>
-                </Box>
-                <Box as="td" className="px-7 py-[17px]">
+            <DataTableRow key={quiz.id}>
+                <DataTableCell nowrap>
+                    <Text className={uiTokens.dataTable.text.primary}>{quiz.title}</Text>
+                </DataTableCell>
+                <DataTableCell nowrap>
                     <QuizTypePill label={quiz.type} />
-                </Box>
-                <Box as="td" className="px-7 py-[17px]">
-                    <Text className="text-[15px] font-semibold text-[#4F5868]">
-                        {quiz.attempts} tentative{quiz.attempts > 1 ? "s" : ""}
+                </DataTableCell>
+                <DataTableCell nowrap>
+                    <Text className={uiTokens.dataTable.text.secondary}>
+                        {quiz.attempts} tentative{quiz.attempts === 1 ? "" : "s"}
                     </Text>
-                </Box>
-                <Box as="td" className="px-7 py-[17px]">
-                    <ScoreBadge score={quiz.score} />
-                </Box>
-                <Box as="td" className="px-7 py-[17px]">
-                    <Text className="text-[15px] font-semibold text-[#4F5868]">{quiz.assignedAt}</Text>
-                </Box>
-            </Box>
+                </DataTableCell>
+                <DataTableCell nowrap>
+                    <ScoreBadge
+                        score={quiz.score}
+                        validationThreshold={quiz.validationThreshold}
+                    />
+                </DataTableCell>
+                <DataTableCell nowrap>
+                    <Text className={uiTokens.dataTable.text.secondary}>{quiz.assignedAt}</Text>
+                </DataTableCell>
+            </DataTableRow>
         ));
 
     return (
-        <Box className="px-6 pb-7 pt-7 md:px-7">
+        <Box className={uiTokens.userDetail.section.content}>
             <SectionHeading
                 title="Quiz assignés"
                 action={<LightActionButton onClick={onAssign}>Assigner un quiz</LightActionButton>}
             />
 
-            <Box className="overflow-hidden rounded-[12px] border border-[#DDE1E8]">
-                <Box className="overflow-x-auto">
-                    <Box as="table" className="w-full min-w-[1000px] border-collapse">
-                        <Box as="thead">
-                            <Box as="tr" className="h-[48px] border-b border-[#E3E6EE] bg-[#F7F8FA]">
+            <DataTableFrame>
+                <DataTable>
+                    <DataTableHead>
+                        <Box as="tr">
                                 {["Titre du quiz", "Type", "Tentatives", "Score", "Date d'assignation"].map((column) => (
-                                    <Box
-                                        as="th"
+                                    <DataTableHeaderCell
                                         key={column}
-                                        className="px-7 text-left text-[12px] font-extrabold uppercase tracking-[0.12em] text-[#737B8E]"
                                     >
-                                        {column}
-                                    </Box>
+                                        {column === "Score" ? (
+                                            <Box className={uiTokens.dataTable.headerLabelWithInfo}>
+                                                {column}
+                                                <Tooltip
+                                                    className="normal-case tracking-normal"
+                                                    content="Meilleur score obtenu sur les tentatives terminées."
+                                                >
+                                                    <button
+                                                        type="button"
+                                                        aria-label="Précision sur le score du quiz"
+                                                        className={uiTokens.dataTable.headerInfoButton}
+                                                    >
+                                                        <InlineIcon icon={Info} className={uiTokens.dataTable.headerInfoIcon} />
+                                                    </button>
+                                                </Tooltip>
+                                            </Box>
+                                        ) : column}
+                                    </DataTableHeaderCell>
                                 ))}
-                            </Box>
                         </Box>
+                    </DataTableHead>
                         <Box as="tbody">
                             {sections.map((section) => (
                                 <Fragment key={section.status}>
-                                    <GroupedTableSectionHeader
+                                    <UserTableSectionHeader
                                         colSpan={5}
                                         count={section.items.length}
                                         isCollapsed={collapsedSections[section.status]}
@@ -825,188 +890,150 @@ function EvaluationsTab({
                                 </Fragment>
                             ))}
                         </Box>
-                    </Box>
-                </Box>
-            </Box>
+                </DataTable>
+            </DataTableFrame>
         </Box>
     );
 }
 
-const statToneClasses: Record<string, string> = {
-    amber: "bg-[#FEF0CD] text-[#C98A00]",
-    blue: "bg-[#DCE9FF] text-[#245DFF]",
-    cyan: "bg-[#D4F5F2] text-[#0E9E94]",
-    green: "bg-[#DCFCE7] text-[#17A34A]",
-    orange: "bg-[#FFE7D6] text-[#E2640E]",
-    purple: "bg-[#F2E2FF] text-[#B139FF]",
-};
+type UserAiInteractionView = UserAiInteractions["items"][number];
 
-function StatTile({
-    badge,
-    icon,
-    label,
-    tone,
-    value,
-}: {
-    badge?: string;
-    icon: typeof BarChart3;
-    label: string;
-    tone: keyof typeof statToneClasses;
-    value: string;
-}) {
-    return (
-        <Box className="rounded-[12px] border border-[#E1E4EB] bg-white p-5">
-            <Box className={`mb-5 flex h-10 w-10 items-center justify-center rounded-lg ${statToneClasses[tone]}`}>
-                <InlineIcon icon={icon} className="h-5 w-5" />
-            </Box>
-            <Box className="flex items-baseline gap-2">
-                <Text className="text-[24px] font-extrabold tracking-[-0.03em] text-[#171B2A]">{value}</Text>
-                {badge && <Text className="text-[12px] font-bold text-[#E2640E]">{badge}</Text>}
-            </Box>
-            <Text className="mt-2 text-[14px] font-semibold text-[#697184]">{label}</Text>
-        </Box>
-    );
-}
-
-const progressionTones = {
-    blue: { bg: "bg-[#EAF1FF]", icon: "bg-[#D4E2FF] text-[#245DFF]", value: "text-[#245DFF]" },
-    green: { bg: "bg-[#EAFBF1]", icon: "bg-[#CFF5DE] text-[#0E9E5B]", value: "text-[#0E9E5B]" },
-    grey: { bg: "bg-[#F4F5F8]", icon: "bg-[#E4E7EE] text-[#697184]", value: "text-[#697184]" },
+const aiInteractionStyles = {
+    [USER_AI_INTERACTION_TYPE.askPersona]: {
+        cardIcon: uiTokens.userDetail.aiInteraction.tone.askPersona.card,
+        icon: MessageSquare,
+        tableIcon: uiTokens.userDetail.aiInteraction.tone.askPersona.table,
+    },
+    [USER_AI_INTERACTION_TYPE.coach]: {
+        cardIcon: uiTokens.userDetail.aiInteraction.tone.coach.card,
+        icon: Sparkles,
+        tableIcon: uiTokens.userDetail.aiInteraction.tone.coach.table,
+    },
+    [USER_AI_INTERACTION_TYPE.simulation]: {
+        cardIcon: uiTokens.userDetail.aiInteraction.tone.simulation.card,
+        icon: Phone,
+        tableIcon: uiTokens.userDetail.aiInteraction.tone.simulation.table,
+    },
 } as const;
 
-function ProgressionTile({
-    label,
-    subtitle,
-    tone,
-    value,
-}: {
-    label: string;
-    subtitle?: string;
-    tone: keyof typeof progressionTones;
-    value: string;
-}) {
-    const styles = progressionTones[tone];
+const userAiInteractionDateFormatter = new Intl.DateTimeFormat("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "Europe/Paris",
+    year: "numeric",
+});
+
+export function formatUserAiInteractionDuration(totalSeconds: number) {
+    const safeSeconds = Math.max(0, Math.round(totalSeconds));
+    const hours = Math.floor(safeSeconds / 3_600);
+    const minutes = Math.floor((safeSeconds % 3_600) / 60);
+
+    if (hours > 0) {
+        return `${hours}h ${minutes.toString().padStart(2, "0")}min`;
+    }
+
+    return `${minutes}min`;
+}
+
+function formatUserAiInteractionDate(value: string | null) {
+    if (!value) return "—";
+
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+        ? "—"
+        : userAiInteractionDateFormatter.format(date);
+}
+
+function AiInteractionCard({ interaction }: { interaction: UserAiInteractionView }) {
+    const styles = aiInteractionStyles[interaction.type];
 
     return (
-        <Box className={`rounded-[12px] p-5 ${styles.bg}`}>
-            <Box className={`mb-4 flex h-10 w-10 items-center justify-center rounded-lg ${styles.icon}`}>
-                <InlineIcon icon={TrendingUp} className="h-5 w-5" />
+        <Box className={uiTokens.userDetail.aiInteraction.card}>
+            <Box className={cn(uiTokens.userDetail.aiInteraction.cardIcon, styles.cardIcon)}>
+                <InlineIcon icon={styles.icon} className={uiTokens.userDetail.aiInteraction.icon} />
             </Box>
-            <Text className={`text-[24px] font-extrabold tracking-[-0.03em] ${styles.value}`}>{value}</Text>
-            <Text className="mt-2 text-[14px] font-semibold text-[#697184]">
-                {label}
-                {subtitle && <Text as="span" className="text-[#9AA2B2]"> {subtitle}</Text>}
+            <Text className={uiTokens.userDetail.aiInteraction.cardValue}>
+                {formatUserAiInteractionDuration(interaction.durationSeconds)}
             </Text>
+            <Text className={uiTokens.userDetail.aiInteraction.cardLabel}>{interaction.label}</Text>
         </Box>
     );
 }
 
-function StatGroupTitle({ children }: { children: ReactNode }) {
-    return (
-        <Text as="h3" className="mb-4 text-[13px] font-extrabold uppercase tracking-[0.12em] text-[#737B8E]">
-            {children}
-        </Text>
-    );
-}
-
-function TopSkillCard({
-    items,
-    title,
-    tone,
+export function AiInteractionsTab({
+    interactions,
 }: {
-    items: Array<{ label: string; score: number }>;
-    title: string;
-    tone: "green" | "orange";
+    interactions: UserAiInteractions;
 }) {
-    const dotClass = tone === "green" ? "bg-[#10C55B]" : "bg-[#F46E12]";
-    const badgeClass = tone === "green" ? "bg-[#D9FBE8] text-[#048A45]" : "bg-[#FFF1C8] text-[#C76000]";
-
     return (
-        <Box className="rounded-[12px] border border-[#E1E4EB] bg-white p-5">
-            <Box className="mb-4 flex items-center gap-2.5">
-                <Box className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
-                <Text className="text-[15px] font-extrabold text-[#171B2A]">{title}</Text>
+        <Box className={uiTokens.userDetail.aiInteraction.content}>
+            <Box className={uiTokens.userDetail.aiInteraction.cardGrid}>
+                {interactions.items.map((interaction) => (
+                    <AiInteractionCard interaction={interaction} key={interaction.type} />
+                ))}
+                <Box className={uiTokens.userDetail.aiInteraction.card}>
+                    <Box
+                        className={cn(
+                            uiTokens.userDetail.aiInteraction.cardIcon,
+                            uiTokens.userDetail.aiInteraction.tone.total.card,
+                        )}
+                    >
+                        <InlineIcon icon={Clock3} className={uiTokens.userDetail.aiInteraction.icon} />
+                    </Box>
+                    <Text className={uiTokens.userDetail.aiInteraction.cardValue}>
+                        {formatUserAiInteractionDuration(interactions.totalDurationSeconds)}
+                    </Text>
+                    <Text className={uiTokens.userDetail.aiInteraction.cardLabel}>Total IA</Text>
+                </Box>
             </Box>
-            <Box className="space-y-3">
-                {items.length > 0 ? (
-                    items.map((item) => (
-                        <Box key={item.label} className="flex items-center justify-between">
-                            <Text className="text-[14px] font-semibold text-[#4F5868]">{item.label}</Text>
-                            <Box className={`inline-flex h-7 items-center justify-center rounded-[8px] px-2.5 text-[13px] font-extrabold ${badgeClass}`}>
-                                {item.score}%
-                            </Box>
+
+            <DataTableFrame>
+                <DataTable width="standard">
+                    <DataTableHead>
+                        <Box as="tr">
+                                {["Type d'interaction", "Sessions", "Temps", "Dernière utilisation"].map((column) => (
+                                    <DataTableHeaderCell key={column}>
+                                        {column}
+                                    </DataTableHeaderCell>
+                                ))}
                         </Box>
-                    ))
-                ) : (
-                    <Text className="text-[14px] font-semibold text-[#8C94A4]">Aucune donnée disponible</Text>
-                )}
-            </Box>
-        </Box>
-    );
-}
+                    </DataTableHead>
+                        <Box as="tbody">
+                            {interactions.items.map((interaction) => {
+                                const styles = aiInteractionStyles[interaction.type];
 
-function StatisticsTab({ statistics }: { statistics: UserStatistics }) {
-    return (
-        <Box className="space-y-8 px-6 pb-7 pt-7 md:px-7">
-            <Box>
-                <StatGroupTitle>Engagement</StatGroupTitle>
-                <Box className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                    <StatTile icon={Clock3} label="Temps d'entraînement" tone="blue" value={statistics.trainingTime} />
-                    <StatTile icon={CheckCircle2} label="Roleplays terminés" tone="green" value={statistics.completedRoleplays} />
-                    <StatTile icon={CheckCircle2} label="Quiz terminés" tone="cyan" value={statistics.completedQuizzes} />
-                    <StatTile icon={BarChart3} label="Taux de complétion" tone="amber" value={statistics.completionRate} />
-                    <StatTile icon={Clock3} label="Dernière activité" tone="purple" value={statistics.lastActivity} />
-                </Box>
-            </Box>
-
-            <Box>
-                <StatGroupTitle>Performance</StatGroupTitle>
-                <Box className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                    <StatTile icon={TrendingUp} label="Score moyen roleplays" tone="orange" value={statistics.averageRoleplayScore} />
-                    <StatTile icon={TrendingUp} label="Score moyen des quiz" tone="blue" value={statistics.averageQuizScore} />
-                    <StatTile icon={TrendingUp} label="Meilleur score roleplay" tone="green" value={statistics.bestRoleplayScore} />
-                    <StatTile icon={TrendingUp} label="Dernier score roleplay" tone="orange" value={statistics.latestRoleplayScore} />
-                    <StatTile badge={statistics.targetScoreGap} icon={Target} label="Score cible" tone="green" value={statistics.targetScore} />
-                </Box>
-            </Box>
-
-            <Box>
-                <StatGroupTitle>Progression</StatGroupTitle>
-                <Box className="grid gap-4 md:grid-cols-3">
-                    <ProgressionTile
-                        label="Progression roleplay depuis la première tentative"
-                        tone="green"
-                        value={statistics.roleplayProgressSinceFirst}
-                    />
-                    <ProgressionTile
-                        label="Progression roleplay sur les 30 derniers jours"
-                        tone="blue"
-                        value={statistics.roleplayProgressLast30Days}
-                    />
-                    <ProgressionTile
-                        label="Écart Quiz vs Roleplay"
-                        subtitle="(Écart théorie / pratique)"
-                        tone="grey"
-                        value={statistics.quizVsRoleplayGap}
-                    />
-                </Box>
-            </Box>
-
-            <Box>
-                <StatGroupTitle>Compétences</StatGroupTitle>
-                <Box className="grid gap-4 md:grid-cols-2">
-                    <TopSkillCard
-                        title="Top 3 compétences maîtrisées"
-                        tone="green"
-                        items={statistics.topMasteredSkills}
-                    />
-                    <TopSkillCard
-                        title="Top 3 compétences à renforcer"
-                        tone="orange"
-                        items={statistics.topSkillsToImprove}
-                    />
-                </Box>
-            </Box>
+                                return (
+                                    <DataTableRow key={interaction.type}>
+                                        <DataTableCell nowrap>
+                                            <Box className={cn(
+                                                uiTokens.userDetail.aiInteraction.tableTypeLayout,
+                                                uiTokens.dataTable.text.body,
+                                            )}>
+                                                <InlineIcon
+                                                    icon={styles.icon}
+                                                    className={cn(
+                                                        uiTokens.userDetail.aiInteraction.icon,
+                                                        styles.tableIcon,
+                                                    )}
+                                                />
+                                                {interaction.label}
+                                            </Box>
+                                        </DataTableCell>
+                                        <DataTableCell nowrap className={uiTokens.dataTable.text.secondary}>
+                                            {interaction.sessions}
+                                        </DataTableCell>
+                                        <DataTableCell nowrap className={uiTokens.dataTable.text.secondary}>
+                                            {formatUserAiInteractionDuration(interaction.durationSeconds)}
+                                        </DataTableCell>
+                                        <DataTableCell nowrap className={uiTokens.dataTable.text.muted}>
+                                            {formatUserAiInteractionDate(interaction.lastUsedAt)}
+                                        </DataTableCell>
+                                    </DataTableRow>
+                                );
+                            })}
+                        </Box>
+                </DataTable>
+            </DataTableFrame>
         </Box>
     );
 }
@@ -1082,36 +1109,46 @@ function SkillItemRow({ item }: { item: SkillDimensionItemView }) {
 
 function getSkillProgressTone(score: number | null) {
     if (score === null) return "neutral";
-    return score >= 80 ? "success" : "warning";
+    return getSkillLevel(score) === SKILL_LEVEL.mastered ? "success" : "warning";
 }
 
 function SkillScoreBadge({ score }: { score: number | null }) {
     const tone = getSkillProgressTone(score);
     const toneClass = tone === "success"
-        ? uiTokens.tone.success.soft
+        ? uiTokens.userDetail.skill.scoreSuccess
         : tone === "warning"
-            ? uiTokens.tone.warning.soft
-            : uiTokens.tone.neutral.soft;
+            ? uiTokens.userDetail.skill.scoreWarning
+            : uiTokens.userDetail.skill.scoreNeutral;
 
     return (
-        <Box className={`inline-flex h-9 w-[62px] items-center justify-center rounded-[10px] border text-[15px] font-extrabold ${toneClass}`}>
+        <Box className={cn(uiTokens.userDetail.skill.score, toneClass)}>
             {formatSkillProgress(score)}
         </Box>
     );
 }
 
-function SkillProgressBar({ score }: { score: number | null }) {
+function SkillProgressBar({
+    initialScore,
+    score,
+}: {
+    initialScore: number | null;
+    score: number | null;
+}) {
     const tone = getSkillProgressTone(score);
     const fillColor = tone === "success"
         ? uiTokens.progression.level.green.fill
         : tone === "warning"
             ? uiTokens.progression.level.yellow.fill
-            : "#D1D5DB";
+            : uiTokens.progression.level.neutral.fill;
 
     return (
-        <Box className={uiTokens.progress.track}>
+        <Box className={uiTokens.userDetail.skill.progressTrack}>
             <Box
-                className={uiTokens.progress.fillBase}
+                className={uiTokens.userDetail.skill.progressInitial}
+                style={{ width: `${getProgressWidth(initialScore)}%` }}
+            />
+            <Box
+                className={uiTokens.userDetail.skill.progressValue}
                 style={{
                     backgroundColor: fillColor,
                     width: `${getProgressWidth(score)}%`,
@@ -1134,7 +1171,7 @@ function SkillsTab({ skills }: { skills: UserSkillProgress[] }) {
 
     if (skills.length === 0) {
         return (
-            <Box className="px-6 pb-7 pt-7 md:px-7">
+            <Box className={uiTokens.userDetail.section.content}>
                 <Box className={uiTokens.surface.emptyState}>
                     <Text className={`text-[15px] font-extrabold ${uiTokens.text.heading}`}>
                         Aucune compétence évaluée
@@ -1148,20 +1185,19 @@ function SkillsTab({ skills }: { skills: UserSkillProgress[] }) {
     }
 
     return (
-        <Box className="px-6 pb-7 pt-7 md:px-7">
-            <Box className="overflow-hidden rounded-[12px] border border-[#E1E4EB]">
-                <Box className="overflow-x-auto">
-                    <Box as="table" className="w-full min-w-[1040px] border-collapse">
-                        <Box as="thead">
-                            <Box as="tr" className="h-[48px] border-b border-[#E6E9F0] bg-[#F7F8FA]">
-                                <Box as="th" className="w-[26%] px-7 text-left text-[12px] font-extrabold uppercase tracking-[0.12em] text-[#737B8E]">
+        <Box className={uiTokens.userDetail.section.content}>
+            <DataTableFrame className={uiTokens.userDetail.skill.tableFrame}>
+                <DataTable>
+                    <DataTableHead>
+                        <Box as="tr">
+                                <DataTableHeaderCell className={uiTokens.userDetail.skill.nameHeader}>
                                     Compétence
-                                </Box>
-                                <Box as="th" className="px-7 text-left text-[12px] font-extrabold uppercase tracking-[0.12em] text-[#737B8E]">
+                                </DataTableHeaderCell>
+                                <DataTableHeaderCell>
                                     Progression
-                                </Box>
-                            </Box>
+                                </DataTableHeaderCell>
                         </Box>
+                    </DataTableHead>
                         <Box as="tbody">
                             {skills.map((skill) => {
                                 const isExpanded = expandedSkillIds.includes(skill.id);
@@ -1170,14 +1206,13 @@ function SkillsTab({ skills }: { skills: UserSkillProgress[] }) {
                                     ? uiTokens.progression.level.green.dot
                                     : tone === "warning"
                                         ? uiTokens.progression.level.yellow.dot
-                                        : "bg-[#D1D5DB]";
+                                        : uiTokens.progression.level.neutral.dot;
 
                                 return (
                                     <Fragment key={skill.id}>
-                                        <Box
-                                            as="tr"
+                                        <DataTableRow
                                             aria-expanded={isExpanded}
-                                            className="cursor-pointer border-b border-[#EEF0F4] transition hover:bg-[#FBFCFE] last:border-b-0"
+                                            className={uiTokens.userDetail.skill.row}
                                             onClick={() => toggleSkill(skill.id)}
                                             onKeyDown={(event) => {
                                                 if (event.key === "Enter" || event.key === " ") {
@@ -1188,39 +1223,50 @@ function SkillsTab({ skills }: { skills: UserSkillProgress[] }) {
                                             role="button"
                                             tabIndex={0}
                                         >
-                                            <Box as="td" className="px-7 py-[18px]">
-                                                <Box className="flex items-center gap-4">
-                                                    <Box className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
-                                                    <Text className="max-w-[250px] text-[15px] font-extrabold leading-6 text-[#171B2A]">
+                                            <DataTableCell className={uiTokens.userDetail.skill.nameCell}>
+                                                <Box className={uiTokens.userDetail.skill.nameLayout}>
+                                                    <Box className={cn(uiTokens.userDetail.skill.statusDot, dotClass)} />
+                                                    <Text className={uiTokens.userDetail.skill.name}>
                                                         {skill.label}
                                                     </Text>
                                                 </Box>
-                                            </Box>
-                                            <Box as="td" className="px-7 py-[18px]">
-                                                <Box className="grid grid-cols-[78px_minmax(180px,1fr)_92px_112px_58px_32px] items-center gap-4">
+                                            </DataTableCell>
+                                            <DataTableCell className={uiTokens.userDetail.skill.progressCell}>
+                                                <Box className={uiTokens.userDetail.skill.progressLayout}>
                                                     <SkillScoreBadge score={skill.score} />
-                                                    <SkillProgressBar score={skill.score} />
-                                                    <Text className="text-[13px] font-extrabold text-[#737B8E]">
-                                                        Initial : {formatSkillProgress(skill.initialScore)}
-                                                    </Text>
-                                                    <Box className="inline-flex h-7 items-center justify-center rounded-[7px] bg-[#D9FBE8] px-3 text-[13px] font-extrabold text-[#057A3A]">
-                                                        Acquis : {formatSkillProgress(skill.score)}
+                                                    <Box className={uiTokens.userDetail.skill.progressMiddle}>
+                                                        <SkillProgressBar
+                                                            initialScore={skill.initialScore}
+                                                            score={skill.score}
+                                                        />
+                                                        <Box className={uiTokens.userDetail.skill.progressMeta}>
+                                                            <Text className={uiTokens.userDetail.skill.initialLabel}>
+                                                                Initial :{" "}
+                                                                <Text as="span" className={uiTokens.userDetail.skill.initialValue}>
+                                                                    {formatSkillProgress(skill.initialScore)}
+                                                                </Text>
+                                                            </Text>
+                                                            <Box className={uiTokens.userDetail.skill.acquired}>
+                                                                Acquis : {formatSkillProgress(skill.score)}
+                                                            </Box>
+                                                        </Box>
                                                     </Box>
-                                                    <Text className="text-right text-[15px] font-extrabold text-[#009A94]">
+                                                    <Text className={uiTokens.userDetail.skill.delta}>
                                                         {formatSkillDelta(skill.delta)}
                                                     </Text>
-                                                    <Box className="flex h-8 w-8 items-center justify-center rounded-lg text-[#B7BDCB]">
-                                                        <InlineIcon icon={isExpanded ? ChevronDown : ChevronRight} className="h-5 w-5" />
-                                                    </Box>
+                                                    <InlineIcon
+                                                        icon={isExpanded ? ChevronDown : ChevronRight}
+                                                        className={uiTokens.userDetail.skill.chevron}
+                                                    />
                                                 </Box>
-                                            </Box>
-                                        </Box>
+                                            </DataTableCell>
+                                        </DataTableRow>
 
                                         {isExpanded && (
-                                            <Box as="tr" className="border-b border-[#EEF0F4] bg-[#FBFCFE]">
-                                                <Box as="td" colSpan={2} className="px-7 py-5">
+                                            <Box as="tr" className={uiTokens.userDetail.skill.detailRow}>
+                                                <Box as="td" colSpan={2} className={uiTokens.userDetail.skill.detailCell}>
                                                     <Box className="space-y-3">
-                                                        <Box className="flex min-w-0 flex-wrap gap-2 rounded-[12px] border border-[#E6E9F0] bg-white p-4">
+                                                        <Box className={uiTokens.userDetail.skill.detailSummary}>
                                                             {skill.dimensions.map((dimension) => (
                                                                 <SkillDimensionSummary key={dimension.key} dimension={dimension} />
                                                             ))}
@@ -1242,14 +1288,14 @@ function SkillsTab({ skills }: { skills: UserSkillProgress[] }) {
                                 );
                             })}
                         </Box>
-                    </Box>
-                </Box>
-            </Box>
+                </DataTable>
+            </DataTableFrame>
         </Box>
     );
 }
 
 export function UserDetailPage({
+    aiInteractions,
     assignedQuizzes = [],
     assignedRoleplays = [],
     avatarUrl,
@@ -1258,7 +1304,6 @@ export function UserDetailPage({
     invitationResendTargets = [],
     platformRole,
     skills = [],
-    statistics = emptyUserStatistics,
     user,
 }: UserDetailPageProps) {
     const router = useRouter();
@@ -1753,11 +1798,11 @@ export function UserDetailPage({
                             <ContextualBackLink
                                 fallbackHref="/users"
                                 aria-label="Retour aux utilisateurs"
-                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
+                                className={uiTokens.userDetail.header.back}
                             >
                                 <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
                             </ContextualBackLink>
-                            <Text as="h1" className="text-[26px] font-extrabold tracking-[-0.03em] text-[#171B2A]">
+                            <Text as="h1" className={uiTokens.userDetail.header.title}>
                                 {pageTitle}
                             </Text>
                         </Box>
@@ -1768,7 +1813,7 @@ export function UserDetailPage({
                                 <Button
                                     onClick={cancelEditing}
                                     disabled={isSaving}
-                                    className="flex h-[42px] items-center justify-center gap-2.5 rounded-[10px] border border-[#DADDE4] bg-white px-5 text-[15px] font-extrabold text-[#111827] transition hover:bg-[#F7F8FB]"
+                                    className={uiTokens.userDetail.action.cancel}
                                 >
                                     <InlineIcon icon={X} className="h-5 w-5" />
                                     Annuler
@@ -1776,7 +1821,7 @@ export function UserDetailPage({
                                 <Button
                                     onClick={() => void saveEditing()}
                                     disabled={isSaving}
-                                    className="flex h-[42px] items-center justify-center gap-2.5 rounded-[10px] bg-[#5140F0] px-5 text-[15px] font-extrabold text-white shadow-[0_12px_24px_rgba(81,64,240,0.22)] transition hover:bg-[#4635E7]"
+                                    className={uiTokens.userDetail.action.primary}
                                 >
                                     <InlineIcon icon={Check} className="h-5 w-5" />
                                     {isSaving ? "Enregistrement..." : "Sauvegarder"}
@@ -1787,7 +1832,7 @@ export function UserDetailPage({
                                 {invitationResendActions}
                                 <Button
                                     onClick={startEditing}
-                                    className="flex h-[42px] items-center justify-center gap-3 rounded-[10px] bg-[#5140F0] px-5 text-[15px] font-extrabold text-white shadow-[0_12px_24px_rgba(81,64,240,0.22)] transition hover:bg-[#4635E7]"
+                                    className={uiTokens.userDetail.action.primaryWide}
                                 >
                                     <InlineIcon icon={Pencil} className="h-5 w-5" />
                                     Modifier
@@ -1816,9 +1861,9 @@ export function UserDetailPage({
                         )}
                     </Box>
 
-                    <CardSurface className="overflow-hidden rounded-[16px] border border-[#DDE1E8] shadow-none">
-                        <Box className="overflow-x-auto border-b border-[#DDE1E8]">
-                            <Box className="flex min-w-[760px]">
+                    <CardSurface className={uiTokens.userDetail.card}>
+                        <Box className={uiTokens.userDetail.tabs.scroll}>
+                            <Box className={uiTokens.userDetail.tabs.list}>
                                 {tabs.map((tab) => {
                                     const isActive = activeTab === tab.id;
 
@@ -1826,12 +1871,12 @@ export function UserDetailPage({
                                         <Button
                                             key={tab.id}
                                             onClick={() => setActiveTab(tab.id)}
-                                            className={[
-                                                "relative flex h-[58px] items-center justify-center px-7 text-[15px] font-extrabold transition",
+                                            className={cn(
+                                                uiTokens.userDetail.tabs.item,
                                                 isActive
-                                                    ? "text-[#5140F0] after:absolute after:bottom-0 after:left-7 after:right-7 after:h-[2px] after:rounded-full after:bg-[#5140F0]"
-                                                    : "text-[#697184] hover:bg-[#FBFCFE] hover:text-[#171B2A]",
-                                            ].join(" ")}
+                                                    ? uiTokens.userDetail.tabs.active
+                                                    : uiTokens.userDetail.tabs.idle,
+                                            )}
                                         >
                                             {tab.label}
                                         </Button>
@@ -1867,7 +1912,9 @@ export function UserDetailPage({
                         {activeTab === "evaluations" && (
                             <EvaluationsTab onAssign={assignQuiz} quizzes={quizAssignments} />
                         )}
-                        {activeTab === "statistics" && <StatisticsTab statistics={statistics} />}
+                        {activeTab === "ai-interactions" && (
+                            <AiInteractionsTab interactions={aiInteractions} />
+                        )}
                         {activeTab === "skills" && <SkillsTab skills={skills} />}
                     </CardSurface>
                 </Box>

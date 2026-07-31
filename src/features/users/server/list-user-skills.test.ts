@@ -123,16 +123,95 @@ describe("buildUserSkillProgresses", () => {
                     { itemCount: 1, key: "savoir_etre", label: "Savoir-être", score: null },
                 ],
                 id: "skill-1",
-                initialScore: 73,
+                initialScore: 47,
                 items: [
                     { dimension: "savoir", id: "item-savoir", label: "Connaitre les etapes", score: 80 },
                     { dimension: "savoir_faire", id: "item-faire", label: "Appliquer la methode", score: 60 },
                     { dimension: "savoir_etre", id: "item-etre", label: "Adapter sa posture", score: null },
                 ],
                 label: "Prise de rendez-vous",
-                score: 73,
+                score: 47,
             },
         ]);
+    });
+
+    it("counts unevaluated items as zero in dimension and global progress", () => {
+        const skills = buildUserSkillProgresses({
+            criteria: [
+                {
+                    dimension: "savoir",
+                    dimension_item_id: "item-savoir-evalue",
+                    points_awarded: 1,
+                    points_max: 1,
+                    score_percent: null,
+                    session_id: "attempt-1",
+                    skill_id: "skill-1",
+                },
+            ],
+            dimensionItems: [
+                {
+                    dimension: "savoir",
+                    id: "item-savoir-evalue",
+                    item_order: 1,
+                    label: "Item évalué",
+                    skill_id: "skill-1",
+                },
+                {
+                    dimension: "savoir",
+                    id: "item-savoir-non-evalue-1",
+                    item_order: 2,
+                    label: "Premier item non évalué",
+                    skill_id: "skill-1",
+                },
+                {
+                    dimension: "savoir",
+                    id: "item-savoir-non-evalue-2",
+                    item_order: 3,
+                    label: "Deuxième item non évalué",
+                    skill_id: "skill-1",
+                },
+                {
+                    dimension: "savoir",
+                    id: "item-savoir-non-evalue-3",
+                    item_order: 4,
+                    label: "Troisième item non évalué",
+                    skill_id: "skill-1",
+                },
+                {
+                    dimension: "savoir_faire",
+                    id: "item-faire-1",
+                    item_order: 1,
+                    label: "Item pratique",
+                    skill_id: "skill-1",
+                },
+                {
+                    dimension: "savoir_etre",
+                    id: "item-etre-1",
+                    item_order: 1,
+                    label: "Item comportemental",
+                    skill_id: "skill-1",
+                },
+            ],
+            skillNamesById: new Map([["skill-1", "Prise de rendez-vous"]]),
+        });
+
+        expect(skills[0]).toMatchObject({
+            delta: 0,
+            initialScore: 17,
+            score: 17,
+        });
+        expect(skills[0]?.dimensions).toContainEqual({
+            itemCount: 4,
+            key: "savoir",
+            label: "Savoir",
+            score: 25,
+        });
+        expect(skills[0]?.dimensions).toContainEqual({
+            itemCount: 1,
+            key: "savoir_faire",
+            label: "Savoir-faire",
+            score: null,
+        });
     });
 
     it("resolves the skill from the dimension item when criterion skill_id is missing", () => {

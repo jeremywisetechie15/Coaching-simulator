@@ -1,4 +1,5 @@
 export * from "./get-user-by-id";
+export * from "./list-user-ai-interactions";
 export * from "./list-user-assignments";
 export * from "./list-user-statistics";
 export * from "./list-user-skills";

@@ -109,6 +109,116 @@ function criterionInitialScore(rows: CriterionSkillRow[]) {
     return scores[0]?.score ?? null;
 }
 
+function roundProgressScore(value: number) {
+    return Math.round(Math.max(0, Math.min(100, value)));
+}
+
+function averageItemScores(
+    items: SkillDimensionItemRow[],
+    scoreForItem: (item: SkillDimensionItemRow) => number | null,
+) {
+    if (items.length === 0) return null;
+
+    const scores = items.map(scoreForItem);
+    if (!scores.some((score) => score !== null)) return null;
+
+    return roundProgressScore(
+        scores.reduce<number>(
+            (total, score) => total + (score ?? 0),
+            0,
+        ) / items.length,
+    );
+}
+
+function mappedCriteriaForItems(
+    criteria: CriterionSkillRow[],
+    items: SkillDimensionItemRow[],
+) {
+    const itemIds = new Set(items.map((item) => item.id));
+
+    return criteria.filter(
+        (criterion) =>
+            criterion.dimension_item_id !== null &&
+            itemIds.has(criterion.dimension_item_id),
+    );
+}
+
+function coverageAdjustedScore(
+    criteria: CriterionSkillRow[],
+    items: SkillDimensionItemRow[],
+) {
+    if (items.length === 0) return criterionScore(criteria);
+
+    const mappedCriteria = mappedCriteriaForItems(criteria, items);
+    if (mappedCriteria.length === 0) {
+        return criterionScore(
+            criteria.filter((criterion) => criterion.dimension_item_id === null),
+        );
+    }
+
+    return averageItemScores(items, (item) =>
+        criterionScore(
+            mappedCriteria.filter(
+                (criterion) => criterion.dimension_item_id === item.id,
+            ),
+        ),
+    );
+}
+
+function coverageAdjustedInitialScore(
+    criteria: CriterionSkillRow[],
+    items: SkillDimensionItemRow[],
+) {
+    if (items.length === 0) return criterionInitialScore(criteria);
+
+    const mappedCriteria = mappedCriteriaForItems(criteria, items);
+    if (mappedCriteria.length === 0) {
+        return criterionInitialScore(
+            criteria.filter((criterion) => criterion.dimension_item_id === null),
+        );
+    }
+
+    const sessionGroups = Array.from(
+        groupBy(
+            mappedCriteria,
+            (criterion) => criterion.session_id || "__sessionless__",
+        ).values(),
+    ).sort((first, second) => {
+        const firstDates = first
+            .map((criterion) => dateValue(criterion.created_at))
+            .filter((value) => value > 0);
+        const secondDates = second
+            .map((criterion) => dateValue(criterion.created_at))
+            .filter((value) => value > 0);
+
+        return (
+            (firstDates.length > 0 ? Math.min(...firstDates) : 0) -
+            (secondDates.length > 0 ? Math.min(...secondDates) : 0)
+        );
+    });
+
+    for (const sessionCriteria of sessionGroups) {
+        const score = averageItemScores(items, (item) =>
+            getWeightedProgressScore(
+                sessionCriteria
+                    .filter(
+                        (criterion) =>
+                            criterion.dimension_item_id === item.id,
+                    )
+                    .map((criterion) => ({
+                        pointsAwarded: criterion.points_awarded,
+                        pointsMax: criterion.points_max,
+                        scorePercent: criterion.score_percent,
+                    })),
+            ),
+        );
+
+        if (score !== null) return score;
+    }
+
+    return null;
+}
+
 function scoreDelta(score: number | null, initialScore: number | null) {
     if (score === null || initialScore === null) return null;
     return score - initialScore;
@@ -123,11 +233,18 @@ function createDimensionProgress(
     criteria: CriterionSkillRow[],
     items: SkillDimensionItemRow[],
 ): UserSkillDimensionProgress {
+    const dimensionItems = items.filter(
+        (item) => normalizeDimension(item.dimension) === dimension,
+    );
+    const dimensionCriteria = criteria.filter(
+        (criterion) => normalizeDimension(criterion.dimension) === dimension,
+    );
+
     return {
-        itemCount: items.filter((item) => normalizeDimension(item.dimension) === dimension).length,
+        itemCount: dimensionItems.length,
         key: dimension,
         label: USER_SKILL_DIMENSION_LABELS[dimension],
-        score: criterionScore(criteria.filter((criterion) => normalizeDimension(criterion.dimension) === dimension)),
+        score: coverageAdjustedScore(dimensionCriteria, dimensionItems),
     };
 }
 
@@ -162,14 +279,14 @@ export function buildUserSkillProgresses({
         .filter(Boolean)
         .map((skillId) => {
             const skillCriteria = criteriaBySkillId.get(skillId) ?? [];
-            const score = criterionScore(skillCriteria);
-            const initialScore = criterionInitialScore(skillCriteria);
             const skillItems = (itemsBySkillId.get(skillId) ?? []).slice().sort((first, second) => {
                 const dimensionOrder = USER_SKILL_DIMENSIONS.indexOf(normalizeDimension(first.dimension)) -
                     USER_SKILL_DIMENSIONS.indexOf(normalizeDimension(second.dimension));
                 if (dimensionOrder !== 0) return dimensionOrder;
                 return (first.item_order ?? 0) - (second.item_order ?? 0);
             });
+            const score = coverageAdjustedScore(skillCriteria, skillItems);
+            const initialScore = coverageAdjustedInitialScore(skillCriteria, skillItems);
 
             return {
                 delta: scoreDelta(score, initialScore),

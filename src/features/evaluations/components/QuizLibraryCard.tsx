@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
-import { BookOpen, Clock, Eye, FileText, Info, Play, RefreshCw } from "lucide-react";
+import { BookOpen, Clock, Eye, FileText, History, Info, Play, RefreshCw } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { LearnerContentStatusBadge } from "@/features/content/components";
 import { isSelectableContent } from "@/features/content/domain";
@@ -40,11 +40,21 @@ export function QuizLibraryCard({
                         {category}
                     </Text>
                 </Box>
-                {actions && (
-                    <Box className={uiTokens.quizLibraryCard.menuPosition}>
-                        {actions}
-                    </Box>
-                )}
+                <Box className={uiTokens.quizLibraryCard.menuPosition}>
+                    <Tooltip
+                        content={`${quiz.learnerStats.attemptCount} tentative${quiz.learnerStats.attemptCount === 1 ? "" : "s"} réalisée${quiz.learnerStats.attemptCount === 1 ? "" : "s"}`}
+                    >
+                        <Box
+                            aria-label={`Nombre de tentatives : ${quiz.learnerStats.attemptCount}`}
+                            className={uiTokens.quizLibraryCard.attemptBadge}
+                            tabIndex={0}
+                        >
+                            <InlineIcon icon={History} className="h-3.5 w-3.5 shrink-0" />
+                            <Text as="span">{quiz.learnerStats.attemptCount}</Text>
+                        </Box>
+                    </Tooltip>
+                    {actions}
+                </Box>
             </Box>
 
             <Box className={uiTokens.quizLibraryCard.body}>
