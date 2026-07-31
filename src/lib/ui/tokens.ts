@@ -1521,16 +1521,19 @@ export const uiTokens = {
             "flex w-full items-center justify-between gap-2 text-[14px] font-bold text-[#374151] transition hover:text-[#5140F0]",
         factIcon: "h-4 w-4 shrink-0 text-[#9CA3AF]",
         factRow: "flex items-center gap-2.5 text-[14px] font-semibold text-[#374151]",
-        frame: "h-[680px] w-full border-0",
+        frame: "h-full w-full border-0",
         frameCard:
-            "self-start overflow-hidden rounded-[20px] border border-[#E9E7FB] shadow-[0_1px_2px_rgba(17,24,39,0.04)]",
+            "h-[680px] self-start overflow-hidden rounded-[20px] border border-[#E9E7FB] shadow-[0_1px_2px_rgba(17,24,39,0.04)]",
         frameFallback:
-            "flex h-[680px] flex-col items-center justify-center gap-3 bg-[#F8F9FC] p-6 text-center",
-        panel: "rounded-[20px] border border-[#E9E7FB] bg-white p-6 shadow-[0_1px_2px_rgba(17,24,39,0.04)]",
-        panelHeader: "flex items-center gap-2 border-b border-[#EDEEF3] pb-4",
+            "flex h-full flex-col items-center justify-center gap-3 bg-[#F8F9FC] p-6 text-center",
+        panel:
+            "flex flex-col rounded-[20px] border border-[#E9E7FB] bg-white p-6 shadow-[0_1px_2px_rgba(17,24,39,0.04)] lg:h-[680px] lg:min-h-0 lg:overflow-hidden",
+        panelHeader: "flex shrink-0 items-center gap-2 border-b border-[#EDEEF3] pb-4",
         panelHeaderIcon: "h-5 w-5 shrink-0 text-[#5140F0]",
         panelHeaderTitle: "text-[15px] font-extrabold text-[#111827]",
-        resourceList: "mt-5 divide-y divide-[#EDEEF3] border-t border-[#EDEEF3]",
+        panelScrollArea:
+            "min-h-0 flex-1 overflow-y-auto overscroll-contain pr-2 [scrollbar-gutter:stable]",
+        resourceList: "mt-1 shrink-0 divide-y divide-[#EDEEF3] border-t border-[#EDEEF3] bg-white",
         resourceRow: "py-4",
         resourceRowLast: "pt-4",
         sectionIcon: "mt-0.5 h-4 w-4 shrink-0 text-[#5140F0]",

@@ -96,5 +96,7 @@ describe("RoleplaySessionPageContent", () => {
         expect(html).toContain("Notes du roleplay");
         expect(html).toContain(">3</span>");
         expect(html).not.toContain("Notes de préparation");
+        expect(html).toContain("lg:h-[680px]");
+        expect(html).toContain("overflow-y-auto");
     });
 });

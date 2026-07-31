@@ -311,37 +311,39 @@ export function RoleplaySessionPageContent({
                             </Text>
                         </Box>
 
-                        <Box className="mt-4 space-y-2.5">
-                            <FactRow icon={User}>{roleplay.name}</FactRow>
-                            <FactRow icon={Briefcase}>{roleplay.role}</FactRow>
-                            <FactRow icon={Building2}>{roleplay.company}</FactRow>
-                            {detail.infoChips.map((chip) => (
-                                <FactRow key={chip.label} icon={roleplayChipIcons[chip.icon] ?? Building2}>
-                                    {chip.label}
-                                </FactRow>
-                            ))}
-                        </Box>
-
-                        <Box className="mt-4 flex flex-wrap gap-2">
-                            <Box
-                                className="inline-flex h-7 items-center rounded-lg border px-3 text-[13px] font-semibold"
-                                style={{
-                                    backgroundColor: difficultyStyle.bg,
-                                    borderColor: difficultyStyle.border,
-                                    color: difficultyStyle.text,
-                                }}
-                            >
-                                {roleplay.difficulty}
+                        <Box className={uiTokens.session.panelScrollArea}>
+                            <Box className="mt-4 space-y-2.5">
+                                <FactRow icon={User}>{roleplay.name}</FactRow>
+                                <FactRow icon={Briefcase}>{roleplay.role}</FactRow>
+                                <FactRow icon={Building2}>{roleplay.company}</FactRow>
+                                {detail.infoChips.map((chip) => (
+                                    <FactRow key={chip.label} icon={roleplayChipIcons[chip.icon] ?? Building2}>
+                                        {chip.label}
+                                    </FactRow>
+                                ))}
                             </Box>
-                            <DiscProfileBadge
-                                profile={roleplay.disc}
-                                className="h-7 border-0 px-3 text-[13px]"
-                            />
-                        </Box>
 
-                        <Box className="mt-5 space-y-4">
-                            <SectionRow icon={FileText}>{detail.context}</SectionRow>
-                            <SectionRow icon={Target}>{roleplay.description}</SectionRow>
+                            <Box className="mt-4 flex flex-wrap gap-2">
+                                <Box
+                                    className="inline-flex h-7 items-center rounded-lg border px-3 text-[13px] font-semibold"
+                                    style={{
+                                        backgroundColor: difficultyStyle.bg,
+                                        borderColor: difficultyStyle.border,
+                                        color: difficultyStyle.text,
+                                    }}
+                                >
+                                    {roleplay.difficulty}
+                                </Box>
+                                <DiscProfileBadge
+                                    profile={roleplay.disc}
+                                    className="h-7 border-0 px-3 text-[13px]"
+                                />
+                            </Box>
+
+                            <Box className="mt-5 space-y-4 pb-4">
+                                <SectionRow icon={FileText}>{detail.context}</SectionRow>
+                                <SectionRow icon={Target}>{roleplay.description}</SectionRow>
+                            </Box>
                         </Box>
 
                         <Box className={uiTokens.session.resourceList}>
