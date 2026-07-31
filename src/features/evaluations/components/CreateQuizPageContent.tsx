@@ -965,6 +965,12 @@ export function CreateQuizPageContent({
                                                             Étape {stepIndex + 1} · {selectedMethod ? getMethodSelectionLabel(selectedMethod) : ""}
                                                         </Text>
                                                     )}
+                                                    <FieldLabel
+                                                        required={!isDraft}
+                                                        className={uiTokens.form.subLabel}
+                                                    >
+                                                        Nom de l’étape
+                                                    </FieldLabel>
                                                     <TextInput
                                                         value={step.name}
                                                         onChange={(event) =>

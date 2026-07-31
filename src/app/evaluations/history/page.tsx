@@ -20,11 +20,10 @@ export default async function Page({ searchParams }: PageProps) {
     const params = await searchParams;
     const quizId = params?.quiz_id?.trim() || null;
     const returnTo = params?.returnTo;
-    let context;
     let profile;
 
     try {
-        context = await requireAuth();
+        await requireAuth();
         profile = await getCurrentProfile();
     } catch (error) {
         if (!(error instanceof UnauthorizedError)) {
@@ -45,7 +44,6 @@ export default async function Page({ searchParams }: PageProps) {
 
     const attempts = await listQuizAttemptHistory({
         quizId,
-        userId: context.userId,
     });
 
     return (

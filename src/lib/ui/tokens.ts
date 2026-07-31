@@ -333,6 +333,7 @@ export const uiTokens = {
         title: "mb-2 text-[18px] font-semibold leading-7 text-[#111827]",
     },
     quizHistory: {
+        archivedResult: "text-[12px] font-semibold text-[#6B7280]",
         action:
             "inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#5140F0] px-5 text-[13px] font-bold text-white shadow-[0_8px_18px_rgba(81,64,240,0.18)] transition hover:bg-[#4635E7] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0] focus-visible:ring-offset-2",
         actionIcon: "h-4 w-4",
@@ -360,11 +361,6 @@ export const uiTokens = {
         scoreTrack: "stroke-[#ECEEF3]",
         scoreValue:
             "absolute inset-0 flex items-center justify-center text-[14px] font-extrabold text-[#111827]",
-        scoreTone: {
-            danger: "text-[#EF4444]",
-            success: "text-[#16A34A]",
-            warning: "text-[#F59E0B]",
-        },
         title: "truncate text-[16px] font-extrabold text-[#111827]",
         empty:
             "rounded-[14px] border border-[#E1E4EA] bg-white px-8 py-16 text-center shadow-none",
@@ -434,6 +430,21 @@ export const uiTokens = {
         primaryAction:
             "flex h-11 items-center justify-center rounded-xl px-6 text-[14px] font-bold text-white transition",
         secondaryAction: "h-11 gap-2 px-5",
+    },
+    quizQuestionEditor: {
+        actionIcon: "h-4 w-4",
+        actions: "flex shrink-0 items-center gap-1",
+        attachmentBadge:
+            "inline-flex min-h-6 items-center gap-1.5 rounded-md border border-[#C9C2FB] bg-[#F4F3FE] px-2 text-[11px] font-bold text-[#5140F0]",
+        body: "mt-4 space-y-4 border-t border-[#E5E7EB] pt-4",
+        header: "flex items-start justify-between gap-3",
+        identity: "min-w-0 flex-1",
+        metadata: "mt-2 flex flex-wrap items-center gap-2",
+        metadataBadge:
+            "inline-flex min-h-6 items-center rounded-md border border-[#E5E7EB] bg-white px-2 text-[11px] font-bold text-[#667085]",
+        metadataIcon: "h-3.5 w-3.5",
+        prompt: "mt-1.5 truncate text-[13px] font-semibold text-[#4B5563]",
+        title: "text-[14px] font-extrabold text-[#111827]",
     },
     detailField: {
         icon: "h-4 w-4",

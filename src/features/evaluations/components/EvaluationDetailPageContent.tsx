@@ -18,7 +18,7 @@ import {
     ContentStatusBadge,
     LearnerContentStatusBadge,
 } from "@/features/content/components";
-import { isSelectableContent } from "@/features/content/domain";
+import { getContentScoreStatus, isSelectableContent } from "@/features/content/domain";
 import {
     EVALUATION_ROUTES,
     QUIZ_ATTEMPT_STATUS,
@@ -224,6 +224,12 @@ export function EvaluationDetailPageContent({
                                 helper="Dernière tentative"
                                 label="Score actuel"
                                 muted={quiz.learnerStats.currentScore === null}
+                                tone={quiz.learnerStats.currentScore === null
+                                    ? undefined
+                                    : getContentScoreStatus(
+                                        quiz.learnerStats.currentScore,
+                                        threshold,
+                                    )}
                                 value={formatScore(quiz.learnerStats.currentScore)}
                             />
                             <QuizDetailStatCell
@@ -234,18 +240,30 @@ export function EvaluationDetailPageContent({
                                 }
                                 label="Meilleur score"
                                 muted={quiz.learnerStats.bestScore === null}
+                                tone={quiz.learnerStats.bestScore === null
+                                    ? undefined
+                                    : getContentScoreStatus(
+                                        quiz.learnerStats.bestScore,
+                                        threshold,
+                                    )}
                                 value={formatScore(quiz.learnerStats.bestScore)}
                             />
                             <QuizDetailStatCell
                                 helper="Top 3 des 6 dernières"
                                 label="Score INDEX"
                                 muted={quiz.learnerStats.indexScore === null}
+                                tone={quiz.learnerStats.indexScore === null
+                                    ? undefined
+                                    : getContentScoreStatus(
+                                        quiz.learnerStats.indexScore,
+                                        threshold,
+                                    )}
                                 value={formatScore(quiz.learnerStats.indexScore)}
                             />
                             <QuizDetailStatCell
-                                accent
                                 helper="Tentatives effectuées"
                                 label="Tentatives"
+                                tone="accent"
                                 value={String(quiz.learnerStats.attemptCount)}
                             />
                         </Box>

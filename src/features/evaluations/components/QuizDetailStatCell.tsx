@@ -1,22 +1,29 @@
+import type { ContentScoreStatus } from "@/features/content/domain";
 import { Box, Text } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
 interface QuizDetailStatCellProps {
-    accent?: boolean;
     helper: string;
     label: string;
     muted?: boolean;
+    tone?: ContentScoreStatus | "accent";
     value: string;
 }
 
 export function QuizDetailStatCell({
-    accent = false,
     helper,
     label,
     muted = false,
+    tone,
     value,
 }: QuizDetailStatCellProps) {
+    const toneClass = tone === "accent"
+        ? uiTokens.quizDetail.statValueAccent
+        : tone
+          ? uiTokens.tone[tone].text
+          : uiTokens.quizDetail.statValueDefault;
+
     return (
         <Box className={uiTokens.quizDetail.statCell}>
             <Text className={uiTokens.quizDetail.statLabel}>{label}</Text>
@@ -25,9 +32,7 @@ export function QuizDetailStatCell({
                     uiTokens.quizDetail.statValue,
                     muted
                         ? uiTokens.quizDetail.statValueMuted
-                        : accent
-                          ? uiTokens.quizDetail.statValueAccent
-                          : uiTokens.quizDetail.statValueDefault,
+                        : toneClass,
                 )}
             >
                 {value}

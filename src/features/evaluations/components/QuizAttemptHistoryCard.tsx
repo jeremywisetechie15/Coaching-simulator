@@ -1,5 +1,10 @@
 import { CalendarDays, ChevronRight, Clock, FileText } from "lucide-react";
 import { ContextualLink } from "@/features/app-shell/components";
+import { ContentStatusBadge } from "@/features/content/components";
+import {
+    CONTENT_STATUS,
+    getContentScoreStatus,
+} from "@/features/content/domain";
 import { EVALUATION_ROUTES } from "@/features/evaluations/domain";
 import type { QuizAttemptHistoryItem } from "@/features/evaluations/server";
 import { Box, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
@@ -30,11 +35,9 @@ function ScoreRing({
     const radius = 25;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference * (1 - score / 100);
-    const tone = score >= validationThreshold
-        ? uiTokens.quizHistory.scoreTone.success
-        : score >= 50
-          ? uiTokens.quizHistory.scoreTone.warning
-          : uiTokens.quizHistory.scoreTone.danger;
+    const tone = uiTokens.tone[
+        getContentScoreStatus(score, validationThreshold)
+    ].text;
 
     return (
         <Box className={cn(uiTokens.quizHistory.scoreRing, tone)}>
@@ -72,6 +75,7 @@ export function QuizAttemptHistoryCard({ item }: QuizAttemptHistoryCardProps) {
     const { attempt, occurredAt, quiz } = item;
     const duration = formatDuration(attempt.activeDurationSeconds);
     const category = quiz.categories[0] ?? quiz.domain;
+    const isArchived = quiz.status === CONTENT_STATUS.archived;
 
     return (
         <CardSurface className={uiTokens.quizHistory.card}>
@@ -112,6 +116,7 @@ export function QuizAttemptHistoryCard({ item }: QuizAttemptHistoryCardProps) {
                         <Text as="span" className={uiTokens.quizHistory.attemptBadge}>
                             Tentative {attempt.number}
                         </Text>
+                        {isArchived && <ContentStatusBadge status={quiz.status} />}
                     </Box>
                 </Box>
             </Box>
@@ -121,16 +126,22 @@ export function QuizAttemptHistoryCard({ item }: QuizAttemptHistoryCardProps) {
                     score={attempt.score}
                     validationThreshold={quiz.validationThreshold}
                 />
-                <ContextualLink
-                    href={EVALUATION_ROUTES.app.attemptResults(quiz.id, attempt.id)}
-                    className={uiTokens.quizHistory.action}
-                >
-                    Voir les résultats
-                    <InlineIcon
-                        icon={ChevronRight}
-                        className={uiTokens.quizHistory.actionIcon}
-                    />
-                </ContextualLink>
+                {isArchived ? (
+                    <Text className={uiTokens.quizHistory.archivedResult}>
+                        Résultat conservé
+                    </Text>
+                ) : (
+                    <ContextualLink
+                        href={EVALUATION_ROUTES.app.attemptResults(quiz.id, attempt.id)}
+                        className={uiTokens.quizHistory.action}
+                    >
+                        Voir les résultats
+                        <InlineIcon
+                            icon={ChevronRight}
+                            className={uiTokens.quizHistory.actionIcon}
+                        />
+                    </ContextualLink>
+                )}
             </Box>
         </CardSurface>
     );

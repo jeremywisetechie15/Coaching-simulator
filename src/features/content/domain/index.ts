@@ -6,6 +6,7 @@ export * from "./duplicate-name";
 export * from "./learner-content-status";
 export * from "./publication-rules";
 export * from "./score-index";
+export * from "./score-status";
 export * from "./system-instructions-visibility";
 export * from "./taxonomy";
 export * from "./visibility-scope";

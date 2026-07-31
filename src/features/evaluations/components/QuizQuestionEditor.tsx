@@ -1,6 +1,7 @@
 "use client";
 
-import { FileText, Plus, Trash2, X } from "lucide-react";
+import { ChevronDown, ChevronUp, FileText, Paperclip, Plus, Trash2, X } from "lucide-react";
+import { useState } from "react";
 import {
     QUIZ_ATTACHMENT_TYPES,
     QUIZ_DIMENSION_LABELS,
@@ -22,6 +23,7 @@ import { cn } from "@/lib/ui/utils/cn";
 import {
     attachmentTypeLabels,
     attachmentDeliveryOptions,
+    integerFromText,
     type QuizAttachmentDeliveryType,
     type QuizAttachmentFormState,
     type QuizChoiceFormState,
@@ -97,6 +99,10 @@ export function QuizQuestionEditor({
     }));
     const dimensionItemValue = question.dimensionItemId ?? question.dimensionItem;
     const canAddAttachment = question.attachments.length === 0;
+    const [collapsed, setCollapsed] = useState(false);
+    const bodyId = `quiz-question-${question.id}-body`;
+    const attachmentCount = question.attachments.length;
+    const points = integerFromText(question.points, 1);
 
     function handleCompetenceChange(skillId: string) {
         onPatch({
@@ -124,9 +130,73 @@ export function QuizQuestionEditor({
 
     return (
         <CardSurface className={uiTokens.surface.nestedCard}>
-            <Box className="space-y-4">
-                <Box className="flex items-start gap-3">
-                    <Box className="flex-1 space-y-3">
+            <Box className={uiTokens.quizQuestionEditor.header}>
+                <Box className={uiTokens.quizQuestionEditor.identity}>
+                    <Text as="h3" className={uiTokens.quizQuestionEditor.title}>
+                        Question {questionIndex + 1}
+                    </Text>
+                    {collapsed && (
+                        <Text className={uiTokens.quizQuestionEditor.prompt}>
+                            {question.prompt.trim() || "Énoncé non renseigné"}
+                        </Text>
+                    )}
+                    <Box className={uiTokens.quizQuestionEditor.metadata}>
+                        <Text as="span" className={uiTokens.quizQuestionEditor.metadataBadge}>
+                            {QUIZ_QUESTION_TYPE_LABELS[question.type]}
+                        </Text>
+                        <Text as="span" className={uiTokens.quizQuestionEditor.metadataBadge}>
+                            {points} point{points > 1 ? "s" : ""}
+                        </Text>
+                        {attachmentCount > 0 && (
+                            <Text
+                                as="span"
+                                className={uiTokens.quizQuestionEditor.attachmentBadge}
+                            >
+                                <InlineIcon
+                                    icon={Paperclip}
+                                    className={uiTokens.quizQuestionEditor.metadataIcon}
+                                />
+                                {attachmentCount} pièce{attachmentCount > 1 ? "s" : ""} jointe
+                                {attachmentCount > 1 ? "s" : ""}
+                            </Text>
+                        )}
+                    </Box>
+                </Box>
+                <Box className={uiTokens.quizQuestionEditor.actions}>
+                    <Button
+                        aria-controls={bodyId}
+                        aria-expanded={!collapsed}
+                        aria-label={collapsed ? "Déplier la question" : "Replier la question"}
+                        onClick={() => setCollapsed((current) => !current)}
+                        className={uiTokens.action.iconButtonGhost}
+                    >
+                        <InlineIcon
+                            icon={collapsed ? ChevronDown : ChevronUp}
+                            className={uiTokens.quizQuestionEditor.actionIcon}
+                        />
+                    </Button>
+                    {removable && (
+                        <Button
+                            aria-label="Supprimer la question"
+                            disabled={structureLocked}
+                            onClick={onRemove}
+                            className={cn(
+                                uiTokens.action.dangerIconButton,
+                                "disabled:cursor-not-allowed disabled:opacity-50",
+                            )}
+                        >
+                            <InlineIcon
+                                icon={Trash2}
+                                className={uiTokens.quizQuestionEditor.actionIcon}
+                            />
+                        </Button>
+                    )}
+                </Box>
+            </Box>
+
+            {!collapsed && (
+                <Box id={bodyId} className={uiTokens.quizQuestionEditor.body}>
+                    <Box className="space-y-3">
                         <FieldLabel required className={uiTokens.form.subLabel}>Énoncé de la question</FieldLabel>
                         <TextArea
                             value={question.prompt}
@@ -146,17 +216,6 @@ export function QuizQuestionEditor({
                             onChange={(value) => onQuestionTypeChange(value as QuizQuestionType)}
                         />
                     </Box>
-                    {removable && (
-                        <Button
-                            aria-label="Supprimer la question"
-                            disabled={structureLocked}
-                            onClick={onRemove}
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[#9CA3AF] transition hover:bg-[#FEF2F2] hover:text-[#DC2626] disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            <InlineIcon icon={Trash2} className="h-4 w-4" />
-                        </Button>
-                    )}
-                </Box>
 
                 <Box className="space-y-2">
                     <Text className={cn("text-[13px] font-semibold", uiTokens.text.muted)}>
@@ -419,7 +478,8 @@ export function QuizQuestionEditor({
                         ))}
                     </Box>
                 </Box>
-            </Box>
+                </Box>
+            )}
         </CardSurface>
     );
 }

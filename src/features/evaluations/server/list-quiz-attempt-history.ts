@@ -1,3 +1,5 @@
+import { requireAuth } from "@/features/auth/server";
+import type { ContentStatus } from "@/features/content/domain";
 import {
     QUIZ_DEFAULT_VALIDATION_THRESHOLD,
     getQuizTypeLabel,
@@ -5,7 +7,6 @@ import {
     type QuizType,
 } from "@/features/evaluations/domain";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { createClient } from "@/lib/supabase/server";
 import { mapQuizRowToListItem, type QuizRow } from "./quiz.mapper";
 import { QUIZ_SELECT } from "./quiz.persistence";
 
@@ -33,6 +34,7 @@ export interface QuizAttemptHistoryItem {
         difficulty: QuizDifficulty | null;
         domain: string;
         id: string;
+        status: ContentStatus;
         title: string;
         type: QuizType;
         typeLabel: string;
@@ -42,7 +44,6 @@ export interface QuizAttemptHistoryItem {
 
 interface ListQuizAttemptHistoryInput {
     quizId?: string | null;
-    userId: string;
 }
 
 function normalizeScore(value: number | null) {
@@ -56,8 +57,8 @@ function uniqueQuizIds(attempts: QuizAttemptHistoryRow[]) {
 
 export async function listQuizAttemptHistory({
     quizId,
-    userId,
 }: ListQuizAttemptHistoryInput): Promise<QuizAttemptHistoryItem[]> {
+    const { userId } = await requireAuth();
     const adminSupabase = createAdminClient();
     let attemptQuery = adminSupabase
         .from("quiz_attempts")
@@ -80,8 +81,9 @@ export async function listQuizAttemptHistory({
     const attempts = attemptRows ?? [];
     if (attempts.length === 0) return [];
 
-    const authenticatedSupabase = await createClient();
-    const { data: quizRows, error: quizError } = await authenticatedSupabase
+    // Attempts are already restricted to this learner. The server-side metadata
+    // read preserves archived results without exposing archived quizzes via RLS.
+    const { data: quizRows, error: quizError } = await adminSupabase
         .from("quizzes")
         .select(QUIZ_SELECT)
         .in("id", uniqueQuizIds(attempts))
@@ -102,6 +104,7 @@ export async function listQuizAttemptHistory({
                     difficulty: quiz.difficulty,
                     domain: quiz.domain,
                     id: quiz.id,
+                    status: quiz.status,
                     title: quiz.title,
                     type: quiz.type,
                     typeLabel: getQuizTypeLabel(quiz.type),
