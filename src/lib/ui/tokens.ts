@@ -978,6 +978,20 @@ export const uiTokens = {
         stepRemoveButton:
             "flex h-7 w-7 items-center justify-center rounded-lg text-[#9CA3AF] transition hover:bg-[#F3F4F8] hover:text-[#111827]",
     },
+    resourceDetailHeader: {
+        actions: "flex flex-wrap items-center gap-2",
+        alert: "mb-5",
+        archiveButton:
+            "flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#DC2626] px-3 text-[13px] font-semibold text-white transition hover:bg-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-70",
+        archiveButtonConfirm: "bg-[#B91C1C] hover:bg-[#991B1B]",
+        backLink:
+            "inline-flex items-center gap-2 text-[14px] font-semibold text-[#4B5563] transition hover:text-[#111827]",
+        editButton:
+            "flex h-9 shrink-0 items-center gap-1.5 rounded-lg border border-[#E5E7EB] bg-white px-3 text-[13px] font-semibold text-[#374151] transition hover:border-[#D5D7DE]",
+        icon: "h-4 w-4",
+        root:
+            "mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between",
+    },
     form: {
         control:
             "h-9 w-full rounded-lg border border-[#E5E7EB] bg-[#F3F4F6] px-3.5 text-[14px] font-normal text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#5140F0] focus:bg-white focus:ring-4 focus:ring-[#5140F0]/10",

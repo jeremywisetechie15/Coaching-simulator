@@ -70,7 +70,7 @@ async function hasScorecardResults(
 ) {
     const { count, error } = await supabase
         .from("roleplay_session_results")
-        .select("id", { count: "exact", head: true })
+        .select("session_id", { count: "exact", head: true })
         .eq("scorecard_id", scorecardId);
 
     if (error) throw error;

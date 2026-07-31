@@ -2,10 +2,10 @@
 
 import { useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, CalendarDays, History, LockKeyhole, Target } from "lucide-react";
+import { CalendarDays, History, LockKeyhole, Target } from "lucide-react";
 import {
-    ContextualBackLink,
     ContextualLink,
+    ResourceDetailHeader,
     useCurrentAppHref,
 } from "@/features/app-shell/components";
 import { withSearchParam, withoutSearchParam } from "@/features/app-shell/domain";
@@ -29,7 +29,23 @@ import { roleplayChipIcons } from "./roleplayChipIcons";
 import { RoleplayQuizModal } from "./RoleplayQuizModal";
 
 interface RoleplayDetailPageContentProps {
+    canManage?: boolean;
     roleplay: RoleplayItem;
+}
+
+interface ApiErrorPayload {
+    error?: string;
+}
+
+async function archiveRoleplayRequest(roleplayId: string) {
+    const response = await fetch(ROLEPLAY_ROUTES.api.detail(roleplayId), {
+        method: "DELETE",
+    });
+    const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+
+    if (!response.ok) {
+        throw new Error(payload?.error || "Impossible d'archiver le roleplay.");
+    }
 }
 
 function InfoBox({ title, children }: { title: string; children: React.ReactNode }) {
@@ -80,7 +96,10 @@ function PrepCard({
     );
 }
 
-export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageContentProps) {
+export function RoleplayDetailPageContent({
+    canManage = false,
+    roleplay,
+}: RoleplayDetailPageContentProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const currentHref = useCurrentAppHref();
@@ -94,6 +113,8 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
     const prepDocuments = roleplay.prepDocuments ?? [];
     const prepQuizzes = roleplay.prepQuizzes ?? [];
     const canStartRoleplay = isSelectableContent(roleplay.status, roleplay.isActive);
+    const roleplayId = roleplay.scenarioId ?? roleplay.id;
+    const isArchived = roleplay.status === "archived" || !roleplay.isActive;
 
     function closeModal() {
         setActiveModal(null);
@@ -103,18 +124,25 @@ export function RoleplayDetailPageContent({ roleplay }: RoleplayDetailPageConten
         }
     }
 
+    async function handleArchive() {
+        await archiveRoleplayRequest(roleplayId);
+        router.push(ROLEPLAY_ROUTES.app.collection);
+        router.refresh();
+    }
+
     return (
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1180px]">
-                <Box className="mb-5 flex items-center">
-                    <ContextualBackLink
-                        fallbackHref={ROLEPLAY_ROUTES.app.collection}
-                        showLabel
-                        className={uiTokens.action.backButton}
-                    >
-                        <InlineIcon icon={ArrowLeft} className="h-4 w-4" />
-                    </ContextualBackLink>
-                </Box>
+                <ResourceDetailHeader
+                    archiveAction={{
+                        errorMessage: "Impossible d'archiver le roleplay.",
+                        isArchived,
+                        onArchive: handleArchive,
+                    }}
+                    canManage={canManage}
+                    editHref={ROLEPLAY_ROUTES.app.edit(roleplayId)}
+                    fallbackHref={ROLEPLAY_ROUTES.app.collection}
+                />
 
                 <CardSurface className="rounded-[24px] border border-[#E9E7FB] p-7 shadow-[0_1px_2px_rgba(17,24,39,0.04)] md:p-9">
                     <Box className="flex items-start justify-between gap-4">

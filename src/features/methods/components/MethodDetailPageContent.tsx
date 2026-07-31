@@ -2,8 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import {
-    Archive,
-    ArrowLeft,
     ArrowRight,
     BookOpen,
     CalendarDays,
@@ -14,7 +12,6 @@ import {
     FileText,
     Minus,
     MessageSquare,
-    Pencil,
     Play,
     Quote,
     Target,
@@ -26,7 +23,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useState } from "react";
-import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
+import { ContextualLink, ResourceDetailHeader } from "@/features/app-shell/components";
 import {
     ContentResourcesModal,
     type ContentResourceDocument,
@@ -48,7 +45,6 @@ import {
 } from "@/features/methods/domain/method";
 import { getStoragePathFileName } from "@/lib/uploads/content-upload";
 import { Box, Button, CardSurface, InlineIcon, Text, Tooltip } from "@/lib/ui/atoms";
-import { AlertMessage } from "@/lib/ui/molecules";
 import { VideoModal } from "@/lib/ui/organisms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -343,10 +339,7 @@ export function MethodDetailPageContent({
     method: MethodDetail;
 }) {
     const router = useRouter();
-    const [archiveError, setArchiveError] = useState<string | null>(null);
-    const [confirmArchive, setConfirmArchive] = useState(false);
     const [showResourcesModal, setShowResourcesModal] = useState(false);
-    const [isArchiving, setIsArchiving] = useState(false);
     const isArchived = method.status === "archived";
     const isParticipantAverage = canManage;
     const masteryDateLabel = isParticipantAverage ? null : formatMethodMasteryDate(mastery?.completedAt);
@@ -367,77 +360,24 @@ export function MethodDetailPageContent({
     const resourceDocuments = mapMethodResourcesToModalDocuments(method);
 
     async function handleArchive() {
-        if (isArchived || isArchiving) return;
-
-        if (!confirmArchive) {
-            setArchiveError(null);
-            setConfirmArchive(true);
-            return;
-        }
-
-        setArchiveError(null);
-        setIsArchiving(true);
-
-        try {
-            await archiveMethodRequest(method.id);
-            router.push("/methods");
-            router.refresh();
-        } catch (error) {
-            setArchiveError(error instanceof Error ? error.message : "Impossible d'archiver la méthode.");
-            setConfirmArchive(false);
-        } finally {
-            setIsArchiving(false);
-        }
+        await archiveMethodRequest(method.id);
+        router.push(METHOD_ROUTES.app.collection);
+        router.refresh();
     }
 
     return (
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1180px]">
-                <Box className="mb-5 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                    <ContextualBackLink
-                        fallbackHref={METHOD_ROUTES.app.collection}
-                        showLabel
-                        className="inline-flex items-center gap-2 text-[14px] font-semibold text-[#4B5563] transition hover:text-[#111827]"
-                    >
-                        <InlineIcon icon={ArrowLeft} className="h-4 w-4" />
-                    </ContextualBackLink>
-
-                    {canManage && (
-                        <Box className="flex flex-wrap gap-3">
-                            <ContextualLink
-                                href={`/methods/${method.id}/edit`}
-                                className="flex h-10 items-center justify-center gap-3 rounded-lg bg-[#5140F0] px-5 text-[14px] font-bold text-white shadow-[0_12px_24px_rgba(81,64,240,0.20)] transition hover:bg-[#4635E7]"
-                            >
-                                <InlineIcon icon={Pencil} className="h-5 w-5" />
-                                Modifier
-                            </ContextualLink>
-                            <Button
-                                disabled={isArchived || isArchiving}
-                                onClick={handleArchive}
-                                className={`flex h-10 items-center justify-center gap-3 rounded-lg px-5 text-[14px] font-bold text-white shadow-[0_12px_24px_rgba(220,32,39,0.18)] transition disabled:cursor-not-allowed disabled:opacity-50 ${
-                                    confirmArchive
-                                        ? "bg-[#B91C1C] hover:bg-[#991B1B]"
-                                        : "bg-[#DC2027] hover:bg-[#C91C22]"
-                                }`}
-                            >
-                                <InlineIcon icon={Archive} className="h-5 w-5" />
-                                {isArchived
-                                    ? "Archivée"
-                                    : isArchiving
-                                      ? "Archivage..."
-                                      : confirmArchive
-                                        ? "Confirmer l'archivage"
-                                        : "Archiver"}
-                            </Button>
-                        </Box>
-                    )}
-                </Box>
-
-                {archiveError && (
-                    <Box className="mb-5">
-                        <AlertMessage message={archiveError} />
-                    </Box>
-                )}
+                <ResourceDetailHeader
+                    archiveAction={{
+                        errorMessage: "Impossible d'archiver la méthode.",
+                        isArchived,
+                        onArchive: handleArchive,
+                    }}
+                    canManage={canManage}
+                    editHref={METHOD_ROUTES.app.edit(method.id)}
+                    fallbackHref={METHOD_ROUTES.app.collection}
+                />
 
                 <CardSurface className="rounded-[24px] border border-[#E9E7FB] p-7 shadow-[0_1px_2px_rgba(17,24,39,0.04)] md:p-9">
                     <Box className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">

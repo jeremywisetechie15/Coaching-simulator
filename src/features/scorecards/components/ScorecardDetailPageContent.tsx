@@ -1,19 +1,18 @@
 "use client";
 
 import {
-    ArrowLeft,
     CheckCircle2,
     ChevronDown,
     Clock,
     FileText,
     MessageSquare,
-    Pencil,
     Phone,
     ShieldCheck,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { Fragment, useState } from "react";
-import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
+import { useRouter } from "next/navigation";
+import { ResourceDetailHeader } from "@/features/app-shell/components";
 import {
     getScorecardStepPoints,
     getScorecardViewStats,
@@ -27,6 +26,21 @@ import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
 const stepGlyphs: LucideIcon[] = [Phone, MessageSquare, ShieldCheck, CheckCircle2];
+
+interface ApiErrorPayload {
+    error?: string;
+}
+
+async function archiveScorecardRequest(scorecardId: string) {
+    const response = await fetch(SCORECARD_ROUTES.api.detail(scorecardId), {
+        method: "DELETE",
+    });
+    const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+
+    if (!response.ok) {
+        throw new Error(payload?.error || "Impossible d'archiver la scorecard.");
+    }
+}
 
 function plural(count: number, singular: string, plural: string) {
     return count > 1 ? plural : singular;
@@ -107,6 +121,7 @@ export function ScorecardDetailPageContent({
     canManage?: boolean;
     scorecard: ScorecardDetailView;
 }) {
+    const router = useRouter();
     const stats = getScorecardViewStats(scorecard);
     const statItems = [
         { label: plural(stats.stepCount, "étape", "étapes"), value: stats.stepCount },
@@ -118,30 +133,25 @@ export function ScorecardDetailPageContent({
         },
     ];
 
+    async function handleArchive() {
+        await archiveScorecardRequest(scorecard.id);
+        router.push(SCORECARD_ROUTES.app.collection);
+        router.refresh();
+    }
+
     return (
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1180px]">
-                <Box className="mb-5 flex flex-wrap items-center justify-between gap-3">
-                    <ContextualBackLink
-                        fallbackHref={SCORECARD_ROUTES.app.collection}
-                        showLabel
-                        className={uiTokens.action.backLink}
-                    >
-                        <InlineIcon icon={ArrowLeft} className="h-4 w-4" />
-                    </ContextualBackLink>
-                    {canManage && (
-                        <ContextualLink
-                            href={SCORECARD_ROUTES.app.edit(scorecard.id)}
-                            className={cn(
-                                "flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-[14px] font-bold text-white transition",
-                                uiTokens.action.primaryButton,
-                            )}
-                        >
-                            <InlineIcon icon={Pencil} className="h-4 w-4" />
-                            Modifier
-                        </ContextualLink>
-                    )}
-                </Box>
+                <ResourceDetailHeader
+                    archiveAction={{
+                        errorMessage: "Impossible d'archiver la scorecard.",
+                        isArchived: scorecard.status === "archived",
+                        onArchive: handleArchive,
+                    }}
+                    canManage={canManage}
+                    editHref={SCORECARD_ROUTES.app.edit(scorecard.id)}
+                    fallbackHref={SCORECARD_ROUTES.app.collection}
+                />
 
                 <CardSurface className={uiTokens.surface.formCard}>
                     <Text as="h1" className={cn("text-[28px] font-extrabold md:text-[32px]", uiTokens.text.heading)}>

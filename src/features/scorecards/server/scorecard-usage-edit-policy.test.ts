@@ -23,9 +23,16 @@ class FakeCountQuery implements PromiseLike<{
     data: null;
     error: null;
 }> {
-    constructor(private readonly count: number) {}
+    constructor(
+        private readonly count: number,
+        private readonly onSelect?: (
+            columns: string,
+            options: { count: string; head: boolean },
+        ) => void,
+    ) {}
 
-    select() {
+    select(columns: string, options: { count: string; head: boolean }) {
+        this.onSelect?.(columns, options);
         return this;
     }
 
@@ -54,8 +61,20 @@ class FakeCountQuery implements PromiseLike<{
 }
 
 function createFakeSupabase(hasResults: boolean) {
+    const recordedSelects: Array<{
+        columns: string;
+        options: { count: string; head: boolean };
+        table: string;
+    }> = [];
+
     return {
-        from: () => new FakeCountQuery(hasResults ? 1 : 0),
+        client: {
+            from: (table: string) => new FakeCountQuery(
+                hasResults ? 1 : 0,
+                (columns, options) => recordedSelects.push({ columns, options, table }),
+            ),
+        },
+        recordedSelects,
     };
 }
 
@@ -146,6 +165,7 @@ describe("scorecard usage edit policy server guard", () => {
 
     it("allows existing text and numeric values to change after usage", async () => {
         const input = unchangedInput();
+        const { client } = createFakeSupabase(true);
         input.name = "Scorecard renommée";
         input.description = "Description modifiée";
         input.steps[0]!.name = "Étape renommée";
@@ -159,7 +179,7 @@ describe("scorecard usage edit policy server guard", () => {
 
         await expect(
             assertScorecardUsageEditPolicy(
-                createFakeSupabase(true) as never,
+                client as never,
                 scorecardId,
                 input,
             ),
@@ -168,12 +188,13 @@ describe("scorecard usage edit policy server guard", () => {
 
     it("rejects selections and criteria structure changes after usage", async () => {
         const input = unchangedInput();
+        const { client } = createFakeSupabase(true);
         input.methodId = "77777777-7777-4777-8777-777777777777";
         input.steps[0]!.criteria = [];
 
         await expect(
             assertScorecardUsageEditPolicy(
-                createFakeSupabase(true) as never,
+                client as never,
                 scorecardId,
                 input,
             ),
@@ -185,15 +206,31 @@ describe("scorecard usage edit policy server guard", () => {
 
     it("allows structural changes before the first usage", async () => {
         const input = unchangedInput();
+        const { client } = createFakeSupabase(false);
         input.steps = [];
 
         await expect(
             assertScorecardUsageEditPolicy(
-                createFakeSupabase(false) as never,
+                client as never,
                 scorecardId,
                 input,
             ),
         ).resolves.toBeUndefined();
         expect(mocks.fetchScorecardDetail).not.toHaveBeenCalled();
+    });
+
+    it("counts scorecard results through the existing session_id column", async () => {
+        const input = unchangedInput();
+        const { client, recordedSelects } = createFakeSupabase(false);
+
+        await expect(
+            assertScorecardUsageEditPolicy(client as never, scorecardId, input),
+        ).resolves.toBeUndefined();
+
+        expect(recordedSelects).toContainEqual({
+            columns: "session_id",
+            options: { count: "exact", head: true },
+            table: "roleplay_session_results",
+        });
     });
 });

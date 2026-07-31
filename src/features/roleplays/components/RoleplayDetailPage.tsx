@@ -1,4 +1,8 @@
 import { AppShell } from "@/features/app-shell/components";
+import {
+    APP_NAVIGATION_RESOURCE,
+    canManageAppResource,
+} from "@/features/auth/domain/access-control";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
@@ -10,6 +14,11 @@ interface RoleplayDetailPageProps {
 }
 
 export function RoleplayDetailPage({ profileValues, roleplay }: RoleplayDetailPageProps) {
+    const canManageRoleplays = canManageAppResource(
+        profileValues.platformRole,
+        APP_NAVIGATION_RESOURCE.roleplays,
+    );
+
     return (
         <AppShell
             activePrimaryItem="Roleplays"
@@ -20,7 +29,10 @@ export function RoleplayDetailPage({ profileValues, roleplay }: RoleplayDetailPa
             email={profileValues.email}
             searchPlaceholder="Rechercher..."
         >
-            <RoleplayDetailPageContent roleplay={roleplay} />
+            <RoleplayDetailPageContent
+                canManage={canManageRoleplays}
+                roleplay={roleplay}
+            />
         </AppShell>
     );
 }

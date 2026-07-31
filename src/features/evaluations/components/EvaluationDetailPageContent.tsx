@@ -1,10 +1,8 @@
 "use client";
 
 import {
-    ArrowLeft,
     ChevronRight,
     Clock,
-    Edit3,
     Eye,
     FileText,
     Gauge,
@@ -14,7 +12,8 @@ import {
     type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
+import { useRouter } from "next/navigation";
+import { ContextualLink, ResourceDetailHeader } from "@/features/app-shell/components";
 import {
     ContentStatusBadge,
     LearnerContentStatusBadge,
@@ -46,6 +45,21 @@ interface EvaluationDetailPageContentProps {
     skillOptions: SkillOption[];
 }
 
+interface ApiErrorPayload {
+    error?: string;
+}
+
+async function archiveQuizRequest(quizId: string) {
+    const response = await fetch(EVALUATION_ROUTES.api.detail(quizId), {
+        method: "DELETE",
+    });
+    const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+
+    if (!response.ok) {
+        throw new Error(payload?.error || "Impossible d'archiver le quiz.");
+    }
+}
+
 interface FactRowProps {
     icon: LucideIcon;
     prefix?: string;
@@ -75,6 +89,7 @@ export function EvaluationDetailPageContent({
     quiz,
     skillOptions,
 }: EvaluationDetailPageContentProps) {
+    const router = useRouter();
     const skillNameById = useMemo(
         () => new Map(skillOptions.map((skill) => [skill.id, skill.name])),
         [skillOptions],
@@ -124,31 +139,27 @@ export function EvaluationDetailPageContent({
     const canRetry =
         attemptSession?.canStartNewAttempt
         ?? (maxAttempts === null || attemptsUsed < maxAttempts);
+    const isArchived = quiz.status === "archived" || !quiz.isActive;
+
+    async function handleArchive() {
+        await archiveQuizRequest(quiz.id);
+        router.push(EVALUATION_ROUTES.app.collection);
+        router.refresh();
+    }
 
     return (
         <Box as="main" className={uiTokens.quizDetail.page}>
             <Box className={uiTokens.quizDetail.container}>
-                <Box className={uiTokens.quizDetail.topActions}>
-                    <ContextualBackLink
-                        fallbackHref={EVALUATION_ROUTES.app.collection}
-                        aria-label="Retour"
-                        className={cn(
-                            "flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white",
-                            uiTokens.text.heading,
-                        )}
-                    >
-                        <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                    </ContextualBackLink>
-                    {canManage && (
-                        <ContextualLink
-                            href={EVALUATION_ROUTES.app.edit(quiz.id)}
-                            className={cn(uiTokens.action.secondaryButton, "h-10 gap-2 px-4")}
-                        >
-                            <InlineIcon icon={Edit3} className="h-4 w-4" />
-                            Modifier
-                        </ContextualLink>
-                    )}
-                </Box>
+                <ResourceDetailHeader
+                    archiveAction={{
+                        errorMessage: "Impossible d'archiver le quiz.",
+                        isArchived,
+                        onArchive: handleArchive,
+                    }}
+                    canManage={canManage}
+                    editHref={EVALUATION_ROUTES.app.edit(quiz.id)}
+                    fallbackHref={EVALUATION_ROUTES.app.collection}
+                />
 
                 <Box className={uiTokens.quizDetail.shell}>
                     <Text as="h1" className="sr-only">

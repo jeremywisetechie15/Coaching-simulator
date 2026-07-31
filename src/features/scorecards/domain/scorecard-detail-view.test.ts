@@ -75,6 +75,7 @@ describe("scorecard detail view mapper", () => {
             level: "Moyen",
             methodName: "DAGO",
             name: "Scorecard DAGO",
+            status: CONTENT_STATUS.published,
         });
         expect(view.steps[0].title).toBe("Démarrer l'appel");
         expect(view.steps[0].criteria[0].competenceName).toBe("Accès au décideur");

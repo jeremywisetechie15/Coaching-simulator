@@ -2,18 +2,16 @@
 
 import { useState } from "react";
 import {
-    ArrowLeft,
     BookOpen,
     ChevronDown,
     ChevronUp,
-    Edit3,
     Target,
     TrendingDown,
     TrendingUp,
     Users,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
+import { ResourceDetailHeader } from "@/features/app-shell/components";
 import {
     getSkillLevel,
     SKILL_DIMENSION_LABELS,
@@ -72,21 +70,11 @@ export function SkillDetailPageContent({
     return (
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1080px]">
-                <Box className="mb-5 flex items-center justify-between gap-4">
-                    <ContextualBackLink
-                        fallbackHref={SKILL_ROUTES.app.collection}
-                        showLabel
-                        className={cn("flex items-center gap-2 text-[14px] font-semibold transition hover:opacity-80", uiTokens.text.muted)}
-                    >
-                        <InlineIcon icon={ArrowLeft} className="h-4 w-4" />
-                    </ContextualBackLink>
-                    {canManage && (
-                        <ContextualLink href={SKILL_ROUTES.app.edit(skill.id)} className={cn(uiTokens.action.addButton, "shrink-0")}>
-                            <InlineIcon icon={Edit3} className="h-4 w-4" />
-                            Modifier
-                        </ContextualLink>
-                    )}
-                </Box>
+                <ResourceDetailHeader
+                    canManage={canManage}
+                    editHref={SKILL_ROUTES.app.edit(skill.id)}
+                    fallbackHref={SKILL_ROUTES.app.collection}
+                />
 
                 <CardSurface className={uiTokens.surface.formCard}>
                     {/* En-tête */}

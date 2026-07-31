@@ -28,6 +28,7 @@ export interface ScorecardDetailView {
     level: string;
     methodName: string;
     name: string;
+    status: ScorecardDetail["status"];
     steps: ScorecardStepView[];
 }
 
@@ -67,6 +68,7 @@ export function mapScorecardDetailToView(
         level: scorecard.level || "Non renseigné",
         methodName: scorecard.methodName || "Non renseignée",
         name: scorecard.name,
+        status: scorecard.status,
         steps: scorecard.steps.map((step) => ({
             criteria: step.criteria.map((criterion) => ({
                 competenceName:
