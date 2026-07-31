@@ -1,5 +1,6 @@
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Box, Button, InlineIcon, Text } from "@/lib/ui/atoms";
+import { uiTokens } from "@/lib/ui/tokens";
 
 interface GroupedTableSectionHeaderProps {
     colSpan: number;
@@ -20,28 +21,34 @@ export function GroupedTableSectionHeader({
         <>
             <InlineIcon
                 icon={isCollapsed ? ChevronRight : ChevronDown}
-                className="h-4 w-4 text-[#4F5868]"
+                className={uiTokens.dataTable.groupHeader.icon}
             />
-            <Text className="text-[15px] font-extrabold text-[#171B2A]">
+            <Text className={uiTokens.dataTable.groupHeader.label}>
                 {label} ({count})
             </Text>
         </>
     );
 
     return (
-        <Box as="tr" className="h-[50px] border-b border-[#E6E9F0] bg-[#F7F8FA]">
-            <Box as="td" colSpan={colSpan} className="px-7">
+        <Box as="tr" className={uiTokens.dataTable.groupHeader.row}>
+            <Box
+                as="td"
+                colSpan={colSpan}
+                className={uiTokens.dataTable.groupHeader.cell}
+            >
                 {onToggle ? (
                     <Button
                         aria-expanded={!isCollapsed}
-                        className="flex w-full items-center gap-3 text-left"
+                        className={uiTokens.dataTable.groupHeader.button}
                         onClick={onToggle}
                         type="button"
                     >
                         {content}
                     </Button>
                 ) : (
-                    <Box className="flex items-center gap-3">{content}</Box>
+                    <Box className={uiTokens.dataTable.groupHeader.layout}>
+                        {content}
+                    </Box>
                 )}
             </Box>
         </Box>

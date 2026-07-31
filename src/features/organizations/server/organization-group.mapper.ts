@@ -25,12 +25,14 @@ export function mapOrganizationGroupRow(
     memberCount = 0,
     roleplayCount = 0,
     quizCount = 0,
+    memberNames: string[] = [],
 ): OrganizationGroupRow {
     return {
         createdAt: formatLongDate(row.created_at),
         description: row.description ?? "",
         id: row.id,
         memberCount,
+        memberNames,
         name: row.name,
         quizCount,
         roleplayCount,

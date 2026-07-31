@@ -35,4 +35,18 @@ describe("DataTable", () => {
         expect(html).toContain(uiTokens.dataTable.width.standard);
         expect(html).toContain(uiTokens.dataTable.cellNowrap);
     });
+
+    it("supports the extra-wide list-table variant", () => {
+        const html = renderToStaticMarkup(
+            <DataTable width="extraWide">
+                <tbody>
+                    <DataTableRow>
+                        <DataTableCell>Organisation</DataTableCell>
+                    </DataTableRow>
+                </tbody>
+            </DataTable>,
+        );
+
+        expect(html).toContain(uiTokens.dataTable.width.extraWide);
+    });
 });

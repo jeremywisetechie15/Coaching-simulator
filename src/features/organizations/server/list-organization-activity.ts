@@ -21,6 +21,10 @@ import {
 import { MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS } from "@/features/roleplays/domain";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveBatchRoleplayDerivedQuizAssignments } from "./resolve-batch-roleplay-derived-quiz-assignments";
+import {
+    getOrganizationUserDisplayName,
+    type OrganizationUserProfileDbRow,
+} from "./list-organization-users";
 
 interface OrganizationMemberRow {
     status: string | null;
@@ -87,6 +91,7 @@ interface ScenarioUserAssignmentRow {
 }
 
 interface QuizUserAssignmentRow {
+    assigned_at: string;
     quiz_id: string;
     user_id: string;
 }
@@ -109,12 +114,17 @@ interface MethodQuizRow {
 interface OrganizationActivityContext extends OrganizationActivityAudience {
     groupIds: string[];
     groupNamesById: Map<string, string>;
+    learnerNamesById: Map<string, string>;
     rosterMemberIds: string[];
 }
 
 interface OrganizationActivityRows<T> {
     explicitAssigneeIdsByContentId: Map<string, string[]>;
     rows: T[];
+}
+
+interface OrganizationQuizActivityRows extends OrganizationActivityRows<QuizRow> {
+    explicitAssignedAtByContentId: Map<string, string>;
 }
 
 const SCENARIO_ACTIVITY_SELECT =
@@ -168,6 +178,26 @@ function indexAssigneeIdsByContentId<T>(
     );
 }
 
+function indexLatestAssignedAtByContentId<T>(
+    rows: T[],
+    getAssignedAt: (row: T) => string,
+    getContentId: (row: T) => string,
+) {
+    const assignedAtByContentId = new Map<string, string>();
+
+    for (const row of rows) {
+        const contentId = getContentId(row);
+        const assignedAt = getAssignedAt(row);
+        const currentAssignedAt = assignedAtByContentId.get(contentId);
+
+        if (!currentAssignedAt || assignedAt > currentAssignedAt) {
+            assignedAtByContentId.set(contentId, assignedAt);
+        }
+    }
+
+    return assignedAtByContentId;
+}
+
 function buildActiveGroupMemberIdsByGroupId(groupIds: string[], rows: GroupMemberRow[], memberIds: string[]) {
     const activeMemberIdSet = new Set(memberIds);
     const memberIdsByGroupId = new Map<string, Set<string>>(
@@ -218,6 +248,15 @@ function resolveLearnerIdsByContentId<T extends ActivityTargetRow & { id: string
     );
 }
 
+function resolveLearnerNames(
+    learnerIds: readonly string[],
+    learnerNamesById: ReadonlyMap<string, string>,
+) {
+    return learnerIds
+        .map((learnerId) => learnerNamesById.get(learnerId) ?? "Utilisateur")
+        .sort((first, second) => first.localeCompare(second, "fr-FR"));
+}
+
 async function getOrganizationActivityContext(organizationId: string): Promise<OrganizationActivityContext> {
     const adminSupabase = createAdminClient();
     const [organizationResult, groupsResult, membersResult] = await Promise.all([
@@ -262,18 +301,34 @@ async function getOrganizationActivityContext(organizationId: string): Promise<O
                   .map((member) => member.user_id),
           )
         : [];
-    const groupMembersResult =
+    const [groupMembersResult, profilesResult] = await Promise.all([
         groupIds.length > 0
-            ? await adminSupabase
+            ? adminSupabase
                   .from("group_members")
                   .select("group_id, user_id")
                   .in("group_id", groupIds)
                   .returns<GroupMemberRow[]>()
-            : { data: [] as GroupMemberRow[], error: null };
+            : Promise.resolve({ data: [] as GroupMemberRow[], error: null }),
+        activeMemberIds.length > 0
+            ? adminSupabase
+                  .from("profiles")
+                  .select("id, email, name, first_name, last_name")
+                  .in("id", activeMemberIds)
+                  .returns<OrganizationUserProfileDbRow[]>()
+            : Promise.resolve({ data: [] as OrganizationUserProfileDbRow[], error: null }),
+    ]);
 
     if (groupMembersResult.error) {
         throw groupMembersResult.error;
     }
+
+    if (profilesResult.error) {
+        throw profilesResult.error;
+    }
+
+    const profilesById = new Map(
+        (profilesResult.data ?? []).map((profile) => [profile.id, profile]),
+    );
 
     return {
         activeGroupMemberIdsByGroupId: buildActiveGroupMemberIdsByGroupId(
@@ -284,6 +339,12 @@ async function getOrganizationActivityContext(organizationId: string): Promise<O
         activeMemberIds,
         groupIds,
         groupNamesById: new Map((groupsResult.data ?? []).map((group) => [group.id, group.name ?? "Groupe"])),
+        learnerNamesById: new Map(
+            activeMemberIds.map((userId) => [
+                userId,
+                getOrganizationUserDisplayName(profilesById.get(userId)),
+            ]),
+        ),
         rosterMemberIds,
     };
 }
@@ -379,13 +440,13 @@ async function fetchOrganizationScenarioRows(
 async function fetchOrganizationQuizRows(
     organizationId: string,
     context: OrganizationActivityContext,
-): Promise<OrganizationActivityRows<QuizRow>> {
+): Promise<OrganizationQuizActivityRows> {
     const adminSupabase = createAdminClient();
     const [assignmentsResult, scenarioAssignmentsResult] = context.rosterMemberIds.length > 0
         ? await Promise.all([
               adminSupabase
                   .from("quiz_user_assignments")
-                  .select("quiz_id, user_id")
+                  .select("quiz_id, user_id, assigned_at")
                   .in("user_id", context.rosterMemberIds)
                   .returns<QuizUserAssignmentRow[]>(),
               adminSupabase
@@ -471,12 +532,18 @@ async function fetchOrganizationQuizRows(
     });
     const quizAssignments = [
         ...(assignmentsResult.data ?? []).map((assignment) => ({
+            assignedAt: assignment.assigned_at,
             contentId: assignment.quiz_id,
             userId: assignment.user_id,
         })),
         ...derivedAssignments,
     ];
 
+    const explicitAssignedAtByContentId = indexLatestAssignedAtByContentId(
+        quizAssignments,
+        (assignment) => assignment.assignedAt,
+        (assignment) => assignment.contentId,
+    );
     const explicitAssigneeIdsByContentId = indexAssigneeIdsByContentId(
         quizAssignments,
         (assignment) => assignment.contentId,
@@ -542,6 +609,7 @@ async function fetchOrganizationQuizRows(
 
     return {
         explicitAssigneeIdsByContentId,
+        explicitAssignedAtByContentId,
         rows: uniqueRowsById(rows).sort((first, second) =>
             (second.created_at ?? "").localeCompare(first.created_at ?? ""),
         ),
@@ -632,6 +700,7 @@ export async function listOrganizationRoleplays(organizationId: string): Promise
             groupName: getTargetName(scenario, context, explicitAssigneeIds, organizationId),
             id: scenario.id,
             learnerCount: learnerIds.length,
+            learnerNames: resolveLearnerNames(learnerIds, context.learnerNamesById),
             persona: scenario.persona_id
                 ? personaNamesById.get(scenario.persona_id) ?? "Persona"
                 : "Persona",
@@ -649,7 +718,11 @@ export async function listOrganizationEvaluations(organizationId: string): Promi
 
     const adminSupabase = createAdminClient();
     const context = await getOrganizationActivityContext(organizationId);
-    const { rows, explicitAssigneeIdsByContentId } = await fetchOrganizationQuizRows(
+    const {
+        rows,
+        explicitAssignedAtByContentId,
+        explicitAssigneeIdsByContentId,
+    } = await fetchOrganizationQuizRows(
         organizationId,
         context,
     );
@@ -686,10 +759,13 @@ export async function listOrganizationEvaluations(organizationId: string): Promi
         const learnerIds = learnerIdsByQuizId.get(quiz.id) ?? [];
 
         return {
-            assignedAt: formatLongDate(quiz.created_at),
+            assignedAt: formatLongDate(
+                explicitAssignedAtByContentId.get(quiz.id) ?? quiz.created_at,
+            ),
             groupName: getTargetName(quiz, context, explicitAssigneeIds, organizationId),
             id: quiz.id,
             learnerCount: learnerIds.length,
+            learnerNames: resolveLearnerNames(learnerIds, context.learnerNamesById),
             status: getOrganizationCohortActivityStatus(
                 learnerIds,
                 attemptsByQuizId.get(quiz.id) ?? [],

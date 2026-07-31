@@ -6,6 +6,7 @@ import {
 import type { OrganizationMemberStatus } from "@/features/organizations/domain/organization-member";
 import { Button, InlineIcon } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
+import { cn } from "@/lib/ui/utils/cn";
 
 interface OrganizationInvitationResendActionProps {
     isDisabled?: boolean;
@@ -31,14 +32,17 @@ export function OrganizationInvitationResendAction({
     return (
         <Button
             aria-label={accessibleLabel}
-            className={`${uiTokens.action.iconButtonGhost} disabled:cursor-not-allowed disabled:opacity-60`}
+            className={uiTokens.organizationDetail.table.action}
             disabled={isDisabled || isSending}
             onClick={onRequestResend}
             title={ORGANIZATION_INVITATION_RESEND_LABEL}
         >
             <InlineIcon
                 icon={isSending ? LoaderCircle : Mail}
-                className={`h-5 w-5 ${isSending ? "animate-spin" : ""}`}
+                className={cn(
+                    uiTokens.organizationDetail.table.actionIcon,
+                    isSending && uiTokens.organizationDetail.table.actionLoading,
+                )}
             />
         </Button>
     );

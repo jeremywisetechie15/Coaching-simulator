@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
     createAdminClient: vi.fn(),
     listOrganizationContentScope: vi.fn(),
+    listOrganizationMemberNames: vi.fn(),
     requireAdmin: vi.fn(),
 }));
 
@@ -10,6 +11,9 @@ vi.mock("@/features/auth/server", () => ({ requireAdmin: mocks.requireAdmin }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: mocks.createAdminClient }));
 vi.mock("./list-organization-content-scope", () => ({
     listOrganizationContentScope: mocks.listOrganizationContentScope,
+}));
+vi.mock("./list-organization-member-names", () => ({
+    listOrganizationMemberNames: mocks.listOrganizationMemberNames,
 }));
 
 import { getOrganizationDetail } from "./get-organization-detail";
@@ -53,6 +57,10 @@ describe("getOrganizationDetail", () => {
                 ["organization-a", { groupCount: 2, quizCount: 4, roleplayCount: 7, userCount: 12 }],
             ]),
         });
+        mocks.listOrganizationMemberNames.mockResolvedValue([
+            "Adrien Dupont",
+            "Zoé Martin",
+        ]);
 
         await expect(getOrganizationDetail("organization-a")).resolves.toEqual(
             expect.objectContaining({
@@ -60,9 +68,11 @@ describe("getOrganizationDetail", () => {
                 id: "organization-a",
                 programCount: 7,
                 userCount: 12,
+                userNames: ["Adrien Dupont", "Zoé Martin"],
             }),
         );
 
         expect(mocks.listOrganizationContentScope).toHaveBeenCalledWith(client, ["organization-a"]);
+        expect(mocks.listOrganizationMemberNames).toHaveBeenCalledWith(client, "organization-a");
     });
 });

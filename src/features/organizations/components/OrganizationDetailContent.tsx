@@ -13,6 +13,7 @@ import {
     notifyFormSubmitSuccess,
 } from "@/lib/ui/feedback/form-submit-feedback";
 import { notify } from "@/lib/ui/feedback/toast";
+import { uiTokens } from "@/lib/ui/tokens";
 import {
     type CreateOrganizationFieldErrors,
     type CreateOrganizationFormValues,
@@ -321,8 +322,8 @@ export function OrganizationDetailContent({
     };
 
     return (
-        <Box as="main" className="px-5 pb-12 md:px-9 lg:px-12">
-            <Box className="mx-auto max-w-[1260px]">
+        <Box as="main" className={uiTokens.organizationDetail.page}>
+            <Box className={uiTokens.organizationDetail.container}>
                 <OrganizationDetailHeader
                     isEditing={isEditing}
                     isSubmitting={isSubmitting}
@@ -335,7 +336,7 @@ export function OrganizationDetailContent({
                     removalAction={removalAction}
                 />
 
-                <CardSurface className="overflow-hidden rounded-[14px] border border-[#E1E4EB] shadow-none">
+                <CardSurface className={uiTokens.organizationDetail.surface}>
                     <OrganizationDetailTabs activeTab={activeTab} onTabChange={selectTab} />
                     {activeTab === "overview" && (
                         <OrganizationDetailOverview

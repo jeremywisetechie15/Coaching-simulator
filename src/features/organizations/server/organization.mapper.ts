@@ -61,7 +61,10 @@ export function mapOrganizationRowToListItem(row: OrganizationRow): Organization
     };
 }
 
-export function mapOrganizationRowToDetail(row: OrganizationDetailRow): OrganizationDetail {
+export function mapOrganizationRowToDetail(
+    row: OrganizationDetailRow,
+    userNames: string[] = [],
+): OrganizationDetail {
     return {
         contactEmail: row.contact_email ?? "",
         createdAt: formatLongDate(row.created_at),
@@ -74,5 +77,6 @@ export function mapOrganizationRowToDetail(row: OrganizationDetailRow): Organiza
         region: row.region ?? "",
         status: mapStatus(row.status),
         userCount: row.user_count ?? 0,
+        userNames,
     };
 }

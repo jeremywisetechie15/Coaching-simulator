@@ -23,6 +23,7 @@ export interface OrganizationDetail {
     region: string;
     status: OrganizationStatus;
     userCount: number;
+    userNames: string[];
 }
 
 export interface OrganizationGroupRow {
@@ -30,6 +31,7 @@ export interface OrganizationGroupRow {
     description?: string;
     id: string;
     memberCount: number;
+    memberNames: string[];
     name: string;
     quizCount: number;
     roleplayCount: number;
@@ -57,6 +59,7 @@ export interface OrganizationRoleplayRow {
     groupName: string;
     id: string;
     learnerCount: number;
+    learnerNames: string[];
     persona: string;
     status: OrganizationActivityStatus;
     title: string;
@@ -67,6 +70,7 @@ export interface OrganizationEvaluationRow {
     groupName: string;
     id: string;
     learnerCount: number;
+    learnerNames: string[];
     status: OrganizationActivityStatus;
     title: string;
     type: string;

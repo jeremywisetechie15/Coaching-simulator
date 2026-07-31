@@ -5,7 +5,15 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Eye, Pencil, Plus, UserMinus } from "lucide-react";
 import { ContextualLink } from "@/features/app-shell/components";
 import { DeleteContentConfirmationModal } from "@/features/content/components";
-import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
+import { Box, Button, InlineIcon, Text } from "@/lib/ui/atoms";
+import {
+    DataTable,
+    DataTableCell,
+    DataTableFrame,
+    DataTableHead,
+    DataTableHeaderCell,
+    DataTableRow,
+} from "@/lib/ui/molecules";
 import { ENTITY_ACTION_LABELS } from "@/lib/ui/domain/entity-action";
 import {
     createFormSubmitError,
@@ -14,6 +22,7 @@ import {
 } from "@/lib/ui/feedback/form-submit-feedback";
 import { notify } from "@/lib/ui/feedback/toast";
 import { uiTokens } from "@/lib/ui/tokens";
+import { cn } from "@/lib/ui/utils/cn";
 import {
     type OrganizationGroupRow,
     type OrganizationUserRow,
@@ -344,16 +353,19 @@ export function OrganizationDetailUsers({
     };
 
     return (
-        <Box className="px-7 py-7">
-            <Box className="mb-6 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-                <Text as="h2" className="text-[18px] font-extrabold text-[#171B2A]">
+        <Box className={uiTokens.organizationDetail.content.root}>
+            <Box className={uiTokens.organizationDetail.content.sectionHeader}>
+                <Text as="h2" className={uiTokens.organizationDetail.content.sectionTitle}>
                     {"Utilisateurs de l'organisation"}
                 </Text>
                 <Button
                     onClick={() => setIsCreateModalOpen(true)}
-                    className="flex h-10 items-center gap-3 rounded-lg bg-[#E5E9FF] px-5 text-[14px] font-bold text-[#5140F0] transition hover:bg-[#DBE0FF]"
+                    className={uiTokens.organizationDetail.content.subtleAction}
                 >
-                    <InlineIcon icon={Plus} className="h-5 w-5" />
+                    <InlineIcon
+                        icon={Plus}
+                        className={uiTokens.organizationDetail.content.subtleActionIcon}
+                    />
                     Ajouter des utilisateurs
                 </Button>
             </Box>
@@ -361,7 +373,7 @@ export function OrganizationDetailUsers({
             {inviteSuccess && (
                 <Box
                     aria-live="polite"
-                    className="mb-5 rounded-lg border border-[#BFE8CB] bg-[#F0FBF3] px-4 py-3 text-[13px] font-semibold text-[#27743B]"
+                    className={uiTokens.organizationDetail.content.success}
                 >
                     {inviteSuccess}
                 </Box>
@@ -370,125 +382,147 @@ export function OrganizationDetailUsers({
             {listError && (
                 <Box
                     aria-live="polite"
-                    className="mb-5 rounded-lg border border-[#F3C7C7] bg-[#FFF4F4] px-4 py-3 text-[13px] font-semibold text-[#A43A3A]"
+                    className={uiTokens.organizationDetail.content.error}
                 >
                     {listError}
                 </Box>
             )}
 
-            <CardSurface className="overflow-hidden rounded-[14px] border border-[#E1E4EB] shadow-none">
-                <Box className="overflow-x-auto">
-                    <Box as="table" className="w-full min-w-[1080px] border-collapse">
-                        <Box as="thead">
-                            <Box as="tr" className="border-b border-[#E4E7EE] bg-[#FBFCFE]">
-                                {columns.map((column) => (
-                                    <Box
-                                        as="th"
-                                        key={column}
-                                        className="px-7 py-4 text-left text-[12px] font-extrabold uppercase tracking-[0.08em] text-[#737B8E]"
-                                    >
-                                        {column}
-                                    </Box>
-                                ))}
-                            </Box>
-                        </Box>
-                        <Box as="tbody">
-                            {isLoadingUsers && (
-                                <Box as="tr">
-                                    <Box as="td" colSpan={columns.length} className="px-7 py-12 text-center">
-                                        <Text className="text-[14px] font-semibold text-[#737B8E]">
-                                            Chargement des utilisateurs...
-                                        </Text>
-                                    </Box>
-                                </Box>
-                            )}
-
-                            {!isLoadingUsers && users.map((user) => (
-                                <Box as="tr" key={user.id} className="border-b border-[#E7E9EF] last:border-b-0">
-                                    <Box as="td" className="px-7 py-5">
-                                        <Box className="flex items-center gap-4">
-                                            <Box className="flex h-9 w-9 items-center justify-center rounded-full bg-[#F1F2F5] text-[#4F5868]">
-                                                <Text as="span" className="text-[13px] font-bold">
-                                                    {user.initials}
-                                                </Text>
-                                            </Box>
-                                            <Text className="text-[14px] font-extrabold text-[#171B2A]">{user.name}</Text>
-                                        </Box>
-                                    </Box>
-                                    <Box as="td" className="px-7 py-5">
-                                        <Text className="text-[14px] font-semibold text-[#4F5868]">{user.email}</Text>
-                                    </Box>
-                                    <Box as="td" className="px-7 py-5">
-                                        <Box className="inline-flex h-8 items-center rounded-lg border border-[#D5DAE3] px-3 text-[13px] font-semibold text-[#4F5868]">
-                                            {user.role}
-                                        </Box>
-                                    </Box>
-                                    <Box as="td" className="px-7 py-5">
-                                        <Box className="inline-flex h-8 items-center rounded-lg bg-[#DDF8E6] px-3 text-[13px] font-bold text-[#2A8A41]">
-                                            {ORGANIZATION_MEMBER_STATUS_LABELS[user.status]}
-                                        </Box>
-                                    </Box>
-                                    <Box as="td" className="px-7 py-5">
-                                        <Text className="text-[14px] font-extrabold text-[#171B2A]">
-                                            {user.roleplayCount}
-                                        </Text>
-                                    </Box>
-                                    <Box as="td" className="px-7 py-5">
-                                        <Text className="text-[14px] font-extrabold text-[#171B2A]">
-                                            {user.quizCount}
-                                        </Text>
-                                    </Box>
-                                    <Box as="td" className="px-7 py-5">
-                                        <Box className="flex items-center gap-5 text-[#9AA2B2]">
-                                            <ContextualLink
-                                                href={getUserDetailHref(user.id)}
-                                                aria-label={`${ENTITY_ACTION_LABELS.view} ${user.name}`}
-                                                className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
-                                            >
-                                                <InlineIcon icon={Eye} className="h-5 w-5" />
-                                            </ContextualLink>
-                                            <ContextualLink
-                                                href={getUserDetailHref(user.id, "edit")}
-                                                aria-label={`${ENTITY_ACTION_LABELS.modify} ${user.name}`}
-                                                className="flex h-8 w-8 items-center justify-center rounded-lg transition hover:bg-[#F2F3FF] hover:text-[#5140F0]"
-                                            >
-                                                <InlineIcon icon={Pencil} className="h-5 w-5" />
-                                            </ContextualLink>
-                                            <OrganizationInvitationResendAction
-                                                isDisabled={Boolean(resendingInvitationUserId)}
-                                                isSending={resendingInvitationUserId === user.id}
-                                                onRequestResend={() => setInvitationResendUser(user)}
-                                                status={user.status}
-                                                userName={user.name}
-                                            />
-                                            <Button
-                                                aria-label={`Retirer ${user.name} de l'organisation`}
-                                                className={uiTokens.action.dangerIconButton}
-                                                onClick={() => openRemovalDialog(user)}
-                                            >
-                                                <InlineIcon icon={UserMinus} className="h-5 w-5" />
-                                            </Button>
-                                        </Box>
-                                    </Box>
-                                </Box>
+            <DataTableFrame>
+                <DataTable width="extraWide">
+                    <DataTableHead>
+                        <DataTableRow>
+                            {columns.map((column) => (
+                                <DataTableHeaderCell key={column}>
+                                    {column}
+                                </DataTableHeaderCell>
                             ))}
+                        </DataTableRow>
+                    </DataTableHead>
+                    <Box as="tbody">
+                        {isLoadingUsers && (
+                            <DataTableRow>
+                                <DataTableCell
+                                    colSpan={columns.length}
+                                    className={uiTokens.dataTable.emptyCell}
+                                >
+                                    <Text className={uiTokens.organizationDetail.content.loading}>
+                                        Chargement des utilisateurs...
+                                    </Text>
+                                </DataTableCell>
+                            </DataTableRow>
+                        )}
 
-                            {!isLoadingUsers && users.length === 0 && (
-                                <Box as="tr">
-                                    <Box as="td" colSpan={columns.length} className="px-7 py-12 text-center">
-                                        <Text className="text-[14px] font-bold text-[#171B2A]">
-                                            Aucun utilisateur
-                                        </Text>
-                                        <Text className="mt-2 text-[14px] font-semibold text-[#A0A6B5]">
-                                            Ajoutez des utilisateurs à cette organisation.
+                        {!isLoadingUsers && users.map((user) => (
+                            <DataTableRow
+                                key={user.id}
+                                className={uiTokens.organizationDetail.table.row}
+                            >
+                                <DataTableCell nowrap>
+                                    <Box className={uiTokens.organizationDetail.table.companyLayout}>
+                                        <Box className={uiTokens.organizationDetail.table.userAvatar}>
+                                            <Text
+                                                as="span"
+                                                className={uiTokens.organizationDetail.table.userInitials}
+                                            >
+                                                {user.initials}
+                                            </Text>
+                                        </Box>
+                                        <Text className={uiTokens.dataTable.text.primary}>
+                                            {user.name}
                                         </Text>
                                     </Box>
-                                </Box>
-                            )}
-                        </Box>
+                                </DataTableCell>
+                                <DataTableCell nowrap>
+                                    <Text className={uiTokens.dataTable.text.secondary}>
+                                        {user.email}
+                                    </Text>
+                                </DataTableCell>
+                                <DataTableCell nowrap>
+                                    <Box className={uiTokens.organizationDetail.table.roleBadge}>
+                                        {user.role}
+                                    </Box>
+                                </DataTableCell>
+                                <DataTableCell nowrap>
+                                    <Box className={uiTokens.organizationDetail.table.statusBadge}>
+                                        {ORGANIZATION_MEMBER_STATUS_LABELS[user.status]}
+                                    </Box>
+                                </DataTableCell>
+                                <DataTableCell nowrap>
+                                    <Text className={uiTokens.dataTable.text.body}>
+                                        {user.roleplayCount}
+                                    </Text>
+                                </DataTableCell>
+                                <DataTableCell nowrap>
+                                    <Text className={uiTokens.dataTable.text.body}>
+                                        {user.quizCount}
+                                    </Text>
+                                </DataTableCell>
+                                <DataTableCell nowrap>
+                                    <Box className={uiTokens.organizationDetail.table.actions}>
+                                        <ContextualLink
+                                            href={getUserDetailHref(user.id)}
+                                            aria-label={`${ENTITY_ACTION_LABELS.view} ${user.name}`}
+                                            className={uiTokens.organizationDetail.table.action}
+                                        >
+                                            <InlineIcon
+                                                icon={Eye}
+                                                className={uiTokens.organizationDetail.table.actionIcon}
+                                            />
+                                        </ContextualLink>
+                                        <ContextualLink
+                                            href={getUserDetailHref(user.id, "edit")}
+                                            aria-label={`${ENTITY_ACTION_LABELS.modify} ${user.name}`}
+                                            className={uiTokens.organizationDetail.table.action}
+                                        >
+                                            <InlineIcon
+                                                icon={Pencil}
+                                                className={uiTokens.organizationDetail.table.actionIcon}
+                                            />
+                                        </ContextualLink>
+                                        <OrganizationInvitationResendAction
+                                            isDisabled={Boolean(resendingInvitationUserId)}
+                                            isSending={resendingInvitationUserId === user.id}
+                                            onRequestResend={() => setInvitationResendUser(user)}
+                                            status={user.status}
+                                            userName={user.name}
+                                        />
+                                        <Button
+                                            aria-label={`Retirer ${user.name} de l'organisation`}
+                                            className={cn(
+                                                uiTokens.organizationDetail.table.action,
+                                                uiTokens.organizationDetail.table.dangerAction,
+                                            )}
+                                            onClick={() => openRemovalDialog(user)}
+                                        >
+                                            <InlineIcon
+                                                icon={UserMinus}
+                                                className={uiTokens.organizationDetail.table.actionIcon}
+                                            />
+                                        </Button>
+                                    </Box>
+                                </DataTableCell>
+                            </DataTableRow>
+                        ))}
+
+                        {!isLoadingUsers && users.length === 0 && (
+                            <DataTableRow>
+                                <DataTableCell
+                                    colSpan={columns.length}
+                                    className={uiTokens.dataTable.emptyCell}
+                                >
+                                    <Text className={uiTokens.organizationDetail.content.emptyTitle}>
+                                        Aucun utilisateur
+                                    </Text>
+                                    <Text className={uiTokens.organizationDetail.content.emptyDescription}>
+                                        Ajoutez des utilisateurs à cette organisation.
+                                    </Text>
+                                </DataTableCell>
+                            </DataTableRow>
+                        )}
                     </Box>
-                </Box>
-            </CardSurface>
+                </DataTable>
+            </DataTableFrame>
 
             {isCreateModalOpen && (
                 <UserInviteModal

@@ -16,6 +16,7 @@ export * from "./IconDetailField";
 export * from "./ImageUploadField";
 export * from "./LibraryFilterBar";
 export * from "./PasswordField";
+export * from "./PeopleCountTooltip";
 export * from "./SearchableMultiSelectField";
 export * from "./SegmentedControl";
 export * from "./SessionBackgroundUploadField";

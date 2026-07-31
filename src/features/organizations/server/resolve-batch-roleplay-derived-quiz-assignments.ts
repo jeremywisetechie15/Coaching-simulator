@@ -22,6 +22,7 @@ interface MethodQuizRow {
 }
 
 export interface ExplicitUserAssignment {
+    assignedAt: string;
     contentId: string;
     userId: string;
 }
@@ -57,7 +58,11 @@ export function resolveBatchRoleplayDerivedQuizAssignments({
         });
 
         for (const derivedAssignment of derivedAssignments) {
-            const assignment = { contentId: derivedAssignment.content_id, userId };
+            const assignment = {
+                assignedAt: derivedAssignment.assigned_at,
+                contentId: derivedAssignment.content_id,
+                userId,
+            };
             assignmentsByKey.set(`${assignment.contentId}:${assignment.userId}`, assignment);
         }
     }

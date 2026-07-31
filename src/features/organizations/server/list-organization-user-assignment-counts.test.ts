@@ -94,10 +94,26 @@ describe("organization user assignment counts", () => {
                 userIds: ["user-a", "user-b"],
             }),
         ).toEqual([
-            { contentId: "quiz-1", userId: "user-a" },
-            { contentId: "quiz-method", userId: "user-a" },
-            { contentId: "quiz-1", userId: "user-b" },
-            { contentId: "quiz-method", userId: "user-b" },
+            {
+                assignedAt: "2026-07-16T12:00:00.000Z",
+                contentId: "quiz-1",
+                userId: "user-a",
+            },
+            {
+                assignedAt: "2026-07-16T12:00:00.000Z",
+                contentId: "quiz-method",
+                userId: "user-a",
+            },
+            {
+                assignedAt: "2026-07-16T12:00:00.000Z",
+                contentId: "quiz-1",
+                userId: "user-b",
+            },
+            {
+                assignedAt: "2026-07-16T12:00:00.000Z",
+                contentId: "quiz-method",
+                userId: "user-b",
+            },
         ]);
     });
 });

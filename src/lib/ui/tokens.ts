@@ -548,6 +548,15 @@ export const uiTokens = {
         cellNowrap: "whitespace-nowrap",
         emptyCell: "py-12 text-center",
         frame: "overflow-hidden rounded-xl border border-[#E5E7EB] bg-white",
+        groupHeader: {
+            button:
+                "flex w-full items-center gap-2 text-left transition-colors hover:text-[#374151]",
+            cell: "px-6 py-3",
+            icon: "h-4 w-4 shrink-0 text-[#4B5563]",
+            label: "text-[14px] font-medium leading-5 text-[#111827]",
+            layout: "flex items-center gap-2",
+            row: "border-b border-[#E5E7EB] bg-[#F9FAFB]",
+        },
         header: "border-b border-[#E5E7EB] bg-[#F9FAFB]",
         headerCell:
             "px-6 py-3 text-left text-[12px] font-medium uppercase tracking-wider text-[#6B7280]",
@@ -565,8 +574,198 @@ export const uiTokens = {
             secondary: "text-[14px] font-normal text-[#4B5563]",
         },
         width: {
+            extraWide: "min-w-[1030px]",
             standard: "min-w-[720px]",
             wide: "min-w-[900px]",
+        },
+    },
+    organizations: {
+        page: "px-4 pb-12 sm:px-6",
+        container: "mx-auto max-w-7xl space-y-6 pt-6",
+        error:
+            "rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 text-[13px] font-medium text-[#B91C1C]",
+        header: {
+            root:
+                "flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between",
+            titleGroup: "flex min-w-0 items-center gap-3",
+            back:
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#6B7280] transition-colors hover:bg-white hover:text-[#111827]",
+            backIcon: "h-4 w-4",
+            title:
+                "text-[20px] font-medium leading-[30px] text-[#6B7280]",
+            create:
+                "inline-flex h-9 items-center justify-center gap-2 self-start rounded-lg bg-[#4F46E5] px-6 py-2.5 text-[14px] font-medium leading-5 text-white transition-colors hover:bg-[#4338CA] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F46E5] focus-visible:ring-offset-2 sm:self-auto",
+            createIcon: "h-4 w-4",
+        },
+        filter: {
+            surface:
+                "rounded-xl border border-[#E5E7EB] bg-white p-4 shadow-none",
+            layout:
+                "flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center",
+            search: "relative min-w-0 flex-1 sm:min-w-[300px]",
+            searchIcon:
+                "pointer-events-none absolute left-3 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]",
+            searchInput:
+                "h-9 border-[#E5E7EB] bg-[#F9FAFB] py-1 pl-9 pr-3 text-[14px] font-normal text-[#111827] shadow-none placeholder:text-[#9CA3AF] focus:bg-[#F9FAFB] focus:ring-0",
+            status: "w-full sm:w-40",
+        },
+        table: {
+            row: "border-b border-[#E5E7EB] last:border-b-0",
+            companyCell: "whitespace-nowrap",
+            companyLayout: "flex items-center gap-3",
+            companyIcon:
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#E0E7FF] text-[#4F46E5]",
+            companyIconGlyph: "h-4 w-4",
+            centerCell: "text-center",
+            statusCell: "text-center",
+            actionsCell: "text-center",
+            actions: "flex justify-center gap-2 text-[#4B5563]",
+            action:
+                "inline-flex h-7 w-7 items-center justify-center rounded text-[#4B5563] transition-colors hover:bg-[#F3F4F6] hover:text-[#111827] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F46E5] focus-visible:ring-offset-1",
+            actionIcon: "h-4 w-4",
+            emptyCell: "h-[260px] px-6 py-12",
+            emptyContent:
+                "flex flex-col items-center justify-center text-center",
+            emptyIcon: "mb-4 h-12 w-12 text-[#D1D5DB]",
+            emptyTitle:
+                "text-[14px] font-medium leading-5 text-[#111827]",
+            emptyDescription:
+                "mt-2 text-[14px] font-normal text-[#9CA3AF]",
+            footer:
+                "flex flex-col gap-4 border-t border-[#E5E7EB] px-6 py-4 sm:flex-row sm:items-center sm:justify-between",
+            footerText:
+                "text-[14px] font-normal leading-5 text-[#6B7280]",
+            pagination: "flex items-center gap-2",
+            paginationButton:
+                "inline-flex h-8 min-w-8 items-center justify-center rounded-md border border-[#E5E7EB] bg-white px-3 text-[14px] font-medium text-[#6B7280] transition-colors hover:bg-[#F9FAFB] hover:text-[#111827] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F46E5] focus-visible:ring-offset-1",
+            paginationActive:
+                "inline-flex h-8 min-w-8 items-center justify-center rounded-md bg-[#4F46E5] px-3 text-[14px] font-medium text-white",
+            paginationIcon: "h-4 w-4",
+        },
+        status: {
+            base:
+                "inline-flex items-center rounded-md px-2.5 py-1 text-[12px] font-normal leading-4",
+            active: "bg-[#DCFCE7] text-[#15803D]",
+            suspended: "bg-[#F3F4F6] text-[#4B5563]",
+        },
+    },
+    organizationDetail: {
+        page: "px-4 pb-12 sm:px-6",
+        container: "mx-auto max-w-7xl space-y-6 pt-6",
+        surface:
+            "overflow-hidden rounded-xl border border-[#E5E7EB] bg-white shadow-none",
+        header: {
+            root:
+                "flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between",
+            titleGroup: "flex min-w-0 items-center gap-4",
+            back:
+                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[#111827] transition-colors hover:bg-white/80",
+            backIcon: "h-4 w-4",
+            title:
+                "truncate text-[24px] font-medium leading-9 text-[#111827]",
+            actions: "flex flex-wrap items-center gap-3",
+            action:
+                "inline-flex h-9 items-center justify-center gap-2 rounded-lg px-6 py-2.5 text-[14px] font-medium leading-5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+            actionIcon: "h-4 w-4",
+            cancel:
+                "border border-[#D1D5DB] bg-white text-[#374151] hover:bg-[#F9FAFB] focus-visible:ring-[#6B7280]",
+            primary:
+                "bg-[#4F46E5] text-white hover:bg-[#4338CA] focus-visible:ring-[#4F46E5]",
+            danger:
+                "bg-[#DC2626] text-white hover:bg-[#B91C1C] focus-visible:ring-[#DC2626]",
+        },
+        tabs: {
+            scroll: "overflow-x-auto border-b border-[#E5E7EB]",
+            list: "flex min-w-max gap-8 px-6",
+            item:
+                "shrink-0 border-b-2 py-4 text-[14px] font-medium leading-5 transition-colors",
+            active: "border-[#4F46E5] text-[#4F46E5]",
+            idle:
+                "border-transparent text-[#6B7280] hover:border-[#D1D5DB] hover:text-[#374151]",
+        },
+        content: {
+            root: "p-6",
+            sectionHeader:
+                "mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between",
+            sectionTitle:
+                "text-[16px] font-semibold leading-6 text-[#111827]",
+            standaloneTitle:
+                "mb-6 text-[16px] font-semibold leading-6 text-[#111827]",
+            subtleAction:
+                "inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[#E0E7FF] px-6 py-2.5 text-[14px] font-medium leading-5 text-[#4338CA] transition-colors hover:bg-[#C7D2FE] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F46E5] focus-visible:ring-offset-2",
+            subtleActionIcon: "h-4 w-4",
+            error:
+                "mb-5 rounded-lg border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 text-[13px] font-medium text-[#B91C1C]",
+            success:
+                "mb-5 rounded-lg border border-[#BBF7D0] bg-[#F0FDF4] px-4 py-3 text-[13px] font-medium text-[#15803D]",
+            loading: "text-[14px] font-normal text-[#6B7280]",
+            emptyTitle:
+                "text-[14px] font-medium leading-5 text-[#111827]",
+            emptyDescription:
+                "mt-2 text-[14px] font-normal leading-5 text-[#9CA3AF]",
+        },
+        overview: {
+            form: "p-6",
+            baseLayout:
+                "flex flex-col gap-6 md:flex-row md:items-start",
+            icon:
+                "flex h-20 w-20 shrink-0 items-center justify-center rounded-xl bg-[#E0E7FF] text-[#4F46E5]",
+            iconGlyph: "h-10 w-10",
+            detailGrid:
+                "grid min-w-0 flex-1 gap-6 md:grid-cols-2",
+            section:
+                "mt-6 border-t border-[#E5E7EB] pt-6",
+            sectionTitle:
+                "mb-4 text-[16px] font-semibold leading-6 text-[#111827]",
+            sectionGrid: "grid gap-6 md:grid-cols-2",
+            label:
+                "text-[14px] font-medium leading-5 text-[#111827]",
+            value:
+                "mt-1 text-[14px] font-normal leading-5 text-[#4B5563]",
+            status:
+                "mt-1 inline-flex items-center rounded-md px-2.5 py-1 text-[12px] font-normal leading-4",
+            statusActive: "bg-[#DCFCE7] text-[#15803D]",
+            statusSuspended: "bg-[#F3F4F6] text-[#4B5563]",
+            editField: "space-y-1.5",
+            editLabel:
+                "text-[14px] font-medium leading-5 text-[#111827]",
+            editControl:
+                "h-9 rounded-lg border-[#D1D5DB] bg-white px-3 text-[14px] font-normal text-[#111827] shadow-none focus:ring-2",
+            editControlError:
+                "border-[#F87171] ring-2 ring-[#FEE2E2]",
+            editError:
+                "text-[12px] font-medium leading-4 text-[#B91C1C]",
+            editSelectWrapper: "relative",
+            selectIcon:
+                "pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]",
+        },
+        table: {
+            row: "border-b border-[#E5E7EB] last:border-b-0",
+            companyLayout: "flex items-center gap-3",
+            groupIcon:
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#E0E7FF] text-[#4F46E5]",
+            groupIconGlyph: "h-4 w-4",
+            userAvatar:
+                "flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F3F4F6]",
+            userInitials:
+                "text-[12px] font-medium leading-4 text-[#4B5563]",
+            roleBadge:
+                "inline-flex items-center rounded-md border border-[#D1D5DB] bg-transparent px-2.5 py-1 text-[12px] font-normal leading-4 text-[#374151]",
+            statusBadge:
+                "inline-flex items-center rounded-md bg-[#DCFCE7] px-2.5 py-1 text-[12px] font-normal leading-4 text-[#15803D]",
+            actions: "flex items-center gap-2",
+            action:
+                "inline-flex h-7 w-7 shrink-0 items-center justify-center rounded text-[#9CA3AF] transition-colors hover:bg-[#EEF2FF] hover:text-[#4F46E5] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#4F46E5] focus-visible:ring-offset-1 disabled:cursor-not-allowed disabled:opacity-60",
+            dangerAction:
+                "hover:bg-[#FEF2F2] hover:text-[#DC2626] focus-visible:ring-[#DC2626]",
+            actionIcon: "h-4 w-4",
+            actionLoading: "animate-spin",
+            activityGroup: "flex items-center gap-2",
+            activityGroupIcon: "h-4 w-4 shrink-0 text-[#4F46E5]",
+            personaBadge:
+                "inline-flex items-center rounded-full bg-[#E0E7FF] px-2.5 py-0.5 text-[12px] font-medium leading-4 text-[#4338CA]",
+            evaluationBadge:
+                "inline-flex items-center rounded-full bg-[#DBEAFE] px-2.5 py-0.5 text-[12px] font-medium leading-4 text-[#1D4ED8]",
         },
     },
     userDetail: {
@@ -1440,8 +1639,15 @@ export const uiTokens = {
     },
     tooltip: {
         bubble:
-            "pointer-events-none fixed z-[100] w-max max-w-[min(320px,calc(100vw-16px))] rounded-lg border border-[#E5E7EB] bg-[#111827] px-2.5 py-1.5 text-left text-[12px] font-semibold leading-4 text-white shadow-[0_14px_30px_rgba(17,24,39,0.18)]",
+            "pointer-events-none fixed z-[100] w-max max-w-[min(320px,calc(100vw-16px))] whitespace-pre-line rounded-lg border border-[#E5E7EB] bg-[#111827] px-2.5 py-1.5 text-left text-[12px] font-semibold leading-4 text-white shadow-[0_14px_30px_rgba(17,24,39,0.18)]",
         root: "relative inline-flex min-w-0",
+    },
+    peopleCountTooltip: {
+        base: "rounded-sm font-normal text-[#4B5563] outline-none",
+        detail: "mt-1 text-[14px] leading-5",
+        interactive:
+            "cursor-help underline decoration-dotted underline-offset-4 focus-visible:ring-2 focus-visible:ring-[#5140F0] focus-visible:ring-offset-2",
+        table: "text-[13px] leading-5",
     },
     upload: {
         dropButton: "border border-dashed",

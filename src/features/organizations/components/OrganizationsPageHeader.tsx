@@ -1,6 +1,7 @@
 import { ArrowLeft, Plus } from "lucide-react";
 import { ContextualBackLink } from "@/features/app-shell/components";
 import { Box, Button, InlineIcon, Text } from "@/lib/ui/atoms";
+import { uiTokens } from "@/lib/ui/tokens";
 
 interface OrganizationsPageHeaderProps {
     onCreateClick: () => void;
@@ -12,16 +13,19 @@ export function OrganizationsPageHeader({
     showCreateButton = true,
 }: OrganizationsPageHeaderProps) {
     return (
-        <Box className="mb-9 flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
-            <Box className="flex items-center gap-7">
+        <Box className={uiTokens.organizations.header.root}>
+            <Box className={uiTokens.organizations.header.titleGroup}>
                 <ContextualBackLink
                     fallbackHref="/"
                     aria-label="Retour"
-                    className="flex h-10 w-10 items-center justify-center rounded-full text-[#171B2A] transition hover:bg-white"
+                    className={uiTokens.organizations.header.back}
                 >
-                    <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
+                    <InlineIcon
+                        icon={ArrowLeft}
+                        className={uiTokens.organizations.header.backIcon}
+                    />
                 </ContextualBackLink>
-                <Text as="h1" className="text-[26px] font-extrabold tracking-[-0.02em] text-[#171B2A]">
+                <Text as="h1" className={uiTokens.organizations.header.title}>
                     Organisations
                 </Text>
             </Box>
@@ -29,9 +33,12 @@ export function OrganizationsPageHeader({
             {showCreateButton && (
                 <Button
                     onClick={onCreateClick}
-                    className="flex h-10 items-center justify-center gap-3 rounded-lg bg-[#5140F0] px-5 text-[14px] font-bold text-white shadow-[0_12px_24px_rgba(81,64,240,0.22)] transition hover:bg-[#4635E7]"
+                    className={uiTokens.organizations.header.create}
                 >
-                    <InlineIcon icon={Plus} className="h-5 w-5" />
+                    <InlineIcon
+                        icon={Plus}
+                        className={uiTokens.organizations.header.createIcon}
+                    />
                     Créer une organisation
                 </Button>
             )}

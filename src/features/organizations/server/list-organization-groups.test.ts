@@ -117,6 +117,26 @@ describe("listOrganizationGroups", () => {
                         data: [{ user_id: "user-a" }, { user_id: "user-b" }, { user_id: "user-b" }],
                         error: null,
                     };
+                case "profiles":
+                    return {
+                        data: [
+                            {
+                                email: "zoe@example.com",
+                                first_name: "Zoé",
+                                id: "user-a",
+                                last_name: "Martin",
+                                name: null,
+                            },
+                            {
+                                email: "adrien@example.com",
+                                first_name: "Adrien",
+                                id: "user-b",
+                                last_name: "Dupont",
+                                name: null,
+                            },
+                        ],
+                        error: null,
+                    };
                 case "scenarios":
                     return {
                         data: [
@@ -149,6 +169,7 @@ describe("listOrganizationGroups", () => {
                 description: "Premier groupe",
                 id: "group-1",
                 memberCount: 1,
+                memberNames: ["Zoé Martin"],
                 name: "Alpha",
                 quizCount: 1,
                 roleplayCount: 2,
@@ -159,6 +180,7 @@ describe("listOrganizationGroups", () => {
                 description: "",
                 id: "group-2",
                 memberCount: 1,
+                memberNames: ["Adrien Dupont"],
                 name: "Beta",
                 quizCount: 2,
                 roleplayCount: 1,
@@ -168,8 +190,10 @@ describe("listOrganizationGroups", () => {
 
         const groupsQuery = recordedQueries.find((query) => query.table === "groups");
         const membershipQuery = recordedQueries.find((query) => query.table === "organization_members");
+        const profilesQuery = recordedQueries.find((query) => query.table === "profiles");
         expect(groupsQuery?.equals).toContainEqual(["status", ORGANIZATION_GROUP_STATUS.active]);
         expect(membershipQuery?.notEquals).toContainEqual(["status", ORGANIZATION_MEMBER_STATUS.removed]);
+        expect(profilesQuery?.select).toBe("id, email, name, first_name, last_name");
 
         for (const table of ["scenarios", "quizzes"]) {
             const contentQuery = recordedQueries.find((query) => query.table === table);

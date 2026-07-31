@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
     createAdminClient: vi.fn(),
     listOrganizationContentScope: vi.fn(),
+    listOrganizationMemberNames: vi.fn(),
     requireAdmin: vi.fn(),
 }));
 
@@ -10,6 +11,9 @@ vi.mock("@/features/auth/server", () => ({ requireAdmin: mocks.requireAdmin }));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: mocks.createAdminClient }));
 vi.mock("./list-organization-content-scope", () => ({
     listOrganizationContentScope: mocks.listOrganizationContentScope,
+}));
+vi.mock("./list-organization-member-names", () => ({
+    listOrganizationMemberNames: mocks.listOrganizationMemberNames,
 }));
 
 import { updateOrganization } from "./update-organization";
@@ -58,6 +62,10 @@ describe("updateOrganization", () => {
                 ["organization-a", { groupCount: 3, quizCount: 5, roleplayCount: 8, userCount: 21 }],
             ]),
         });
+        mocks.listOrganizationMemberNames.mockResolvedValue([
+            "Adrien Dupont",
+            "Zoé Martin",
+        ]);
 
         await expect(updateOrganization("organization-a", {
             contactEmail: "contact@example.com",
@@ -72,9 +80,11 @@ describe("updateOrganization", () => {
             name: "Organisation mise à jour",
             programCount: 8,
             userCount: 21,
+            userNames: ["Adrien Dupont", "Zoé Martin"],
         }));
 
         expect(mocks.listOrganizationContentScope).toHaveBeenCalledWith(client, ["organization-a"]);
+        expect(mocks.listOrganizationMemberNames).toHaveBeenCalledWith(client, "organization-a");
     });
 
     it("does not access Supabase when the actor is not an admin", async () => {

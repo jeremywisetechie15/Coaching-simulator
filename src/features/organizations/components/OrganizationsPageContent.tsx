@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Box } from "@/lib/ui/atoms";
+import { uiTokens } from "@/lib/ui/tokens";
 import { notifyFormSubmitError, notifyFormSubmitSuccess } from "@/lib/ui/feedback/form-submit-feedback";
 import {
     type CreateOrganizationFieldErrors,
@@ -194,8 +195,8 @@ export function OrganizationsPageContent({
     };
 
     return (
-        <Box as="main" className="px-5 pb-12 md:px-9 lg:px-12">
-            <Box className="mx-auto max-w-[1260px]">
+        <Box as="main" className={uiTokens.organizations.page}>
+            <Box className={uiTokens.organizations.container}>
                 <OrganizationsPageHeader onCreateClick={() => setIsCreateModalOpen(true)} />
                 <OrganizationsFilterBar
                     onSearchQueryChange={setSearchQuery}
@@ -204,7 +205,7 @@ export function OrganizationsPageContent({
                     statusFilter={statusFilter}
                 />
                 {organizationsQuery.isError && (
-                    <Box className="mb-5 rounded-lg border border-[#F3C7C7] bg-[#FFF4F4] px-4 py-3 text-[13px] font-semibold text-[#A43A3A]">
+                    <Box className={uiTokens.organizations.error}>
                         {organizationsQuery.error.message}
                     </Box>
                 )}

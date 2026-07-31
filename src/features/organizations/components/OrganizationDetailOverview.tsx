@@ -9,7 +9,9 @@ import {
     Text,
     TextInput,
 } from "@/lib/ui/atoms";
-import { AlertMessage } from "@/lib/ui/molecules";
+import { AlertMessage, PeopleCountTooltip } from "@/lib/ui/molecules";
+import { uiTokens } from "@/lib/ui/tokens";
+import { cn } from "@/lib/ui/utils/cn";
 import type {
     CreateOrganizationFieldErrors,
     CreateOrganizationFormValues,
@@ -37,8 +39,31 @@ interface OrganizationDetailOverviewProps {
 function DetailValue({ label, value }: { label: string; value: string }) {
     return (
         <Box>
-            <Text className="text-[15px] font-extrabold leading-5 text-[#171B2A]">{label}</Text>
-            <Text className="mt-2 text-[15px] font-semibold leading-6 text-[#515A6D]">{value || "-"}</Text>
+            <Text className={uiTokens.organizationDetail.overview.label}>{label}</Text>
+            <Text className={uiTokens.organizationDetail.overview.value}>{value || "-"}</Text>
+        </Box>
+    );
+}
+
+function DetailPeopleCount({
+    count,
+    label,
+    names,
+}: {
+    count: number;
+    label: string;
+    names: readonly string[];
+}) {
+    return (
+        <Box>
+            <Text className={uiTokens.organizationDetail.overview.label}>{label}</Text>
+            <PeopleCountTooltip
+                count={count}
+                names={names}
+                pluralLabel="utilisateurs"
+                singularLabel="utilisateur"
+                variant="detail"
+            />
         </Box>
     );
 }
@@ -48,11 +73,14 @@ function DetailStatus({ status }: { status: OrganizationDetail["status"] }) {
 
     return (
         <Box>
-            <Text className="text-[15px] font-extrabold leading-5 text-[#171B2A]">Statut</Text>
+            <Text className={uiTokens.organizationDetail.overview.label}>Statut</Text>
             <Box
-                className={`mt-2 inline-flex h-8 items-center rounded-lg px-3 text-[13px] font-bold ${
-                    isActive ? "bg-[#DDF8E6] text-[#2A8A41]" : "bg-[#F2F3F6] text-[#4F5868]"
-                }`}
+                className={cn(
+                    uiTokens.organizationDetail.overview.status,
+                    isActive
+                        ? uiTokens.organizationDetail.overview.statusActive
+                        : uiTokens.organizationDetail.overview.statusSuspended,
+                )}
             >
                 {getOrganizationStatusLabel(status)}
             </Box>
@@ -80,8 +108,12 @@ function EditField({
     const errorId = `${id}-error`;
 
     return (
-        <Box className="space-y-2">
-            <FieldLabel required={required} htmlFor={id} className="text-[15px] font-extrabold leading-5 text-[#171B2A]">
+        <Box className={uiTokens.organizationDetail.overview.editField}>
+            <FieldLabel
+                required={required}
+                htmlFor={id}
+                className={uiTokens.organizationDetail.overview.editLabel}
+            >
                 {label}
             </FieldLabel>
             <TextInput
@@ -92,12 +124,16 @@ function EditField({
                 onChange={(event) => onChange(event.target.value)}
                 type={type}
                 value={value}
-                className={`!h-12 rounded-lg border-[#D5D9E2] bg-white px-4 text-[15px] font-semibold shadow-none ${
-                    error ? "border-[#FF4E68] ring-4 ring-[#FF4E68]/10" : ""
-                }`}
+                className={cn(
+                    uiTokens.organizationDetail.overview.editControl,
+                    error && uiTokens.organizationDetail.overview.editControlError,
+                )}
             />
             {error && (
-                <Text id={errorId} className="text-[12px] font-semibold leading-4 text-[#D92D3A]">
+                <Text
+                    id={errorId}
+                    className={uiTokens.organizationDetail.overview.editError}
+                >
                     {error}
                 </Text>
             )}
@@ -131,20 +167,24 @@ function EditSelectField({
     const errorId = `${id}-error`;
 
     return (
-        <Box className="space-y-2">
-            <FieldLabel htmlFor={id} className="text-[15px] font-extrabold leading-5 text-[#171B2A]">
+        <Box className={uiTokens.organizationDetail.overview.editField}>
+            <FieldLabel
+                htmlFor={id}
+                className={uiTokens.organizationDetail.overview.editLabel}
+            >
                 {label}
             </FieldLabel>
-            <Box className="relative">
+            <Box className={uiTokens.organizationDetail.overview.editSelectWrapper}>
                 <SelectInput
                     id={id}
                     aria-describedby={error ? errorId : undefined}
                     aria-invalid={error ? true : undefined}
                     onChange={(event) => onChange(event.target.value)}
                     value={value}
-                    className={`!h-12 rounded-lg border-[#D5D9E2] bg-white px-4 text-[15px] font-semibold shadow-none ${
-                        error ? "border-[#FF4E68] ring-4 ring-[#FF4E68]/10" : ""
-                    }`}
+                    className={cn(
+                        uiTokens.organizationDetail.overview.editControl,
+                        error && uiTokens.organizationDetail.overview.editControlError,
+                    )}
                 >
                     {options.map((option) => (
                         <option key={option.value} value={option.value}>
@@ -154,11 +194,14 @@ function EditSelectField({
                 </SelectInput>
                 <InlineIcon
                     icon={ChevronDown}
-                    className="pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#9EA3AF]"
+                    className={uiTokens.organizationDetail.overview.selectIcon}
                 />
             </Box>
             {error && (
-                <Text id={errorId} className="text-[12px] font-semibold leading-4 text-[#D92D3A]">
+                <Text
+                    id={errorId}
+                    className={uiTokens.organizationDetail.overview.editError}
+                >
                     {error}
                 </Text>
             )}
@@ -190,19 +233,26 @@ export function OrganizationDetailOverview({
     };
 
     return (
-        <FormRoot onSubmit={handleSubmit} className="px-7 py-7" noValidate>
+        <FormRoot
+            onSubmit={handleSubmit}
+            className={uiTokens.organizationDetail.overview.form}
+            noValidate
+        >
             {formError && <AlertMessage message={formError} />}
 
-            <Text as="h2" className="text-[18px] font-extrabold text-[#171B2A]">
+            <Text as="h2" className={uiTokens.organizationDetail.overview.sectionTitle}>
                 Informations de base
             </Text>
 
-            <Box className="mt-7 grid gap-8 lg:grid-cols-[120px_minmax(0,1fr)]">
-                <Box className="flex h-[88px] w-[88px] items-center justify-center rounded-xl bg-[#E7EAFF] text-[#5140F0]">
-                    <InlineIcon icon={Building2} className="h-10 w-10" />
+            <Box className={uiTokens.organizationDetail.overview.baseLayout}>
+                <Box className={uiTokens.organizationDetail.overview.icon}>
+                    <InlineIcon
+                        icon={Building2}
+                        className={uiTokens.organizationDetail.overview.iconGlyph}
+                    />
                 </Box>
 
-                <Box className="grid gap-x-16 gap-y-9 md:grid-cols-2">
+                <Box className={uiTokens.organizationDetail.overview.detailGrid}>
                     {isEditing ? (
                         <>
                             <EditField
@@ -241,15 +291,19 @@ export function OrganizationDetailOverview({
                         <DetailStatus status={organization.status} />
                     )}
                     <DetailValue label="Nombre de groupes" value={`${organization.groupCount} groupes`} />
-                    <DetailValue label="Nombre d'utilisateurs" value={`${organization.userCount} utilisateurs`} />
+                    <DetailPeopleCount
+                        count={organization.userCount}
+                        label="Nombre d'utilisateurs"
+                        names={organization.userNames}
+                    />
                 </Box>
             </Box>
 
-            <Box className="mt-9 border-t border-[#E4E7EE] pt-7">
-                <Text as="h2" className="text-[18px] font-extrabold text-[#171B2A]">
+            <Box className={uiTokens.organizationDetail.overview.section}>
+                <Text as="h2" className={uiTokens.organizationDetail.overview.sectionTitle}>
                     Informations de contact
                 </Text>
-                <Box className="mt-7 grid gap-8 md:grid-cols-2">
+                <Box className={uiTokens.organizationDetail.overview.sectionGrid}>
                     {isEditing ? (
                         <>
                             <EditField
@@ -278,11 +332,11 @@ export function OrganizationDetailOverview({
                 </Box>
             </Box>
 
-            <Box className="mt-9 border-t border-[#E4E7EE] pt-7">
-                <Text as="h2" className="text-[18px] font-extrabold text-[#171B2A]">
+            <Box className={uiTokens.organizationDetail.overview.section}>
+                <Text as="h2" className={uiTokens.organizationDetail.overview.sectionTitle}>
                     Informations géographiques
                 </Text>
-                <Box className="mt-7 grid gap-8 md:grid-cols-2">
+                <Box className={uiTokens.organizationDetail.overview.sectionGrid}>
                     {isEditing ? (
                         <EditSelectField
                             error={fieldErrors.region}

@@ -7,6 +7,7 @@ import {
     type OrganizationDetailRow,
 } from "./organization.mapper";
 import { listOrganizationContentScope } from "./list-organization-content-scope";
+import { listOrganizationMemberNames } from "./list-organization-member-names";
 
 const organizationDetailSelect = "id, name, status, created_at, industry, contact_email, phone, region";
 
@@ -29,13 +30,19 @@ export async function getOrganizationDetail(organizationId: string): Promise<Org
         throw new NotFoundError("Organisation introuvable.");
     }
 
-    const contentScope = await listOrganizationContentScope(supabase, [organizationId]);
+    const [contentScope, userNames] = await Promise.all([
+        listOrganizationContentScope(supabase, [organizationId]),
+        listOrganizationMemberNames(supabase, organizationId),
+    ]);
     const counts = contentScope.countsByOrganizationId.get(organizationId);
 
-    return mapOrganizationRowToDetail({
-        ...data,
-        group_count: counts?.groupCount ?? 0,
-        program_count: counts?.roleplayCount ?? 0,
-        user_count: counts?.userCount ?? 0,
-    });
+    return mapOrganizationRowToDetail(
+        {
+            ...data,
+            group_count: counts?.groupCount ?? 0,
+            program_count: counts?.roleplayCount ?? 0,
+            user_count: counts?.userCount ?? 0,
+        },
+        userNames,
+    );
 }

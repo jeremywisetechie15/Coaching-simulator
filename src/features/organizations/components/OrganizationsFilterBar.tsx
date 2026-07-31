@@ -5,6 +5,7 @@ import {
 } from "@/features/organizations/domain/organization-list";
 import { Box, CardSurface, InlineIcon, TextInput } from "@/lib/ui/atoms";
 import { FilterSelect } from "@/lib/ui/molecules";
+import { uiTokens } from "@/lib/ui/tokens";
 
 interface OrganizationsFilterBarProps {
     onSearchQueryChange: (value: string) => void;
@@ -20,12 +21,12 @@ export function OrganizationsFilterBar({
     statusFilter,
 }: OrganizationsFilterBarProps) {
     return (
-        <CardSurface className="mb-7 rounded-[14px] border border-[#E1E4EB] px-4 py-3 shadow-none md:px-5">
-            <Box className="flex flex-col gap-3 md:flex-row">
-                <Box className="relative min-w-0 flex-1">
+        <CardSurface className={uiTokens.organizations.filter.surface}>
+            <Box className={uiTokens.organizations.filter.layout}>
+                <Box className={uiTokens.organizations.filter.search}>
                     <InlineIcon
                         icon={Search}
-                        className="pointer-events-none absolute left-4 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-[#99A1B2]"
+                        className={uiTokens.organizations.filter.searchIcon}
                     />
                     <TextInput
                         aria-label="Rechercher une entreprise"
@@ -33,12 +34,13 @@ export function OrganizationsFilterBar({
                         value={searchQuery}
                         onChange={(event) => onSearchQueryChange(event.target.value)}
                         hasLeadingIcon={false}
-                        className="h-10 rounded-lg border-[#E1E4EB] bg-[#FBFCFE] pl-11 text-[14px] font-normal text-[#171B2A] shadow-none placeholder:text-[#82899A] focus:bg-white focus:ring-2"
+                        className={uiTokens.organizations.filter.searchInput}
                     />
                 </Box>
 
-                <Box className="min-w-[180px]">
+                <Box className={uiTokens.organizations.filter.status}>
                     <FilterSelect
+                        appearance="library"
                         ariaLabel="Filtrer les organisations par statut"
                         onChange={(value) => onStatusFilterChange(value as OrganizationStatusFilter)}
                         options={ORGANIZATION_STATUS_FILTER_OPTIONS}

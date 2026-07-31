@@ -118,6 +118,34 @@ describe("organization activity lists", () => {
                     error: null,
                 };
             }
+            if (query.table === "profiles") {
+                return {
+                    data: [
+                        {
+                            email: "zoe@example.com",
+                            first_name: "Zoé",
+                            id: "member-a",
+                            last_name: "Martin",
+                            name: null,
+                        },
+                        {
+                            email: "adrien@example.com",
+                            first_name: "Adrien",
+                            id: "member-b",
+                            last_name: "Dupont",
+                            name: null,
+                        },
+                        {
+                            email: "paul@example.com",
+                            first_name: "Paul",
+                            id: "member-c",
+                            last_name: "Bernard",
+                            name: null,
+                        },
+                    ],
+                    error: null,
+                };
+            }
             if (query.table === "group_members") {
                 return {
                     data: [
@@ -251,6 +279,13 @@ describe("organization activity lists", () => {
         expect(result.find((row) => row.id === "scenario-invited")?.groupName).toBe("Utilisateur spécifique");
         expect(result.find((row) => row.id === "scenario-organization")?.groupName).toBe("Toute l'organisation");
         expect(result.find((row) => row.id === "scenario-organization")?.persona).toBe("Camille");
+        expect(result.find((row) => row.id === "scenario-group")?.learnerNames).toEqual([
+            "Adrien Dupont",
+            "Zoé Martin",
+        ]);
+        expect(result.find((row) => row.id === "scenario-explicit")?.learnerNames).toEqual([
+            "Paul Bernard",
+        ]);
 
         const memberQuery = recordedQueries.find((query) => query.table === "organization_members");
         const groupQuery = recordedQueries.find((query) => query.table === "groups");
@@ -291,6 +326,34 @@ describe("organization activity lists", () => {
                     error: null,
                 };
             }
+            if (query.table === "profiles") {
+                return {
+                    data: [
+                        {
+                            email: "zoe@example.com",
+                            first_name: "Zoé",
+                            id: "member-a",
+                            last_name: "Martin",
+                            name: null,
+                        },
+                        {
+                            email: "adrien@example.com",
+                            first_name: "Adrien",
+                            id: "member-b",
+                            last_name: "Dupont",
+                            name: null,
+                        },
+                        {
+                            email: "paul@example.com",
+                            first_name: "Paul",
+                            id: "member-c",
+                            last_name: "Bernard",
+                            name: null,
+                        },
+                    ],
+                    error: null,
+                };
+            }
             if (query.table === "group_members") {
                 return {
                     data: [
@@ -302,7 +365,11 @@ describe("organization activity lists", () => {
             }
             if (query.table === "quiz_user_assignments") {
                 return {
-                    data: [{ quiz_id: "quiz-explicit", user_id: "member-c" }],
+                    data: [{
+                        assigned_at: "2026-07-18T12:00:00.000Z",
+                        quiz_id: "quiz-explicit",
+                        user_id: "member-c",
+                    }],
                     error: null,
                 };
             }
@@ -425,10 +492,26 @@ describe("organization activity lists", () => {
             { id: "quiz-organization", learnerCount: 3, status: "in_progress" },
             { id: "quiz-group", learnerCount: 2, status: "completed" },
         ]);
+        expect(result.map(({ assignedAt, id }) => ({ assignedAt, id }))).toEqual([
+            { assignedAt: "16 juillet 2026", id: "quiz-method" },
+            { assignedAt: "16 juillet 2026", id: "quiz-linked" },
+            { assignedAt: "18 juillet 2026", id: "quiz-explicit" },
+            { assignedAt: "14 juillet 2026", id: "quiz-organization" },
+            { assignedAt: "13 juillet 2026", id: "quiz-group" },
+        ]);
+        expect(result.find((row) => row.id === "quiz-group")?.learnerNames).toEqual([
+            "Adrien Dupont",
+            "Zoé Martin",
+        ]);
+        expect(result.find((row) => row.id === "quiz-explicit")?.learnerNames).toEqual([
+            "Paul Bernard",
+        ]);
 
         const attemptsQuery = recordedQueries.find((query) => query.table === "quiz_attempts");
+        const assignmentsQuery = recordedQueries.find((query) => query.table === "quiz_user_assignments");
         const quizQueries = recordedQueries.filter((query) => query.table === "quizzes");
         const targetedUserIds = attemptsQuery?.inFilters.find(([column]) => column === "user_id")?.[1];
+        expect(assignmentsQuery?.select).toBe("quiz_id, user_id, assigned_at");
         expect(new Set(targetedUserIds)).toEqual(new Set(["member-a", "member-b", "member-c"]));
         for (const query of quizQueries) {
             expect(query.equals).toContainEqual(["status", CONTENT_STATUS.published]);
@@ -479,6 +562,7 @@ describe("organization activity lists", () => {
             groupName: "Toute l'organisation",
             id: "scenario-organization",
             learnerCount: 0,
+            learnerNames: [],
             persona: "Persona",
             status: "not_started",
             title: "Organisation suspendue",

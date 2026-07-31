@@ -11,6 +11,10 @@ import {
 import { ORGANIZATION_MEMBER_STATUS } from "@/features/organizations/domain/organization-member";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { mapOrganizationGroupRow, type OrganizationGroupDbRow } from "./organization-group.mapper";
+import {
+    getOrganizationUserDisplayName,
+    type OrganizationUserProfileDbRow,
+} from "./list-organization-users";
 
 interface GroupMemberCountRow {
     group_id: string | null;
@@ -26,7 +30,7 @@ interface GroupContentCountRow {
     id: string;
 }
 
-function countRosterMembersByGroupId(
+function indexRosterMemberIdsByGroupId(
     rows: GroupMemberCountRow[],
     rosterUserIds: ReadonlySet<string>,
 ) {
@@ -43,7 +47,10 @@ function countRosterMembersByGroupId(
     }
 
     return new Map(
-        Array.from(userIdsByGroupId, ([groupId, userIds]) => [groupId, userIds.size]),
+        Array.from(userIdsByGroupId, ([groupId, userIds]) => [
+            groupId,
+            Array.from(userIds),
+        ]),
     );
 }
 
@@ -139,16 +146,46 @@ export async function listOrganizationGroups(organizationId: string): Promise<Or
             .map((membership) => membership.user_id)
             .filter((userId): userId is string => Boolean(userId)),
     );
-    const memberCounts = countRosterMembersByGroupId(membersResult.data ?? [], rosterUserIds);
+    const groupedRosterUserIds = Array.from(new Set(
+        (membersResult.data ?? [])
+            .flatMap((member) =>
+                member.user_id && rosterUserIds.has(member.user_id) ? [member.user_id] : [],
+            ),
+    ));
+    const profilesResult = groupedRosterUserIds.length > 0
+        ? await supabase
+              .from("profiles")
+              .select("id, email, name, first_name, last_name")
+              .in("id", groupedRosterUserIds)
+              .returns<OrganizationUserProfileDbRow[]>()
+        : { data: [] as OrganizationUserProfileDbRow[], error: null };
+
+    if (profilesResult.error) {
+        throw profilesResult.error;
+    }
+
+    const profilesById = new Map(
+        (profilesResult.data ?? []).map((profile) => [profile.id, profile]),
+    );
+    const memberIdsByGroupId = indexRosterMemberIdsByGroupId(
+        membersResult.data ?? [],
+        rosterUserIds,
+    );
     const roleplayCounts = countUniqueContentByGroupId(roleplaysResult.data ?? []);
     const quizCounts = countUniqueContentByGroupId(quizzesResult.data ?? []);
 
-    return (groups ?? []).map((group) =>
-        mapOrganizationGroupRow(
+    return (groups ?? []).map((group) => {
+        const memberIds = memberIdsByGroupId.get(group.id) ?? [];
+        const memberNames = memberIds
+            .map((userId) => getOrganizationUserDisplayName(profilesById.get(userId)))
+            .sort((first, second) => first.localeCompare(second, "fr-FR"));
+
+        return mapOrganizationGroupRow(
             group,
-            memberCounts.get(group.id) ?? 0,
+            memberIds.length,
             roleplayCounts.get(group.id) ?? 0,
             quizCounts.get(group.id) ?? 0,
-        ),
-    );
+            memberNames,
+        );
+    });
 }

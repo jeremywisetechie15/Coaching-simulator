@@ -20,6 +20,7 @@ const organization = {
     region: "France",
     status: "active",
     userCount: 2,
+    userNames: ["Adrien Dupont", "Zoé Martin"],
 } satisfies OrganizationDetail;
 
 const users = [

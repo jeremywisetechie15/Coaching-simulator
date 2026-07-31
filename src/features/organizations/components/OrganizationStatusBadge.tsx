@@ -3,28 +3,22 @@ import {
     getOrganizationStatusLabel,
     type OrganizationStatus,
 } from "@/features/organizations/domain/organization-list";
+import { uiTokens } from "@/lib/ui/tokens";
+import { cn } from "@/lib/ui/utils/cn";
 
 interface OrganizationStatusBadgeProps {
     status: OrganizationStatus;
 }
 
 const statusStyles = {
-    active: {
-        className: "bg-[#DDF8E6] text-[#2A8A41]",
-    },
-    suspended: {
-        className: "bg-[#F2F3F6] text-[#4F5868]",
-    },
+    active: uiTokens.organizations.status.active,
+    suspended: uiTokens.organizations.status.suspended,
 };
 
 export function OrganizationStatusBadge({ status }: OrganizationStatusBadgeProps) {
-    const style = statusStyles[status];
-
     return (
-        <Box
-            className={`inline-flex h-8 min-w-[66px] items-center justify-center rounded-lg px-3 ${style.className}`}
-        >
-            <Text as="span" className="text-[13px] font-semibold leading-none">
+        <Box className={cn(uiTokens.organizations.status.base, statusStyles[status])}>
+            <Text as="span">
                 {getOrganizationStatusLabel(status)}
             </Text>
         </Box>

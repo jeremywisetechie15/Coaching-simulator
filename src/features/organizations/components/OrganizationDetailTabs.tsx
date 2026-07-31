@@ -1,4 +1,6 @@
 import { Box, Button, Text } from "@/lib/ui/atoms";
+import { uiTokens } from "@/lib/ui/tokens";
+import { cn } from "@/lib/ui/utils/cn";
 
 export type OrganizationDetailTab = "overview" | "groups" | "users" | "roleplays" | "evaluations";
 
@@ -17,25 +19,28 @@ export const ORGANIZATION_DETAIL_TABS: Array<{ label: string; value: Organizatio
 
 export function OrganizationDetailTabs({ activeTab, onTabChange }: OrganizationDetailTabsProps) {
     return (
-        <Box className="flex overflow-x-auto border-b border-[#E4E7EE] px-6">
-            {ORGANIZATION_DETAIL_TABS.map((tab) => {
-                const isActive = activeTab === tab.value;
+        <Box className={uiTokens.organizationDetail.tabs.scroll}>
+            <Box className={uiTokens.organizationDetail.tabs.list}>
+                {ORGANIZATION_DETAIL_TABS.map((tab) => {
+                    const isActive = activeTab === tab.value;
 
-                return (
-                    <Button
-                        key={tab.value}
-                        onClick={() => onTabChange(tab.value)}
-                        className={`relative flex h-[58px] shrink-0 items-center px-5 text-[15px] font-bold transition ${
-                            isActive ? "text-[#5140F0]" : "text-[#6F7787] hover:text-[#171B2A]"
-                        }`}
-                    >
-                        <Text as="span">{tab.label}</Text>
-                        {isActive && (
-                            <Box className="absolute bottom-0 left-5 right-5 h-[3px] rounded-full bg-[#5140F0]" />
-                        )}
-                    </Button>
-                );
-            })}
+                    return (
+                        <Button
+                            key={tab.value}
+                            aria-pressed={isActive}
+                            onClick={() => onTabChange(tab.value)}
+                            className={cn(
+                                uiTokens.organizationDetail.tabs.item,
+                                isActive
+                                    ? uiTokens.organizationDetail.tabs.active
+                                    : uiTokens.organizationDetail.tabs.idle,
+                            )}
+                        >
+                            <Text as="span">{tab.label}</Text>
+                        </Button>
+                    );
+                })}
+            </Box>
         </Box>
     );
 }

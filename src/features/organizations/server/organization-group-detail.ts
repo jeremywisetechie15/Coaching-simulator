@@ -90,6 +90,9 @@ export interface OrganizationGroupPageData {
     roleplays: OrganizationRoleplayRow[];
 }
 
+type GroupEvaluationActivityRow = Omit<OrganizationEvaluationRow, "learnerNames">;
+type GroupRoleplayActivityRow = Omit<OrganizationRoleplayRow, "learnerNames">;
+
 function isPostgresError(error: unknown): error is { code?: string } {
     return typeof error === "object" && error !== null && "code" in error;
 }
@@ -120,9 +123,16 @@ function mapGroupDetail(
     memberCount: number,
     roleplayCount: number,
     quizCount: number,
+    memberNames: string[],
 ): OrganizationGroupDetail {
     return {
-        ...mapOrganizationGroupRow(group, memberCount, roleplayCount, quizCount),
+        ...mapOrganizationGroupRow(
+            group,
+            memberCount,
+            roleplayCount,
+            quizCount,
+            memberNames,
+        ),
         organizationId: organization.id,
         organizationName: organization.name ?? "Organisation",
     };
@@ -259,7 +269,7 @@ async function listGroupRoleplays(
     groupId: string,
     groupName: string,
     learnerIds: string[],
-): Promise<OrganizationRoleplayRow[]> {
+): Promise<GroupRoleplayActivityRow[]> {
     const { data: scenarios, error } = await supabase
         .from("scenarios")
         .select("id, title, persona_id, created_at")
@@ -327,7 +337,7 @@ async function listGroupEvaluations(
     groupId: string,
     groupName: string,
     memberIds: string[],
-): Promise<OrganizationEvaluationRow[]> {
+): Promise<GroupEvaluationActivityRow[]> {
     const { data: quizzes, error } = await supabase
         .from("quizzes")
         .select("id, title, quiz_type, created_at")
@@ -393,15 +403,29 @@ export async function getOrganizationGroupPageData(
         organization.status,
         groupId,
     );
-    const [members, roleplays, evaluations] = await Promise.all([
+    const [members, roleplayRows, evaluationRows] = await Promise.all([
         listGroupMembers(supabase, organizationId, groupId, rosterMemberIds),
         listGroupRoleplays(supabase, groupId, group.name, activeMemberIds),
         listGroupEvaluations(supabase, groupId, group.name, activeMemberIds),
     ]);
+    const memberNamesById = new Map(members.map((member) => [member.id, member.name]));
+    const learnerNames = activeMemberIds
+        .map((userId) => memberNamesById.get(userId) ?? "Utilisateur")
+        .sort((first, second) => first.localeCompare(second, "fr-FR"));
+    const roleplays = roleplayRows.map((roleplay) => ({ ...roleplay, learnerNames }));
+    const evaluations = evaluationRows.map((evaluation) => ({ ...evaluation, learnerNames }));
+    const memberNames = members.map((member) => member.name);
 
     return {
         evaluations,
-        group: mapGroupDetail(group, organization, members.length, roleplays.length, evaluations.length),
+        group: mapGroupDetail(
+            group,
+            organization,
+            members.length,
+            roleplays.length,
+            evaluations.length,
+            memberNames,
+        ),
         members,
         roleplays,
     };

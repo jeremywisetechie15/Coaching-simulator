@@ -37,7 +37,7 @@ function uniqueValues(values: Array<string | null | undefined>) {
     return Array.from(new Set(values.filter((value): value is string => Boolean(value))));
 }
 
-function getDisplayName(profile: OrganizationUserProfileDbRow | undefined) {
+export function getOrganizationUserDisplayName(profile: OrganizationUserProfileDbRow | undefined) {
     const fullName = `${profile?.first_name ?? ""} ${profile?.last_name ?? ""}`.trim();
 
     return fullName || profile?.name || profile?.email?.split("@")[0] || "Utilisateur";
@@ -73,7 +73,7 @@ export function mapOrganizationUserRows(
 
             const profile = profilesById.get(membership.user_id);
             const email = profile?.email ?? "";
-            const name = getDisplayName(profile);
+            const name = getOrganizationUserDisplayName(profile);
             const role = isOrganizationMemberRole(membership.role)
                 ? getOrganizationMemberRoleLabel(membership.role)
                 : getOrganizationMemberRoleLabel(ORGANIZATION_MEMBER_ROLE.member);
