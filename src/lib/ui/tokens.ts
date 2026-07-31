@@ -739,6 +739,15 @@ export const uiTokens = {
             selectIcon:
                 "pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#9CA3AF]",
         },
+        groupOverview: {
+            error:
+                "rounded-lg border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 text-[13px] font-medium text-[#B91C1C] md:col-span-2",
+            fullSpan: "md:col-span-2",
+            grid: "grid gap-6 md:grid-cols-2",
+            readGrid: "grid gap-6 p-6 md:grid-cols-2",
+            textArea:
+                "min-h-[112px] w-full resize-none rounded-lg border border-[#D1D5DB] bg-white px-3 py-2.5 text-[14px] font-normal leading-5 text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#4F46E5] focus:ring-2 focus:ring-[#4F46E5]/15",
+        },
         table: {
             row: "border-b border-[#E5E7EB] last:border-b-0",
             companyLayout: "flex items-center gap-3",
