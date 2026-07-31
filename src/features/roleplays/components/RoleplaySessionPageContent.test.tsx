@@ -47,7 +47,7 @@ const roleplay: RoleplayItem = {
 };
 
 describe("RoleplaySessionPageContent", () => {
-    it("shows the real preparation-note count in the recommendation panel", () => {
+    it("shows every roleplay note regardless of when it was created", () => {
         const html = renderToStaticMarkup(
             <RoleplaySessionPageContent
                 noteGroups={[
@@ -93,8 +93,8 @@ describe("RoleplaySessionPageContent", () => {
             />,
         );
 
-        expect(html).toContain("Notes de préparation");
-        expect(html).toContain(">2</span>");
-        expect(html).not.toContain("Voir les notes de préparation");
+        expect(html).toContain("Notes du roleplay");
+        expect(html).toContain(">3</span>");
+        expect(html).not.toContain("Notes de préparation");
     });
 });

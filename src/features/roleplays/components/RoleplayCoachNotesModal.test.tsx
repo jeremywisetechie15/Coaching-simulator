@@ -28,6 +28,7 @@ describe("RoleplayCoachNotesModal", () => {
             <RoleplayCoachNotesModal
                 groups={groups}
                 onClose={vi.fn()}
+                roleplayId="2c31c5c6-761e-4a5f-9770-35ddc9edf4c6"
                 title="Mes notes de préparation"
             />,
         );
@@ -35,9 +36,10 @@ describe("RoleplayCoachNotesModal", () => {
         expect(html).toContain("Mes notes de préparation");
         expect(html).toContain("1 note enregistrée");
         expect(html).toContain("Étape 1 · Démarrer l&#x27;appel");
-        expect(html).toContain("Préparation");
+        expect(html).toContain("Dernière modification le");
         expect(html).toContain("29 juillet 2026");
         expect(html).toContain("Conserver une accroche courte.");
+        expect(html).toContain("aria-label=\"Modifier la note\"");
         expect(html).not.toContain("Session enregistrée");
     });
 
@@ -46,6 +48,7 @@ describe("RoleplayCoachNotesModal", () => {
             <RoleplayCoachNotesModal
                 groups={[]}
                 onClose={vi.fn()}
+                roleplayId="2c31c5c6-761e-4a5f-9770-35ddc9edf4c6"
                 title="Mes notes"
             />,
         );

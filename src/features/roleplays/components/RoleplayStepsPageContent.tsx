@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Lightbulb, NotebookPen } from "lucide-react";
 import { ContextualBackLink, ContextualLink } from "@/features/app-shell/components";
 import { DiscProfileBadge } from "@/features/content/components";
@@ -11,9 +11,9 @@ import { difficultyBadgeStyles } from "@/features/roleplays/data/roleplays";
 import type { Method } from "@/features/methods/data/methods";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import {
-    ROLEPLAY_COACH_MODE,
     ROLEPLAY_ROUTES,
     countRoleplayCoachNotes,
+    replaceRoleplayCoachNoteGroup,
     type RoleplayCoachNoteGroup,
 } from "@/features/roleplays/domain";
 import { getCoachInitials } from "@/features/coaches/domain/coach-list";
@@ -48,14 +48,15 @@ export function RoleplayStepsPageContent({
     const verb = isImprove ? "S'améliorer" : "Se préparer";
     const coachName = roleplay.coachName?.trim() || "Coach IA";
     const coachAvatarSrc = roleplay.coachAvatarSrc?.trim() || "";
+    const [savedNoteGroups, setSavedNoteGroups] = useState(noteGroups);
     const [activeNotesStepOrder, setActiveNotesStepOrder] = useState<number | null>(null);
-    const coachMode = isImprove
-        ? ROLEPLAY_COACH_MODE.afterTraining
-        : ROLEPLAY_COACH_MODE.beforeTraining;
-    const visibleNoteGroups = noteGroups.filter((group) => group.coachMode === coachMode);
     const stepSuffix = isImprove
         ? `?coach=after${referenceSessionId ? `&sessionId=${encodeURIComponent(referenceSessionId)}` : ""}`
         : "";
+
+    useEffect(() => {
+        setSavedNoteGroups(noteGroups);
+    }, [noteGroups]);
 
     return (
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
@@ -126,7 +127,7 @@ export function RoleplayStepsPageContent({
                         {method.steps.map((step, index) => {
                             const palette = stepPalette[index % stepPalette.length];
                             const stepNumber = index + 1;
-                            const stepNoteGroups = visibleNoteGroups.filter((group) =>
+                            const stepNoteGroups = savedNoteGroups.filter((group) =>
                                 step.id
                                     ? group.methodStepId === step.id
                                     : group.stepOrder === stepNumber,
@@ -195,10 +196,14 @@ export function RoleplayStepsPageContent({
 
             {activeNotesStepOrder !== null && (
                 <RoleplayCoachNotesModal
-                    groups={visibleNoteGroups.filter((group) =>
+                    groups={savedNoteGroups.filter((group) =>
                         group.stepOrder === activeNotesStepOrder,
                     )}
                     onClose={() => setActiveNotesStepOrder(null)}
+                    onGroupSaved={(group) => setSavedNoteGroups((current) =>
+                        replaceRoleplayCoachNoteGroup(current, group)
+                    )}
+                    roleplayId={roleplay.id}
                     title={`Mes notes - ${method.steps[activeNotesStepOrder - 1]?.title ?? `Étape ${activeNotesStepOrder}`}`}
                 />
             )}

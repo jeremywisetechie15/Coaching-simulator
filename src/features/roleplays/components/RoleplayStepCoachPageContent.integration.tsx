@@ -147,33 +147,40 @@ describe("RoleplayStepsPageContent", () => {
         expect(html).not.toContain("Commencer l&#x27;entraînement complet");
     });
 
-    it("shows the real saved-note count on the matching preparation step", () => {
+    it("shows the saved-note count from every coach mode on the matching step", () => {
         const html = renderToStaticMarkup(
             <RoleplayStepsPageContent
                 method={method}
-                noteGroups={[{
-                    coachMode: "before_training",
-                    methodStepId: null,
-                    notes: [
-                        {
+                noteGroups={[
+                    {
+                        coachMode: "before_training",
+                        methodStepId: null,
+                        notes: [{
                             content: "Note 1",
                             createdAt: "2026-07-29T14:09:00.000Z",
                             id: "cb27bd22-4207-40aa-92ba-64d01965616f",
                             sourceMessageId: null,
                             type: "key_point",
-                        },
-                        {
+                        }],
+                        savedAt: "2026-07-29T14:09:00.000Z",
+                        stepOrder: 1,
+                        stepTitle: "Ouverture",
+                    },
+                    {
+                        coachMode: "after_training",
+                        methodStepId: null,
+                        notes: [{
                             content: "Note 2",
                             createdAt: "2026-07-29T14:10:00.000Z",
                             id: "5f25b537-5249-421f-a46a-c851594b84ba",
                             sourceMessageId: null,
                             type: "suggestion",
-                        },
-                    ],
-                    savedAt: "2026-07-29T14:10:00.000Z",
-                    stepOrder: 1,
-                    stepTitle: "Ouverture",
-                }]}
+                        }],
+                        savedAt: "2026-07-29T14:10:00.000Z",
+                        stepOrder: 1,
+                        stepTitle: "Ouverture",
+                    },
+                ]}
                 roleplay={roleplay}
             />,
         );

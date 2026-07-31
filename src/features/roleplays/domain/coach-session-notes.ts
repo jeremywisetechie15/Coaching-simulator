@@ -66,8 +66,76 @@ export interface RoleplayCoachNoteGroup {
     stepTitle: string;
 }
 
+export interface RoleplayCoachNoteStepEntry {
+    group: RoleplayCoachNoteGroup;
+    note: RoleplayCoachNote;
+}
+
+export interface RoleplayCoachNotesStepGroup {
+    entries: RoleplayCoachNoteStepEntry[];
+    savedAt: string;
+    stepOrder: number;
+    stepTitle: string;
+}
+
 export function countRoleplayCoachNotes(groups: RoleplayCoachNoteGroup[]) {
     return groups.reduce((total, group) => total + group.notes.length, 0);
+}
+
+export function groupRoleplayCoachNotesByStep(
+    groups: RoleplayCoachNoteGroup[],
+): RoleplayCoachNotesStepGroup[] {
+    const groupedByStep = new Map<number, RoleplayCoachNotesStepGroup>();
+
+    for (const group of groups) {
+        const entries = group.notes.map((note) => ({ group, note }));
+        const current = groupedByStep.get(group.stepOrder);
+
+        if (!current) {
+            groupedByStep.set(group.stepOrder, {
+                entries,
+                savedAt: group.savedAt,
+                stepOrder: group.stepOrder,
+                stepTitle: group.stepTitle,
+            });
+            continue;
+        }
+
+        current.entries.push(...entries);
+        if (new Date(group.savedAt).getTime() > new Date(current.savedAt).getTime()) {
+            current.savedAt = group.savedAt;
+        }
+    }
+
+    return [...groupedByStep.values()].sort((left, right) => left.stepOrder - right.stepOrder);
+}
+
+export function updateRoleplayCoachNote(
+    group: RoleplayCoachNoteGroup,
+    noteId: string,
+    updates: Pick<RoleplayCoachNote, "content" | "type">,
+): RoleplayCoachNoteGroup {
+    return {
+        ...group,
+        notes: group.notes.map((note) => note.id === noteId ? { ...note, ...updates } : note),
+    };
+}
+
+export function replaceRoleplayCoachNoteGroup(
+    groups: RoleplayCoachNoteGroup[],
+    nextGroup: RoleplayCoachNoteGroup,
+) {
+    const hasMatchingGroup = groups.some(
+        (group) => group.coachMode === nextGroup.coachMode && group.stepOrder === nextGroup.stepOrder,
+    );
+
+    if (!hasMatchingGroup) return [...groups, nextGroup];
+
+    return groups.map((group) =>
+        group.coachMode === nextGroup.coachMode && group.stepOrder === nextGroup.stepOrder
+            ? nextGroup
+            : group,
+    );
 }
 
 export function formatRoleplayCoachMessageTime(value: string) {

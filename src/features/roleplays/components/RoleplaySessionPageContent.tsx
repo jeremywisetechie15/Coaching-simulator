@@ -34,11 +34,11 @@ import { cn } from "@/lib/ui/utils/cn";
 import {
     getRoleplayNotationApiErrorMessage,
     isRoleplaySessionLifecycleEvent,
-    ROLEPLAY_COACH_MODE,
     ROLEPLAY_NOTATION_FEEDBACK_MESSAGES,
     ROLEPLAY_ROUTES,
     ROLEPLAY_SESSION_LIFECYCLE_STATUS,
     countRoleplayCoachNotes,
+    replaceRoleplayCoachNoteGroup,
     type RoleplaySessionLifecycleStatus,
     type RoleplayCoachNoteGroup,
 } from "@/features/roleplays/domain";
@@ -79,6 +79,7 @@ export function RoleplaySessionPageContent({
     const iframeRef = useRef<HTMLIFrameElement | null>(null);
     const [documentsOpen, setDocumentsOpen] = useState(false);
     const [notesOpen, setNotesOpen] = useState(false);
+    const [savedNoteGroups, setSavedNoteGroups] = useState(noteGroups);
     const [analysisStep, setAnalysisStep] = useState<number | null>(null);
     const [completedSessionId, setCompletedSessionId] = useState<string | null>(null);
     const [sessionLifecycleStatus, setSessionLifecycleStatus] = useState<RoleplaySessionLifecycleStatus | null>(null);
@@ -86,11 +87,12 @@ export function RoleplaySessionPageContent({
     const { detail } = roleplay;
     const difficultyStyle = difficultyBadgeStyles[roleplay.difficulty];
     const prepDocuments = roleplay.prepDocuments ?? [];
-    const preparationNoteGroups = noteGroups.filter(
-        (group) => group.coachMode === ROLEPLAY_COACH_MODE.beforeTraining,
-    );
-    const preparationNoteCount = countRoleplayCoachNotes(preparationNoteGroups);
+    const roleplayNoteCount = countRoleplayCoachNotes(savedNoteGroups);
     const analyzing = analysisStep !== null;
+
+    useEffect(() => {
+        setSavedNoteGroups(noteGroups);
+    }, [noteGroups]);
 
     // Embarque le runtime public existant sans le modifier (contrat iframe public).
     const iframeSrc = roleplay.scenarioId ? `/iframe?scenario_id=${roleplay.scenarioId}` : null;
@@ -362,9 +364,9 @@ export function RoleplaySessionPageContent({
                                 >
                                     <Box className="flex items-center gap-2.5">
                                         <InlineIcon icon={NotebookPen} className={uiTokens.session.panelHeaderIcon} />
-                                        Notes de préparation
+                                        Notes du roleplay
                                         <Text as="span" className={uiTokens.session.countBadge}>
-                                            {preparationNoteCount}
+                                            {roleplayNoteCount}
                                         </Text>
                                     </Box>
                                     <InlineIcon icon={ExternalLink} className="h-4 w-4 text-[#9CA3AF]" />
@@ -380,9 +382,13 @@ export function RoleplaySessionPageContent({
             )}
             {notesOpen && (
                 <RoleplayCoachNotesModal
-                    groups={preparationNoteGroups}
+                    groups={savedNoteGroups}
                     onClose={() => setNotesOpen(false)}
-                    title="Mes notes de préparation"
+                    onGroupSaved={(group) => setSavedNoteGroups((current) =>
+                        replaceRoleplayCoachNoteGroup(current, group)
+                    )}
+                    roleplayId={roleplay.id}
+                    title="Mes notes du roleplay"
                 />
             )}
 

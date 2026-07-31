@@ -1463,7 +1463,19 @@ export const uiTokens = {
             },
         },
         viewer: {
+            cancelEditButton:
+                "inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#D5D7DE] bg-white px-3 text-[12px] font-bold text-[#4B5563] transition hover:bg-[#F8F9FC] disabled:cursor-not-allowed disabled:opacity-60",
+            editActions: "flex shrink-0 items-center justify-end gap-2",
+            editButton:
+                "ml-auto flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-transparent text-[#9CA3AF] transition hover:border-[#D5D7DE] hover:bg-white hover:text-[#5140F0] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0] disabled:cursor-not-allowed disabled:opacity-50",
+            editFooter: "flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between",
+            editForm: "space-y-3",
+            editIcon: "h-3.5 w-3.5",
+            editSelect: "w-full bg-white sm:max-w-[180px]",
+            editTextarea:
+                "min-h-[112px] resize-y border-[#C9C2FB] bg-white text-[13px] font-medium leading-5 text-[#374151] focus:ring-[#5140F0]",
             empty: "rounded-xl border border-[#E5E7EB] bg-[#F8F9FC] px-5 py-8 text-center text-[13px] font-semibold text-[#9CA3AF]",
+            feedback: "min-h-5 text-center text-[12px] font-semibold text-[#6B7280]",
             group: "rounded-[14px] border border-[#E5E7EB] bg-white p-4",
             groupHeader: "flex min-w-0 items-start gap-3 border-b border-[#ECEEF3] pb-3",
             groupIcon: "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#EEF0FE] text-[#5140F0]",
@@ -1472,8 +1484,11 @@ export const uiTokens = {
             groupTitle: "text-[14px] font-extrabold leading-5 text-[#111827]",
             list: "max-h-[min(64vh,620px)] space-y-3 overflow-y-auto pr-1",
             note: "rounded-[10px] border p-3",
+            noteHeader: "flex min-w-0 items-center gap-2",
             noteText: "mt-2 whitespace-pre-wrap text-[13px] font-medium leading-5 text-[#374151]",
             notes: "space-y-2.5 pt-3",
+            saveEditButton:
+                "inline-flex h-9 items-center justify-center gap-1.5 rounded-lg bg-[#5140F0] px-3 text-[12px] font-bold text-white transition hover:bg-[#4433D8] disabled:cursor-not-allowed disabled:bg-[#B9B2F8]",
         },
     },
     transcript: {
