@@ -11,23 +11,18 @@ import {
     METHOD_STEP_SECTION_LABELS,
     type MethodStepSection,
 } from "@/features/methods/domain/method";
-import type { TranscriptMessage } from "@/features/roleplays/data/evaluation";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import {
     ROLEPLAY_COACH_MODE,
-    ROLEPLAY_COACH_NOTE_TYPE,
-    ROLEPLAY_ROUTES,
     appendRoleplayLiveTranscriptMessage,
     isMatchingRoleplayLiveTranscriptEvent,
     toRoleplayTranscriptMessages,
-    type RoleplayCoachNote,
-    type RoleplayCoachNoteType,
     type RoleplayLiveTranscriptMessage,
 } from "@/features/roleplays/domain";
-import { notify } from "@/lib/ui/feedback/toast";
 import { SimulationView } from "./SimulationView";
 import { MeetingNotesPanel } from "./MeetingNotesPanel";
 import { RoleplayGuidanceTabsPanel, type RoleplayGuidanceTabTone } from "./RoleplayGuidanceTabsPanel";
+import { useRoleplayMeetingNotes } from "./useRoleplayMeetingNotes";
 
 /** « prepare » = avant la session (before_training) ; « improve » = après, depuis l'évaluation (after_training). */
 export type StepCoachVariant = "prepare" | "improve";
@@ -87,13 +82,6 @@ export function RoleplayStepCoachPageContent({
 }: RoleplayStepCoachPageContentProps) {
     const router = useRouter();
     const [coachTranscript, setCoachTranscript] = useState<RoleplayLiveTranscriptMessage[]>([]);
-    const [notes, setNotes] = useState<RoleplayCoachNote[]>([]);
-    const [noteDraft, setNoteDraft] = useState("");
-    const [noteType, setNoteType] = useState<RoleplayCoachNoteType>(ROLEPLAY_COACH_NOTE_TYPE.keyPoint);
-    const [isLoadingNotes, setIsLoadingNotes] = useState(true);
-    const [isSavingNotes, setIsSavingNotes] = useState(false);
-    const [savedNotesSignature, setSavedNotesSignature] = useState("[]");
-    const [saveFeedback, setSaveFeedback] = useState("");
 
     const tipItems: Record<MethodStepSection, string[]> = {
         [METHOD_STEP_SECTION.objectives]: step.objectifs,
@@ -104,6 +92,12 @@ export function RoleplayStepCoachPageContent({
     };
     const isImprove = variant === "improve";
     const coachMode = isImprove ? ROLEPLAY_COACH_MODE.afterTraining : ROLEPLAY_COACH_MODE.beforeTraining;
+    const meetingNotes = useRoleplayMeetingNotes({
+        coachMode,
+        methodStepId: step.id ?? null,
+        roleplayId: roleplay.scenarioId ?? null,
+        stepOrder: stepNumber,
+    });
     const coachName = roleplay.coachName?.trim() || "Coach IA";
     const coachIdQuery = roleplay.coachId
         ? `&coach_id=${encodeURIComponent(roleplay.coachId)}`
@@ -134,7 +128,6 @@ export function RoleplayStepCoachPageContent({
             const payload = event.data;
 
             setCoachTranscript((current) => appendRoleplayLiveTranscriptMessage(current, payload.message));
-            setSaveFeedback("");
         }
 
         window.addEventListener("message", receiveTranscriptMessage);
@@ -147,122 +140,6 @@ export function RoleplayStepCoachPageContent({
         () => toRoleplayTranscriptMessages(coachTranscript),
         [coachTranscript],
     );
-
-    const addedTranscriptMessageIds = useMemo(
-        () => new Set(notes.flatMap((note) => note.sourceMessageId ? [note.sourceMessageId] : [])),
-        [notes],
-    );
-    const notesSignature = useMemo(() => JSON.stringify(notes), [notes]);
-    const isNotesDirty = notesSignature !== savedNotesSignature;
-
-    useEffect(() => {
-        if (!roleplay.scenarioId) {
-            setIsLoadingNotes(false);
-            return;
-        }
-
-        const abortController = new AbortController();
-        const query = new URLSearchParams({
-            coachMode,
-            stepOrder: String(stepNumber),
-        });
-        if (step.id) query.set("methodStepId", step.id);
-
-        async function loadNotes() {
-            setIsLoadingNotes(true);
-            setSaveFeedback("");
-
-            try {
-                const response = await fetch(
-                    `${ROLEPLAY_ROUTES.api.coachNotes(roleplay.scenarioId!)}?${query.toString()}`,
-                    { signal: abortController.signal },
-                );
-                const result = await response.json() as { error?: string; notes?: RoleplayCoachNote[] };
-                if (!response.ok) throw new Error(result.error || "Impossible de charger les notes.");
-
-                const loadedNotes = result.notes ?? [];
-                setNotes(loadedNotes);
-                setSavedNotesSignature(JSON.stringify(loadedNotes));
-            } catch (error) {
-                if (abortController.signal.aborted) return;
-                setSaveFeedback(error instanceof Error ? error.message : "Impossible de charger les notes.");
-            } finally {
-                if (!abortController.signal.aborted) setIsLoadingNotes(false);
-            }
-        }
-
-        void loadNotes();
-        return () => abortController.abort();
-    }, [coachMode, roleplay.scenarioId, step.id, stepNumber]);
-
-    function addTranscriptMessageToNotes(message: TranscriptMessage) {
-        if (!message.id || addedTranscriptMessageIds.has(message.id)) return;
-
-        setNotes((current) => [...current, {
-            content: message.text,
-            createdAt: new Date().toISOString(),
-            id: crypto.randomUUID(),
-            sourceMessageId: message.id ?? null,
-            type: ROLEPLAY_COACH_NOTE_TYPE.keyPoint,
-        }]);
-        setSaveFeedback("");
-        notify.success("Message ajouté aux notes");
-    }
-
-    function addManualNote() {
-        const content = noteDraft.trim();
-        if (!content) return;
-
-        setNotes((current) => [...current, {
-            content,
-            createdAt: new Date().toISOString(),
-            id: crypto.randomUUID(),
-            sourceMessageId: null,
-            type: noteType,
-        }]);
-        setNoteDraft("");
-        setSaveFeedback("");
-        notify.success("Note ajoutée");
-    }
-
-    function deleteNote(noteId: string) {
-        setNotes((current) => current.filter((note) => note.id !== noteId));
-        setSaveFeedback("");
-    }
-
-    async function saveNotes() {
-        if (!roleplay.scenarioId || !isNotesDirty || isSavingNotes) return;
-
-        setIsSavingNotes(true);
-        setSaveFeedback("");
-
-        try {
-            const response = await fetch(
-                ROLEPLAY_ROUTES.api.coachNotes(roleplay.scenarioId),
-                {
-                    body: JSON.stringify({
-                        coachMode,
-                        methodStepId: step.id ?? null,
-                        notes,
-                        stepOrder: stepNumber,
-                    }),
-                    headers: { "Content-Type": "application/json" },
-                    method: "PUT",
-                },
-            );
-
-            const result = await response.json() as { error?: string };
-            if (!response.ok) throw new Error(result.error || "Impossible de sauvegarder les notes.");
-
-            setSaveFeedback("Notes sauvegardées.");
-            setSavedNotesSignature(notesSignature);
-            notify.success("Notes sauvegardées");
-        } catch (error) {
-            setSaveFeedback(error instanceof Error ? error.message : "Impossible de sauvegarder les notes.");
-        } finally {
-            setIsSavingNotes(false);
-        }
-    }
 
     const tipsPanel = (
         <RoleplayGuidanceTabsPanel
@@ -278,28 +155,28 @@ export function RoleplayStepCoachPageContent({
 
     return (
         <SimulationView
-                addedTranscriptMessageIds={addedTranscriptMessageIds}
+                addedTranscriptMessageIds={meetingNotes.addedTranscriptMessageIds}
                 assistantName={coachName}
                 backLabel={backLabel}
                 title={`Coach IA — ${verb} sur « ${step.title} » · ${method.name} · Étape ${stepNumber}`}
                 liveTabLabel="AI Coach"
                 iframeSrc={iframeSrc}
-                onAddTranscriptMessage={addTranscriptMessageToNotes}
+                onAddTranscriptMessage={meetingNotes.addTranscriptMessageToNotes}
                 transcript={visibleCoachTranscript}
                 transcriptAside={(
                     <MeetingNotesPanel
-                        canSave={isNotesDirty}
-                        draft={noteDraft}
-                        isLoading={isLoadingNotes}
-                        isSaving={isSavingNotes}
-                        noteType={noteType}
-                        notes={notes}
-                        onAdd={addManualNote}
-                        onDelete={deleteNote}
-                        onDraftChange={setNoteDraft}
-                        onNoteTypeChange={setNoteType}
-                        onSave={saveNotes}
-                        saveFeedback={saveFeedback}
+                        canSave={meetingNotes.canSave}
+                        draft={meetingNotes.draft}
+                        isLoading={meetingNotes.isLoading}
+                        isSaving={meetingNotes.isSaving}
+                        noteType={meetingNotes.noteType}
+                        notes={meetingNotes.notes}
+                        onAdd={meetingNotes.addManualNote}
+                        onDelete={meetingNotes.deleteNote}
+                        onDraftChange={meetingNotes.setDraft}
+                        onNoteTypeChange={meetingNotes.setNoteType}
+                        onSave={meetingNotes.saveNotes}
+                        saveFeedback={meetingNotes.saveFeedback}
                     />
                 )}
                 onBack={() => router.push(backHref)}

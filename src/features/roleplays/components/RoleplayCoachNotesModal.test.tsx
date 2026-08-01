@@ -18,6 +18,7 @@ const groups: RoleplayCoachNoteGroup[] = [{
         type: ROLEPLAY_COACH_NOTE_TYPE.keyPoint,
     }],
     savedAt: "2026-07-29T14:09:00.000Z",
+    sessionId: null,
     stepOrder: 1,
     stepTitle: "Démarrer l'appel",
 }];
@@ -54,5 +55,25 @@ describe("RoleplayCoachNotesModal", () => {
         );
 
         expect(html).toContain("Aucune note enregistrée pour le moment.");
+    });
+
+    it("labels global evaluation notes without presenting them as method-step notes", () => {
+        const html = renderToStaticMarkup(
+            <RoleplayCoachNotesModal
+                groups={[{
+                    ...groups[0],
+                    coachMode: ROLEPLAY_COACH_MODE.notation,
+                    methodStepId: null,
+                    sessionId: "ed3ee630-f8f8-4ae4-8787-3a65a4a1ed44",
+                    stepTitle: "Évaluation de la session",
+                }]}
+                onClose={vi.fn()}
+                roleplayId="2c31c5c6-761e-4a5f-9770-35ddc9edf4c6"
+                title="Mes notes"
+            />,
+        );
+
+        expect(html).toContain("Évaluation de la session");
+        expect(html).not.toContain("Étape 1 · Évaluation de la session");
     });
 });

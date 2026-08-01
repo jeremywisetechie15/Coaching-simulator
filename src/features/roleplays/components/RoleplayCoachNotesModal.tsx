@@ -80,7 +80,8 @@ export function RoleplayCoachNotesModal({
                     coachMode: updatedGroup.coachMode,
                     methodStepId: updatedGroup.methodStepId,
                     notes: updatedGroup.notes,
-                    stepOrder: updatedGroup.stepOrder,
+                    sessionId: updatedGroup.sessionId,
+                    stepOrder: updatedGroup.sessionId ? null : updatedGroup.stepOrder,
                 }),
                 headers: { "Content-Type": "application/json" },
                 method: "PUT",
@@ -120,14 +121,16 @@ export function RoleplayCoachNotesModal({
                         Aucune note enregistrée pour le moment.
                     </Text>
                 ) : stepGroups.map((stepGroup) => (
-                    <Box key={stepGroup.stepOrder} className={uiTokens.coachNotes.viewer.group}>
+                    <Box key={stepGroup.contextKey} className={uiTokens.coachNotes.viewer.group}>
                         <Box className={uiTokens.coachNotes.viewer.groupHeader}>
                             <Box className={uiTokens.coachNotes.viewer.groupIcon}>
                                 <InlineIcon icon={CalendarDays} className={uiTokens.coachNotes.viewer.groupIconSvg} />
                             </Box>
                             <Box className="min-w-0 flex-1">
                                 <Text className={uiTokens.coachNotes.viewer.groupTitle}>
-                                    Étape {stepGroup.stepOrder} · {stepGroup.stepTitle}
+                                    {stepGroup.sessionId
+                                        ? stepGroup.stepTitle
+                                        : `Étape ${stepGroup.stepOrder} · ${stepGroup.stepTitle}`}
                                 </Text>
                                 <Text className={uiTokens.coachNotes.viewer.groupMeta}>
                                     Dernière modification le{" "}

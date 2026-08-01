@@ -7,6 +7,7 @@ import { uiTokens } from "@/lib/ui/tokens";
 import {
     EvaluationPageContent,
     getCoachFeedbackTitle,
+    getEvaluationNotesCoachMode,
     getGlobalCoachDebriefTitle,
     SyntheseTab,
 } from "./EvaluationPageContent";
@@ -74,5 +75,11 @@ describe("SyntheseTab", () => {
                 title: "Présenter MAIA COACH pour caler une DEMO",
             }),
         ).toBe("Avis de mon coach LIA - Roleplay Présenter MAIA COACH pour caler une DEMO");
+    });
+
+    it("isolates notes with a dedicated persisted mode for every evaluation conversation", () => {
+        expect(getEvaluationNotesCoachMode("coachFeedback")).toBe("feedback");
+        expect(getEvaluationNotesCoachMode("persona")).toBe("persona_feedback");
+        expect(getEvaluationNotesCoachMode("coachDebrief")).toBe("notation");
     });
 });

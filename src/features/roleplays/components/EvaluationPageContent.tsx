@@ -43,6 +43,7 @@ import {
     getRoleplayNotationApiErrorMessage,
     isMatchingRoleplayLiveTranscriptEvent,
     ROLEPLAY_NOTATION_FEEDBACK_MESSAGES,
+    ROLEPLAY_COACH_MODE,
     ROLEPLAY_PDF_TEMPLATES,
     ROLEPLAY_PROGRESS_PLAN_SECTION_TITLE,
     ROLEPLAY_ROUTES,
@@ -58,7 +59,9 @@ import { notify, notifyHttpError } from "@/lib/ui/feedback/toast";
 import { EvaluationKeyMomentsSection } from "./EvaluationKeyMomentsSection";
 import { EvaluationSessionOverview } from "./EvaluationSessionOverview";
 import { RoleplayGuidanceTabsPanel } from "./RoleplayGuidanceTabsPanel";
+import { MeetingNotesPanel } from "./MeetingNotesPanel";
 import { SimulationView } from "./SimulationView";
+import { useRoleplayMeetingNotes } from "./useRoleplayMeetingNotes";
 import {
     TranscriptCorrectionPanel,
     TranscriptCorrectionToggle,
@@ -122,6 +125,12 @@ interface SimulationViewState {
     transcriptSessionId: string;
 }
 
+export function getEvaluationNotesCoachMode(mode: SimulationViewMode) {
+    if (mode === "persona") return ROLEPLAY_COACH_MODE.personaFeedback;
+    if (mode === "coachDebrief") return ROLEPLAY_COACH_MODE.notation;
+    return ROLEPLAY_COACH_MODE.feedback;
+}
+
 interface EvaluationPageContentProps {
     canManage?: boolean;
     evaluation?: Evaluation;
@@ -166,6 +175,11 @@ export function EvaluationPageContent({
     const [simulationTranscript, setSimulationTranscript] = useState<RoleplayLiveTranscriptMessage[]>([]);
     const [pdfExportStep, setPdfExportStep] = useState<number | null>(null);
     const evaluationData = evaluation ?? fallbackEvaluation;
+    const meetingNotes = useRoleplayMeetingNotes({
+        coachMode: getEvaluationNotesCoachMode(simView?.mode ?? "coachFeedback"),
+        roleplayId: simView ? roleplay.scenarioId ?? null : null,
+        sessionId: simView ? session.id : null,
+    });
 
     const notationRefreshing = notationRefreshStep !== null;
     const pdfExporting = pdfExportStep !== null;
@@ -346,6 +360,7 @@ export function EvaluationPageContent({
 
         return (
             <SimulationView
+                addedTranscriptMessageIds={meetingNotes.addedTranscriptMessageIds}
                 assistantName={isPersona ? roleplay.name : roleplay.coachName?.trim() || "Coach IA"}
                 backLabel="Retour à l'évaluation de la session"
                 title={
@@ -357,7 +372,24 @@ export function EvaluationPageContent({
                 }
                 liveTabLabel={isPersona ? "AI Persona" : "AI Coach"}
                 iframeSrc={iframeSrc}
+                onAddTranscriptMessage={meetingNotes.addTranscriptMessageToNotes}
                 transcript={visibleSimulationTranscript}
+                transcriptAside={(
+                    <MeetingNotesPanel
+                        canSave={meetingNotes.canSave}
+                        draft={meetingNotes.draft}
+                        isLoading={meetingNotes.isLoading}
+                        isSaving={meetingNotes.isSaving}
+                        noteType={meetingNotes.noteType}
+                        notes={meetingNotes.notes}
+                        onAdd={meetingNotes.addManualNote}
+                        onDelete={meetingNotes.deleteNote}
+                        onDraftChange={meetingNotes.setDraft}
+                        onNoteTypeChange={meetingNotes.setNoteType}
+                        onSave={meetingNotes.saveNotes}
+                        saveFeedback={meetingNotes.saveFeedback}
+                    />
+                )}
                 onBack={() => setSimView(null)}
                 panel={
                     isPersona ? (

@@ -18,6 +18,7 @@ function validInput() {
             sourceMessageId: transcriptMessageId,
             type: ROLEPLAY_COACH_NOTE_TYPE.keyPoint,
         }],
+        sessionId: null,
         stepOrder: 1,
     };
 }
@@ -31,8 +32,37 @@ describe("saveRoleplayCoachNotesSchema", () => {
         })).toEqual({
             coachMode: "before_training",
             methodStepId: "db19834a-0ce2-4426-9903-b96bac9618c6",
+            sessionId: null,
             stepOrder: 2,
         });
+    });
+
+    it("accepts each evaluation conversation mode only with an evaluated session", () => {
+        const sessionId = "ed3ee630-f8f8-4ae4-8787-3a65a4a1ed44";
+
+        for (const coachMode of ["feedback", "notation", "persona_feedback"] as const) {
+            expect(getRoleplayCoachNotesContextSchema.parse({ coachMode, sessionId })).toEqual({
+                coachMode,
+                methodStepId: null,
+                sessionId,
+                stepOrder: null,
+            });
+        }
+    });
+
+    it("rejects mixed step and evaluation-session contexts", () => {
+        expect(getRoleplayCoachNotesContextSchema.safeParse({
+            coachMode: "feedback",
+            methodStepId: "db19834a-0ce2-4426-9903-b96bac9618c6",
+            sessionId: "ed3ee630-f8f8-4ae4-8787-3a65a4a1ed44",
+            stepOrder: "1",
+        }).success).toBe(false);
+
+        expect(getRoleplayCoachNotesContextSchema.safeParse({
+            coachMode: "before_training",
+            sessionId: "ed3ee630-f8f8-4ae4-8787-3a65a4a1ed44",
+            stepOrder: "1",
+        }).success).toBe(false);
     });
 
     it("accepts a collection of notes linked to a roleplay step", () => {
@@ -42,6 +72,13 @@ describe("saveRoleplayCoachNotesSchema", () => {
     it("keeps notes imported from an earlier transcript", () => {
         const input = validInput();
         input.notes[0].sourceMessageId = "cd57a293-94cf-49ef-a6b0-f15892c25ba3";
+
+        expect(saveRoleplayCoachNotesSchema.safeParse(input).success).toBe(true);
+    });
+
+    it("accepts the non-UUID event identifiers emitted by the full coach runtime", () => {
+        const input = validInput();
+        input.notes[0].sourceMessageId = "assistant-1785571900000-a1b2c3";
 
         expect(saveRoleplayCoachNotesSchema.safeParse(input).success).toBe(true);
     });

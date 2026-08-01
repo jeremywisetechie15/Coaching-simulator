@@ -6,6 +6,7 @@ export const ROLEPLAY_COACH_MODE = {
     beforeTraining: "before_training",
     feedback: "feedback",
     notation: "notation",
+    personaFeedback: "persona_feedback",
 } as const;
 
 export type RoleplayCoachMode = (typeof ROLEPLAY_COACH_MODE)[keyof typeof ROLEPLAY_COACH_MODE];
@@ -17,6 +18,7 @@ export const ROLEPLAY_COACH_MODE_LABELS: Record<RoleplayCoachMode, string> = {
     [ROLEPLAY_COACH_MODE.beforeTraining]: "Préparation",
     [ROLEPLAY_COACH_MODE.feedback]: "Feedback",
     [ROLEPLAY_COACH_MODE.notation]: "Débrief",
+    [ROLEPLAY_COACH_MODE.personaFeedback]: "Avis persona",
 };
 
 export function isRoleplayCoachMode(value: unknown): value is RoleplayCoachMode {
@@ -62,6 +64,7 @@ export interface RoleplayCoachNoteGroup {
     methodStepId: string | null;
     notes: RoleplayCoachNote[];
     savedAt: string;
+    sessionId: string | null;
     stepOrder: number;
     stepTitle: string;
 }
@@ -72,8 +75,10 @@ export interface RoleplayCoachNoteStepEntry {
 }
 
 export interface RoleplayCoachNotesStepGroup {
+    contextKey: string;
     entries: RoleplayCoachNoteStepEntry[];
     savedAt: string;
+    sessionId: string | null;
     stepOrder: number;
     stepTitle: string;
 }
@@ -85,16 +90,21 @@ export function countRoleplayCoachNotes(groups: RoleplayCoachNoteGroup[]) {
 export function groupRoleplayCoachNotesByStep(
     groups: RoleplayCoachNoteGroup[],
 ): RoleplayCoachNotesStepGroup[] {
-    const groupedByStep = new Map<number, RoleplayCoachNotesStepGroup>();
+    const groupedByStep = new Map<string, RoleplayCoachNotesStepGroup>();
 
     for (const group of groups) {
         const entries = group.notes.map((note) => ({ group, note }));
-        const current = groupedByStep.get(group.stepOrder);
+        const contextKey = group.sessionId
+            ? `session:${group.sessionId}`
+            : `step:${group.stepOrder}`;
+        const current = groupedByStep.get(contextKey);
 
         if (!current) {
-            groupedByStep.set(group.stepOrder, {
+            groupedByStep.set(contextKey, {
+                contextKey,
                 entries,
                 savedAt: group.savedAt,
+                sessionId: group.sessionId,
                 stepOrder: group.stepOrder,
                 stepTitle: group.stepTitle,
             });
@@ -126,13 +136,18 @@ export function replaceRoleplayCoachNoteGroup(
     nextGroup: RoleplayCoachNoteGroup,
 ) {
     const hasMatchingGroup = groups.some(
-        (group) => group.coachMode === nextGroup.coachMode && group.stepOrder === nextGroup.stepOrder,
+        (group) =>
+            group.coachMode === nextGroup.coachMode &&
+            group.methodStepId === nextGroup.methodStepId &&
+            group.sessionId === nextGroup.sessionId,
     );
 
     if (!hasMatchingGroup) return [...groups, nextGroup];
 
     return groups.map((group) =>
-        group.coachMode === nextGroup.coachMode && group.stepOrder === nextGroup.stepOrder
+        group.coachMode === nextGroup.coachMode &&
+        group.methodStepId === nextGroup.methodStepId &&
+        group.sessionId === nextGroup.sessionId
             ? nextGroup
             : group,
     );

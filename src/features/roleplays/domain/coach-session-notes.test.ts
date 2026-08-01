@@ -22,6 +22,7 @@ const noteGroup: RoleplayCoachNoteGroup = {
         type: ROLEPLAY_COACH_NOTE_TYPE.keyPoint,
     }],
     savedAt: "2026-07-29T14:09:00.000Z",
+    sessionId: null,
     stepOrder: 1,
     stepTitle: "Démarrer l'appel",
 };
@@ -90,6 +91,23 @@ describe("coach session notes domain", () => {
             "Reformuler plus directement.",
         ]);
         expect(stepGroup.savedAt).toBe(afterTrainingGroup.savedAt);
+    });
+
+    it("keeps notes from different evaluated sessions in separate groups", () => {
+        const firstSessionGroup: RoleplayCoachNoteGroup = {
+            ...noteGroup,
+            coachMode: ROLEPLAY_COACH_MODE.feedback,
+            methodStepId: null,
+            sessionId: "5bdef187-1771-4681-aaf5-1336bf7224a3",
+            stepTitle: "Évaluation de la session",
+        };
+        const secondSessionGroup: RoleplayCoachNoteGroup = {
+            ...firstSessionGroup,
+            coachMode: ROLEPLAY_COACH_MODE.personaFeedback,
+            sessionId: "ed3ee630-f8f8-4ae4-8787-3a65a4a1ed44",
+        };
+
+        expect(groupRoleplayCoachNotesByStep([firstSessionGroup, secondSessionGroup])).toHaveLength(2);
     });
 
     it("uses the selected step transcript when notation segmented the session", () => {
