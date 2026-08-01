@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { CalendarDays, History, LockKeyhole, Target } from "lucide-react";
 import {
@@ -19,17 +19,22 @@ import {
     difficultyBadgeStyles,
 } from "@/features/roleplays/data/roleplays";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
-import { ROLEPLAY_ROUTES } from "@/features/roleplays/domain";
+import {
+    ROLEPLAY_ROUTES,
+    replaceRoleplayCoachNoteGroup,
+    type RoleplayCoachNoteGroup,
+} from "@/features/roleplays/domain";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
-import { RoleplayDocumentsModal } from "./RoleplayDocumentsModal";
 import { RoleplayIndexSummaryCard } from "./RoleplayIndexSummaryCard";
+import { RoleplayPreparationModal } from "./RoleplayPreparationModal";
 import { roleplayChipIcons } from "./roleplayChipIcons";
 import { RoleplayQuizModal } from "./RoleplayQuizModal";
 
 interface RoleplayDetailPageContentProps {
     canManage?: boolean;
+    noteGroups: RoleplayCoachNoteGroup[];
     roleplay: RoleplayItem;
 }
 
@@ -98,6 +103,7 @@ function PrepCard({
 
 export function RoleplayDetailPageContent({
     canManage = false,
+    noteGroups,
     roleplay,
 }: RoleplayDetailPageContentProps) {
     const router = useRouter();
@@ -110,11 +116,16 @@ export function RoleplayDetailPageContent({
         const panel = searchParams.get("panel");
         return panel === "quizzes" ? "quiz" : panel === "documents" ? "documents" : null;
     });
+    const [savedNoteGroups, setSavedNoteGroups] = useState(noteGroups);
     const prepDocuments = roleplay.prepDocuments ?? [];
     const prepQuizzes = roleplay.prepQuizzes ?? [];
     const canStartRoleplay = isSelectableContent(roleplay.status, roleplay.isActive);
     const roleplayId = roleplay.scenarioId ?? roleplay.id;
     const isArchived = roleplay.status === "archived" || !roleplay.isActive;
+
+    useEffect(() => {
+        setSavedNoteGroups(noteGroups);
+    }, [noteGroups]);
 
     function closeModal() {
         setActiveModal(null);
@@ -341,7 +352,15 @@ export function RoleplayDetailPageContent({
                 />
             )}
             {activeModal === "documents" && (
-                <RoleplayDocumentsModal documents={prepDocuments} onClose={closeModal} />
+                <RoleplayPreparationModal
+                    documents={prepDocuments}
+                    groups={savedNoteGroups}
+                    onClose={closeModal}
+                    onGroupSaved={(group) => setSavedNoteGroups((current) =>
+                        replaceRoleplayCoachNoteGroup(current, group)
+                    )}
+                    roleplayId={roleplayId}
+                />
             )}
         </Box>
     );

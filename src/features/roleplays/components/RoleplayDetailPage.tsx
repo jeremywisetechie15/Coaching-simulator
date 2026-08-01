@@ -6,14 +6,16 @@ import {
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
+import type { RoleplayCoachNoteGroup } from "@/features/roleplays/domain";
 import { RoleplayDetailPageContent } from "./RoleplayDetailPageContent";
 
 interface RoleplayDetailPageProps {
+    noteGroups: RoleplayCoachNoteGroup[];
     profileValues: ProfileFormValues;
     roleplay: RoleplayItem;
 }
 
-export function RoleplayDetailPage({ profileValues, roleplay }: RoleplayDetailPageProps) {
+export function RoleplayDetailPage({ noteGroups, profileValues, roleplay }: RoleplayDetailPageProps) {
     const canManageRoleplays = canManageAppResource(
         profileValues.platformRole,
         APP_NAVIGATION_RESOURCE.roleplays,
@@ -31,6 +33,7 @@ export function RoleplayDetailPage({ profileValues, roleplay }: RoleplayDetailPa
         >
             <RoleplayDetailPageContent
                 canManage={canManageRoleplays}
+                noteGroups={noteGroups}
                 roleplay={roleplay}
             />
         </AppShell>

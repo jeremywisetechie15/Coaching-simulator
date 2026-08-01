@@ -40,6 +40,89 @@ interface ContentResourcesModalProps {
     title: string;
 }
 
+interface SelectedResourceVideo {
+    title: string;
+    url: string;
+}
+
+interface ContentResourcesListProps {
+    documents: ContentResourceDocument[];
+    emptyMessage: string;
+    onSelectVideo: (video: SelectedResourceVideo) => void;
+}
+
+/** Liste de ressources réutilisable, indépendamment du conteneur modal qui l'affiche. */
+export function ContentResourcesList({
+    documents,
+    emptyMessage,
+    onSelectVideo,
+}: ContentResourcesListProps) {
+    return (
+        <Box className="max-h-[min(58vh,520px)] space-y-3 overflow-y-auto pr-1">
+            {documents.length === 0 && (
+                <Box className={cn(uiTokens.surface.rowCard, "px-4 py-5 text-center")}>
+                    <Text className={cn("text-[14px] font-semibold", uiTokens.text.muted)}>
+                        {emptyMessage}
+                    </Text>
+                </Box>
+            )}
+            {documents.map((document) => {
+                const config = resourceKindConfig[document.kind];
+                const buttonClassName = cn(uiTokens.action.addButton, "shrink-0");
+                const resourceUrl = document.url;
+
+                return (
+                    <Box key={document.id} className={cn(uiTokens.surface.rowCard, "flex items-center gap-3")}>
+                        <Box
+                            className={cn(
+                                "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border",
+                                uiTokens.tone[config.tone].soft,
+                            )}
+                        >
+                            <InlineIcon icon={config.icon} className="h-5 w-5" />
+                        </Box>
+                        <Box className="min-w-0 flex-1">
+                            <Text className={cn("truncate text-[14px] font-bold", uiTokens.text.heading)}>
+                                {document.title}
+                            </Text>
+                            <Box className="mt-0.5 flex items-center gap-2">
+                                <Text className={cn("text-[12px] font-semibold", uiTokens.text.muted)}>
+                                    {config.label}
+                                </Text>
+                                {document.meta && (
+                                    <Text className={cn("truncate text-[12px] font-medium", uiTokens.text.muted)}>
+                                        {document.meta}
+                                    </Text>
+                                )}
+                            </Box>
+                        </Box>
+                        {resourceUrl && document.kind === "video" ? (
+                            <Button
+                                aria-haspopup="dialog"
+                                onClick={() => onSelectVideo({ title: document.title, url: resourceUrl })}
+                                className={buttonClassName}
+                            >
+                                <InlineIcon icon={config.actionIcon} className="h-4 w-4" />
+                                {config.actionLabel}
+                            </Button>
+                        ) : resourceUrl ? (
+                            <a href={resourceUrl} target="_blank" rel="noreferrer" className={buttonClassName}>
+                                <InlineIcon icon={config.actionIcon} className="h-4 w-4" />
+                                {config.actionLabel}
+                            </a>
+                        ) : (
+                            <Button disabled className={cn(buttonClassName, "cursor-not-allowed opacity-60")}>
+                                <InlineIcon icon={config.actionIcon} className="h-4 w-4" />
+                                {config.actionLabel}
+                            </Button>
+                        )}
+                    </Box>
+                );
+            })}
+        </Box>
+    );
+}
+
 export function ContentResourcesModal({
     description,
     documents,
@@ -47,7 +130,7 @@ export function ContentResourcesModal({
     onClose,
     title,
 }: ContentResourcesModalProps) {
-    const [selectedVideo, setSelectedVideo] = useState<{ title: string; url: string } | null>(null);
+    const [selectedVideo, setSelectedVideo] = useState<SelectedResourceVideo | null>(null);
 
     if (selectedVideo) {
         return (
@@ -62,68 +145,11 @@ export function ContentResourcesModal({
 
     return (
         <Modal title={title} description={description} onClose={onClose} className="max-w-[560px]">
-            <Box className="max-h-[min(58vh,520px)] space-y-3 overflow-y-auto pr-1">
-                {documents.length === 0 && (
-                    <Box className={cn(uiTokens.surface.rowCard, "px-4 py-5 text-center")}>
-                        <Text className={cn("text-[14px] font-semibold", uiTokens.text.muted)}>
-                            {emptyMessage}
-                        </Text>
-                    </Box>
-                )}
-                {documents.map((document) => {
-                    const config = resourceKindConfig[document.kind];
-                    const buttonClassName = cn(uiTokens.action.addButton, "shrink-0");
-                    const resourceUrl = document.url;
-
-                    return (
-                        <Box key={document.id} className={cn(uiTokens.surface.rowCard, "flex items-center gap-3")}>
-                            <Box
-                                className={cn(
-                                    "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border",
-                                    uiTokens.tone[config.tone].soft,
-                                )}
-                            >
-                                <InlineIcon icon={config.icon} className="h-5 w-5" />
-                            </Box>
-                            <Box className="min-w-0 flex-1">
-                                <Text className={cn("truncate text-[14px] font-bold", uiTokens.text.heading)}>
-                                    {document.title}
-                                </Text>
-                                <Box className="mt-0.5 flex items-center gap-2">
-                                    <Text className={cn("text-[12px] font-semibold", uiTokens.text.muted)}>
-                                        {config.label}
-                                    </Text>
-                                    {document.meta && (
-                                        <Text className={cn("truncate text-[12px] font-medium", uiTokens.text.muted)}>
-                                            {document.meta}
-                                        </Text>
-                                    )}
-                                </Box>
-                            </Box>
-                            {resourceUrl && document.kind === "video" ? (
-                                <Button
-                                    aria-haspopup="dialog"
-                                    onClick={() => setSelectedVideo({ title: document.title, url: resourceUrl })}
-                                    className={buttonClassName}
-                                >
-                                    <InlineIcon icon={config.actionIcon} className="h-4 w-4" />
-                                    {config.actionLabel}
-                                </Button>
-                            ) : resourceUrl ? (
-                                <a href={resourceUrl} target="_blank" rel="noreferrer" className={buttonClassName}>
-                                    <InlineIcon icon={config.actionIcon} className="h-4 w-4" />
-                                    {config.actionLabel}
-                                </a>
-                            ) : (
-                                <Button disabled className={cn(buttonClassName, "cursor-not-allowed opacity-60")}>
-                                    <InlineIcon icon={config.actionIcon} className="h-4 w-4" />
-                                    {config.actionLabel}
-                                </Button>
-                            )}
-                        </Box>
-                    );
-                })}
-            </Box>
+            <ContentResourcesList
+                documents={documents}
+                emptyMessage={emptyMessage}
+                onSelectVideo={setSelectedVideo}
+            />
         </Modal>
     );
 }

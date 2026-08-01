@@ -57,6 +57,7 @@ export interface LoadedRoleplayCoachNotes {
 }
 
 function revalidateRoleplayCoachNoteConsumers(roleplayId: string, sessionId: string | null) {
+    revalidatePath(ROLEPLAY_ROUTES.app.detail(roleplayId));
     revalidatePath(ROLEPLAY_ROUTES.app.steps(roleplayId));
     revalidatePath(ROLEPLAY_ROUTES.app.session(roleplayId));
     if (sessionId) revalidatePath(`/roleplays/history/${sessionId}`);
