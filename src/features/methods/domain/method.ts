@@ -169,6 +169,17 @@ export interface MethodSelectionOption extends EntitySelectionAvailability {
     name: string;
 }
 
+export interface MethodSelectionStepOption {
+    id: string;
+    order: number;
+    title: string;
+    weight: number | null;
+}
+
+export interface MethodSelectionOptionWithSteps extends MethodSelectionOption {
+    steps: MethodSelectionStepOption[];
+}
+
 /** All method selectors display the canonical method name, never its code. */
 export function getMethodSelectionLabel(method: Pick<MethodSelectionOption, "name">) {
     return method.name;

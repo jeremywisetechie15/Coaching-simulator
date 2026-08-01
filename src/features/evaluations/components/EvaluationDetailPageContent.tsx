@@ -18,7 +18,11 @@ import {
     ContentStatusBadge,
     LearnerContentStatusBadge,
 } from "@/features/content/components";
-import { getContentScoreStatus, isSelectableContent } from "@/features/content/domain";
+import {
+    getContentRemovalErrorMessage,
+    getContentScoreStatus,
+    isSelectableContent,
+} from "@/features/content/domain";
 import {
     EVALUATION_ROUTES,
     QUIZ_ATTEMPT_STATUS,
@@ -49,14 +53,14 @@ interface ApiErrorPayload {
     error?: string;
 }
 
-async function archiveQuizRequest(quizId: string) {
+async function removeQuizRequest(quizId: string, errorMessage: string) {
     const response = await fetch(EVALUATION_ROUTES.api.detail(quizId), {
         method: "DELETE",
     });
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
 
     if (!response.ok) {
-        throw new Error(payload?.error || "Impossible d'archiver le quiz.");
+        throw new Error(payload?.error || errorMessage);
     }
 }
 
@@ -139,10 +143,11 @@ export function EvaluationDetailPageContent({
     const canRetry =
         attemptSession?.canStartNewAttempt
         ?? (maxAttempts === null || attemptsUsed < maxAttempts);
-    const isArchived = quiz.status === "archived" || !quiz.isActive;
-
-    async function handleArchive() {
-        await archiveQuizRequest(quiz.id);
+    async function handleRemove() {
+        await removeQuizRequest(
+            quiz.id,
+            getContentRemovalErrorMessage(quiz.status, "le quiz"),
+        );
         router.push(EVALUATION_ROUTES.app.collection);
         router.refresh();
     }
@@ -151,10 +156,12 @@ export function EvaluationDetailPageContent({
         <Box as="main" className={uiTokens.quizDetail.page}>
             <Box className={uiTokens.quizDetail.container}>
                 <ResourceDetailHeader
-                    archiveAction={{
-                        errorMessage: "Impossible d'archiver le quiz.",
-                        isArchived,
-                        onArchive: handleArchive,
+                    removalAction={{
+                        entityLabel: "le quiz",
+                        errorMessage: getContentRemovalErrorMessage(quiz.status, "le quiz"),
+                        name: quiz.title,
+                        onRemove: handleRemove,
+                        status: quiz.status,
                     }}
                     canManage={canManage}
                     editHref={EVALUATION_ROUTES.app.edit(quiz.id)}

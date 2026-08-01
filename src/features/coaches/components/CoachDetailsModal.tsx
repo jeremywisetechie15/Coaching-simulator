@@ -6,8 +6,11 @@ import {
     Shapes,
     Sparkles,
     Target,
+    Edit3,
 } from "lucide-react";
+import { ContextualLink } from "@/features/app-shell/components";
 import {
+    ContentRemovalButton,
     ContentStatusBadge,
     DiscProfileBadge,
     EntityProfileDetailsModal,
@@ -18,18 +21,25 @@ import {
     getCoachBackgroundImageUrl,
     getCoachInitials,
 } from "@/features/coaches/domain/coach-list";
-import { Box, Text } from "@/lib/ui/atoms";
+import { COACH_ROUTES } from "@/features/coaches/domain/coach-routes";
+import { Box, InlineIcon, Text } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 
 interface CoachDetailsModalProps {
     canManage: boolean;
     coach: CoachDetail;
     onClose: () => void;
+    onRemove: () => void;
 }
 
 const optionalValue = (value: string) => value.trim() || "Non renseigné";
 
-export function CoachDetailsModal({ canManage, coach, onClose }: CoachDetailsModalProps) {
+export function CoachDetailsModal({
+    canManage,
+    coach,
+    onClose,
+    onRemove,
+}: CoachDetailsModalProps) {
     const backgroundImageUrl = getCoachBackgroundImageUrl(coach.backgroundImageUrl);
     const sections: EntityProfileDetailSection[] = [
         {
@@ -72,6 +82,24 @@ export function CoachDetailsModal({ canManage, coach, onClose }: CoachDetailsMod
             avatarUrl={coach.avatarSrc}
             createdAt={coach.createdAt}
             description="Informations complètes du coach IA"
+            headerActions={canManage ? (
+                <Box className={uiTokens.resourceDetailHeader.actions}>
+                    <ContextualLink
+                        href={COACH_ROUTES.app.edit(coach.id)}
+                        className={uiTokens.resourceDetailHeader.editButton}
+                    >
+                        <InlineIcon
+                            icon={Edit3}
+                            className={uiTokens.resourceDetailHeader.icon}
+                        />
+                        Modifier
+                    </ContextualLink>
+                    <ContentRemovalButton
+                        onClick={onRemove}
+                        status={coach.status}
+                    />
+                </Box>
+            ) : undefined}
             headerBadge={canManage ? <ContentStatusBadge status={coach.status} /> : undefined}
             initials={getCoachInitials(coach.name)}
             name={coach.name}

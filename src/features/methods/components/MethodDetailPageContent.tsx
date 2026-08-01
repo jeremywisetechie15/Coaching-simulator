@@ -29,6 +29,7 @@ import {
     type ContentResourceDocument,
     type ContentResourceDocumentKind,
 } from "@/features/content/components";
+import { getContentRemovalErrorMessage } from "@/features/content/domain";
 import { EVALUATION_ROUTES, type QuizOption } from "@/features/evaluations/domain";
 import {
     formatMethodMasteryDate,
@@ -316,14 +317,14 @@ interface ApiErrorPayload {
     error?: string;
 }
 
-async function archiveMethodRequest(methodId: string) {
+async function removeMethodRequest(methodId: string, errorMessage: string) {
     const response = await fetch(`/api/methods/${methodId}`, {
         method: "DELETE",
     });
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
 
     if (!response.ok) {
-        throw new Error(payload?.error || "Impossible d'archiver la méthode.");
+        throw new Error(payload?.error || errorMessage);
     }
 }
 
@@ -340,7 +341,6 @@ export function MethodDetailPageContent({
 }) {
     const router = useRouter();
     const [showResourcesModal, setShowResourcesModal] = useState(false);
-    const isArchived = method.status === "archived";
     const isParticipantAverage = canManage;
     const masteryDateLabel = isParticipantAverage ? null : formatMethodMasteryDate(mastery?.completedAt);
     const masteryTrend = isParticipantAverage
@@ -359,8 +359,11 @@ export function MethodDetailPageContent({
         : getMethodMasteryLabel(Boolean(associatedQuiz), mastery);
     const resourceDocuments = mapMethodResourcesToModalDocuments(method);
 
-    async function handleArchive() {
-        await archiveMethodRequest(method.id);
+    async function handleRemove() {
+        await removeMethodRequest(
+            method.id,
+            getContentRemovalErrorMessage(method.status, "la méthode"),
+        );
         router.push(METHOD_ROUTES.app.collection);
         router.refresh();
     }
@@ -369,10 +372,12 @@ export function MethodDetailPageContent({
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1180px]">
                 <ResourceDetailHeader
-                    archiveAction={{
-                        errorMessage: "Impossible d'archiver la méthode.",
-                        isArchived,
-                        onArchive: handleArchive,
+                    removalAction={{
+                        entityLabel: "la méthode",
+                        errorMessage: getContentRemovalErrorMessage(method.status, "la méthode"),
+                        name: method.name,
+                        onRemove: handleRemove,
+                        status: method.status,
                     }}
                     canManage={canManage}
                     editHref={METHOD_ROUTES.app.edit(method.id)}

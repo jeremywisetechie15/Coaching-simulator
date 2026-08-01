@@ -46,6 +46,9 @@ describe("CreateSkillPageContent", () => {
         expect(html).toContain("Catégorie de compétence");
         expect(html).toContain("Sélectionnez d&#x27;abord un domaine");
         expect(html).not.toContain("Fonctions");
+        expect(html).toContain("Deux parcours, un même formulaire");
+        expect(html).toContain("Importer un fichier JSON");
+        expect(html).toContain("Créer manuellement");
     });
 
     it("hydrates the domain and category when editing a skill", () => {

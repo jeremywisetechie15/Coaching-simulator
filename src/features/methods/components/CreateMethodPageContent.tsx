@@ -1,10 +1,20 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Copy, LockKeyhole, Plus, X } from "lucide-react";
+import { ArrowLeft, Copy, FileUp, LockKeyhole, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { ContextualBackLink, useContextualReturnHref } from "@/features/app-shell/components";
 import { buildPostSaveHref } from "@/features/app-shell/domain";
+import {
+    EntityCreationModeDialog,
+    EntityJsonPrefillDialog,
+} from "@/features/entity-json-prefill/components";
+import {
+    ENTITY_CREATION_MODE,
+    ENTITY_CREATION_MODE_LABELS,
+    type EntityCreationMode,
+    type EntityJsonPrefillFieldErrors,
+} from "@/features/entity-json-prefill/domain";
 import {
     CONTENT_DOMAINS,
     CONTENT_STATUS,
@@ -37,6 +47,10 @@ import {
 } from "@/features/methods/domain/method";
 import type { SaveMethodInput } from "@/features/methods/dto/save-method.dto";
 import {
+    buildMethodJsonPrefillPrompt,
+    parseMethodJsonPrefillText,
+} from "@/features/methods/domain/method-json-prefill";
+import {
     CONTENT_RESOURCE_DELIVERY_OPTIONS,
     type ContentResourceDeliveryType,
     CONTENT_UPLOAD_PURPOSES,
@@ -45,7 +59,7 @@ import {
 } from "@/lib/uploads/content-upload";
 import { submitWithDirectUploads } from "@/lib/uploads/direct-upload.client";
 import type { PendingDirectUpload } from "@/lib/uploads/direct-upload";
-import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
+import { Box, Button, CardSurface, FieldErrorMessage, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import {
     createFormSubmitApiError,
     createFormSubmitError,
@@ -57,6 +71,7 @@ import {
     EditableTextListField,
     FileUploadField,
     SingleSelectField,
+    StatusMessage,
 } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -473,6 +488,10 @@ export function CreateMethodPageContent({
     const [steps, setSteps] = useState<MethodStepFormState[]>(
         initialMethod?.steps.length ? initialMethod.steps.map(methodStepToFormState) : [emptyStep()],
     );
+    const [creationModeDialogOpen, setCreationModeDialogOpen] = useState(!isEditing && !embedded);
+    const [jsonPrefillDialogOpen, setJsonPrefillDialogOpen] = useState(false);
+    const [jsonPrefillFieldErrors, setJsonPrefillFieldErrors] = useState<EntityJsonPrefillFieldErrors>({});
+    const [jsonPrefillMessage, setJsonPrefillMessage] = useState<string | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
     const [duplicating, setDuplicating] = useState(false);
     const [savingStatus, setSavingStatus] = useState<ContentStatus | null>(null);
@@ -484,6 +503,82 @@ export function CreateMethodPageContent({
         : METHOD_ROUTES.app.collection;
     const contextualReturnHref = useContextualReturnHref(returnHref);
 
+    function clearJsonPrefillError(path: string, descendants = false) {
+        setJsonPrefillFieldErrors((current) => {
+            const next = { ...current };
+            let changed = false;
+            for (const key of Object.keys(next)) {
+                if (key === path || (descendants && key.startsWith(`${path}.`))) {
+                    delete next[key];
+                    changed = true;
+                }
+            }
+            return changed ? next : current;
+        });
+    }
+
+    function listItemErrors(path: string) {
+        return Object.entries(jsonPrefillFieldErrors).reduce<Record<number, string>>((result, [key, message]) => {
+            if (!message || !key.startsWith(`${path}.`)) return result;
+            const index = Number(key.slice(path.length + 1));
+            if (Number.isInteger(index)) result[index] = message;
+            return result;
+        }, {});
+    }
+
+    function selectCreationMode(mode: EntityCreationMode) {
+        setCreationModeDialogOpen(false);
+        if (mode === ENTITY_CREATION_MODE.json) setJsonPrefillDialogOpen(true);
+    }
+
+    async function importMethodJson(file: File) {
+        const result = parseMethodJsonPrefillText(await file.text(), {
+            organizationOptions,
+            quizOptions: availableQuizOptions,
+        });
+        const draft = result.draft;
+        setName(draft.name);
+        setDomain(draft.domain);
+        setCategory(draft.category);
+        setQuiz(draft.quizId);
+        setDescription(draft.description);
+        setReadingTime(draft.readingTimeMinutes === null ? "" : String(draft.readingTimeMinutes));
+        setVisibility(draft.visibility);
+        setSelectedOrganizationId(draft.organizationId);
+        setMethodResources(draft.resources.map((resource) => ({
+            ...emptyMethodResource(),
+            deliveryType: "url",
+            externalUrl: resource.externalUrl,
+            label: resource.label,
+            resourceType: "link",
+        })));
+        setObjectifs(draft.objectives);
+        setEnjeux(draft.challenges);
+        setSteps(draft.steps.map((step) => ({
+            ...emptyStep(),
+            bonnesPratiques: step.bestPractices,
+            description: step.description,
+            erreurs: step.pitfalls,
+            icon: step.icon,
+            mediaType: mediaTypeOptions[0],
+            objectifs: step.objectives,
+            posture: step.posture,
+            shortDescription: step.shortDescription,
+            shortName: step.shortName,
+            title: step.title,
+            verbatims: step.verbatims,
+            videoTitle: step.learningResource?.label ?? "",
+            videoUrl: step.learningResource?.externalUrl ?? "",
+        })));
+        setJsonPrefillFieldErrors(result.fieldErrors);
+        setJsonPrefillMessage(
+            Object.keys(result.fieldErrors).length > 0
+                ? "Le fichier a été appliqué. Corrigez les champs signalés avant d’enregistrer."
+                : "Le fichier JSON a correctement prérempli la méthode.",
+        );
+        setFormError(null);
+    }
+
     function updateList(
         list: string[],
         setter: (next: string[]) => void,
@@ -494,6 +589,29 @@ export function CreateMethodPageContent({
     }
 
     function updateStep(stepIndex: number, patch: Partial<MethodStepFormState>) {
+        const fieldByFormKey: Partial<Record<keyof MethodStepFormState, string>> = {
+            bonnesPratiques: "bestPractices",
+            description: "description",
+            erreurs: "pitfalls",
+            icon: "icon",
+            objectifs: "objectives",
+            posture: "posture",
+            shortDescription: "shortDescription",
+            shortName: "shortName",
+            title: "title",
+            verbatims: "verbatims",
+            videoTitle: "learningResource.title",
+            videoUrl: "learningResource.externalUrl",
+        };
+        Object.keys(patch).forEach((key) => {
+            const field = fieldByFormKey[key as keyof MethodStepFormState];
+            if (field) {
+                clearJsonPrefillError(`steps.${stepIndex}.${field}`, true);
+                if (field.startsWith("learningResource.")) {
+                    clearJsonPrefillError(`steps.${stepIndex}.learningResource`);
+                }
+            }
+        });
         setSteps((current) =>
             current.map((step, index) => (index === stepIndex ? { ...step, ...patch } : step)),
         );
@@ -546,6 +664,8 @@ export function CreateMethodPageContent({
     }
 
     function updateMethodResource(resourceIndex: number, patch: Partial<MethodResourceFormState>) {
+        if (Object.hasOwn(patch, "label")) clearJsonPrefillError(`resources.${resourceIndex}.label`);
+        if (Object.hasOwn(patch, "externalUrl")) clearJsonPrefillError(`resources.${resourceIndex}.externalUrl`);
         setMethodResources((current) =>
             current.map((resource, index) => (index === resourceIndex ? { ...resource, ...patch } : resource)),
         );
@@ -687,7 +807,7 @@ export function CreateMethodPageContent({
     }
 
     async function handleSave(status: ContentStatus) {
-        if (isSaving || duplicating) return;
+        if (isSaving || duplicating || Object.keys(jsonPrefillFieldErrors).length > 0) return;
 
         setFormError(null);
         const payload = validateMethodFormPayload(buildPayload(status));
@@ -750,24 +870,40 @@ export function CreateMethodPageContent({
         <Box as={embedded ? "div" : "main"} className={embedded ? "" : "px-5 pb-16 md:px-9 lg:px-12"}>
             <Box className={embedded ? "" : "mx-auto max-w-[1000px]"}>
                 {!embedded && (
-                    <Box className="mb-6 flex items-center gap-4">
-                        <ContextualBackLink
-                            fallbackHref={returnHref}
-                            aria-label="Retour"
-                            className={cn(
-                                "flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white",
-                                uiTokens.text.heading,
-                            )}
-                        >
-                            <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                        </ContextualBackLink>
-                        <Text as="h1" className={cn("text-[26px] font-extrabold leading-tight md:text-[30px]", uiTokens.text.heading)}>
-                            {isEditing ? "Modifier la méthode" : "Ajouter une méthode"}
-                        </Text>
+                    <Box className={uiTokens.jsonPrefill.formHeader}>
+                        <Box className="flex items-center gap-4">
+                            <ContextualBackLink
+                                fallbackHref={returnHref}
+                                aria-label="Retour"
+                                className={cn(
+                                    "flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white",
+                                    uiTokens.text.heading,
+                                )}
+                            >
+                                <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
+                            </ContextualBackLink>
+                            <Text as="h1" className={cn("text-[26px] font-extrabold leading-tight md:text-[30px]", uiTokens.text.heading)}>
+                                {isEditing ? "Modifier la méthode" : "Ajouter une méthode"}
+                            </Text>
+                        </Box>
+                        {!isEditing && (
+                            <Button onClick={() => setJsonPrefillDialogOpen(true)} className={uiTokens.action.secondaryButton}>
+                                <InlineIcon icon={FileUp} className="h-4 w-4" />
+                                {ENTITY_CREATION_MODE_LABELS.json}
+                            </Button>
+                        )}
                     </Box>
                 )}
 
                 <CardSurface className={uiTokens.surface.formCard}>
+                    {jsonPrefillMessage && (
+                        <Box className={uiTokens.jsonPrefill.formNotice}>
+                            <StatusMessage
+                                tone={Object.keys(jsonPrefillFieldErrors).length > 0 ? "info" : "success"}
+                                message={jsonPrefillMessage}
+                            />
+                        </Box>
+                    )}
                     {hasExistingUsage && (
                         <Box
                             className={cn(
@@ -804,18 +940,24 @@ export function CreateMethodPageContent({
                         <Box>
                             <FieldLabel required className={labelClasses}>Nom de la méthode</FieldLabel>
                             <TextInput
+                                aria-invalid={Boolean(jsonPrefillFieldErrors.name)}
                                 value={name}
-                                onChange={(event) => setName(event.target.value)}
+                                onChange={(event) => {
+                                    clearJsonPrefillError("name");
+                                    setName(event.target.value);
+                                }}
                                 placeholder="Ex: Méthode DAGO"
                                 hasLeadingIcon={false}
-                                className={inputClasses}
+                                className={cn(inputClasses, jsonPrefillFieldErrors.name && uiTokens.form.controlError)}
                             />
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.name} />
                         </Box>
                         <Box className="grid gap-5 sm:grid-cols-2">
                             <Box>
                                 <FieldLabel className={labelClasses}>Domaine</FieldLabel>
                                 <SingleSelectField
                                     disabled={hasExistingUsage}
+                                    hasError={Boolean(jsonPrefillFieldErrors.domain)}
                                     options={[...CONTENT_DOMAINS]}
                                     value={domain}
                                     placeholder="Sélectionner un domaine"
@@ -824,12 +966,15 @@ export function CreateMethodPageContent({
 
                                         setDomain(value);
                                         setCategory(null);
+                                        clearJsonPrefillError("domain");
                                     }}
                                 />
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.domain} />
                             </Box>
                             <Box>
                                 <FieldLabel className={labelClasses}>Catégorie</FieldLabel>
                                 <SingleSelectField
+                                    hasError={Boolean(jsonPrefillFieldErrors.category)}
                                     options={[...getCategoriesForDomain(domain)]}
                                     value={category}
                                     placeholder={domain ? "Sélectionner une catégorie" : "Sélectionnez d'abord un domaine"}
@@ -837,9 +982,11 @@ export function CreateMethodPageContent({
                                     onChange={(value) => {
                                         if (isContentCategoryForDomain(domain, value)) {
                                             setCategory(value);
+                                            clearJsonPrefillError("category");
                                         }
                                     }}
                                 />
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.category} />
                             </Box>
                         </Box>
                         <Box>
@@ -848,33 +995,48 @@ export function CreateMethodPageContent({
                             </FieldLabel>
                             <SingleSelectField
                                 disabled={hasExistingUsage}
+                                hasError={Boolean(jsonPrefillFieldErrors.quizId)}
                                 options={quizSelectOptions}
                                 value={quiz ?? noQuizOptionValue}
                                 placeholder="Aucun quiz associé"
-                                onChange={(value) => setQuiz(value === noQuizOptionValue ? null : value)}
+                                onChange={(value) => {
+                                    clearJsonPrefillError("quizId");
+                                    setQuiz(value === noQuizOptionValue ? null : value);
+                                }}
                             />
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.quizId} />
                         </Box>
                         <Box>
                             <FieldLabel className={labelClasses}>Description</FieldLabel>
                             <TextArea
+                                aria-invalid={Boolean(jsonPrefillFieldErrors.description)}
                                 value={description}
-                                onChange={(event) => setDescription(event.target.value)}
+                                onChange={(event) => {
+                                    clearJsonPrefillError("description");
+                                    setDescription(event.target.value);
+                                }}
                                 placeholder="Décrivez brièvement la méthode..."
                                 rows={3}
-                                className={cn("min-h-[88px]", textareaClasses)}
+                                className={cn("min-h-[88px]", textareaClasses, jsonPrefillFieldErrors.description && uiTokens.form.controlError)}
                             />
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.description} />
                         </Box>
                         <Box>
                             <FieldLabel className={labelClasses}>Temps de lecture (en minutes)</FieldLabel>
                             <TextInput
+                                aria-invalid={Boolean(jsonPrefillFieldErrors.readingTimeMinutes)}
                                 type="number"
                                 min={1}
                                 value={readingTime}
-                                onChange={(event) => setReadingTime(event.target.value)}
+                                onChange={(event) => {
+                                    clearJsonPrefillError("readingTimeMinutes");
+                                    setReadingTime(event.target.value);
+                                }}
                                 placeholder="Ex: 12"
                                 hasLeadingIcon={false}
-                                className={inputClasses}
+                                className={cn(inputClasses, jsonPrefillFieldErrors.readingTimeMinutes && uiTokens.form.controlError)}
                             />
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.readingTimeMinutes} />
                         </Box>
                         <Box>
                             <Box className="flex items-center justify-between">
@@ -883,7 +1045,10 @@ export function CreateMethodPageContent({
                                 </Text>
                                 <Button
                                     disabled={hasExistingUsage}
-                                    onClick={() => setMethodResources((current) => [...current, emptyMethodResource()])}
+                                    onClick={() => {
+                                        clearJsonPrefillError("resources");
+                                        setMethodResources((current) => [...current, emptyMethodResource()]);
+                                    }}
                                     className={cn(
                                         uiTokens.action.addButton,
                                         "disabled:cursor-not-allowed disabled:opacity-50",
@@ -924,14 +1089,19 @@ export function CreateMethodPageContent({
                                         <Box>
                                             <FieldLabel className={uiTokens.form.subLabel}>Nom du document</FieldLabel>
                                             <TextInput
+                                                aria-invalid={Boolean(jsonPrefillFieldErrors[`resources.${resourceIndex}.label`])}
                                                 value={resource.label}
                                                 onChange={(event) =>
                                                     updateMethodResource(resourceIndex, { label: event.target.value })
                                                 }
                                                 placeholder="Ex: Guide de prospection DAGO"
                                                 hasLeadingIcon={false}
-                                                className={uiTokens.form.controlWhite}
+                                                className={cn(
+                                                    uiTokens.form.controlWhite,
+                                                    jsonPrefillFieldErrors[`resources.${resourceIndex}.label`] && uiTokens.form.controlError,
+                                                )}
                                             />
+                                            <FieldErrorMessage message={jsonPrefillFieldErrors[`resources.${resourceIndex}.label`]} />
                                         </Box>
                                         <Box>
                                             <FieldLabel className={uiTokens.form.subLabel}>Type de document</FieldLabel>
@@ -968,6 +1138,7 @@ export function CreateMethodPageContent({
                                             <Box>
                                                 <FieldLabel className={uiTokens.form.subLabel}>URL du document</FieldLabel>
                                                 <TextInput
+                                                    aria-invalid={Boolean(jsonPrefillFieldErrors[`resources.${resourceIndex}.externalUrl`])}
                                                     value={resource.externalUrl}
                                                     onChange={(event) =>
                                                         updateMethodResource(resourceIndex, {
@@ -976,13 +1147,18 @@ export function CreateMethodPageContent({
                                                     }
                                                     placeholder="https://..."
                                                     hasLeadingIcon={false}
-                                                    className={uiTokens.form.controlWhite}
+                                                    className={cn(
+                                                        uiTokens.form.controlWhite,
+                                                        jsonPrefillFieldErrors[`resources.${resourceIndex}.externalUrl`] && uiTokens.form.controlError,
+                                                    )}
                                                 />
+                                                <FieldErrorMessage message={jsonPrefillFieldErrors[`resources.${resourceIndex}.externalUrl`]} />
                                             </Box>
                                         )}
                                     </Box>
                                 ))}
                             </Box>
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.resources} />
                         </Box>
                     </Box>
 
@@ -1007,8 +1183,10 @@ export function CreateMethodPageContent({
                                     disabled={hasExistingUsage}
                                     onClick={() => {
                                         setVisibility(option);
+                                        clearJsonPrefillError("visibility");
                                         if (option === CONTENT_VISIBILITY_CHOICE.public) {
                                             setSelectedOrganizationId(null);
+                                            clearJsonPrefillError("organizationId");
                                         }
                                     }}
                                     className={cn(
@@ -1035,11 +1213,13 @@ export function CreateMethodPageContent({
                             );
                         })}
                     </Box>
+                    <FieldErrorMessage message={jsonPrefillFieldErrors.visibility} />
 
                     {visibility === CONTENT_VISIBILITY_CHOICE.private && (
                         <CardSurface className={cn("mt-4", uiTokens.surface.nestedCard)}>
                             <FieldLabel required className={uiTokens.form.subLabel}>Organisation propriétaire</FieldLabel>
                             <SingleSelectField
+                                hasError={Boolean(jsonPrefillFieldErrors.organizationId)}
                                 options={organizationSelectOptions}
                                 value={selectedOrganizationId}
                                 placeholder={
@@ -1048,8 +1228,12 @@ export function CreateMethodPageContent({
                                         : "Aucune organisation disponible"
                                 }
                                 disabled={hasExistingUsage || organizationSelectOptions.length === 0}
-                                onChange={setSelectedOrganizationId}
+                                onChange={(value) => {
+                                    clearJsonPrefillError("organizationId");
+                                    setSelectedOrganizationId(value);
+                                }}
                             />
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.organizationId} />
                         </CardSurface>
                     )}
 
@@ -1060,25 +1244,37 @@ export function CreateMethodPageContent({
                     </Text>
                     <Box className="mt-5 space-y-5">
                         <EditableTextListField
+                            error={jsonPrefillFieldErrors.objectives}
+                            itemErrors={listItemErrors("objectives")}
                             label="Objectifs"
                             placeholder="Ex: Obtenir un rendez-vous qualifié avec le décideur"
                             items={objectifs}
                             showAddLabel
                             structureLocked={hasExistingUsage}
                             onAdd={() => setObjectifs((current) => [...current, ""])}
-                            onChange={(index, value) => updateList(objectifs, setObjectifs, index, value)}
+                            onChange={(index, value) => {
+                                clearJsonPrefillError(`objectives.${index}`);
+                                clearJsonPrefillError("objectives");
+                                updateList(objectifs, setObjectifs, index, value);
+                            }}
                             onRemove={(index) =>
                                 setObjectifs((current) => current.filter((_, i) => i !== index))
                             }
                         />
                         <EditableTextListField
+                            error={jsonPrefillFieldErrors.challenges}
+                            itemErrors={listItemErrors("challenges")}
                             label="Enjeux"
                             placeholder="Ex: Éviter le refus catégorique du standard"
                             items={enjeux}
                             showAddLabel
                             structureLocked={hasExistingUsage}
                             onAdd={() => setEnjeux((current) => [...current, ""])}
-                            onChange={(index, value) => updateList(enjeux, setEnjeux, index, value)}
+                            onChange={(index, value) => {
+                                clearJsonPrefillError(`challenges.${index}`);
+                                clearJsonPrefillError("challenges");
+                                updateList(enjeux, setEnjeux, index, value);
+                            }}
                             onRemove={(index) => setEnjeux((current) => current.filter((_, i) => i !== index))}
                         />
                     </Box>
@@ -1091,7 +1287,10 @@ export function CreateMethodPageContent({
                         </Text>
                         <Button
                             disabled={hasExistingUsage}
-                            onClick={() => setSteps((current) => [...current, emptyStep()])}
+                            onClick={() => {
+                                clearJsonPrefillError("steps");
+                                setSteps((current) => [...current, emptyStep()]);
+                            }}
                             className={cn(
                                 uiTokens.action.addButton,
                                 "disabled:cursor-not-allowed disabled:opacity-50",
@@ -1101,6 +1300,7 @@ export function CreateMethodPageContent({
                             Ajouter une étape
                         </Button>
                     </Box>
+                    <FieldErrorMessage message={jsonPrefillFieldErrors.steps} />
 
                     <Box className="mt-4 space-y-5">
                         {steps.map((step, stepIndex) => (
@@ -1117,9 +1317,12 @@ export function CreateMethodPageContent({
                                             aria-label={`Retirer l'étape ${stepIndex + 1}`}
                                             disabled={hasExistingUsage}
                                             onClick={() =>
-                                                setSteps((current) =>
-                                                    current.filter((_, i) => i !== stepIndex),
-                                                )
+                                                {
+                                                    clearJsonPrefillError("steps");
+                                                    setSteps((current) =>
+                                                        current.filter((_, i) => i !== stepIndex),
+                                                    );
+                                                }
                                             }
                                             className={cn(
                                                 uiTokens.action.stepRemoveButton,
@@ -1135,26 +1338,36 @@ export function CreateMethodPageContent({
                                     <Box>
                                         <FieldLabel required className={uiTokens.form.subLabel}>Titre de l&apos;étape</FieldLabel>
                                         <TextInput
+                                            aria-invalid={Boolean(jsonPrefillFieldErrors[`steps.${stepIndex}.title`])}
                                             value={step.title}
                                             onChange={(event) =>
                                                 updateStep(stepIndex, { title: event.target.value })
                                             }
                                             placeholder="Ex: Démarrer l'appel et passer le barrage du standard"
                                             hasLeadingIcon={false}
-                                            className={uiTokens.form.controlWhite}
+                                            className={cn(
+                                                uiTokens.form.controlWhite,
+                                                jsonPrefillFieldErrors[`steps.${stepIndex}.title`] && uiTokens.form.controlError,
+                                            )}
                                         />
+                                        <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.title`]} />
                                     </Box>
                                     <Box>
                                         <FieldLabel className={uiTokens.form.subLabel}>Description</FieldLabel>
                                         <TextArea
+                                            aria-invalid={Boolean(jsonPrefillFieldErrors[`steps.${stepIndex}.description`])}
                                             value={step.description}
                                             onChange={(event) =>
                                                 updateStep(stepIndex, { description: event.target.value })
                                             }
                                             placeholder="Décrivez cette étape..."
                                             rows={2}
-                                            className={uiTokens.form.textAreaWhite}
+                                            className={cn(
+                                                uiTokens.form.textAreaWhite,
+                                                jsonPrefillFieldErrors[`steps.${stepIndex}.description`] && uiTokens.form.controlError,
+                                            )}
                                         />
+                                        <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.description`]} />
                                     </Box>
 
                                     <Box className={uiTokens.surface.quickTakeCard}>
@@ -1164,44 +1377,60 @@ export function CreateMethodPageContent({
                                         <Box>
                                             <FieldLabel className={uiTokens.form.subLabel}>Nom court de l&apos;étape</FieldLabel>
                                             <TextInput
+                                                aria-invalid={Boolean(jsonPrefillFieldErrors[`steps.${stepIndex}.shortName`])}
                                                 value={step.shortName}
                                                 onChange={(event) =>
                                                     updateStep(stepIndex, { shortName: event.target.value })
                                                 }
                                                 placeholder="Ex: Démarrer"
                                                 hasLeadingIcon={false}
-                                                className={uiTokens.form.controlWhite}
+                                                className={cn(
+                                                    uiTokens.form.controlWhite,
+                                                    jsonPrefillFieldErrors[`steps.${stepIndex}.shortName`] && uiTokens.form.controlError,
+                                                )}
                                             />
+                                            <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.shortName`]} />
                                         </Box>
                                         <Box>
                                             <FieldLabel className={uiTokens.form.subLabel}>Description courte</FieldLabel>
                                             <TextInput
+                                                aria-invalid={Boolean(jsonPrefillFieldErrors[`steps.${stepIndex}.shortDescription`])}
                                                 value={step.shortDescription}
                                                 onChange={(event) =>
                                                     updateStep(stepIndex, { shortDescription: event.target.value })
                                                 }
                                                 placeholder="Ex: Passer le barrage du standard"
                                                 hasLeadingIcon={false}
-                                                className={uiTokens.form.controlWhite}
+                                                className={cn(
+                                                    uiTokens.form.controlWhite,
+                                                    jsonPrefillFieldErrors[`steps.${stepIndex}.shortDescription`] && uiTokens.form.controlError,
+                                                )}
                                             />
+                                            <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.shortDescription`]} />
                                         </Box>
                                     </Box>
 
                                     <Box className={uiTokens.surface.learningCard}>
+                                        <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.learningResource`]} />
                                         <Text as="span" className={cn("block text-[12px] font-extrabold uppercase tracking-[0.08em]", uiTokens.text.learning)}>
                                             Capsule e-learning
                                         </Text>
                                         <Box>
                                             <FieldLabel className={uiTokens.form.subLabel}>Titre du média</FieldLabel>
                                             <TextInput
+                                                aria-invalid={Boolean(jsonPrefillFieldErrors[`steps.${stepIndex}.learningResource.title`])}
                                                 value={step.videoTitle}
                                                 onChange={(event) =>
                                                     updateStep(stepIndex, { videoTitle: event.target.value })
                                                 }
                                                 placeholder="Ex: Méthode DAGO: Démarrer l'appel"
                                                 hasLeadingIcon={false}
-                                                className={uiTokens.form.controlWhite}
+                                                className={cn(
+                                                    uiTokens.form.controlWhite,
+                                                    jsonPrefillFieldErrors[`steps.${stepIndex}.learningResource.title`] && uiTokens.form.controlError,
+                                                )}
                                             />
+                                            <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.learningResource.title`]} />
                                         </Box>
                                         <Box>
                                             <FieldLabel className={uiTokens.form.subLabel}>Type de média</FieldLabel>
@@ -1232,14 +1461,19 @@ export function CreateMethodPageContent({
                                             <Box>
                                                 <FieldLabel className={uiTokens.form.subLabel}>URL de la vidéo</FieldLabel>
                                                 <TextInput
+                                                    aria-invalid={Boolean(jsonPrefillFieldErrors[`steps.${stepIndex}.learningResource.externalUrl`])}
                                                     value={step.videoUrl}
                                                     onChange={(event) =>
                                                         updateStep(stepIndex, { videoUrl: event.target.value })
                                                     }
                                                     placeholder="https://youtu.be/..."
                                                     hasLeadingIcon={false}
-                                                    className={uiTokens.form.controlWhite}
+                                                    className={cn(
+                                                        uiTokens.form.controlWhite,
+                                                        jsonPrefillFieldErrors[`steps.${stepIndex}.learningResource.externalUrl`] && uiTokens.form.controlError,
+                                                    )}
                                                 />
+                                                <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.learningResource.externalUrl`]} />
                                             </Box>
                                         )}
                                     </Box>
@@ -1248,6 +1482,7 @@ export function CreateMethodPageContent({
                                         <FieldLabel className={uiTokens.form.subLabel}>Icône</FieldLabel>
                                         <SingleSelectField
                                             disabled={hasExistingUsage}
+                                            hasError={Boolean(jsonPrefillFieldErrors[`steps.${stepIndex}.icon`])}
                                             options={METHOD_STEP_ICON_OPTIONS}
                                             value={step.icon}
                                             placeholder="Sélectionner une icône"
@@ -1255,9 +1490,12 @@ export function CreateMethodPageContent({
                                                 updateStep(stepIndex, { icon: normalizeMethodStepIcon(value) })
                                             }
                                         />
+                                        <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.icon`]} />
                                     </Box>
 
                                     <EditableTextListField
+                                        error={jsonPrefillFieldErrors[`steps.${stepIndex}.objectives`]}
+                                        itemErrors={listItemErrors(`steps.${stepIndex}.objectives`)}
                                         label="Objectifs de l'étape"
                                         placeholder="Objectif..."
                                         items={step.objectifs}
@@ -1281,6 +1519,8 @@ export function CreateMethodPageContent({
                                         }
                                     />
                                     <EditableTextListField
+                                        error={jsonPrefillFieldErrors[`steps.${stepIndex}.bestPractices`]}
+                                        itemErrors={listItemErrors(`steps.${stepIndex}.bestPractices`)}
                                         label="Bonnes pratiques"
                                         placeholder="Bonne pratique..."
                                         items={step.bonnesPratiques}
@@ -1309,6 +1549,8 @@ export function CreateMethodPageContent({
                                         }
                                     />
                                     <EditableTextListField
+                                        error={jsonPrefillFieldErrors[`steps.${stepIndex}.pitfalls`]}
+                                        itemErrors={listItemErrors(`steps.${stepIndex}.pitfalls`)}
                                         label="Erreurs à éviter"
                                         placeholder="Erreur à éviter..."
                                         items={step.erreurs}
@@ -1332,6 +1574,8 @@ export function CreateMethodPageContent({
                                         }
                                     />
                                     <EditableTextListField
+                                        error={jsonPrefillFieldErrors[`steps.${stepIndex}.posture`]}
+                                        itemErrors={listItemErrors(`steps.${stepIndex}.posture`)}
                                         label="Posture & Communication"
                                         placeholder="Posture..."
                                         items={step.posture}
@@ -1355,6 +1599,8 @@ export function CreateMethodPageContent({
                                         }
                                     />
                                     <EditableTextListField
+                                        error={jsonPrefillFieldErrors[`steps.${stepIndex}.verbatims`]}
+                                        itemErrors={listItemErrors(`steps.${stepIndex}.verbatims`)}
                                         label="Verbatims préconisés"
                                         placeholder="Verbatim..."
                                         items={step.verbatims}
@@ -1392,7 +1638,7 @@ export function CreateMethodPageContent({
                     <Box className="flex justify-end gap-3">
                         {isDraft && !embedded && (
                             <Button
-                                disabled={isSaving || duplicating}
+                                disabled={isSaving || duplicating || Object.keys(jsonPrefillFieldErrors).length > 0}
                                 onClick={() => handleSave(CONTENT_STATUS.draft)}
                                 className={uiTokens.action.secondaryButton}
                             >
@@ -1402,11 +1648,11 @@ export function CreateMethodPageContent({
                             </Button>
                         )}
                         <Button
-                            disabled={isSaving || duplicating}
+                            disabled={isSaving || duplicating || Object.keys(jsonPrefillFieldErrors).length > 0}
                             onClick={() => handleSave(CONTENT_STATUS.published)}
                             className={cn(
                                 "flex h-11 items-center justify-center rounded-xl px-6 text-[14px] font-bold text-white transition",
-                                !isSaving && !duplicating
+                                !isSaving && !duplicating && Object.keys(jsonPrefillFieldErrors).length === 0
                                     ? uiTokens.action.primaryButton
                                     : uiTokens.action.primaryButtonDisabled,
                             )}
@@ -1420,6 +1666,25 @@ export function CreateMethodPageContent({
                     </Box>
                 </CardSurface>
             </Box>
+
+            {creationModeDialogOpen && (
+                <EntityCreationModeDialog
+                    entityLabel="Méthode"
+                    onClose={() => setCreationModeDialogOpen(false)}
+                    onSelect={selectCreationMode}
+                />
+            )}
+            {jsonPrefillDialogOpen && (
+                <EntityJsonPrefillDialog
+                    entityLabel="Méthode"
+                    onClose={() => setJsonPrefillDialogOpen(false)}
+                    onImport={importMethodJson}
+                    prompt={buildMethodJsonPrefillPrompt({
+                        organizationOptions,
+                        quizOptions: availableQuizOptions,
+                    })}
+                />
+            )}
         </Box>
     );
 }

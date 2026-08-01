@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Archive, BookOpen, Copy, Edit3, MoreHorizontal, Plus } from "lucide-react";
+import { BookOpen, Copy, Edit3, MoreHorizontal, Plus } from "lucide-react";
 import {
     ContextualLink,
     useCurrentAppHref,
@@ -13,8 +13,12 @@ import {
     CONTENT_DOMAINS,
     CONTENT_STATUS_LABELS,
     getCategoriesForDomain,
+    getContentRemovalErrorMessage,
 } from "@/features/content/domain";
-import { ArchiveContentConfirmationModal } from "@/features/content/components";
+import {
+    ContentRemovalConfirmationModal,
+    ContentRemovalMenuButton,
+} from "@/features/content/components";
 import { getMethodScopeLabel, METHOD_ROUTES, type MethodListItem } from "@/features/methods/domain/method";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import {
@@ -56,12 +60,12 @@ async function duplicateMethodRequest(methodId: string) {
     }
 }
 
-async function archiveMethodRequest(methodId: string) {
+async function removeMethodRequest(methodId: string, errorMessage: string) {
     const response = await fetch(METHOD_ROUTES.api.detail(methodId), { method: "DELETE" });
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
 
     if (!response.ok) {
-        throw new Error(payload?.error || "Impossible d'archiver la méthode.");
+        throw new Error(payload?.error || errorMessage);
     }
 }
 
@@ -88,7 +92,7 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
     );
     const [busyMethodId, setBusyMethodId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [methodToArchive, setMethodToArchive] = useState<MethodListItem | null>(null);
+    const [methodToRemove, setMethodToRemove] = useState<MethodListItem | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const categoryOptions = [
         "all",
@@ -162,17 +166,18 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
         }
     }
 
-    async function handleArchive(methodId: string) {
+    async function handleRemove(method: MethodListItem) {
         setError(null);
-        setBusyMethodId(methodId);
+        setBusyMethodId(method.id);
+        const errorMessage = getContentRemovalErrorMessage(method.status, "la méthode");
 
         try {
-            await archiveMethodRequest(methodId);
+            await removeMethodRequest(method.id, errorMessage);
             router.refresh();
             setOpenMenuId(null);
-            setMethodToArchive(null);
+            setMethodToRemove(null);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Impossible d'archiver la méthode.");
+            setError(err instanceof Error ? err.message : errorMessage);
         } finally {
             setBusyMethodId(null);
         }
@@ -225,7 +230,7 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
                     </Box>
                 </LibraryFilterBar>
 
-                {error && !methodToArchive && (
+                {error && !methodToRemove && (
                     <CardSurface className="mb-5 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 shadow-none">
                         <Text className={cn("text-[13px] font-semibold", uiTokens.text.danger)}>{error}</Text>
                     </CardSurface>
@@ -259,15 +264,13 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
                                                 label={ENTITY_ACTION_LABELS.duplicate}
                                                 onClick={() => void handleDuplicate(method.id)}
                                             />
-                                            <CardActionMenuButton
-                                                danger
-                                                disabled={busyMethodId === method.id}
-                                                icon={Archive}
-                                                label={ENTITY_ACTION_LABELS.archive}
+                                            <ContentRemovalMenuButton
+                                                busy={busyMethodId === method.id}
+                                                status={method.status}
                                                 onClick={() => {
                                                     setError(null);
                                                     setOpenMenuId(null);
-                                                    setMethodToArchive(method);
+                                                    setMethodToRemove(method);
                                                 }}
                                             />
                                         </CardActionMenu>
@@ -315,17 +318,18 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
                     </CardSurface>
                 )}
 
-                {methodToArchive && (
-                    <ArchiveContentConfirmationModal
-                        busy={busyMethodId === methodToArchive.id}
+                {methodToRemove && (
+                    <ContentRemovalConfirmationModal
+                        busy={busyMethodId === methodToRemove.id}
                         entityLabel="la méthode"
                         error={error}
-                        name={methodToArchive.name}
+                        name={methodToRemove.name}
                         onCancel={() => {
                             setError(null);
-                            setMethodToArchive(null);
+                            setMethodToRemove(null);
                         }}
-                        onConfirm={() => void handleArchive(methodToArchive.id)}
+                        onConfirm={() => void handleRemove(methodToRemove)}
+                        status={methodToRemove.status}
                     />
                 )}
             </Box>

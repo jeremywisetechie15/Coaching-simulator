@@ -15,6 +15,7 @@ interface EntityProfileDetailsModalProps {
     avatarUrl?: string | null;
     createdAt?: string | null;
     description?: string;
+    headerActions?: ReactNode;
     headerBadge?: ReactNode;
     initials: string;
     name: string;
@@ -29,6 +30,7 @@ export function EntityProfileDetailsModal({
     avatarUrl,
     createdAt,
     description,
+    headerActions,
     headerBadge,
     initials,
     name,
@@ -47,15 +49,18 @@ export function EntityProfileDetailsModal({
             description={description}
             onClose={onClose}
             headerAside={(
-                <Box className={uiTokens.entityDetails.dates}>
-                    <Text className={uiTokens.entityDetails.dateRow}>
-                        <InlineIcon icon={CalendarPlus2} className="h-3.5 w-3.5" />
-                        Créé le {formatShortDateTime(createdAt)}
-                    </Text>
-                    <Text className={uiTokens.entityDetails.dateRow}>
-                        <InlineIcon icon={RefreshCw} className="h-3.5 w-3.5" />
-                        Mis à jour le {formatShortDateTime(updatedAt)}
-                    </Text>
+                <Box className="flex flex-wrap items-center justify-end gap-3">
+                    <Box className={uiTokens.entityDetails.dates}>
+                        <Text className={uiTokens.entityDetails.dateRow}>
+                            <InlineIcon icon={CalendarPlus2} className="h-3.5 w-3.5" />
+                            Créé le {formatShortDateTime(createdAt)}
+                        </Text>
+                        <Text className={uiTokens.entityDetails.dateRow}>
+                            <InlineIcon icon={RefreshCw} className="h-3.5 w-3.5" />
+                            Mis à jour le {formatShortDateTime(updatedAt)}
+                        </Text>
+                    </Box>
+                    {headerActions}
                 </Box>
             )}
         >

@@ -1,9 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Copy, LockKeyhole, Plus, X } from "lucide-react";
+import { ArrowLeft, Copy, FileUp, LockKeyhole, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { ContextualBackLink } from "@/features/app-shell/components";
+import {
+    EntityCreationModeDialog,
+    EntityJsonPrefillDialog,
+} from "@/features/entity-json-prefill/components";
+import {
+    ENTITY_CREATION_MODE,
+    ENTITY_CREATION_MODE_LABELS,
+    type EntityCreationMode,
+} from "@/features/entity-json-prefill/domain";
 import {
     CONTENT_STATUS,
     CONTENT_DOMAINS,
@@ -30,9 +39,17 @@ import {
     type SkillType,
 } from "@/features/skills/domain/skills";
 import {
+    buildSkillJsonPrefillPrompt,
+    parseSkillJsonPrefillText,
+    SKILL_JSON_PREFILL_FIELD,
+    type SkillJsonPrefillField,
+    type SkillJsonPrefillFieldErrors,
+} from "@/features/skills/domain/skill-json-prefill";
+import {
     Box,
     Button,
     CardSurface,
+    FieldErrorMessage,
     FieldLabel,
     InlineIcon,
     Text,
@@ -44,7 +61,7 @@ import {
     notifyFormSubmitError,
     notifyFormSubmitSuccess,
 } from "@/lib/ui/feedback/form-submit-feedback";
-import { AlertMessage, SingleSelectField } from "@/lib/ui/molecules";
+import { AlertMessage, SingleSelectField, StatusMessage } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 
@@ -115,20 +132,26 @@ async function duplicateSkill(skillId: string) {
 
 function DimensionSection({
     disabled,
+    error,
+    errorField,
     title,
     placeholder,
     items,
     onAdd,
     onChange,
     onRemove,
+    itemErrors,
 }: {
     disabled: boolean;
+    error?: string;
+    errorField: string;
     title: string;
     placeholder: string;
     items: SkillDimensionFormItem[];
     onAdd: () => void;
     onChange: (index: number, value: string) => void;
     onRemove: (index: number) => void;
+    itemErrors?: Record<number, string>;
 }) {
     return (
         <Box>
@@ -147,29 +170,44 @@ function DimensionSection({
             </Box>
             <Box className="mt-3 space-y-2.5">
                 {items.map((item, index) => (
-                    <Box key={item.id ?? index} className="flex items-center gap-2.5">
-                        <Box className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#C9CED8]" />
-                        <TextInput
-                            disabled={disabled}
-                            hasLeadingIcon={false}
-                            value={item.label}
-                            onChange={(event) => onChange(index, event.target.value)}
-                            placeholder={placeholder}
-                            className={cn("h-12", protectedControlClasses)}
-                        />
-                        {items.length > 1 && (
-                            <Button
-                                aria-label="Retirer"
+                    <Box key={item.id ?? index}>
+                        <Box className="flex items-center gap-2.5">
+                            <Box className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#C9CED8]" />
+                            <TextInput
+                                aria-describedby={itemErrors?.[index] ? `${errorField}-${index}-error` : undefined}
+                                aria-invalid={itemErrors?.[index] ? true : undefined}
                                 disabled={disabled}
-                                onClick={() => onRemove(index)}
-                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#9CA3AF] transition hover:bg-[#F3F4F8] hover:text-[#111827] disabled:cursor-not-allowed disabled:opacity-65"
-                            >
-                                <InlineIcon icon={X} className="h-4 w-4" />
-                            </Button>
-                        )}
+                                hasLeadingIcon={false}
+                                value={item.label}
+                                onChange={(event) => onChange(index, event.target.value)}
+                                placeholder={placeholder}
+                                className={cn(
+                                    "h-12",
+                                    protectedControlClasses,
+                                    itemErrors?.[index] && uiTokens.form.controlError,
+                                )}
+                            />
+                            {items.length > 1 && (
+                                <Button
+                                    aria-label="Retirer"
+                                    disabled={disabled}
+                                    onClick={() => onRemove(index)}
+                                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#9CA3AF] transition hover:bg-[#F3F4F8] hover:text-[#111827] disabled:cursor-not-allowed disabled:opacity-65"
+                                >
+                                    <InlineIcon icon={X} className="h-4 w-4" />
+                                </Button>
+                            )}
+                        </Box>
+                        <Box className="ml-4">
+                            <FieldErrorMessage
+                                id={`${errorField}-${index}-error`}
+                                message={itemErrors?.[index]}
+                            />
+                        </Box>
                     </Box>
                 ))}
             </Box>
+            <FieldErrorMessage id={`${errorField}-error`} message={error} />
         </Box>
     );
 }
@@ -254,6 +292,11 @@ export function CreateSkillPageContent({
     const [attitude, setAttitude] = useState<SkillDimensionFormItem[]>(
         editableDimensionItems(initialSkill, "savoir_etre"),
     );
+    const [creationModeDialogOpen, setCreationModeDialogOpen] = useState(!isEditing);
+    const [jsonPrefillDialogOpen, setJsonPrefillDialogOpen] = useState(false);
+    const [jsonPrefillFieldErrors, setJsonPrefillFieldErrors] =
+        useState<SkillJsonPrefillFieldErrors>({});
+    const [jsonPrefillMessage, setJsonPrefillMessage] = useState<string | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
     const [duplicating, setDuplicating] = useState(false);
     const [savingStatus, setSavingStatus] = useState<ContentStatus | null>(null);
@@ -265,8 +308,93 @@ export function CreateSkillPageContent({
             Boolean(targetScope.organizationId) &&
             Boolean(targetScope.groupId.trim())) ||
         (targetScope.scope === CONTENT_VISIBILITY_SCOPE.user && Boolean(targetScope.assignedUserId.trim()));
-    const canSubmit = name.trim().length > 0 && scopeTargetReady;
+    const canSubmit =
+        name.trim().length > 0 &&
+        scopeTargetReady &&
+        Object.keys(jsonPrefillFieldErrors).length === 0;
     const isSaving = savingStatus !== null;
+
+    function clearJsonPrefillErrors(...fields: SkillJsonPrefillField[]) {
+        setJsonPrefillFieldErrors((current) => {
+            const next = { ...current };
+            let changed = false;
+
+            for (const field of fields) {
+                if (next[field]) {
+                    delete next[field];
+                    changed = true;
+                }
+            }
+
+            return changed ? next : current;
+        });
+    }
+
+    function clearJsonPrefillErrorTree(field: SkillJsonPrefillField) {
+        setJsonPrefillFieldErrors((current) => {
+            const next = { ...current };
+            let changed = false;
+
+            for (const key of Object.keys(next) as SkillJsonPrefillField[]) {
+                if (key === field || key.startsWith(`${field}.`)) {
+                    delete next[key];
+                    changed = true;
+                }
+            }
+
+            return changed ? next : current;
+        });
+    }
+
+    function getDimensionItemErrors(field: SkillJsonPrefillField) {
+        return Object.entries(jsonPrefillFieldErrors).reduce<Record<number, string>>(
+            (errors, [path, message]) => {
+                if (!message || !path.startsWith(`${field}.`)) return errors;
+
+                const index = Number(path.slice(field.length + 1));
+                if (Number.isInteger(index)) errors[index] = message;
+                return errors;
+            },
+            {},
+        );
+    }
+
+    function selectCreationMode(mode: EntityCreationMode) {
+        setCreationModeDialogOpen(false);
+        if (mode === ENTITY_CREATION_MODE.json) {
+            setJsonPrefillDialogOpen(true);
+        }
+    }
+
+    async function importSkillJson(file: File) {
+        const result = parseSkillJsonPrefillText(await file.text(), {
+            groupOptions,
+            organizationOptions,
+            userOptions,
+        });
+
+        setName(result.draft.name);
+        setDescription(result.draft.description);
+        setType(result.draft.type);
+        setDomain(result.draft.domain);
+        setCategory(result.draft.category);
+        setTargetScope({
+            assignedUserId: result.draft.assignedUserId,
+            groupId: result.draft.groupId,
+            organizationId: result.draft.organizationId,
+            scope: result.draft.scope,
+        });
+        setKnowledge(result.draft.dimensionItems.savoir.map((label) => ({ label })));
+        setKnowHow(result.draft.dimensionItems.savoir_faire.map((label) => ({ label })));
+        setAttitude(result.draft.dimensionItems.savoir_etre.map((label) => ({ label })));
+        setJsonPrefillFieldErrors(result.fieldErrors);
+        setJsonPrefillMessage(
+            Object.keys(result.fieldErrors).length > 0
+                ? "Le fichier a été appliqué. Corrigez les champs signalés avant d’enregistrer."
+                : "Le fichier JSON a correctement prérempli la compétence.",
+        );
+        setFormError(null);
+    }
 
     function updateList(
         list: SkillDimensionFormItem[],
@@ -339,17 +467,28 @@ export function CreateSkillPageContent({
     return (
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1180px]">
-                <Box className="mb-6 flex items-center gap-4">
-                    <ContextualBackLink
-                        fallbackHref={SKILL_ROUTES.app.collection}
-                        aria-label="Retour"
-                        className="flex h-9 w-9 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
-                    >
-                        <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                    </ContextualBackLink>
-                    <Text as="h1" className="text-[28px] font-extrabold leading-tight text-[#111827] md:text-[32px]">
-                        {isEditing ? "Modifier la compétence" : "Ajouter une compétence"}
-                    </Text>
+                <Box className={uiTokens.jsonPrefill.formHeader}>
+                    <Box className="flex items-center gap-4">
+                        <ContextualBackLink
+                            fallbackHref={SKILL_ROUTES.app.collection}
+                            aria-label="Retour"
+                            className="flex h-9 w-9 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
+                        >
+                            <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
+                        </ContextualBackLink>
+                        <Text as="h1" className="text-[28px] font-extrabold leading-tight text-[#111827] md:text-[32px]">
+                            {isEditing ? "Modifier la compétence" : "Ajouter une compétence"}
+                        </Text>
+                    </Box>
+                    {!isEditing && (
+                        <Button
+                            onClick={() => setJsonPrefillDialogOpen(true)}
+                            className={uiTokens.action.secondaryButton}
+                        >
+                            <InlineIcon icon={FileUp} className="h-4 w-4" />
+                            {ENTITY_CREATION_MODE_LABELS.json}
+                        </Button>
+                    )}
                 </Box>
 
                 {formError && <Box className="mb-5"><AlertMessage message={formError} /></Box>}
@@ -385,6 +524,18 @@ export function CreateSkillPageContent({
                 )}
 
                 <CardSurface className="rounded-[24px] border border-[#E9E7FB] p-7 shadow-[0_1px_2px_rgba(17,24,39,0.04)] md:p-9">
+                    {jsonPrefillMessage && (
+                        <Box className={uiTokens.jsonPrefill.formNotice}>
+                            <StatusMessage
+                                tone={Object.keys(jsonPrefillFieldErrors).length > 0 ? "info" : "success"}
+                                message={
+                                    Object.keys(jsonPrefillFieldErrors).length > 0
+                                        ? jsonPrefillMessage
+                                        : "La compétence est prête à être vérifiée et enregistrée."
+                                }
+                            />
+                        </Box>
+                    )}
                     <Text as="h2" className="text-[22px] font-extrabold text-[#111827]">
                         Informations générales
                     </Text>
@@ -395,12 +546,26 @@ export function CreateSkillPageContent({
                                 Nom de la compétence
                             </FieldLabel>
                             <TextInput
+                                id="skill-name"
+                                aria-describedby={jsonPrefillFieldErrors.name ? "skill-name-error" : undefined}
+                                aria-invalid={jsonPrefillFieldErrors.name ? true : undefined}
                                 disabled={hasProtectedUsage}
                                 hasLeadingIcon={false}
                                 value={name}
-                                onChange={(event) => setName(event.target.value)}
+                                onChange={(event) => {
+                                    setName(event.target.value);
+                                    clearJsonPrefillErrors(SKILL_JSON_PREFILL_FIELD.name);
+                                }}
                                 placeholder="Ex: Accès au décideur"
-                                className={cn("h-12", protectedControlClasses)}
+                                className={cn(
+                                    "h-12",
+                                    protectedControlClasses,
+                                    jsonPrefillFieldErrors.name && uiTokens.form.controlError,
+                                )}
+                            />
+                            <FieldErrorMessage
+                                id="skill-name-error"
+                                message={jsonPrefillFieldErrors.name}
                             />
                         </Box>
 
@@ -409,11 +574,24 @@ export function CreateSkillPageContent({
                                 Description
                             </Text>
                             <TextArea
+                                id="skill-description"
+                                aria-describedby={jsonPrefillFieldErrors.description ? "skill-description-error" : undefined}
+                                aria-invalid={jsonPrefillFieldErrors.description ? true : undefined}
                                 value={description}
-                                onChange={(event) => setDescription(event.target.value)}
+                                onChange={(event) => {
+                                    setDescription(event.target.value);
+                                    clearJsonPrefillErrors(SKILL_JSON_PREFILL_FIELD.description);
+                                }}
                                 placeholder="Décrivez la compétence..."
                                 rows={4}
-                                className="min-h-[132px]"
+                                className={cn(
+                                    "min-h-[132px]",
+                                    jsonPrefillFieldErrors.description && uiTokens.form.controlError,
+                                )}
+                            />
+                            <FieldErrorMessage
+                                id="skill-description-error"
+                                message={jsonPrefillFieldErrors.description}
                             />
                         </Box>
 
@@ -423,13 +601,22 @@ export function CreateSkillPageContent({
                                     Type de compétence
                                 </FieldLabel>
                                 <SingleSelectField
+                                    ariaDescribedBy={jsonPrefillFieldErrors.type ? "skill-type-error" : undefined}
                                     disabled={hasProtectedUsage}
+                                    hasError={Boolean(jsonPrefillFieldErrors.type)}
                                     options={[...SKILL_TYPES]}
                                     value={type}
                                     placeholder="Sélectionner un type"
                                     onChange={(value) => {
-                                        if (isSkillType(value)) setType(value);
+                                        if (isSkillType(value)) {
+                                            setType(value);
+                                            clearJsonPrefillErrors(SKILL_JSON_PREFILL_FIELD.type);
+                                        }
                                     }}
+                                />
+                                <FieldErrorMessage
+                                    id="skill-type-error"
+                                    message={jsonPrefillFieldErrors.type}
                                 />
                             </Box>
                             <Box>
@@ -437,7 +624,9 @@ export function CreateSkillPageContent({
                                     Domaine de compétence
                                 </FieldLabel>
                                 <SingleSelectField
+                                    ariaDescribedBy={jsonPrefillFieldErrors.domain ? "skill-domain-error" : undefined}
                                     disabled={hasProtectedUsage}
+                                    hasError={Boolean(jsonPrefillFieldErrors.domain)}
                                     options={[...CONTENT_DOMAINS]}
                                     value={domain}
                                     placeholder="Sélectionner un domaine"
@@ -446,7 +635,12 @@ export function CreateSkillPageContent({
 
                                         setDomain(value);
                                         setCategory(null);
+                                        clearJsonPrefillErrors(SKILL_JSON_PREFILL_FIELD.domain);
                                     }}
+                                />
+                                <FieldErrorMessage
+                                    id="skill-domain-error"
+                                    message={jsonPrefillFieldErrors.domain}
                                 />
                             </Box>
                             <Box>
@@ -454,27 +648,58 @@ export function CreateSkillPageContent({
                                     Catégorie de compétence
                                 </FieldLabel>
                                 <SingleSelectField
+                                    ariaDescribedBy={jsonPrefillFieldErrors.category ? "skill-category-error" : undefined}
                                     options={[...getCategoriesForDomain(domain)]}
+                                    hasError={Boolean(jsonPrefillFieldErrors.category)}
                                     value={category}
                                     placeholder={domain ? "Sélectionner une catégorie" : "Sélectionnez d'abord un domaine"}
                                     disabled={hasProtectedUsage || !domain}
                                     onChange={(value) => {
                                         if (isContentCategoryForDomain(domain, value)) {
                                             setCategory(value);
+                                            clearJsonPrefillErrors(SKILL_JSON_PREFILL_FIELD.category);
                                         }
                                     }}
+                                />
+                                <FieldErrorMessage
+                                    id="skill-category-error"
+                                    message={jsonPrefillFieldErrors.category}
                                 />
                             </Box>
                         </Box>
 
-                        <ContentTargetScopeField
-                            disabled={hasProtectedUsage}
-                            groupOptions={groupOptions}
-                            organizationOptions={organizationOptions}
-                            userOptions={userOptions}
-                            value={targetScope}
-                            onChange={setTargetScope}
-                        />
+                        <Box
+                            className={cn(
+                                jsonPrefillFieldErrors.scope && uiTokens.form.fieldErrorPanel,
+                            )}
+                        >
+                            <ContentTargetScopeField
+                                disabled={hasProtectedUsage}
+                                errorIdPrefix="skill-target"
+                                fieldErrors={{
+                                    assignedUserId: jsonPrefillFieldErrors.assignedUserId,
+                                    groupId: jsonPrefillFieldErrors.groupId,
+                                    organizationId: jsonPrefillFieldErrors.organizationId,
+                                }}
+                                groupOptions={groupOptions}
+                                organizationOptions={organizationOptions}
+                                userOptions={userOptions}
+                                value={targetScope}
+                                onChange={(value) => {
+                                    setTargetScope(value);
+                                    clearJsonPrefillErrors(
+                                        SKILL_JSON_PREFILL_FIELD.scope,
+                                        SKILL_JSON_PREFILL_FIELD.organizationId,
+                                        SKILL_JSON_PREFILL_FIELD.groupId,
+                                        SKILL_JSON_PREFILL_FIELD.assignedUserId,
+                                    );
+                                }}
+                            />
+                            <FieldErrorMessage
+                                id="skill-scope-error"
+                                message={jsonPrefillFieldErrors.scope}
+                            />
+                        </Box>
                     </Box>
 
                     <Box className="my-8 h-px bg-[#ECEEF3]" />
@@ -486,36 +711,75 @@ export function CreateSkillPageContent({
                     <Box className="mt-6 space-y-7">
                         <DimensionSection
                             disabled={hasProtectedUsage}
+                            error={jsonPrefillFieldErrors[SKILL_JSON_PREFILL_FIELD.knowledge]}
+                            errorField="skill-knowledge"
                             title="Savoir (Connaissances théoriques)"
                             placeholder="Ex: Comprendre les différents rôles du standard..."
                             items={knowledge}
-                            onAdd={() => setKnowledge((current) => [...current, { label: "" }])}
-                            onChange={(index, value) => updateList(knowledge, setKnowledge, index, value)}
-                            onRemove={(index) =>
-                                setKnowledge((current) => current.filter((_, itemIndex) => itemIndex !== index))
-                            }
+                            itemErrors={getDimensionItemErrors(SKILL_JSON_PREFILL_FIELD.knowledge)}
+                            onAdd={() => {
+                                setKnowledge((current) => [...current, { label: "" }]);
+                                clearJsonPrefillErrorTree(SKILL_JSON_PREFILL_FIELD.knowledge);
+                            }}
+                            onChange={(index, value) => {
+                                updateList(knowledge, setKnowledge, index, value);
+                                clearJsonPrefillErrors(
+                                    `${SKILL_JSON_PREFILL_FIELD.knowledge}.${index}`,
+                                    SKILL_JSON_PREFILL_FIELD.knowledge,
+                                );
+                            }}
+                            onRemove={(index) => {
+                                setKnowledge((current) => current.filter((_, itemIndex) => itemIndex !== index));
+                                clearJsonPrefillErrorTree(SKILL_JSON_PREFILL_FIELD.knowledge);
+                            }}
                         />
                         <DimensionSection
                             disabled={hasProtectedUsage}
+                            error={jsonPrefillFieldErrors[SKILL_JSON_PREFILL_FIELD.knowHow]}
+                            errorField="skill-know-how"
                             title="Savoir-faire (Compétences pratiques)"
                             placeholder="Ex: Formuler une demande de mise en relation claire..."
                             items={knowHow}
-                            onAdd={() => setKnowHow((current) => [...current, { label: "" }])}
-                            onChange={(index, value) => updateList(knowHow, setKnowHow, index, value)}
-                            onRemove={(index) =>
-                                setKnowHow((current) => current.filter((_, itemIndex) => itemIndex !== index))
-                            }
+                            itemErrors={getDimensionItemErrors(SKILL_JSON_PREFILL_FIELD.knowHow)}
+                            onAdd={() => {
+                                setKnowHow((current) => [...current, { label: "" }]);
+                                clearJsonPrefillErrorTree(SKILL_JSON_PREFILL_FIELD.knowHow);
+                            }}
+                            onChange={(index, value) => {
+                                updateList(knowHow, setKnowHow, index, value);
+                                clearJsonPrefillErrors(
+                                    `${SKILL_JSON_PREFILL_FIELD.knowHow}.${index}`,
+                                    SKILL_JSON_PREFILL_FIELD.knowHow,
+                                );
+                            }}
+                            onRemove={(index) => {
+                                setKnowHow((current) => current.filter((_, itemIndex) => itemIndex !== index));
+                                clearJsonPrefillErrorTree(SKILL_JSON_PREFILL_FIELD.knowHow);
+                            }}
                         />
                         <DimensionSection
                             disabled={hasProtectedUsage}
+                            error={jsonPrefillFieldErrors[SKILL_JSON_PREFILL_FIELD.attitude]}
+                            errorField="skill-attitude"
                             title="Savoir-être (Comportements et attitudes)"
                             placeholder="Ex: Adopter un ton assuré sans agressivité..."
                             items={attitude}
-                            onAdd={() => setAttitude((current) => [...current, { label: "" }])}
-                            onChange={(index, value) => updateList(attitude, setAttitude, index, value)}
-                            onRemove={(index) =>
-                                setAttitude((current) => current.filter((_, itemIndex) => itemIndex !== index))
-                            }
+                            itemErrors={getDimensionItemErrors(SKILL_JSON_PREFILL_FIELD.attitude)}
+                            onAdd={() => {
+                                setAttitude((current) => [...current, { label: "" }]);
+                                clearJsonPrefillErrorTree(SKILL_JSON_PREFILL_FIELD.attitude);
+                            }}
+                            onChange={(index, value) => {
+                                updateList(attitude, setAttitude, index, value);
+                                clearJsonPrefillErrors(
+                                    `${SKILL_JSON_PREFILL_FIELD.attitude}.${index}`,
+                                    SKILL_JSON_PREFILL_FIELD.attitude,
+                                );
+                            }}
+                            onRemove={(index) => {
+                                setAttitude((current) => current.filter((_, itemIndex) => itemIndex !== index));
+                                clearJsonPrefillErrorTree(SKILL_JSON_PREFILL_FIELD.attitude);
+                            }}
                         />
                     </Box>
 
@@ -551,6 +815,27 @@ export function CreateSkillPageContent({
                     </Box>
                 </CardSurface>
             </Box>
+
+            {creationModeDialogOpen && (
+                <EntityCreationModeDialog
+                    entityLabel="Compétence"
+                    onClose={() => setCreationModeDialogOpen(false)}
+                    onSelect={selectCreationMode}
+                />
+            )}
+
+            {jsonPrefillDialogOpen && (
+                <EntityJsonPrefillDialog
+                    entityLabel="Compétence"
+                    onClose={() => setJsonPrefillDialogOpen(false)}
+                    onImport={importSkillJson}
+                    prompt={buildSkillJsonPrefillPrompt({
+                        groupOptions,
+                        organizationOptions,
+                        userOptions,
+                    })}
+                />
+            )}
         </Box>
     );
 }

@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/features/auth/server";
 import {
-    archiveRoleplay,
     getRoleplayById,
     parseSaveRoleplayRequest,
+    removeRoleplay,
     updateRoleplay,
 } from "@/features/roleplays/server";
 import { jsonError } from "@/lib/server/http";
@@ -41,9 +41,9 @@ export async function PATCH(request: NextRequest, context: RoleplayRouteContext)
 export async function DELETE(_request: NextRequest, context: RoleplayRouteContext) {
     try {
         const { roleplayId } = await context.params;
-        await archiveRoleplay(roleplayId);
+        const action = await removeRoleplay(roleplayId);
 
-        return NextResponse.json({ ok: true });
+        return NextResponse.json({ action, ok: true });
     } catch (error) {
         return jsonError(error);
     }

@@ -1,58 +1,60 @@
 "use client";
 
 import { useState } from "react";
-import { Archive, ArrowLeft, Edit3 } from "lucide-react";
-import { Box, Button, InlineIcon } from "@/lib/ui/atoms";
-import { AlertMessage } from "@/lib/ui/molecules";
+import { ArrowLeft, Edit3 } from "lucide-react";
+import {
+    ContentRemovalButton,
+    ContentRemovalConfirmationModal,
+} from "@/features/content/components";
+import { getContentRemovalAction, type ContentStatus } from "@/features/content/domain";
+import { Box, InlineIcon } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
-import { cn } from "@/lib/ui/utils/cn";
 import { ContextualBackLink } from "./ContextualBackLink";
 import { ContextualLink } from "./ContextualLink";
 
-interface ResourceArchiveAction {
+interface ResourceRemovalAction {
+    entityLabel: string;
     errorMessage: string;
-    isArchived?: boolean;
-    onArchive: () => Promise<void>;
+    name: string;
+    onRemove: () => Promise<void>;
+    status: ContentStatus;
 }
 
 interface ResourceDetailHeaderProps {
-    archiveAction?: ResourceArchiveAction;
     canManage?: boolean;
     editHref?: string;
     fallbackHref: string;
+    removalAction?: ResourceRemovalAction;
 }
 
 export function ResourceDetailHeader({
-    archiveAction,
     canManage = false,
     editHref,
     fallbackHref,
+    removalAction,
 }: ResourceDetailHeaderProps) {
-    const [archiveError, setArchiveError] = useState<string | null>(null);
-    const [confirmationPending, setConfirmationPending] = useState(false);
-    const [isArchiving, setIsArchiving] = useState(false);
+    const [removalError, setRemovalError] = useState<string | null>(null);
+    const [isConfirmationOpen, setIsConfirmationOpen] = useState(false);
+    const [isRemoving, setIsRemoving] = useState(false);
+    const removalType = removalAction
+        ? getContentRemovalAction(removalAction.status)
+        : null;
 
-    async function handleArchive() {
-        if (!archiveAction || archiveAction.isArchived || isArchiving) return;
+    async function handleRemove() {
+        if (!removalAction || !removalType || isRemoving) return;
 
-        if (!confirmationPending) {
-            setArchiveError(null);
-            setConfirmationPending(true);
-            return;
-        }
-
-        setArchiveError(null);
-        setIsArchiving(true);
+        setRemovalError(null);
+        setIsRemoving(true);
 
         try {
-            await archiveAction.onArchive();
+            await removalAction.onRemove();
+            setIsConfirmationOpen(false);
         } catch (error) {
-            setArchiveError(
-                error instanceof Error ? error.message : archiveAction.errorMessage,
+            setRemovalError(
+                error instanceof Error ? error.message : removalAction.errorMessage,
             );
-            setConfirmationPending(false);
         } finally {
-            setIsArchiving(false);
+            setIsRemoving(false);
         }
     }
 
@@ -70,7 +72,7 @@ export function ResourceDetailHeader({
                     />
                 </ContextualBackLink>
 
-                {canManage && (editHref || archiveAction) && (
+                {canManage && (editHref || removalType) && (
                     <Box className={uiTokens.resourceDetailHeader.actions}>
                         {editHref && (
                             <ContextualLink
@@ -84,37 +86,34 @@ export function ResourceDetailHeader({
                                 Modifier
                             </ContextualLink>
                         )}
-                        {archiveAction && (
-                            <Button
-                                disabled={archiveAction.isArchived || isArchiving}
-                                onClick={() => void handleArchive()}
-                                className={cn(
-                                    uiTokens.resourceDetailHeader.archiveButton,
-                                    confirmationPending
-                                        && uiTokens.resourceDetailHeader.archiveButtonConfirm,
-                                )}
-                            >
-                                <InlineIcon
-                                    icon={Archive}
-                                    className={uiTokens.resourceDetailHeader.icon}
-                                />
-                                {archiveAction.isArchived
-                                    ? "Archivée"
-                                    : isArchiving
-                                      ? "Archivage..."
-                                      : confirmationPending
-                                        ? "Confirmer l'archivage"
-                                        : "Archiver"}
-                            </Button>
+                        {removalType && removalAction && (
+                            <ContentRemovalButton
+                                busy={isRemoving}
+                                onClick={() => {
+                                    setRemovalError(null);
+                                    setIsConfirmationOpen(true);
+                                }}
+                                status={removalAction.status}
+                            />
                         )}
                     </Box>
                 )}
             </Box>
 
-            {archiveError && (
-                <Box className={uiTokens.resourceDetailHeader.alert}>
-                    <AlertMessage message={archiveError} />
-                </Box>
+            {isConfirmationOpen && removalAction && (
+                <ContentRemovalConfirmationModal
+                    busy={isRemoving}
+                    entityLabel={removalAction.entityLabel}
+                    error={removalError}
+                    name={removalAction.name}
+                    onCancel={() => {
+                        if (isRemoving) return;
+                        setRemovalError(null);
+                        setIsConfirmationOpen(false);
+                    }}
+                    onConfirm={() => void handleRemove()}
+                    status={removalAction.status}
+                />
             )}
         </>
     );

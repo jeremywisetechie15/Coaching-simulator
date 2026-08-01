@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Archive, Copy, Edit3, History, MoreHorizontal, Plus } from "lucide-react";
+import { Copy, Edit3, History, MoreHorizontal, Plus } from "lucide-react";
 import {
     ContextualLink,
     useCurrentAppHref,
@@ -19,6 +19,7 @@ import {
     CONTENT_DIFFICULTIES,
     CONTENT_DOMAINS,
     getCategoriesForDomain,
+    getContentRemovalErrorMessage,
     isLearnerContentStatusFilter,
     LEARNER_CONTENT_STATUS_FILTER,
     LEARNER_CONTENT_STATUS_FILTER_OPTIONS,
@@ -26,7 +27,8 @@ import {
     type LearnerContentStatusFilter,
 } from "@/features/content/domain";
 import {
-    ArchiveContentConfirmationModal,
+    ContentRemovalConfirmationModal,
+    ContentRemovalMenuButton,
 } from "@/features/content/components";
 import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
 import {
@@ -69,12 +71,12 @@ async function duplicateQuiz(quizId: string) {
     }
 }
 
-async function archiveQuiz(quizId: string) {
+async function removeQuiz(quizId: string, errorMessage: string) {
     const response = await fetch(`/api/quizzes/${quizId}`, { method: "DELETE" });
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
 
     if (!response.ok) {
-        throw new Error(payload?.error || "Impossible d'archiver le quiz.");
+        throw new Error(payload?.error || errorMessage);
     }
 }
 
@@ -127,7 +129,7 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [busyQuizId, setBusyQuizId] = useState<string | null>(null);
-    const [quizToArchive, setQuizToArchive] = useState<QuizListItem | null>(null);
+    const [quizToRemove, setQuizToRemove] = useState<QuizListItem | null>(null);
 
     const categoryOptions = [
         "all",
@@ -178,18 +180,19 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
         }
     }
 
-    async function handleArchive(quizId: string) {
+    async function handleRemove(quiz: QuizListItem) {
         setError(null);
-        setBusyQuizId(quizId);
+        setBusyQuizId(quiz.id);
+        const errorMessage = getContentRemovalErrorMessage(quiz.status, "le quiz");
 
         try {
-            await archiveQuiz(quizId);
+            await removeQuiz(quiz.id, errorMessage);
             void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
             router.refresh();
             setOpenMenuId(null);
-            setQuizToArchive(null);
+            setQuizToRemove(null);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Impossible d'archiver le quiz.");
+            setError(err instanceof Error ? err.message : errorMessage);
         } finally {
             setBusyQuizId(null);
         }
@@ -265,7 +268,7 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                     }
                 />
 
-                {error && !quizToArchive && (
+                {error && !quizToRemove && (
                     <CardSurface className="mb-5 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 shadow-none">
                         <Text className={cn("text-[13px] font-semibold", uiTokens.text.danger)}>{error}</Text>
                     </CardSurface>
@@ -368,15 +371,13 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                                                         label={ENTITY_ACTION_LABELS.duplicate}
                                                         onClick={() => void handleDuplicate(quiz.id)}
                                                     />
-                                                    <CardActionMenuButton
-                                                        danger
-                                                        disabled={busyQuizId === quiz.id}
-                                                        icon={Archive}
-                                                        label={ENTITY_ACTION_LABELS.archive}
+                                                    <ContentRemovalMenuButton
+                                                        busy={busyQuizId === quiz.id}
+                                                        status={quiz.status}
                                                         onClick={() => {
                                                             setError(null);
                                                             setOpenMenuId(null);
-                                                            setQuizToArchive(quiz);
+                                                            setQuizToRemove(quiz);
                                                         }}
                                                     />
                                                 </CardActionMenu>
@@ -395,17 +396,18 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                     </CardSurface>
                 )}
 
-                {quizToArchive && (
-                    <ArchiveContentConfirmationModal
-                        busy={busyQuizId === quizToArchive.id}
+                {quizToRemove && (
+                    <ContentRemovalConfirmationModal
+                        busy={busyQuizId === quizToRemove.id}
                         entityLabel="le quiz"
                         error={error}
-                        name={quizToArchive.title}
+                        name={quizToRemove.title}
                         onCancel={() => {
                             setError(null);
-                            setQuizToArchive(null);
+                            setQuizToRemove(null);
                         }}
-                        onConfirm={() => void handleArchive(quizToArchive.id)}
+                        onConfirm={() => void handleRemove(quizToRemove)}
+                        status={quizToRemove.status}
                     />
                 )}
             </Box>

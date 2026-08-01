@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ConflictError } from "@/lib/server/errors";
 
 const mocks = vi.hoisted(() => ({
-    archiveQuiz: vi.fn(),
+    removeQuiz: vi.fn(),
     getQuizById: vi.fn(),
     parseSaveQuizRequest: vi.fn(),
     revalidateQuizConsumers: vi.fn(),
@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@/features/evaluations/server", () => mocks);
 
-import { PATCH } from "./route";
+import { DELETE, PATCH } from "./route";
 
 describe("PATCH /api/quizzes/[quizId]", () => {
     beforeEach(() => {
@@ -54,5 +54,24 @@ describe("PATCH /api/quizzes/[quizId]", () => {
 
         expect(response.status).toBe(409);
         expect(mocks.revalidateQuizConsumers).not.toHaveBeenCalled();
+    });
+});
+
+describe("DELETE /api/quizzes/[quizId]", () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
+    it("returns the lifecycle action chosen by the server", async () => {
+        mocks.removeQuiz.mockResolvedValueOnce("delete");
+
+        const response = await DELETE(
+            new NextRequest("http://localhost/api/quizzes/quiz-1", { method: "DELETE" }),
+            { params: Promise.resolve({ quizId: "quiz-1" }) },
+        );
+
+        expect(mocks.removeQuiz).toHaveBeenCalledWith("quiz-1");
+        expect(mocks.revalidateQuizConsumers).toHaveBeenCalledOnce();
+        await expect(response.json()).resolves.toEqual({ action: "delete", ok: true });
     });
 });

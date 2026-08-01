@@ -1,4 +1,5 @@
-import { Archive, Copy, Edit3, MoreHorizontal } from "lucide-react";
+import { Copy, Edit3, MoreHorizontal } from "lucide-react";
+import { ContentRemovalMenuButton } from "@/features/content/components";
 import { withReturnTo } from "@/features/app-shell/domain";
 import { SKILL_ROUTES, type SkillListItem } from "@/features/skills/domain/skills";
 import { Box, Button, InlineIcon } from "@/lib/ui/atoms";
@@ -11,7 +12,7 @@ interface SkillCardActionsProps {
     busy: boolean;
     currentHref: string;
     isMenuOpen: boolean;
-    onArchive: () => void;
+    onRemove: () => void;
     onDuplicate: () => void;
     onToggleMenu: () => void;
     skill: SkillListItem;
@@ -21,7 +22,7 @@ export function SkillCardActions({
     busy,
     currentHref,
     isMenuOpen,
-    onArchive,
+    onRemove,
     onDuplicate,
     onToggleMenu,
     skill,
@@ -49,12 +50,10 @@ export function SkillCardActions({
                         label={ENTITY_ACTION_LABELS.duplicate}
                         onClick={onDuplicate}
                     />
-                    <CardActionMenuButton
-                        danger
-                        disabled={busy}
-                        icon={Archive}
-                        label={ENTITY_ACTION_LABELS.archive}
-                        onClick={onArchive}
+                    <ContentRemovalMenuButton
+                        busy={busy}
+                        onClick={onRemove}
+                        status={skill.status}
                     />
                 </CardActionMenu>
             )}

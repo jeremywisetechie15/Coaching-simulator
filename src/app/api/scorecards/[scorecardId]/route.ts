@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { saveScorecardDto } from "@/features/scorecards/dto";
 import {
-    archiveScorecard,
     getScorecardById,
+    removeScorecard,
     updateScorecard,
 } from "@/features/scorecards/server";
 import { jsonError } from "@/lib/server/http";
@@ -39,9 +39,9 @@ export async function PATCH(request: NextRequest, context: ScorecardRouteContext
 export async function DELETE(_request: NextRequest, context: ScorecardRouteContext) {
     try {
         const { scorecardId } = await context.params;
-        await archiveScorecard(scorecardId);
+        const action = await removeScorecard(scorecardId);
 
-        return NextResponse.json({ ok: true });
+        return NextResponse.json({ action, ok: true });
     } catch (error) {
         return jsonError(error);
     }

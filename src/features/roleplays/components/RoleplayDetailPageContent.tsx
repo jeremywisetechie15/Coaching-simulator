@@ -13,7 +13,7 @@ import {
     DiscProfileBadge,
     LearnerContentStatusBadge,
 } from "@/features/content/components";
-import { isSelectableContent } from "@/features/content/domain";
+import { getContentRemovalErrorMessage, isSelectableContent } from "@/features/content/domain";
 import {
     categoryBadgeStyles,
     difficultyBadgeStyles,
@@ -37,14 +37,14 @@ interface ApiErrorPayload {
     error?: string;
 }
 
-async function archiveRoleplayRequest(roleplayId: string) {
+async function removeRoleplayRequest(roleplayId: string, errorMessage: string) {
     const response = await fetch(ROLEPLAY_ROUTES.api.detail(roleplayId), {
         method: "DELETE",
     });
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
 
     if (!response.ok) {
-        throw new Error(payload?.error || "Impossible d'archiver le roleplay.");
+        throw new Error(payload?.error || errorMessage);
     }
 }
 
@@ -114,7 +114,6 @@ export function RoleplayDetailPageContent({
     const prepQuizzes = roleplay.prepQuizzes ?? [];
     const canStartRoleplay = isSelectableContent(roleplay.status, roleplay.isActive);
     const roleplayId = roleplay.scenarioId ?? roleplay.id;
-    const isArchived = roleplay.status === "archived" || !roleplay.isActive;
 
     function closeModal() {
         setActiveModal(null);
@@ -124,8 +123,11 @@ export function RoleplayDetailPageContent({
         }
     }
 
-    async function handleArchive() {
-        await archiveRoleplayRequest(roleplayId);
+    async function handleRemove() {
+        await removeRoleplayRequest(
+            roleplayId,
+            getContentRemovalErrorMessage(roleplay.status, "le roleplay"),
+        );
         router.push(ROLEPLAY_ROUTES.app.collection);
         router.refresh();
     }
@@ -134,10 +136,12 @@ export function RoleplayDetailPageContent({
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1180px]">
                 <ResourceDetailHeader
-                    archiveAction={{
-                        errorMessage: "Impossible d'archiver le roleplay.",
-                        isArchived,
-                        onArchive: handleArchive,
+                    removalAction={{
+                        entityLabel: "le roleplay",
+                        errorMessage: getContentRemovalErrorMessage(roleplay.status, "le roleplay"),
+                        name: roleplay.title || roleplay.category,
+                        onRemove: handleRemove,
+                        status: roleplay.status,
                     }}
                     canManage={canManage}
                     editHref={ROLEPLAY_ROUTES.app.edit(roleplayId)}

@@ -3,6 +3,7 @@ import {
     CONTENT_UPLOAD_BUCKET,
     CONTENT_UPLOAD_PURPOSES,
     MAX_PERSONA_CV_UPLOAD_SIZE_BYTES,
+    MAX_ENTITY_JSON_PREFILL_SIZE_BYTES,
     MAX_VIDEO_UPLOAD_SIZE_BYTES,
     PERSONA_CV_UPLOAD_BUCKET,
     PERSONA_CV_UPLOAD_MIME_TYPE,
@@ -162,6 +163,37 @@ describe("content upload domain", () => {
                 CONTENT_UPLOAD_PURPOSES.personaCv,
             ),
         ).toBe("Le fichier est vide.");
+    });
+
+    it("accepts only small JSON files for local entity prefill", () => {
+        expect(getContentUploadAccept(CONTENT_UPLOAD_PURPOSES.entityJsonPrefill)).toBe(
+            ".json,application/json",
+        );
+        expect(getContentUploadLimitLabel(CONTENT_UPLOAD_PURPOSES.entityJsonPrefill)).toBe(
+            "Fichier JSON : 1 Mo maximum.",
+        );
+        expect(
+            validateContentUploadFile(
+                { name: "competence.json", size: 1024, type: "application/json" },
+                CONTENT_UPLOAD_PURPOSES.entityJsonPrefill,
+            ),
+        ).toBeNull();
+        expect(
+            validateContentUploadFile(
+                { name: "competence.txt", size: 1024, type: "application/json" },
+                CONTENT_UPLOAD_PURPOSES.entityJsonPrefill,
+            ),
+        ).toBe("Le fichier doit utiliser l'extension .json.");
+        expect(
+            validateContentUploadFile(
+                {
+                    name: "competence.json",
+                    size: MAX_ENTITY_JSON_PREFILL_SIZE_BYTES + 1,
+                    type: "application/json",
+                },
+                CONTENT_UPLOAD_PURPOSES.entityJsonPrefill,
+            ),
+        ).toBe("Le fichier JSON ne doit pas dépasser 1 Mo.");
     });
 
     it("recognizes the PDF file signature instead of trusting metadata alone", () => {

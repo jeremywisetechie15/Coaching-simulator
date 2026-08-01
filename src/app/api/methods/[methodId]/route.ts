@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { archiveMethod, getMethodById, parseSaveMethodRequest, updateMethod } from "@/features/methods/server";
+import { getMethodById, parseSaveMethodRequest, removeMethod, updateMethod } from "@/features/methods/server";
 import { jsonError } from "@/lib/server/http";
 
 export const dynamic = "force-dynamic";
@@ -34,9 +34,9 @@ export async function PATCH(request: NextRequest, context: MethodRouteContext) {
 export async function DELETE(_request: NextRequest, context: MethodRouteContext) {
     try {
         const { methodId } = await context.params;
-        await archiveMethod(methodId);
+        const action = await removeMethod(methodId);
 
-        return NextResponse.json({ ok: true });
+        return NextResponse.json({ action, ok: true });
     } catch (error) {
         return jsonError(error);
     }

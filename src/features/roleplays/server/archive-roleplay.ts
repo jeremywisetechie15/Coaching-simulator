@@ -1,35 +1,52 @@
-import { requireAdmin } from "@/features/auth/server";
-import { CONTENT_STATUS } from "@/features/content/domain";
-import { assertContentStatusTransition } from "@/features/content/server";
-import { NotFoundError } from "@/lib/server/errors";
-import { createAdminClient } from "@/lib/supabase/admin";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { removeContent, type ContentStorageObject } from "@/features/content/server";
+import { SESSION_BACKGROUND_UPLOAD_BUCKET } from "@/lib/uploads/content-upload";
 
-export async function archiveRoleplay(roleplayId: string) {
-    await requireAdmin();
+async function loadRoleplayStorageObjects(
+    supabase: SupabaseClient,
+    roleplayId: string,
+): Promise<ContentStorageObject[]> {
+    const [roleplayResult, resourcesResult] = await Promise.all([
+        supabase
+            .from("scenarios")
+            .select("background_image_path")
+            .eq("id", roleplayId)
+            .maybeSingle<{ background_image_path: string | null }>(),
+        supabase
+            .from("scenario_resources")
+            .select("bucket, path")
+            .eq("scenario_id", roleplayId)
+            .returns<Array<{ bucket: string | null; path: string | null }>>(),
+    ]);
 
-    const adminSupabase = createAdminClient();
-    const { data: existing, error: existingError } = await adminSupabase
-        .from("scenarios")
-        .select("status")
-        .eq("id", roleplayId)
-        .maybeSingle<{ status: "draft" | "published" | "archived" }>();
+    if (roleplayResult.error) throw roleplayResult.error;
+    if (resourcesResult.error) throw resourcesResult.error;
 
-    if (existingError) throw existingError;
-    if (!existing) throw new NotFoundError("Roleplay introuvable.");
+    const backgroundPath = roleplayResult.data?.background_image_path;
+    return [
+        ...(backgroundPath?.startsWith(`roleplays/${roleplayId}/`)
+            ? [{ bucket: SESSION_BACKGROUND_UPLOAD_BUCKET, path: backgroundPath }]
+            : []),
+        ...(resourcesResult.data ?? []).flatMap(({ bucket, path }) =>
+            bucket && path ? [{ bucket, path }] : [],
+        ),
+    ];
+}
 
-    assertContentStatusTransition(existing.status, CONTENT_STATUS.archived);
-
-    const { data, error } = await adminSupabase
-        .from("scenarios")
-        .update({
-            is_active: false,
-            status: CONTENT_STATUS.archived,
-            updated_at: new Date().toISOString(),
-        })
-        .eq("id", roleplayId)
-        .select("id")
-        .maybeSingle<{ id: string }>();
-
-    if (error) throw error;
-    if (!data) throw new NotFoundError("Roleplay introuvable.");
+export async function removeRoleplay(roleplayId: string) {
+    return removeContent({
+        archiveChanges: { is_active: false },
+        dependencyChecks: [
+            { column: "scenario_id", table: "sessions" },
+            { column: "scenario_id", table: "scenario_user_assignments" },
+            { column: "scenario_id", table: "roleplay_coach_notes" },
+            { column: "scenario_id", table: "roleplay_session_results" },
+            { column: "scenario_id", table: "roleplay_session_step_results" },
+            { column: "scenario_id", table: "roleplay_session_criterion_results" },
+        ],
+        entityId: roleplayId,
+        entityLabel: "Roleplay",
+        loadStorageObjects: loadRoleplayStorageObjects,
+        table: "scenarios",
+    });
 }

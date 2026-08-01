@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-    archiveQuiz,
     getQuizById,
     parseSaveQuizRequest,
+    removeQuiz,
     revalidateQuizConsumers,
     updateQuiz,
 } from "@/features/evaluations/server";
@@ -41,10 +41,10 @@ export async function PATCH(request: NextRequest, context: QuizRouteContext) {
 export async function DELETE(_request: NextRequest, context: QuizRouteContext) {
     try {
         const { quizId } = await context.params;
-        await archiveQuiz(quizId);
+        const action = await removeQuiz(quizId);
         revalidateQuizConsumers();
 
-        return NextResponse.json({ ok: true });
+        return NextResponse.json({ action, ok: true });
     } catch (error) {
         return jsonError(error);
     }

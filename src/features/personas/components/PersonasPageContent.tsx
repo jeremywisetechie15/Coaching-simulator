@@ -1,14 +1,19 @@
 "use client";
 
-import { Archive, Copy, Edit3, MoreHorizontal, Plus, UserRoundCog } from "lucide-react";
+import { Copy, Edit3, MoreHorizontal, Plus, UserRoundCog } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { ContextualLink } from "@/features/app-shell/components";
 import {
-    ArchiveContentConfirmationModal,
+    ContentRemovalConfirmationModal,
+    ContentRemovalMenuButton,
     EntityDetailsModalFeedback,
 } from "@/features/content/components";
 import { requestContentCardAction } from "@/features/content/data/content-card-action.request";
+import {
+    getContentRemovalErrorMessage,
+    type ContentRemovalTarget,
+} from "@/features/content/domain";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import {
     AnimatedEntityHeader,
@@ -71,7 +76,7 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
     const [actionError, setActionError] = useState<string | null>(null);
     const [busyPersonaId, setBusyPersonaId] = useState<string | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-    const [personaToArchive, setPersonaToArchive] = useState<PersonaListItem | null>(null);
+    const [personaToRemove, setPersonaToRemove] = useState<ContentRemovalTarget | null>(null);
     const [selectedPersonaId, setSelectedPersonaId] = useState<string | null>(null);
     const personasQuery = useQuery({
         initialData: initialPersonas,
@@ -109,23 +114,24 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
         }
     }
 
-    async function handleArchive() {
-        if (!personaToArchive) return;
+    async function handleRemove() {
+        if (!personaToRemove) return;
 
         setActionError(null);
-        setBusyPersonaId(personaToArchive.id);
+        setBusyPersonaId(personaToRemove.id);
+        const errorMessage = getContentRemovalErrorMessage(personaToRemove.status, "le persona");
 
         try {
             await requestContentCardAction(
-                PERSONA_ROUTES.api.detail(personaToArchive.id),
+                PERSONA_ROUTES.api.detail(personaToRemove.id),
                 "DELETE",
-                "Impossible d'archiver le persona.",
+                errorMessage,
             );
-            setPersonaToArchive(null);
-            setSelectedPersonaId((currentId) => currentId === personaToArchive.id ? null : currentId);
+            setPersonaToRemove(null);
+            setSelectedPersonaId((currentId) => currentId === personaToRemove.id ? null : currentId);
             await personasQuery.refetch();
         } catch (error) {
-            setActionError(error instanceof Error ? error.message : "Impossible d'archiver le persona.");
+            setActionError(error instanceof Error ? error.message : errorMessage);
         } finally {
             setBusyPersonaId(null);
         }
@@ -157,7 +163,7 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
                     </Box>
                 )}
 
-                {actionError && !personaToArchive && (
+                {actionError && !personaToRemove && (
                     <CardSurface className={cn("mb-5 rounded-xl border px-4 py-3 shadow-none", uiTokens.tone.danger.soft)}>
                         <Text className="text-[13px] font-semibold">{actionError}</Text>
                     </CardSurface>
@@ -211,15 +217,13 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
                                                         label={ENTITY_ACTION_LABELS.duplicate}
                                                         onClick={() => void handleDuplicate(persona.id)}
                                                     />
-                                                    <CardActionMenuButton
-                                                        danger
-                                                        disabled={busyPersonaId === persona.id}
-                                                        icon={Archive}
-                                                        label={ENTITY_ACTION_LABELS.archive}
+                                                    <ContentRemovalMenuButton
+                                                        busy={busyPersonaId === persona.id}
+                                                        status={persona.status}
                                                         onClick={() => {
                                                             setActionError(null);
                                                             setOpenMenuId(null);
-                                                            setPersonaToArchive(persona);
+                                                            setPersonaToRemove(persona);
                                                         }}
                                                     />
                                                 </CardActionMenu>
@@ -279,19 +283,25 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
                         canManage={canManage}
                         persona={personaDetailQuery.data}
                         onClose={() => setSelectedPersonaId(null)}
+                        onRemove={() => {
+                            setActionError(null);
+                            setSelectedPersonaId(null);
+                            setPersonaToRemove(personaDetailQuery.data);
+                        }}
                     />
                 )}
-                {personaToArchive && (
-                    <ArchiveContentConfirmationModal
-                        busy={busyPersonaId === personaToArchive.id}
+                {personaToRemove && (
+                    <ContentRemovalConfirmationModal
+                        busy={busyPersonaId === personaToRemove.id}
                         entityLabel="le persona"
                         error={actionError}
-                        name={personaToArchive.name}
+                        name={personaToRemove.name}
                         onCancel={() => {
                             setActionError(null);
-                            setPersonaToArchive(null);
+                            setPersonaToRemove(null);
                         }}
-                        onConfirm={() => void handleArchive()}
+                        onConfirm={() => void handleRemove()}
+                        status={personaToRemove.status}
                     />
                 )}
             </Box>

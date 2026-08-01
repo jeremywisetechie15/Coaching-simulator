@@ -2,8 +2,18 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Check, ChevronDown, ChevronUp, Copy, LockKeyhole, Plus } from "lucide-react";
+import { ArrowLeft, Check, ChevronDown, ChevronUp, Copy, FileUp, LockKeyhole, Plus } from "lucide-react";
 import { ContextualBackLink } from "@/features/app-shell/components";
+import {
+    EntityCreationModeDialog,
+    EntityJsonPrefillDialog,
+} from "@/features/entity-json-prefill/components";
+import {
+    ENTITY_CREATION_MODE,
+    ENTITY_CREATION_MODE_LABELS,
+    type EntityCreationMode,
+    type EntityJsonPrefillFieldErrors,
+} from "@/features/entity-json-prefill/domain";
 import {
     CONTENT_LEVELS,
     CONTENT_STATUS,
@@ -28,6 +38,8 @@ import {
     SCORECARD_VISIBILITY_DESCRIPTIONS,
     SCORECARD_VISIBILITY_LABELS,
     SCORECARD_VISIBILITIES,
+    buildScorecardJsonPrefillPrompt,
+    parseScorecardJsonPrefillText,
     type ScorecardDetail,
     type ScorecardEditorDetail,
     type ScorecardMethodOption,
@@ -36,19 +48,20 @@ import {
     type ScorecardVisibility,
 } from "@/features/scorecards/domain";
 import type { SkillOption } from "@/features/skills/domain/skills";
-import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
+import { Box, Button, CardSurface, FieldErrorMessage, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import {
     createFormSubmitApiError,
     notifyFormSubmitError,
     notifyFormSubmitSuccess,
 } from "@/lib/ui/feedback/form-submit-feedback";
-import { AlertMessage, SingleSelectField, type SingleSelectOption } from "@/lib/ui/molecules";
+import { AlertMessage, SingleSelectField, StatusMessage, type SingleSelectOption } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 import { ScorecardCriterionEditor } from "./ScorecardCriterionEditor";
 import {
     emptyCriterion,
     emptyScorecardFormState,
+    createFormId,
     integerFromText,
     numberFromText,
     scorecardDetailToFormState,
@@ -148,6 +161,10 @@ export function CreateScorecardPageContent({
         initialScorecard ? scorecardDetailToFormState(initialScorecard) : emptyScorecardFormState(),
     );
     const [formError, setFormError] = useState<string | null>(null);
+    const [creationModeDialogOpen, setCreationModeDialogOpen] = useState(!isEditing);
+    const [jsonPrefillDialogOpen, setJsonPrefillDialogOpen] = useState(false);
+    const [jsonPrefillFieldErrors, setJsonPrefillFieldErrors] = useState<EntityJsonPrefillFieldErrors>({});
+    const [jsonPrefillMessage, setJsonPrefillMessage] = useState<string | null>(null);
     const [duplicating, setDuplicating] = useState(false);
     const [importingMethod, setImportingMethod] = useState(false);
     const [savingStatus, setSavingStatus] = useState<ContentStatus | null>(null);
@@ -198,7 +215,8 @@ export function CreateScorecardPageContent({
         form.name.trim().length > 0 &&
         Boolean(form.methodId) &&
         scopeTargetReady &&
-        hasValidStepWeights;
+        hasValidStepWeights &&
+        Object.keys(jsonPrefillFieldErrors).length === 0;
     const canPublish =
         canSubmit &&
         form.steps.length > 0 &&
@@ -208,8 +226,60 @@ export function CreateScorecardPageContent({
     const isSaving = savingStatus !== null;
     const isDraft = !initialScorecard || initialScorecard.status === CONTENT_STATUS.draft;
 
+    function clearJsonPrefillError(path: string, descendants = false) {
+        setJsonPrefillFieldErrors((current) => {
+            const next = { ...current };
+            let changed = false;
+            for (const key of Object.keys(next)) {
+                if (key === path || (descendants && key.startsWith(`${path}.`))) {
+                    delete next[key];
+                    changed = true;
+                }
+            }
+            return changed ? next : current;
+        });
+    }
+
     function patch<K extends keyof ScorecardFormState>(key: K, value: ScorecardFormState[K]) {
+        clearJsonPrefillError(key, true);
         setForm((current) => ({ ...current, [key]: value }));
+    }
+
+    function selectCreationMode(mode: EntityCreationMode) {
+        setCreationModeDialogOpen(false);
+        if (mode === ENTITY_CREATION_MODE.json) setJsonPrefillDialogOpen(true);
+    }
+
+    async function importScorecardJson(file: File) {
+        const result = parseScorecardJsonPrefillText(await file.text(), {
+            methodOptions,
+            organizationOptions,
+            skillOptions,
+        });
+        setForm({
+            ...result.draft,
+            steps: result.draft.steps.map((step) => ({
+                collapsed: false,
+                criteria: step.criteria.map((criterion, criterionIndex) => ({
+                    ...criterion,
+                    id: createFormId(),
+                    maxPoints: String(criterion.maxPoints),
+                    order: String(criterionIndex + 1),
+                })),
+                id: createFormId(),
+                methodStepId: step.methodStepId,
+                name: step.name,
+                order: step.order,
+                weightPercent: String(step.weightPercent),
+            })),
+        });
+        setJsonPrefillFieldErrors(result.fieldErrors);
+        setJsonPrefillMessage(
+            Object.keys(result.fieldErrors).length > 0
+                ? "Le fichier a été appliqué. Corrigez les champs signalés avant d’enregistrer."
+                : "Le fichier JSON a correctement prérempli la scorecard.",
+        );
+        setFormError(null);
     }
 
     function updateStep(stepId: string, updater: (step: ScorecardStepFormState) => ScorecardStepFormState) {
@@ -220,6 +290,7 @@ export function CreateScorecardPageContent({
     }
 
     function addCriterion(stepId: string) {
+        clearJsonPrefillError("steps");
         updateStep(stepId, (step) => ({
             ...step,
             collapsed: false,
@@ -232,6 +303,13 @@ export function CreateScorecardPageContent({
         criterionId: string,
         patchCriterion: Partial<ScorecardCriterionFormState>,
     ) {
+        const stepIndex = form.steps.findIndex((step) => step.id === stepId);
+        const criterionIndex = form.steps[stepIndex]?.criteria.findIndex((criterion) => criterion.id === criterionId) ?? -1;
+        if (stepIndex >= 0 && criterionIndex >= 0) {
+            Object.keys(patchCriterion).forEach((field) =>
+                clearJsonPrefillError(`steps.${stepIndex}.criteria.${criterionIndex}.${field}`),
+            );
+        }
         updateStep(stepId, (step) => ({
             ...step,
             criteria: step.criteria.map((criterion) =>
@@ -241,6 +319,7 @@ export function CreateScorecardPageContent({
     }
 
     function removeCriterion(stepId: string, criterionId: string) {
+        clearJsonPrefillError("steps");
         updateStep(stepId, (step) => ({
             ...step,
             criteria: step.criteria.filter((criterion) => criterion.id !== criterionId),
@@ -271,6 +350,8 @@ export function CreateScorecardPageContent({
 
         setImportingMethod(true);
         setFormError(null);
+        clearJsonPrefillError("methodId");
+        clearJsonPrefillError("steps", true);
 
         try {
             const response = await fetch(`/api/methods/${methodId}`);
@@ -338,24 +419,32 @@ export function CreateScorecardPageContent({
     return (
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[900px]">
-                <Box className="mb-6 flex items-center gap-4">
-                    <ContextualBackLink
-                        fallbackHref={
-                            isEditing && scorecardId
-                                ? SCORECARD_ROUTES.app.detail(scorecardId)
-                                : SCORECARD_ROUTES.app.collection
-                        }
-                        aria-label="Retour"
-                        className={cn(
-                            "flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white",
-                            uiTokens.text.heading,
-                        )}
-                    >
-                        <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                    </ContextualBackLink>
-                    <Text as="h1" className={cn("text-[28px] font-extrabold leading-tight", uiTokens.text.heading)}>
-                        {isEditing ? "Modifier la scorecard" : "Ajouter une scorecard"}
-                    </Text>
+                <Box className={uiTokens.jsonPrefill.formHeader}>
+                    <Box className="flex items-center gap-4">
+                        <ContextualBackLink
+                            fallbackHref={
+                                isEditing && scorecardId
+                                    ? SCORECARD_ROUTES.app.detail(scorecardId)
+                                    : SCORECARD_ROUTES.app.collection
+                            }
+                            aria-label="Retour"
+                            className={cn(
+                                "flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white",
+                                uiTokens.text.heading,
+                            )}
+                        >
+                            <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
+                        </ContextualBackLink>
+                        <Text as="h1" className={cn("text-[28px] font-extrabold leading-tight", uiTokens.text.heading)}>
+                            {isEditing ? "Modifier la scorecard" : "Ajouter une scorecard"}
+                        </Text>
+                    </Box>
+                    {!isEditing && (
+                        <Button onClick={() => setJsonPrefillDialogOpen(true)} className={uiTokens.action.secondaryButton}>
+                            <InlineIcon icon={FileUp} className="h-4 w-4" />
+                            {ENTITY_CREATION_MODE_LABELS.json}
+                        </Button>
+                    )}
                 </Box>
 
                 <Box className="space-y-6">
@@ -392,27 +481,40 @@ export function CreateScorecardPageContent({
                     )}
 
                     <CardSurface className={uiTokens.surface.formCard}>
+                        {jsonPrefillMessage && (
+                            <Box className={uiTokens.jsonPrefill.formNotice}>
+                                <StatusMessage
+                                    tone={Object.keys(jsonPrefillFieldErrors).length > 0 ? "info" : "success"}
+                                    message={jsonPrefillMessage}
+                                />
+                            </Box>
+                        )}
                         <SectionHeading title="Informations générales" />
                         <Box className="mt-6 space-y-5">
                             <Box>
                                 <FieldLabel required className={uiTokens.form.label}>Nom de la scorecard</FieldLabel>
                                 <TextInput
+                                    aria-invalid={Boolean(jsonPrefillFieldErrors.name)}
                                     value={form.name}
                                     onChange={(event) => patch("name", event.target.value)}
                                     placeholder="Ex : Scorecard DAGO — Prise de rendez-vous"
                                     hasLeadingIcon={false}
+                                    className={cn(jsonPrefillFieldErrors.name && uiTokens.form.controlError)}
                                 />
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.name} />
                             </Box>
 
                             <Box>
                                 <FieldLabel required className={uiTokens.form.label}>Méthode associée</FieldLabel>
                                 <SingleSelectField
                                     disabled={hasExistingUsage}
+                                    hasError={Boolean(jsonPrefillFieldErrors.methodId)}
                                     options={methodSelectOptions}
                                     value={form.methodId}
                                     placeholder="Sélectionner une méthode"
                                     onChange={(value) => void selectMethod(value)}
                                 />
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.methodId} />
                                 {selectedMethodLabel && form.steps.length > 0 && (
                                     <Text className={cn("mt-2 flex items-center gap-1.5 text-[13px] font-semibold", uiTokens.text.success)}>
                                         <InlineIcon icon={Check} className="h-4 w-4" />
@@ -426,18 +528,22 @@ export function CreateScorecardPageContent({
                                     <FieldLabel className={uiTokens.form.label}>Domaine</FieldLabel>
                                     <SingleSelectField
                                         disabled={hasExistingUsage}
+                                        hasError={Boolean(jsonPrefillFieldErrors.domain)}
                                         options={[...CONTENT_DOMAINS]}
                                         value={form.domain}
                                         placeholder="Sélectionner un domaine"
-                                        onChange={(value) =>
-                                            setForm((current) => ({ ...current, category: null, domain: value }))
-                                        }
+                                        onChange={(value) => {
+                                            clearJsonPrefillError("domain");
+                                            setForm((current) => ({ ...current, category: null, domain: value }));
+                                        }}
                                     />
+                                    <FieldErrorMessage message={jsonPrefillFieldErrors.domain} />
                                 </Box>
                                 <Box>
                                     <FieldLabel className={uiTokens.form.label}>Catégorie</FieldLabel>
                                     <SingleSelectField
                                         disabled={hasExistingUsage || !form.domain}
+                                        hasError={Boolean(jsonPrefillFieldErrors.category)}
                                         options={[...getCategoriesForDomain(form.domain)]}
                                         value={form.category}
                                         placeholder={
@@ -445,6 +551,7 @@ export function CreateScorecardPageContent({
                                         }
                                         onChange={(value) => patch("category", value)}
                                     />
+                                    <FieldErrorMessage message={jsonPrefillFieldErrors.category} />
                                 </Box>
                             </Box>
 
@@ -452,21 +559,26 @@ export function CreateScorecardPageContent({
                                 <FieldLabel className={uiTokens.form.label}>Niveau</FieldLabel>
                                 <SingleSelectField
                                     disabled={hasExistingUsage}
+                                    hasError={Boolean(jsonPrefillFieldErrors.level)}
                                     options={levelOptions}
                                     value={form.level}
                                     placeholder="Sélectionner un niveau"
                                     onChange={(value) => patch("level", value)}
                                 />
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.level} />
                             </Box>
 
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Description</FieldLabel>
                                 <TextArea
+                                    aria-invalid={Boolean(jsonPrefillFieldErrors.description)}
                                     value={form.description}
                                     onChange={(event) => patch("description", event.target.value)}
                                     placeholder="Ex : Grille d'évaluation du roleplay DAGO"
                                     rows={3}
+                                    className={cn(jsonPrefillFieldErrors.description && uiTokens.form.controlError)}
                                 />
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.description} />
                             </Box>
 
                             <Box>
@@ -479,7 +591,11 @@ export function CreateScorecardPageContent({
                                             selected={form.visibility === visibility}
                                             title={SCORECARD_VISIBILITY_LABELS[visibility]}
                                             description={SCORECARD_VISIBILITY_DESCRIPTIONS[visibility]}
-                                            onSelect={() =>
+                                            onSelect={() => {
+                                                clearJsonPrefillError("visibility");
+                                                if (visibility === SCORECARD_VISIBILITY.public) {
+                                                    clearJsonPrefillError("organizationId");
+                                                }
                                                 setForm((current) => ({
                                                     ...current,
                                                     organizationId:
@@ -487,16 +603,18 @@ export function CreateScorecardPageContent({
                                                             ? current.organizationId
                                                             : null,
                                                     visibility: visibility as ScorecardVisibility,
-                                                }))
-                                            }
+                                                }));
+                                            }}
                                         />
                                     ))}
                                 </Box>
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.visibility} />
                                 {isPrivate && (
                                     <Box className="mt-3">
                                         <FieldLabel required className={uiTokens.form.label}>Organisation</FieldLabel>
                                         <SingleSelectField
                                             disabled={hasExistingUsage}
+                                            hasError={Boolean(jsonPrefillFieldErrors.organizationId)}
                                             options={organizationSelectOptions}
                                             value={form.organizationId}
                                             placeholder="Sélectionner une organisation..."
@@ -504,6 +622,7 @@ export function CreateScorecardPageContent({
                                         />
                                     </Box>
                                 )}
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.organizationId} />
                             </Box>
                         </Box>
 
@@ -533,6 +652,7 @@ export function CreateScorecardPageContent({
                                 </Box>
                             )}
                         </Box>
+                        <FieldErrorMessage message={jsonPrefillFieldErrors.steps} />
 
                         {form.steps.length === 0 ? (
                             <Box className={cn("mt-6", uiTokens.surface.emptyState)}>
@@ -559,19 +679,29 @@ export function CreateScorecardPageContent({
                                                     step={SCORECARD_STEP_WEIGHT_MIN_PERCENT}
                                                     value={step.weightPercent}
                                                     onChange={(event) =>
-                                                        updateStep(step.id, (current) => ({
-                                                            ...current,
-                                                            weightPercent: event.target.value,
-                                                        }))
+                                                        {
+                                                            clearJsonPrefillError(`steps.${stepIndex}.weightPercent`);
+                                                            clearJsonPrefillError("steps");
+                                                            updateStep(step.id, (current) => ({
+                                                                ...current,
+                                                                weightPercent: event.target.value,
+                                                            }));
+                                                        }
                                                     }
                                                     hasLeadingIcon={false}
                                                     density="sm"
-                                                    className={cn(uiTokens.form.controlWhite, "w-[76px]")}
+                                                    className={cn(
+                                                        uiTokens.form.controlWhite,
+                                                        "w-[76px]",
+                                                        jsonPrefillFieldErrors[`steps.${stepIndex}.weightPercent`] && uiTokens.form.controlError,
+                                                    )}
                                                 />
                                                 <Text className={cn("text-[13px] font-semibold", uiTokens.text.muted)}>
                                                     %
                                                 </Text>
                                             </Box>
+                                            <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.methodStepId`]} />
+                                            <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.weightPercent`]} />
                                             <Text className={cn("text-[12px] font-semibold", uiTokens.text.muted)}>
                                                 {step.criteria.length} critère{step.criteria.length > 1 ? "s" : ""}
                                             </Text>
@@ -594,6 +724,7 @@ export function CreateScorecardPageContent({
 
                                         {!step.collapsed && (
                                             <Box className="mt-4 space-y-3">
+                                                <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.criteria`]} />
                                                 {step.criteria.length === 0 ? (
                                                     <Text className={cn("py-4 text-center text-[13px] italic", uiTokens.text.muted)}>
                                                         Aucun critère pour cette étape. Cliquez sur « + Ajouter un critère ».
@@ -607,6 +738,17 @@ export function CreateScorecardPageContent({
                                                             dimensionItemOptions={getDimensionItemOptions(criterion)}
                                                             dimensionOptions={dimensionOptions}
                                                             index={criterionIndex}
+                                                            fieldErrors={Object.fromEntries(
+                                                                Object.entries(jsonPrefillFieldErrors)
+                                                                    .filter(([path]) => path.startsWith(`steps.${stepIndex}.criteria.${criterionIndex}.`))
+                                                                    .map(([path, message]) => [
+                                                                        path.slice(`steps.${stepIndex}.criteria.${criterionIndex}.`.length),
+                                                                        message,
+                                                                    ]),
+                                                            )}
+                                                            onClearError={(field) =>
+                                                                clearJsonPrefillError(`steps.${stepIndex}.criteria.${criterionIndex}.${field}`)
+                                                            }
                                                             onPatch={(patchCriterion) =>
                                                                 updateCriterion(step.id, criterion.id, patchCriterion)
                                                             }
@@ -665,6 +807,22 @@ export function CreateScorecardPageContent({
                     </Box>
                 </Box>
             </Box>
+
+            {creationModeDialogOpen && (
+                <EntityCreationModeDialog
+                    entityLabel="Scorecard"
+                    onClose={() => setCreationModeDialogOpen(false)}
+                    onSelect={selectCreationMode}
+                />
+            )}
+            {jsonPrefillDialogOpen && (
+                <EntityJsonPrefillDialog
+                    entityLabel="Scorecard"
+                    onClose={() => setJsonPrefillDialogOpen(false)}
+                    onImport={importScorecardJson}
+                    prompt={buildScorecardJsonPrefillPrompt({ methodOptions, organizationOptions, skillOptions })}
+                />
+            )}
         </Box>
     );
 }

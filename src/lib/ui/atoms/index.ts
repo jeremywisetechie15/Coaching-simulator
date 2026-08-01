@@ -5,6 +5,7 @@ export * from "./Button";
 export * from "./CardSurface";
 export * from "./CenteredContainer";
 export * from "./FieldLabel";
+export * from "./FieldErrorMessage";
 export * from "./FormRoot";
 export * from "./IconButton";
 export * from "./InlineIcon";

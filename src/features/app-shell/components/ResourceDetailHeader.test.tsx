@@ -12,9 +12,12 @@ describe("ResourceDetailHeader", () => {
     it("shares the contextual return and compact management actions", () => {
         const html = renderToStaticMarkup(
             <ResourceDetailHeader
-                archiveAction={{
+                removalAction={{
+                    entityLabel: "la méthode",
                     errorMessage: "Impossible d'archiver la méthode.",
-                    onArchive: vi.fn(),
+                    name: "Méthode test",
+                    onRemove: vi.fn(),
+                    status: "published",
                 }}
                 canManage
                 editHref="/methods/method-1/edit"
@@ -39,9 +42,12 @@ describe("ResourceDetailHeader", () => {
     it("keeps management actions hidden from learners", () => {
         const html = renderToStaticMarkup(
             <ResourceDetailHeader
-                archiveAction={{
+                removalAction={{
+                    entityLabel: "la méthode",
                     errorMessage: "Impossible d'archiver la méthode.",
-                    onArchive: vi.fn(),
+                    name: "Méthode test",
+                    onRemove: vi.fn(),
+                    status: "published",
                 }}
                 editHref="/methods/method-1/edit"
                 fallbackHref="/methods"
@@ -50,6 +56,26 @@ describe("ResourceDetailHeader", () => {
 
         expect(html).toContain("Retour aux méthodes");
         expect(html).not.toContain("Modifier");
+        expect(html).not.toContain("Archiver");
+    });
+
+    it("offers permanent deletion for an unused draft", () => {
+        const html = renderToStaticMarkup(
+            <ResourceDetailHeader
+                removalAction={{
+                    entityLabel: "la méthode",
+                    errorMessage: "Impossible de supprimer la méthode.",
+                    name: "Méthode test",
+                    onRemove: vi.fn(),
+                    status: "draft",
+                }}
+                canManage
+                editHref="/methods/method-1/edit"
+                fallbackHref="/methods"
+            />,
+        );
+
+        expect(html).toContain("Supprimer");
         expect(html).not.toContain("Archiver");
     });
 });

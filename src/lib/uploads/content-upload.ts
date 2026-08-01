@@ -29,6 +29,7 @@ const MEBIBYTE_BYTES = 1024 * 1024;
 export const CONTENT_UPLOAD_SIZE_LIMITS_BYTES = {
     file: 25 * MEBIBYTE_BYTES,
     image: 10 * MEBIBYTE_BYTES,
+    json: 1 * MEBIBYTE_BYTES,
     personaCv: 5 * MEBIBYTE_BYTES,
     video: 50 * MEBIBYTE_BYTES,
 } as const;
@@ -44,6 +45,7 @@ export const CONTENT_UPLOAD_ERROR_MESSAGES = {
 } as const;
 
 export const MAX_CONTENT_UPLOAD_SIZE_BYTES = CONTENT_UPLOAD_SIZE_LIMITS_BYTES.file;
+export const MAX_ENTITY_JSON_PREFILL_SIZE_BYTES = CONTENT_UPLOAD_SIZE_LIMITS_BYTES.json;
 export const MAX_PERSONA_CV_UPLOAD_SIZE_BYTES = CONTENT_UPLOAD_SIZE_LIMITS_BYTES.personaCv;
 export const MAX_SESSION_BACKGROUND_UPLOAD_SIZE_BYTES = CONTENT_UPLOAD_SIZE_LIMITS_BYTES.image;
 export const MAX_VIDEO_UPLOAD_SIZE_BYTES = CONTENT_UPLOAD_SIZE_LIMITS_BYTES.video;
@@ -55,6 +57,7 @@ export type ContentUploadResourceType = (typeof CONTENT_UPLOAD_RESOURCE_TYPES)[n
 export const CONTENT_UPLOAD_PURPOSES = {
     coachAvatar: "coach_avatar",
     contentAsset: "content_asset",
+    entityJsonPrefill: "entity_json_prefill",
     methodDocument: "method_document",
     personaAvatar: "persona_avatar",
     personaCv: "persona_cv",
@@ -94,6 +97,7 @@ interface MimeConfig {
 }
 
 export const CONTENT_UPLOAD_MIME_TYPES = {
+    "application/json": { extension: "json", resourceType: "document" },
     "application/msword": { extension: "doc", resourceType: "document" },
     "application/pdf": { extension: "pdf", resourceType: "document" },
     "application/vnd.ms-excel": { extension: "xls", resourceType: "document" },
@@ -133,6 +137,7 @@ const DOCUMENT_UPLOAD_MIME_TYPES = Object.entries(CONTENT_UPLOAD_MIME_TYPES)
     .map(([mimeType]) => mimeType);
 
 export const DOCUMENT_UPLOAD_ACCEPT = DOCUMENT_UPLOAD_MIME_TYPES.join(",");
+export const ENTITY_JSON_PREFILL_UPLOAD_ACCEPT = ".json,application/json";
 
 export const PERSONA_CV_UPLOAD_MIME_TYPE = "application/pdf";
 export const PERSONA_CV_UPLOAD_ACCEPT = PERSONA_CV_UPLOAD_MIME_TYPE;
@@ -160,6 +165,7 @@ function formatUploadLimit(sizeBytes: number) {
 }
 
 export function getContentUploadAccept(purpose: ContentUploadPurpose = CONTENT_UPLOAD_PURPOSES.contentAsset) {
+    if (purpose === CONTENT_UPLOAD_PURPOSES.entityJsonPrefill) return ENTITY_JSON_PREFILL_UPLOAD_ACCEPT;
     if (purpose === CONTENT_UPLOAD_PURPOSES.personaCv) return PERSONA_CV_UPLOAD_ACCEPT;
     if (purpose === CONTENT_UPLOAD_PURPOSES.methodDocument) return DOCUMENT_UPLOAD_ACCEPT;
     if (purpose === CONTENT_UPLOAD_PURPOSES.quizAttachment) return QUIZ_ATTACHMENT_UPLOAD_ACCEPT;
@@ -174,6 +180,10 @@ export function getContentUploadAccept(purpose: ContentUploadPurpose = CONTENT_U
 export function getContentUploadLimitLabel(
     purpose: ContentUploadPurpose = CONTENT_UPLOAD_PURPOSES.contentAsset,
 ) {
+    if (purpose === CONTENT_UPLOAD_PURPOSES.entityJsonPrefill) {
+        return `Fichier JSON : ${formatUploadLimit(MAX_ENTITY_JSON_PREFILL_SIZE_BYTES)} maximum.`;
+    }
+
     if (
         AVATAR_UPLOAD_PURPOSES.includes(purpose) ||
         purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground
@@ -204,6 +214,10 @@ export function getContentUploadMaxSizeBytes(
     file: Pick<ContentUploadFileLike, "type">,
     purpose: ContentUploadPurpose = CONTENT_UPLOAD_PURPOSES.contentAsset,
 ) {
+    if (purpose === CONTENT_UPLOAD_PURPOSES.entityJsonPrefill) {
+        return MAX_ENTITY_JSON_PREFILL_SIZE_BYTES;
+    }
+
     const resourceType = getContentUploadMimeConfig(file.type)?.resourceType;
     const isLimitedImage =
         AVATAR_UPLOAD_PURPOSES.includes(purpose) ||
@@ -237,6 +251,10 @@ export function getContentUploadSizeErrorMessage(
         AVATAR_UPLOAD_PURPOSES.includes(purpose) ||
         purpose === CONTENT_UPLOAD_PURPOSES.sessionBackground;
 
+    if (purpose === CONTENT_UPLOAD_PURPOSES.entityJsonPrefill) {
+        return `Le fichier JSON ne doit pas dépasser ${formatUploadLimit(maxSizeBytes)}.`;
+    }
+
     if (purpose === CONTENT_UPLOAD_PURPOSES.personaCv) {
         return `Le CV ne doit pas dépasser ${formatUploadLimit(maxSizeBytes)}.`;
     }
@@ -264,6 +282,26 @@ export function validateContentUploadFile(
     file: ContentUploadFileLike,
     purpose: ContentUploadPurpose = CONTENT_UPLOAD_PURPOSES.contentAsset,
 ) {
+    if (purpose === CONTENT_UPLOAD_PURPOSES.entityJsonPrefill) {
+        if (!file.name.toLocaleLowerCase("fr-FR").endsWith(".json")) {
+            return "Le fichier doit utiliser l'extension .json.";
+        }
+
+        if (file.type && file.type !== "application/json" && file.type !== "text/plain") {
+            return "Le fichier doit être au format JSON.";
+        }
+
+        if (file.size <= 0) {
+            return "Le fichier est vide.";
+        }
+
+        if (file.size > MAX_ENTITY_JSON_PREFILL_SIZE_BYTES) {
+            return getContentUploadSizeErrorMessage(file, purpose);
+        }
+
+        return null;
+    }
+
     const mimeConfig = getContentUploadMimeConfig(file.type);
 
     if (!mimeConfig) {

@@ -1,4 +1,4 @@
-import { listMethodSelectionOptions } from "@/features/methods/server";
+import { listMethodSelectionOptionsWithSteps } from "@/features/methods/server";
 import { listOrganizationSelectionOptions } from "@/features/organizations/server";
 import type { ScorecardMethodOption, ScorecardOrganizationOption } from "@/features/scorecards/domain";
 
@@ -9,13 +9,7 @@ interface IncludeUnavailableIdsParams {
 export async function listScorecardMethodOptions(
     params: IncludeUnavailableIdsParams = {},
 ): Promise<ScorecardMethodOption[]> {
-    const methods = await listMethodSelectionOptions(params);
-
-    return methods.map((method) => ({
-            id: method.id,
-            isSelectable: method.isSelectable,
-            name: method.name,
-        }));
+    return listMethodSelectionOptionsWithSteps(params);
 }
 
 export async function listScorecardOrganizationOptions(
