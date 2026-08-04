@@ -13,6 +13,7 @@ import type { LucideIcon } from "lucide-react";
 import { Fragment, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ResourceDetailHeader } from "@/features/app-shell/components";
+import { getContentRemovalErrorMessage } from "@/features/content/domain";
 import {
     getScorecardStepPoints,
     getScorecardViewStats,
@@ -31,14 +32,14 @@ interface ApiErrorPayload {
     error?: string;
 }
 
-async function archiveScorecardRequest(scorecardId: string) {
+async function removeScorecardRequest(scorecardId: string, errorMessage: string) {
     const response = await fetch(SCORECARD_ROUTES.api.detail(scorecardId), {
         method: "DELETE",
     });
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
 
     if (!response.ok) {
-        throw new Error(payload?.error || "Impossible d'archiver la scorecard.");
+        throw new Error(payload?.error || errorMessage);
     }
 }
 
@@ -133,8 +134,11 @@ export function ScorecardDetailPageContent({
         },
     ];
 
-    async function handleArchive() {
-        await archiveScorecardRequest(scorecard.id);
+    async function handleRemove() {
+        await removeScorecardRequest(
+            scorecard.id,
+            getContentRemovalErrorMessage(scorecard.status, "la scorecard"),
+        );
         router.push(SCORECARD_ROUTES.app.collection);
         router.refresh();
     }
@@ -143,10 +147,12 @@ export function ScorecardDetailPageContent({
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1180px]">
                 <ResourceDetailHeader
-                    archiveAction={{
-                        errorMessage: "Impossible d'archiver la scorecard.",
-                        isArchived: scorecard.status === "archived",
-                        onArchive: handleArchive,
+                    removalAction={{
+                        entityLabel: "la scorecard",
+                        errorMessage: getContentRemovalErrorMessage(scorecard.status, "la scorecard"),
+                        name: scorecard.name,
+                        onRemove: handleRemove,
+                        status: scorecard.status,
                     }}
                     canManage={canManage}
                     editHref={SCORECARD_ROUTES.app.edit(scorecard.id)}

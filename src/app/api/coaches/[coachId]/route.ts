@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAdmin } from "@/features/auth/server";
-import { archiveCoach, getCoachDetailById, updateCoach } from "@/features/coaches/server";
+import { getCoachDetailById, removeCoach, updateCoach } from "@/features/coaches/server";
 import { parseSaveCoachRequest } from "@/features/coaches/server/save-coach-request";
 import { jsonError } from "@/lib/server/http";
 import { NotFoundError } from "@/lib/server/errors";
@@ -39,9 +39,9 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 export async function DELETE(_request: NextRequest, { params }: RouteContext) {
     try {
         const { coachId } = await params;
-        await archiveCoach(coachId);
+        const action = await removeCoach(coachId);
 
-        return NextResponse.json({ ok: true });
+        return NextResponse.json({ action, ok: true });
     } catch (error) {
         return jsonError(error);
     }

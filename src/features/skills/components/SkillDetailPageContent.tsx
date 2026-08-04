@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
     BookOpen,
     ChevronDown,
@@ -12,6 +13,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ResourceDetailHeader } from "@/features/app-shell/components";
+import { getContentRemovalErrorMessage } from "@/features/content/domain";
 import {
     getSkillLevel,
     SKILL_DIMENSION_LABELS,
@@ -46,11 +48,23 @@ const dimensionTone: Record<SkillDimension, (typeof uiTokens.tone)[keyof typeof 
     savoir_etre: uiTokens.tone.success,
 };
 
+interface ApiErrorPayload {
+    error?: string;
+}
+
+async function removeSkillRequest(skillId: string, errorMessage: string) {
+    const response = await fetch(SKILL_ROUTES.api.detail(skillId), { method: "DELETE" });
+    const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
+
+    if (!response.ok) throw new Error(payload?.error || errorMessage);
+}
+
 export function SkillDetailPageContent({
     canManage = false,
     progress = null,
     skill,
 }: SkillDetailPageContentProps) {
+    const router = useRouter();
     const [stateOpen, setStateOpen] = useState(false);
     const typeTone = SKILL_TYPE_TONES[skill.type];
 
@@ -67,6 +81,15 @@ export function SkillDetailPageContent({
         (progress?.dimensions ?? []).map((dimension) => [dimension.key, dimension.score]),
     );
 
+    async function handleRemove() {
+        await removeSkillRequest(
+            skill.id,
+            getContentRemovalErrorMessage(skill.status, "la compétence"),
+        );
+        router.push(SKILL_ROUTES.app.collection);
+        router.refresh();
+    }
+
     return (
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1080px]">
@@ -74,6 +97,13 @@ export function SkillDetailPageContent({
                     canManage={canManage}
                     editHref={SKILL_ROUTES.app.edit(skill.id)}
                     fallbackHref={SKILL_ROUTES.app.collection}
+                    removalAction={{
+                        entityLabel: "la compétence",
+                        errorMessage: getContentRemovalErrorMessage(skill.status, "la compétence"),
+                        name: skill.name,
+                        onRemove: handleRemove,
+                        status: skill.status,
+                    }}
                 />
 
                 <CardSurface className={uiTokens.surface.formCard}>

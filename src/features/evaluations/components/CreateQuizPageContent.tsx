@@ -8,6 +8,7 @@ import {
     ChevronDown,
     ChevronUp,
     Copy,
+    FileUp,
     LockKeyhole,
     Plus,
     Sparkles,
@@ -16,6 +17,16 @@ import {
 } from "lucide-react";
 import { ContextualBackLink, useContextualReturnHref } from "@/features/app-shell/components";
 import { buildPostSaveHref } from "@/features/app-shell/domain";
+import {
+    EntityCreationModeDialog,
+    EntityJsonPrefillDialog,
+} from "@/features/entity-json-prefill/components";
+import {
+    ENTITY_CREATION_MODE,
+    ENTITY_CREATION_MODE_LABELS,
+    type EntityCreationMode,
+    type EntityJsonPrefillFieldErrors,
+} from "@/features/entity-json-prefill/domain";
 import {
     CONTENT_DIFFICULTIES,
     CONTENT_STATUS,
@@ -32,6 +43,8 @@ import {
     QUIZ_TYPE_LABELS,
     QUIZ_TYPES,
     hasActiveQuizKnowledgeItem,
+    buildQuizJsonPrefillPrompt,
+    parseQuizJsonPrefillText,
     type QuizDetail,
     type QuizEditorDetail,
     type QuizGroupOption,
@@ -49,7 +62,7 @@ import type { SkillOption } from "@/features/skills/domain/skills";
 import { CONTENT_UPLOAD_PURPOSES } from "@/lib/uploads/content-upload";
 import type { PendingDirectUpload } from "@/lib/uploads/direct-upload";
 import { submitWithDirectUploads } from "@/lib/uploads/direct-upload.client";
-import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
+import { Box, Button, CardSurface, FieldErrorMessage, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import {
     createFormSubmitApiError,
     notifyFormSubmitError,
@@ -60,6 +73,7 @@ import {
     SearchableMultiSelectField,
     SegmentedControl,
     SingleSelectField,
+    StatusMessage,
     type SearchableOption,
 } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
@@ -67,6 +81,7 @@ import { cn } from "@/lib/ui/utils/cn";
 import { QuizQuestionEditor } from "./QuizQuestionEditor";
 import {
     DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE,
+    createFormId,
     createQuizStepsFromMethod,
     domainOptions,
     emptyAttachment,
@@ -178,6 +193,10 @@ export function CreateQuizPageContent({
     const [form, setForm] = useState<QuizFormState>(() =>
         quizToFormState(initialQuiz, groupOptions, userOptions),
     );
+    const [creationModeDialogOpen, setCreationModeDialogOpen] = useState(!isEditing);
+    const [jsonPrefillDialogOpen, setJsonPrefillDialogOpen] = useState(false);
+    const [jsonPrefillFieldErrors, setJsonPrefillFieldErrors] = useState<EntityJsonPrefillFieldErrors>({});
+    const [jsonPrefillMessage, setJsonPrefillMessage] = useState<string | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
     const [duplicating, setDuplicating] = useState(false);
     const [savingStatus, setSavingStatus] = useState<ContentStatus | null>(null);
@@ -243,7 +262,9 @@ export function CreateQuizPageContent({
         (form.scope === "organization" && Boolean(form.organizationId)) ||
         (form.scope === "group" && Boolean(form.organizationId) && Boolean(form.groupId.trim())) ||
         (form.scope === "user" && Boolean(form.assignedUserId.trim()));
-    const canSaveDraft = form.title.trim().length > 0;
+    const canSaveDraft =
+        form.title.trim().length > 0 &&
+        Object.keys(jsonPrefillFieldErrors).length === 0;
     const canPublish =
         canSaveDraft &&
         scopeTargetReady &&
@@ -252,7 +273,100 @@ export function CreateQuizPageContent({
         totalQuestions > 0;
     const isSaving = savingStatus !== null;
 
+    function clearJsonPrefillError(path: string, descendants = false) {
+        setJsonPrefillFieldErrors((current) => {
+            const next = { ...current };
+            let changed = false;
+            for (const key of Object.keys(next)) {
+                if (key === path || (descendants && key.startsWith(`${path}.`))) {
+                    delete next[key];
+                    changed = true;
+                }
+            }
+            return changed ? next : current;
+        });
+    }
+
+    function selectCreationMode(mode: EntityCreationMode) {
+        setCreationModeDialogOpen(false);
+        if (mode === ENTITY_CREATION_MODE.json) setJsonPrefillDialogOpen(true);
+    }
+
+    async function importQuizJson(file: File) {
+        const result = parseQuizJsonPrefillText(await file.text(), {
+            groupOptions,
+            methodOptions,
+            organizationOptions,
+            skillOptions,
+            userOptions,
+        });
+        const draft = result.draft;
+        setForm({
+            assignedUserId: draft.assignedUserId,
+            categories: draft.categories,
+            description: draft.description,
+            difficulty: draft.difficulty,
+            domain: draft.domain,
+            durationMinutes: String(draft.durationMinutes),
+            groupId: draft.groupId,
+            maxAttempts: draft.maxAttempts === null ? null : String(draft.maxAttempts),
+            methodId: draft.methodId,
+            organizationId: draft.organizationId,
+            participation: draft.participation,
+            quizType: draft.quizType,
+            scope: draft.scope,
+            steps: draft.steps.map((step) => ({
+                collapsed: false,
+                competenceIds: step.competenceIds,
+                id: createFormId(),
+                methodStepId: step.methodStepId,
+                name: step.name,
+                questions: step.questions.map((question) => {
+                    const skill = skillOptions.find((option) => option.id === question.competenceId);
+                    const dimensionItem = skill?.dimensionItems.find((item) => item.id === question.dimensionItemId);
+                    return {
+                        attachments: question.attachments.map((attachment) => ({
+                            clientFileId: "",
+                            deliveryType: "url" as const,
+                            externalUrl: attachment.externalUrl,
+                            file: null,
+                            id: createFormId(),
+                            label: attachment.label,
+                            storageBucket: "",
+                            storagePath: "",
+                            type: attachment.type,
+                            uploadedFileName: "",
+                            uploadedFileSizeBytes: null,
+                        })),
+                        choices: question.choices.map((choice) => ({ ...choice, id: createFormId() })),
+                        competenceId: question.competenceId,
+                        dimension: "savoir" as const,
+                        dimensionItem: dimensionItem?.label ?? null,
+                        dimensionItemId: question.dimensionItemId,
+                        explanation: question.explanation,
+                        id: createFormId(),
+                        points: String(question.points),
+                        prompt: question.prompt,
+                        type: question.type,
+                    };
+                }),
+                weight: String(step.weight),
+            })),
+            tags: draft.tags,
+            title: draft.title,
+            validationThreshold: draft.validationThreshold === null ? "" : String(draft.validationThreshold),
+        });
+        setJsonPrefillFieldErrors(result.fieldErrors);
+        setJsonPrefillMessage(
+            Object.keys(result.fieldErrors).length > 0
+                ? "Le fichier a été appliqué. Corrigez les champs signalés avant d’enregistrer."
+                : "Le fichier JSON a correctement prérempli le quiz.",
+        );
+        setFormError(null);
+    }
+
     function patch<K extends keyof QuizFormState>(key: K, value: QuizFormState[K]) {
+        clearJsonPrefillError(key, true);
         setForm((current) => ({ ...current, [key]: value }));
     }
 
@@ -277,6 +391,7 @@ export function CreateQuizPageContent({
     }
 
     function addStep() {
+        clearJsonPrefillError("steps");
         patch("steps", [...form.steps, emptyStep()]);
     }
 
@@ -285,6 +400,8 @@ export function CreateQuizPageContent({
     }
 
     function addQuestion(stepId: string) {
+        const stepIndex = form.steps.findIndex((step) => step.id === stepId);
+        if (stepIndex >= 0) clearJsonPrefillError(`steps.${stepIndex}.questions`, true);
         updateStep(stepId, (step) => ({
             ...step,
             collapsed: false,
@@ -293,6 +410,8 @@ export function CreateQuizPageContent({
     }
 
     function removeQuestion(stepId: string, questionId: string) {
+        const stepIndex = form.steps.findIndex((step) => step.id === stepId);
+        if (stepIndex >= 0) clearJsonPrefillError(`steps.${stepIndex}.questions`, true);
         updateStep(stepId, (step) => ({
             ...step,
             questions: step.questions.filter((question) => question.id !== questionId),
@@ -421,6 +540,10 @@ export function CreateQuizPageContent({
     }
 
     function selectOrganization(value: string) {
+        clearJsonPrefillError("organizationId");
+        clearJsonPrefillError("groupId");
+        clearJsonPrefillError("assignedUserId");
+        clearJsonPrefillError("scope");
         setForm((current) => ({
             ...current,
             assignedUserId: "",
@@ -431,6 +554,9 @@ export function CreateQuizPageContent({
     }
 
     function selectGroup(value: string) {
+        clearJsonPrefillError("groupId");
+        clearJsonPrefillError("assignedUserId");
+        clearJsonPrefillError("scope");
         setForm((current) => ({
             ...current,
             assignedUserId: "",
@@ -440,6 +566,8 @@ export function CreateQuizPageContent({
     }
 
     function selectUser(value: string) {
+        clearJsonPrefillError("assignedUserId");
+        clearJsonPrefillError("scope");
         setForm((current) => ({
             ...current,
             assignedUserId: value,
@@ -450,6 +578,8 @@ export function CreateQuizPageContent({
     function selectMethod(value: string) {
         const methodId = value || null;
         const selectedMethod = methodOptions.find((method) => method.id === methodId);
+        clearJsonPrefillError("methodId");
+        clearJsonPrefillError("steps", true);
 
         setForm((current) => ({
             ...current,
@@ -483,6 +613,7 @@ export function CreateQuizPageContent({
         if (
             isSaving ||
             duplicating ||
+            Object.keys(jsonPrefillFieldErrors).length > 0 ||
             (status === CONTENT_STATUS.published ? !canPublish : !canSaveDraft)
         ) {
             return;
@@ -537,20 +668,28 @@ export function CreateQuizPageContent({
     return (
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[900px]">
-                <Box className="mb-6 flex items-center gap-4">
-                    <ContextualBackLink
-                        fallbackHref={returnHref}
-                        aria-label="Retour"
-                        className={cn(
-                            "flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white",
-                            uiTokens.text.heading,
-                        )}
-                    >
-                        <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                    </ContextualBackLink>
-                    <Text as="h1" className={cn("text-[28px] font-extrabold leading-tight", uiTokens.text.heading)}>
-                        {isEditing ? "Modifier le quiz" : "Créer un quiz"}
-                    </Text>
+                <Box className={uiTokens.jsonPrefill.formHeader}>
+                    <Box className="flex items-center gap-4">
+                        <ContextualBackLink
+                            fallbackHref={returnHref}
+                            aria-label="Retour"
+                            className={cn(
+                                "flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-white",
+                                uiTokens.text.heading,
+                            )}
+                        >
+                            <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
+                        </ContextualBackLink>
+                        <Text as="h1" className={cn("text-[28px] font-extrabold leading-tight", uiTokens.text.heading)}>
+                            {isEditing ? "Modifier le quiz" : "Créer un quiz"}
+                        </Text>
+                    </Box>
+                    {!isEditing && (
+                        <Button onClick={() => setJsonPrefillDialogOpen(true)} className={uiTokens.action.secondaryButton}>
+                            <InlineIcon icon={FileUp} className="h-4 w-4" />
+                            {ENTITY_CREATION_MODE_LABELS.json}
+                        </Button>
+                    )}
                 </Box>
 
                 <Box className="space-y-6">
@@ -586,21 +725,33 @@ export function CreateQuizPageContent({
                     )}
 
                     <CardSurface className={uiTokens.surface.formCard}>
+                        {jsonPrefillMessage && (
+                            <Box className={uiTokens.jsonPrefill.formNotice}>
+                                <StatusMessage
+                                    tone={Object.keys(jsonPrefillFieldErrors).length > 0 ? "info" : "success"}
+                                    message={jsonPrefillMessage}
+                                />
+                            </Box>
+                        )}
                         <SectionHeading title="Informations générales" />
                         <Box className="mt-6 space-y-5">
                             <Box>
                                 <FieldLabel required className={uiTokens.form.label}>Titre du quiz</FieldLabel>
                                 <TextInput
+                                    aria-invalid={Boolean(jsonPrefillFieldErrors.title)}
                                     value={form.title}
                                     onChange={(event) => patch("title", event.target.value)}
                                     placeholder="Ex: Quiz - DEEPMARK"
                                     hasLeadingIcon={false}
+                                    className={cn(jsonPrefillFieldErrors.title && uiTokens.form.controlError)}
                                 />
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.title} />
                             </Box>
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Type de quiz</FieldLabel>
                                 <SingleSelectField
                                     disabled={hasExistingAttempts}
+                                    hasError={Boolean(jsonPrefillFieldErrors.quizType)}
                                     options={QUIZ_TYPES.map((type) => ({
                                         label: QUIZ_TYPE_LABELS[type],
                                         value: type,
@@ -609,12 +760,14 @@ export function CreateQuizPageContent({
                                     placeholder="Sélectionner un type"
                                     onChange={(value) => patch("quizType", value as QuizType)}
                                 />
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.quizType} />
                             </Box>
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>
                                     Niveau de difficulté (optionnel)
                                 </FieldLabel>
                                 <SingleSelectField
+                                    hasError={Boolean(jsonPrefillFieldErrors.difficulty)}
                                     options={[
                                         { label: "Non renseigné", value: "" },
                                         ...CONTENT_DIFFICULTIES.map((difficulty) => ({
@@ -631,22 +784,26 @@ export function CreateQuizPageContent({
                                         )
                                     }
                                 />
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.difficulty} />
                             </Box>
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Domaine (optionnel)</FieldLabel>
                                 <SingleSelectField
                                     disabled={hasExistingAttempts}
+                                    hasError={Boolean(jsonPrefillFieldErrors.domain)}
                                     options={domainOptions}
                                     value={form.domain}
                                     placeholder="Non affecté"
-                                    onChange={(value) =>
+                                    onChange={(value) => {
+                                        clearJsonPrefillError("domain");
                                         setForm((current) => ({
                                             ...current,
                                             categories: [],
                                             domain: value || null,
-                                        }))
-                                    }
+                                        }));
+                                    }}
                                 />
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.domain} />
                             </Box>
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Catégories (optionnel)</FieldLabel>
@@ -662,16 +819,22 @@ export function CreateQuizPageContent({
                                         searchPlaceholder="Rechercher une catégorie..."
                                         emptyHint="Toutes les catégories sont sélectionnées"
                                         onAdd={(value) =>
-                                            setForm((current) => ({
-                                                ...current,
-                                                categories: [...current.categories, value],
-                                            }))
+                                            {
+                                                clearJsonPrefillError("categories", true);
+                                                setForm((current) => ({
+                                                    ...current,
+                                                    categories: [...current.categories, value],
+                                                }));
+                                            }
                                         }
                                         onRemove={(value) =>
-                                            setForm((current) => ({
-                                                ...current,
-                                                categories: current.categories.filter((category) => category !== value),
-                                            }))
+                                            {
+                                                clearJsonPrefillError("categories", true);
+                                                setForm((current) => ({
+                                                    ...current,
+                                                    categories: current.categories.filter((category) => category !== value),
+                                                }));
+                                            }
                                         }
                                     />
                                 ) : (
@@ -679,16 +842,19 @@ export function CreateQuizPageContent({
                                         Sélectionnez un domaine pour ajouter des catégories.
                                     </Text>
                                 )}
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.categories} />
                             </Box>
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Méthode associée</FieldLabel>
                                 <SingleSelectField
                                     disabled={hasExistingAttempts}
+                                    hasError={Boolean(jsonPrefillFieldErrors.methodId)}
                                     options={methodSelectOptions}
                                     value={form.methodId ?? ""}
                                     placeholder="Aucune"
                                     onChange={selectMethod}
                                 />
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.methodId} />
                                 {selectedMethod && methodGeneratedStepCount > 0 && (
                                     <Text
                                         className={cn(
@@ -706,26 +872,33 @@ export function CreateQuizPageContent({
                             <Box>
                                 <FieldLabel required className={uiTokens.form.label}>Description</FieldLabel>
                                 <TextArea
+                                    aria-invalid={Boolean(jsonPrefillFieldErrors.description)}
                                     value={form.description}
                                     onChange={(event) => patch("description", event.target.value)}
                                     placeholder="Décrivez l'objectif du quiz et les critères attendus."
                                     rows={4}
+                                    className={cn(jsonPrefillFieldErrors.description && uiTokens.form.controlError)}
                                 />
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.description} />
                             </Box>
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Durée estimée (en minutes)</FieldLabel>
                                 <TextInput
+                                    aria-invalid={Boolean(jsonPrefillFieldErrors.durationMinutes)}
                                     type="number"
                                     min={1}
                                     value={form.durationMinutes}
                                     onChange={(event) => patch("durationMinutes", event.target.value)}
                                     placeholder="30"
                                     hasLeadingIcon={false}
+                                    className={cn(jsonPrefillFieldErrors.durationMinutes && uiTokens.form.controlError)}
                                 />
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.durationMinutes} />
                             </Box>
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Seuil recommandé de validation</FieldLabel>
                                 <TextInput
+                                    aria-invalid={Boolean(jsonPrefillFieldErrors.validationThreshold)}
                                     type="number"
                                     min={0}
                                     max={100}
@@ -733,7 +906,9 @@ export function CreateQuizPageContent({
                                     onChange={(event) => patch("validationThreshold", event.target.value)}
                                     placeholder="70"
                                     hasLeadingIcon={false}
+                                    className={cn(jsonPrefillFieldErrors.validationThreshold && uiTokens.form.controlError)}
                                 />
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.validationThreshold} />
                             </Box>
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Nombre de tentatives</FieldLabel>
@@ -759,15 +934,18 @@ export function CreateQuizPageContent({
                                     <Box className="mt-3">
                                         <FieldLabel required className={uiTokens.form.label}>Maximum autorisé</FieldLabel>
                                         <TextInput
+                                            aria-invalid={Boolean(jsonPrefillFieldErrors.maxAttempts)}
                                             type="number"
                                             min={1}
                                             value={form.maxAttempts}
                                             onChange={(event) => patch("maxAttempts", event.target.value)}
                                             placeholder={DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE}
                                             hasLeadingIcon={false}
+                                            className={cn(jsonPrefillFieldErrors.maxAttempts && uiTokens.form.controlError)}
                                         />
                                     </Box>
                                 )}
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.maxAttempts} />
                             </Box>
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Tags</FieldLabel>
@@ -816,11 +994,13 @@ export function CreateQuizPageContent({
                                         ))}
                                     </Box>
                                 )}
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.tags} />
                             </Box>
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Participation</FieldLabel>
                                 <SingleSelectField
                                     disabled={hasExistingAttempts}
+                                    hasError={Boolean(jsonPrefillFieldErrors.participation)}
                                     options={QUIZ_PARTICIPATIONS.map((participation) => ({
                                         label: QUIZ_PARTICIPATION_LABELS[participation],
                                         value: participation,
@@ -829,6 +1009,7 @@ export function CreateQuizPageContent({
                                     placeholder="Sélectionner"
                                     onChange={(value) => patch("participation", value as QuizParticipation)}
                                 />
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.participation} />
                             </Box>
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Visibilité</FieldLabel>
@@ -838,7 +1019,19 @@ export function CreateQuizPageContent({
                                         selected={!isPrivate}
                                         title="Public"
                                         description="Visible par tous les utilisateurs de la plateforme"
-                                        onSelect={() => patch("scope", "public")}
+                                        onSelect={() => {
+                                            clearJsonPrefillError("scope");
+                                            clearJsonPrefillError("organizationId");
+                                            clearJsonPrefillError("groupId");
+                                            clearJsonPrefillError("assignedUserId");
+                                            setForm((current) => ({
+                                                ...current,
+                                                assignedUserId: "",
+                                                groupId: "",
+                                                organizationId: null,
+                                                scope: "public",
+                                            }));
+                                        }}
                                     />
                                     <VisibilityRadio
                                         disabled={hasExistingAttempts}
@@ -850,6 +1043,7 @@ export function CreateQuizPageContent({
                                         }}
                                     />
                                 </Box>
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.scope} />
                                 {isPrivate && (
                                     <Box className="mt-3 space-y-4">
                                         <Box>
@@ -861,17 +1055,20 @@ export function CreateQuizPageContent({
                                             )}
                                             <SingleSelectField
                                                 disabled={hasExistingAttempts}
+                                                hasError={Boolean(jsonPrefillFieldErrors.organizationId)}
                                                 options={organizationSelectOptions}
                                                 value={form.organizationId}
                                                 placeholder="Sélectionner une organisation..."
                                                 onChange={selectOrganization}
                                             />
+                                            <FieldErrorMessage message={jsonPrefillFieldErrors.organizationId} />
                                         </Box>
                                         {form.organizationId && (
                                             <Box>
                                                 <FieldLabel className={uiTokens.form.label}>Groupe</FieldLabel>
                                                 <SingleSelectField
                                                     disabled={hasExistingAttempts}
+                                                    hasError={Boolean(jsonPrefillFieldErrors.groupId)}
                                                     options={[
                                                         { label: "Toute l'organisation", value: "" },
                                                         ...groupSelectOptions,
@@ -880,6 +1077,7 @@ export function CreateQuizPageContent({
                                                     placeholder="Toute l'organisation"
                                                     onChange={selectGroup}
                                                 />
+                                                <FieldErrorMessage message={jsonPrefillFieldErrors.groupId} />
                                             </Box>
                                         )}
                                         {form.groupId && (
@@ -887,6 +1085,7 @@ export function CreateQuizPageContent({
                                                 <FieldLabel className={uiTokens.form.label}>Utilisateur</FieldLabel>
                                                 <SingleSelectField
                                                     disabled={hasExistingAttempts}
+                                                    hasError={Boolean(jsonPrefillFieldErrors.assignedUserId)}
                                                     options={[
                                                         { label: "Tout le groupe", value: "" },
                                                         ...userSelectOptions,
@@ -895,6 +1094,7 @@ export function CreateQuizPageContent({
                                                     placeholder="Tout le groupe"
                                                     onChange={selectUser}
                                                 />
+                                                <FieldErrorMessage message={jsonPrefillFieldErrors.assignedUserId} />
                                             </Box>
                                         )}
                                     </Box>
@@ -939,6 +1139,7 @@ export function CreateQuizPageContent({
                                 Ajouter une étape
                             </Button>
                         </Box>
+                        <FieldErrorMessage message={jsonPrefillFieldErrors.steps} />
 
                         {form.steps.length === 0 ? (
                             <Box className="mt-6 rounded-[16px] border border-dashed border-[#E5E7EB] py-12 text-center">
@@ -972,22 +1173,27 @@ export function CreateQuizPageContent({
                                                         Nom de l’étape
                                                     </FieldLabel>
                                                     <TextInput
+                                                        aria-invalid={Boolean(jsonPrefillFieldErrors[`steps.${stepIndex}.name`])}
                                                         value={step.name}
-                                                        onChange={(event) =>
+                                                        onChange={(event) => {
+                                                            clearJsonPrefillError(`steps.${stepIndex}.name`);
                                                             updateStep(step.id, (current) => ({
                                                                 ...current,
                                                                 name: event.target.value,
-                                                            }))
-                                                        }
+                                                            }));
+                                                        }}
                                                         placeholder="Nom de la catégorie..."
                                                         hasLeadingIcon={false}
                                                         readOnly={isFromMethod}
-                                                        className={
+                                                        className={cn(
                                                             isFromMethod
                                                                 ? uiTokens.form.controlReadonly
-                                                                : uiTokens.form.controlWhite
-                                                        }
+                                                                : uiTokens.form.controlWhite,
+                                                            jsonPrefillFieldErrors[`steps.${stepIndex}.name`] && uiTokens.form.controlError,
+                                                        )}
                                                     />
+                                                    <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.name`]} />
+                                                    <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.methodStepId`]} />
                                                     <Text className={cn("text-[12px] font-semibold", uiTokens.text.muted)}>
                                                         {questionCount} question{questionCount > 1 ? "s" : ""} ·{" "}
                                                         {competenceCount} compétence{competenceCount > 1 ? "s" : ""}
@@ -1000,24 +1206,32 @@ export function CreateQuizPageContent({
                                                         </FieldLabel>
                                                         <Box className="flex items-center gap-1.5">
                                                             <TextInput
+                                                                aria-invalid={Boolean(jsonPrefillFieldErrors[`steps.${stepIndex}.weight`])}
                                                                 type="number"
                                                                 min={0}
                                                                 max={100}
                                                                 value={step.weight}
-                                                                onChange={(event) =>
+                                                                onChange={(event) => {
+                                                                    clearJsonPrefillError(`steps.${stepIndex}.weight`);
+                                                                    clearJsonPrefillError("steps");
                                                                     updateStep(step.id, (current) => ({
                                                                         ...current,
                                                                         weight: event.target.value,
-                                                                    }))
-                                                                }
+                                                                    }));
+                                                                }}
                                                                 placeholder="0"
                                                                 hasLeadingIcon={false}
-                                                                className={cn(uiTokens.form.controlWhite, "w-[72px]")}
+                                                                className={cn(
+                                                                    uiTokens.form.controlWhite,
+                                                                    "w-[72px]",
+                                                                    jsonPrefillFieldErrors[`steps.${stepIndex}.weight`] && uiTokens.form.controlError,
+                                                                )}
                                                             />
                                                             <Text className={cn("text-[14px] font-semibold", uiTokens.text.muted)}>
                                                                 %
                                                             </Text>
                                                         </Box>
+                                                        <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.weight`]} />
                                                     </Box>
                                                     <Box className="flex items-center gap-1 pb-0.5">
                                                         <Button
@@ -1061,21 +1275,24 @@ export function CreateQuizPageContent({
                                                             addLabel="Ajouter une compétence"
                                                             searchPlaceholder="Rechercher une compétence..."
                                                             emptyHint="Aucune compétence trouvée"
-                                                            onAdd={(value) =>
+                                                            onAdd={(value) => {
+                                                                clearJsonPrefillError(`steps.${stepIndex}.competenceIds`, true);
                                                                 updateStep(step.id, (current) => ({
                                                                     ...current,
                                                                     competenceIds: [...current.competenceIds, value],
-                                                                }))
-                                                            }
-                                                            onRemove={(value) =>
+                                                                }));
+                                                            }}
+                                                            onRemove={(value) => {
+                                                                clearJsonPrefillError(`steps.${stepIndex}.competenceIds`, true);
                                                                 updateStep(step.id, (current) => ({
                                                                     ...current,
                                                                     competenceIds: current.competenceIds.filter(
                                                                         (id) => id !== value,
                                                                     ),
-                                                                }))
-                                                            }
+                                                                }));
+                                                            }}
                                                         />
+                                                        <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.competenceIds`]} />
                                                     </Box>
 
                                                     <Box className="mt-5 space-y-4">
@@ -1085,6 +1302,20 @@ export function CreateQuizPageContent({
                                                                 key={question.id}
                                                                 question={question}
                                                                 questionIndex={questionIndex}
+                                                                fieldErrors={Object.fromEntries(
+                                                                    Object.entries(jsonPrefillFieldErrors)
+                                                                        .filter(([path]) => path.startsWith(`steps.${stepIndex}.questions.${questionIndex}.`))
+                                                                        .map(([path, message]) => [
+                                                                            path.slice(`steps.${stepIndex}.questions.${questionIndex}.`.length),
+                                                                            message,
+                                                                        ]),
+                                                                )}
+                                                                onClearError={(path, descendants) =>
+                                                                    clearJsonPrefillError(
+                                                                        `steps.${stepIndex}.questions.${questionIndex}.${path}`,
+                                                                        descendants,
+                                                                    )
+                                                                }
                                                                 uploadProgressByClientFileId={uploadProgressByClientFileId}
                                                                 removable={step.questions.length > 1}
                                                                 skillOptions={quizSkillOptions}
@@ -1168,6 +1399,7 @@ export function CreateQuizPageContent({
                                                                 }
                                                             />
                                                         ))}
+                                                        <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.questions`]} />
                                                         <Button
                                                             disabled={hasExistingAttempts}
                                                             onClick={() => addQuestion(step.id)}
@@ -1220,6 +1452,28 @@ export function CreateQuizPageContent({
                     </Box>
                 </Box>
             </Box>
+
+            {creationModeDialogOpen && (
+                <EntityCreationModeDialog
+                    entityLabel="Quiz"
+                    onClose={() => setCreationModeDialogOpen(false)}
+                    onSelect={selectCreationMode}
+                />
+            )}
+            {jsonPrefillDialogOpen && (
+                <EntityJsonPrefillDialog
+                    entityLabel="Quiz"
+                    onClose={() => setJsonPrefillDialogOpen(false)}
+                    onImport={importQuizJson}
+                    prompt={buildQuizJsonPrefillPrompt({
+                        groupOptions,
+                        methodOptions,
+                        organizationOptions,
+                        skillOptions,
+                        userOptions,
+                    })}
+                />
+            )}
         </Box>
     );
 }

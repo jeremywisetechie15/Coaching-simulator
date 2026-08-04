@@ -991,10 +991,8 @@ export const uiTokens = {
     },
     resourceDetailHeader: {
         actions: "flex flex-wrap items-center gap-2",
-        alert: "mb-5",
         archiveButton:
             "flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#DC2626] px-3 text-[13px] font-semibold text-white transition hover:bg-[#B91C1C] disabled:cursor-not-allowed disabled:opacity-70",
-        archiveButtonConfirm: "bg-[#B91C1C] hover:bg-[#991B1B]",
         backLink:
             "inline-flex items-center gap-2 text-[14px] font-semibold text-[#4B5563] transition hover:text-[#111827]",
         editButton:
@@ -1006,6 +1004,8 @@ export const uiTokens = {
     form: {
         control:
             "h-9 w-full rounded-lg border border-[#E5E7EB] bg-[#F3F4F6] px-3.5 text-[14px] font-normal text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#5140F0] focus:bg-white focus:ring-4 focus:ring-[#5140F0]/10",
+        controlError:
+            "border-[#DC2626] bg-[#FEF2F2] focus:border-[#DC2626] focus:ring-[#DC2626]/10",
         controlWhite:
             "h-9 w-full rounded-lg border border-[#E5E7EB] bg-white px-3 text-[14px] font-normal text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#5140F0] focus:ring-4 focus:ring-[#5140F0]/10",
         controlReadonly:
@@ -1014,6 +1014,8 @@ export const uiTokens = {
             "flex min-h-12 w-full cursor-default items-center gap-3 rounded-lg border border-[#E9E7FB] bg-[#F4F3FE] px-3.5 py-2 text-[14px] font-medium text-[#374151]",
         label: "mb-2 block text-[14px] font-bold text-[#111827]",
         helpText: "text-[13px] font-medium leading-5 text-[#6B7280]",
+        errorMessage: "mt-1.5 text-[12px] font-semibold leading-4 text-[#DC2626]",
+        fieldErrorPanel: "rounded-xl border border-[#FECACA] bg-[#FEF2F2]/40 p-3",
         subLabel: "mb-1.5 block text-[13px] font-bold text-[#374151]",
         textArea:
             "w-full resize-none rounded-lg border border-[#E5E7EB] bg-[#F3F4F6] px-3.5 py-3 text-[14px] font-normal text-[#111827] outline-none transition placeholder:text-[#9CA3AF] focus:border-[#5140F0] focus:bg-white focus:ring-4 focus:ring-[#5140F0]/10",
@@ -1635,6 +1637,58 @@ export const uiTokens = {
         panelScrollable: "overflow-y-auto",
         title: "text-[20px] font-extrabold leading-tight",
         titleRow: "flex flex-wrap items-center gap-2.5",
+    },
+    /** Parcours partagé de création manuelle ou de préremplissage depuis un JSON local. */
+    jsonPrefill: {
+        actionGrid: "grid gap-3 sm:grid-cols-2",
+        cancelButton:
+            "flex h-11 items-center justify-center rounded-xl border border-[#E5E7EB] bg-white px-5 text-[14px] font-semibold text-[#374151] transition hover:border-[#C9C2FB] hover:text-[#5140F0] disabled:cursor-not-allowed disabled:opacity-60",
+        dialogPanel: "max-w-[620px]",
+        documentShell:
+            "rounded-[16px] border border-[#E5E7EB] bg-[#FAFAFC] p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]",
+        eyebrow:
+            "mb-2 inline-flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-[0.08em] text-[#5140F0]",
+        footer: "grid gap-3 border-t border-[#ECEEF3] pt-5 sm:grid-cols-2",
+        formHeader: "mb-6 flex flex-wrap items-center justify-between gap-4",
+        formNotice: "mb-5",
+        hero:
+            "relative overflow-hidden rounded-[16px] border border-[#E4E1FB] bg-[#F8F7FE] px-5 py-4",
+        heroAccent:
+            "absolute -right-8 -top-10 h-28 w-28 rounded-full border-[18px] border-[#EAE7FD] opacity-80",
+        heroDescription: "mt-1 max-w-[480px] text-[13px] font-medium leading-5 text-[#5F6472]",
+        heroIcon:
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-[#DAD4FB] bg-white text-[#5140F0] shadow-[0_6px_16px_rgba(81,64,240,0.10)]",
+        heroTitle: "text-[14px] font-extrabold text-[#252834]",
+        modeCard:
+            "group flex min-h-[180px] w-full flex-col items-start rounded-[18px] border p-5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0] focus-visible:ring-offset-2",
+        modeCardImport:
+            "border-[#C9C2FB] bg-[#F8F7FE] hover:-translate-y-0.5 hover:border-[#8E81F6] hover:shadow-[0_14px_30px_rgba(81,64,240,0.12)]",
+        modeCardManual:
+            "border-[#E5E7EB] bg-white hover:-translate-y-0.5 hover:border-[#C9CED8] hover:shadow-[0_14px_30px_rgba(17,24,39,0.08)]",
+        modeDescription: "mt-2 text-[13px] font-medium leading-5 text-[#6B7280]",
+        modeIconImport:
+            "flex h-11 w-11 items-center justify-center rounded-xl bg-[#5140F0] text-white shadow-[0_10px_20px_rgba(81,64,240,0.22)]",
+        modeIconManual:
+            "flex h-11 w-11 items-center justify-center rounded-xl border border-[#E5E7EB] bg-[#F7F8FB] text-[#374151]",
+        modeLink:
+            "mt-auto flex items-center gap-1.5 pt-5 text-[12px] font-extrabold text-[#5140F0]",
+        modeTitle: "mt-4 text-[15px] font-extrabold text-[#111827]",
+        primaryButton:
+            "flex h-11 items-center justify-center gap-2 rounded-xl bg-[#5140F0] px-5 text-[14px] font-bold text-white shadow-[0_10px_22px_rgba(81,64,240,0.22)] transition hover:bg-[#4635E7] disabled:cursor-not-allowed disabled:bg-[#B9B2F8] disabled:shadow-none",
+        promptButton:
+            "inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-[#C9C2FB] bg-white px-4 text-[13px] font-bold text-[#5140F0] transition hover:border-[#8E81F6] hover:bg-[#F8F7FE] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0] focus-visible:ring-offset-2",
+        promptCard:
+            "relative rounded-[16px] border border-[#E4E1FB] bg-white p-4 shadow-[0_8px_24px_rgba(81,64,240,0.07)] sm:flex sm:flex-wrap sm:items-center sm:justify-between sm:gap-4",
+        promptContent: "flex min-w-0 flex-1 items-start gap-3",
+        promptDescription: "mt-1 max-w-[390px] text-[12px] font-medium leading-5 text-[#6B7280]",
+        promptIcon:
+            "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#F0EEFF] text-[#5140F0]",
+        promptStatus: "mt-2 min-h-4 text-[11px] font-semibold text-[#32704A] sm:w-full",
+        promptTitle: "text-[13px] font-extrabold text-[#252834]",
+        privacy:
+            "mt-3 flex items-start gap-2 rounded-xl border border-[#D7E9DE] bg-[#F5FBF7] px-3.5 py-3 text-[12px] font-semibold leading-5 text-[#32704A]",
+        sectionLabel: "mb-2 text-[13px] font-extrabold text-[#252834]",
+        shell: "space-y-5",
     },
     profile: {
         security: {

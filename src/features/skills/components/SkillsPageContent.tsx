@@ -11,10 +11,11 @@ import {
     useCurrentAppHref,
 } from "@/features/app-shell/components";
 import { withSearchParams } from "@/features/app-shell/domain";
-import { ArchiveContentConfirmationModal } from "@/features/content/components";
+import { ContentRemovalConfirmationModal } from "@/features/content/components";
 import { requestContentCardAction } from "@/features/content/data/content-card-action.request";
 import {
     CONTENT_DOMAINS,
+    getContentRemovalErrorMessage,
     isContentDomain,
 } from "@/features/content/domain";
 import { Box, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
@@ -64,7 +65,7 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
     const [actionError, setActionError] = useState<string | null>(null);
     const [busySkillId, setBusySkillId] = useState<string | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-    const [skillToArchive, setSkillToArchive] = useState<SkillListItem | null>(null);
+    const [skillToRemove, setSkillToRemove] = useState<SkillListItem | null>(null);
 
     const filteredSkills = useMemo(() => {
         const normalized = query.trim().toLowerCase();
@@ -128,22 +129,23 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
         }
     }
 
-    async function handleArchive() {
-        if (!skillToArchive) return;
+    async function handleRemove() {
+        if (!skillToRemove) return;
 
         setActionError(null);
-        setBusySkillId(skillToArchive.id);
+        setBusySkillId(skillToRemove.id);
+        const errorMessage = getContentRemovalErrorMessage(skillToRemove.status, "la compétence");
 
         try {
             await requestContentCardAction(
-                SKILL_ROUTES.api.detail(skillToArchive.id),
+                SKILL_ROUTES.api.detail(skillToRemove.id),
                 "DELETE",
-                "Impossible d'archiver la compétence.",
+                errorMessage,
             );
-            setSkillToArchive(null);
+            setSkillToRemove(null);
             router.refresh();
         } catch (error) {
-            setActionError(error instanceof Error ? error.message : "Impossible d'archiver la compétence.");
+            setActionError(error instanceof Error ? error.message : errorMessage);
         } finally {
             setBusySkillId(null);
         }
@@ -196,7 +198,7 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
                     </Box>
                 </LibraryFilterBar>
 
-                {actionError && !skillToArchive && (
+                {actionError && !skillToRemove && (
                     <CardSurface className={cn("mb-5 rounded-xl border px-4 py-3 shadow-none", uiTokens.tone.danger.soft)}>
                         <Text className="text-[13px] font-semibold">{actionError}</Text>
                     </CardSurface>
@@ -219,10 +221,10 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
                                             busy={busySkillId === skill.id}
                                             currentHref={currentHref}
                                             isMenuOpen={openMenuId === skill.id}
-                                            onArchive={() => {
+                                            onRemove={() => {
                                                 setActionError(null);
                                                 setOpenMenuId(null);
-                                                setSkillToArchive(skill);
+                                                setSkillToRemove(skill);
                                             }}
                                             onDuplicate={() => void handleDuplicate(skill.id)}
                                             onToggleMenu={() => setOpenMenuId(openMenuId === skill.id ? null : skill.id)}
@@ -278,17 +280,18 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
                 )}
             </Box>
 
-            {skillToArchive && (
-                <ArchiveContentConfirmationModal
-                    busy={busySkillId === skillToArchive.id}
+            {skillToRemove && (
+                <ContentRemovalConfirmationModal
+                    busy={busySkillId === skillToRemove.id}
                     entityLabel="la compétence"
                     error={actionError}
-                    name={skillToArchive.name}
+                    name={skillToRemove.name}
                     onCancel={() => {
                         setActionError(null);
-                        setSkillToArchive(null);
+                        setSkillToRemove(null);
                     }}
-                    onConfirm={() => void handleArchive()}
+                    onConfirm={() => void handleRemove()}
+                    status={skillToRemove.status}
                 />
             )}
         </Box>

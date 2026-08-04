@@ -1,0 +1,45 @@
+{
+  "schemaVersion": 1,
+  "entityType": "quiz",
+  "data": {
+    "title": "Quiz découverte",
+    "description": "Valider les fondamentaux de la découverte.",
+    "quizType": "knowledge",
+    "difficulty": "Moyen",
+    "domain": "Commercial",
+    "categories": ["Prospection"],
+    "durationMinutes": 15,
+    "maxAttempts": 3,
+    "validationThreshold": 70,
+    "participation": "optional",
+    "methodId": null,
+    "scope": "public",
+    "organizationId": null,
+    "groupId": null,
+    "assignedUserId": null,
+    "tags": ["découverte"],
+    "steps": [
+      {
+        "methodStepId": null,
+        "name": "Fondamentaux",
+        "weight": 100,
+        "competenceIds": ["ID_TEXTE_EXACT_DE_LA_COMPETENCE"],
+        "questions": [
+          {
+            "prompt": "Quel type de question favorise la découverte ?",
+            "type": "QCU",
+            "points": 1,
+            "competenceId": "ID_TEXTE_EXACT_DE_LA_COMPETENCE",
+            "dimensionItemId": "UUID_EXACT_DE_L_ITEM_SAVOIR",
+            "explanation": "Une question ouverte favorise l’exploration.",
+            "choices": [
+              { "label": "Une question ouverte", "isCorrect": true },
+              { "label": "Une question fermée", "isCorrect": false }
+            ],
+            "attachments": []
+          }
+        ]
+      }
+    ]
+  }
+}

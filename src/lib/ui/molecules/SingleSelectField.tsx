@@ -45,7 +45,9 @@ function useOutsideClose(onClose: () => void) {
 }
 
 interface SingleSelectFieldProps {
+    ariaDescribedBy?: string;
     disabled?: boolean;
+    hasError?: boolean;
     onChange: (value: string) => void;
     options: SingleSelectOption[];
     placeholder: string;
@@ -53,7 +55,9 @@ interface SingleSelectFieldProps {
 }
 
 export function SingleSelectField({
+    ariaDescribedBy,
     disabled,
+    hasError = false,
     onChange,
     options,
     placeholder,
@@ -71,11 +75,14 @@ export function SingleSelectField({
             <Button
                 disabled={disabled}
                 onClick={() => setOpen((current) => !current)}
+                aria-describedby={ariaDescribedBy}
                 aria-expanded={open}
+                aria-invalid={hasError || undefined}
                 className={cn(
                     uiTokens.select.trigger,
                     disabled ? uiTokens.select.triggerDisabled : uiTokens.select.triggerEnabled,
                     hasSelectedValue ? uiTokens.select.triggerValue : uiTokens.select.triggerPlaceholder,
+                    hasError && uiTokens.form.controlError,
                 )}
             >
                 {SelectedIcon && <InlineIcon icon={SelectedIcon} className={uiTokens.select.triggerIcon} />}

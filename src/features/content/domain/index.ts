@@ -1,4 +1,5 @@
 export * from "./content-status";
+export * from "./content-removal";
 export * from "./content-difficulty";
 export * from "./entity-selection";
 export * from "./disc-profile";

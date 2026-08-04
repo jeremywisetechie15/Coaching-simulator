@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-    archivePersona,
     getPersonaDetailById,
     parseSavePersonaRequest,
+    removePersona,
     updatePersona,
 } from "@/features/personas/server";
 import { requireAdmin } from "@/features/auth/server";
@@ -43,9 +43,9 @@ export async function PATCH(request: NextRequest, { params }: RouteContext) {
 export async function DELETE(_request: NextRequest, { params }: RouteContext) {
     try {
         const { personaId } = await params;
-        await archivePersona(personaId);
+        const action = await removePersona(personaId);
 
-        return NextResponse.json({ ok: true });
+        return NextResponse.json({ action, ok: true });
     } catch (error) {
         return jsonError(error);
     }

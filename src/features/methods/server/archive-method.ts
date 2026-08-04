@@ -1,34 +1,34 @@
-import { requireAdmin } from "@/features/auth/server";
-import { CONTENT_STATUS, type ContentStatus } from "@/features/content/domain";
-import { assertContentStatusTransition } from "@/features/content/server";
-import { NotFoundError } from "@/lib/server/errors";
-import { createAdminClient } from "@/lib/supabase/admin";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { removeContent, type ContentStorageObject } from "@/features/content/server";
 
-export async function archiveMethod(methodId: string) {
-    await requireAdmin();
-    const adminSupabase = createAdminClient();
-    const { data: existing, error: existingError } = await adminSupabase
-        .from("methods")
-        .select("status")
-        .eq("id", methodId)
-        .maybeSingle<{ status: ContentStatus }>();
-
-    if (existingError) throw existingError;
-    if (!existing) throw new NotFoundError("Méthode introuvable.");
-
-    assertContentStatusTransition(existing.status, CONTENT_STATUS.archived);
-
-    const { data, error } = await adminSupabase
-        .from("methods")
-        .update({
-            is_active: false,
-            status: CONTENT_STATUS.archived,
-            updated_at: new Date().toISOString(),
-        })
-        .eq("id", methodId)
-        .select("id")
-        .maybeSingle<{ id: string }>();
+async function loadMethodStorageObjects(
+    supabase: SupabaseClient,
+    methodId: string,
+): Promise<ContentStorageObject[]> {
+    const { data, error } = await supabase
+        .from("method_resources")
+        .select("bucket, path")
+        .eq("method_id", methodId)
+        .returns<Array<{ bucket: string | null; path: string | null }>>();
 
     if (error) throw error;
-    if (!data) throw new NotFoundError("Méthode introuvable.");
+
+    return (data ?? []).flatMap(({ bucket, path }) =>
+        bucket && path ? [{ bucket, path }] : [],
+    );
+}
+
+export async function removeMethod(methodId: string) {
+    return removeContent({
+        archiveChanges: { is_active: false },
+        dependencyChecks: [
+            { column: "method_id", table: "scenarios" },
+            { column: "method_id", table: "quizzes" },
+            { column: "method_id", table: "scorecards" },
+        ],
+        entityId: methodId,
+        entityLabel: "Méthode",
+        loadStorageObjects: loadMethodStorageObjects,
+        table: "methods",
+    });
 }

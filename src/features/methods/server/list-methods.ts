@@ -1,6 +1,10 @@
 import { requireAuth } from "@/features/auth/server";
 import { CONTENT_STATUS, isSelectableContent } from "@/features/content/domain";
-import type { MethodListItem, MethodSelectionOption } from "@/features/methods/domain/method";
+import type {
+    MethodListItem,
+    MethodSelectionOption,
+    MethodSelectionOptionWithSteps,
+} from "@/features/methods/domain/method";
 import { createClient } from "@/lib/supabase/server";
 import { mapMethodRowToListItem, type MethodRow } from "./method.mapper";
 import { withMethodOrganizationNames } from "./method-organization-names";
@@ -71,4 +75,55 @@ export async function listMethodSelectionOptions({
             name: method.name,
         }))
         .sort((first, second) => first.name.localeCompare(second.name, "fr-FR"));
+}
+
+interface MethodSelectionStepRow {
+    id: string;
+    method_id: string;
+    step_order: number;
+    title: string;
+    weight: number | string | null;
+}
+
+function toNullableSelectionStepWeight(value: number | string | null | undefined) {
+    if (typeof value === "number") return value;
+    if (typeof value === "string" && value.trim()) {
+        const parsed = Number(value);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+}
+
+export async function listMethodSelectionOptionsWithSteps(
+    params: ListMethodSelectionOptionsParams = {},
+): Promise<MethodSelectionOptionWithSteps[]> {
+    const methods = await listMethodSelectionOptions(params);
+    if (methods.length === 0) return [];
+
+    const supabase = await createClient();
+    const { data, error } = await supabase
+        .from("method_steps")
+        .select("id, method_id, title, step_order, weight")
+        .in("method_id", methods.map((method) => method.id))
+        .order("step_order", { ascending: true })
+        .returns<MethodSelectionStepRow[]>();
+
+    if (error) throw error;
+
+    const stepsByMethodId = new Map<string, MethodSelectionOptionWithSteps["steps"]>();
+    for (const step of data ?? []) {
+        const current = stepsByMethodId.get(step.method_id) ?? [];
+        current.push({
+            id: step.id,
+            order: step.step_order,
+            title: step.title,
+            weight: toNullableSelectionStepWeight(step.weight),
+        });
+        stepsByMethodId.set(step.method_id, current);
+    }
+
+    return methods.map((method) => ({
+        ...method,
+        steps: stepsByMethodId.get(method.id) ?? [],
+    }));
 }

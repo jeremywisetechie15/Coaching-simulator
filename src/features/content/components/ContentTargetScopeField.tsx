@@ -8,7 +8,7 @@ import {
     type ContentTargetUserOption,
     type ContentVisibilityScope,
 } from "@/features/content/domain";
-import { Box, Button, FieldLabel, Text } from "@/lib/ui/atoms";
+import { Box, Button, FieldErrorMessage, FieldLabel, Text } from "@/lib/ui/atoms";
 import { SingleSelectField } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -22,6 +22,8 @@ export interface ContentTargetScopeValue {
 
 interface ContentTargetScopeFieldProps {
     disabled?: boolean;
+    errorIdPrefix?: string;
+    fieldErrors?: Partial<Record<"assignedUserId" | "groupId" | "organizationId", string>>;
     groupOptions: ContentTargetGroupOption[];
     onChange: (value: ContentTargetScopeValue) => void;
     organizationOptions: ContentTargetOrganizationOption[];
@@ -72,6 +74,8 @@ function VisibilityRadio({
 
 export function ContentTargetScopeField({
     disabled = false,
+    errorIdPrefix = "content-target",
+    fieldErrors = {},
     groupOptions,
     onChange,
     organizationOptions,
@@ -173,7 +177,9 @@ export function ContentTargetScopeField({
                     <Box>
                         <FieldLabel required className={uiTokens.form.label}>Organisation</FieldLabel>
                         <SingleSelectField
+                            ariaDescribedBy={fieldErrors.organizationId ? `${errorIdPrefix}-organization-error` : undefined}
                             disabled={disabled}
+                            hasError={Boolean(fieldErrors.organizationId)}
                             options={organizationOptions.map((organization) => ({
                                 disabled: organization.isSelectable === false,
                                 label: getEntitySelectionLabel(organization.name, organization),
@@ -183,12 +189,18 @@ export function ContentTargetScopeField({
                             placeholder="Sélectionner une organisation..."
                             onChange={selectOrganization}
                         />
+                        <FieldErrorMessage
+                            id={`${errorIdPrefix}-organization-error`}
+                            message={fieldErrors.organizationId}
+                        />
                     </Box>
                     {value.organizationId && (
                         <Box>
                             <FieldLabel className={uiTokens.form.label}>Groupe</FieldLabel>
                             <SingleSelectField
+                                ariaDescribedBy={fieldErrors.groupId ? `${errorIdPrefix}-group-error` : undefined}
                                 disabled={disabled}
+                                hasError={Boolean(fieldErrors.groupId)}
                                 options={[
                                     { label: "Toute l'organisation", value: "" },
                                     ...groupSelectOptions,
@@ -197,13 +209,19 @@ export function ContentTargetScopeField({
                                 placeholder="Toute l'organisation"
                                 onChange={selectGroup}
                             />
+                            <FieldErrorMessage
+                                id={`${errorIdPrefix}-group-error`}
+                                message={fieldErrors.groupId}
+                            />
                         </Box>
                     )}
                     {value.organizationId && (
                         <Box>
                             <FieldLabel className={uiTokens.form.label}>Utilisateur</FieldLabel>
                             <SingleSelectField
+                                ariaDescribedBy={fieldErrors.assignedUserId ? `${errorIdPrefix}-user-error` : undefined}
                                 disabled={disabled}
+                                hasError={Boolean(fieldErrors.assignedUserId)}
                                 options={[
                                     { label: value.groupId ? "Tout le groupe" : "Toute l'organisation", value: "" },
                                     ...userSelectOptions,
@@ -211,6 +229,10 @@ export function ContentTargetScopeField({
                                 value={value.assignedUserId}
                                 placeholder={value.groupId ? "Tout le groupe" : "Toute l'organisation"}
                                 onChange={selectUser}
+                            />
+                            <FieldErrorMessage
+                                id={`${errorIdPrefix}-user-error`}
+                                message={fieldErrors.assignedUserId}
                             />
                         </Box>
                     )}

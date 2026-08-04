@@ -1,14 +1,19 @@
 "use client";
 
-import { Archive, BotMessageSquare, Copy, Edit3, MoreHorizontal, Plus } from "lucide-react";
+import { BotMessageSquare, Copy, Edit3, MoreHorizontal, Plus } from "lucide-react";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ContextualLink } from "@/features/app-shell/components";
 import {
-    ArchiveContentConfirmationModal,
+    ContentRemovalConfirmationModal,
+    ContentRemovalMenuButton,
     EntityDetailsModalFeedback,
 } from "@/features/content/components";
 import { requestContentCardAction } from "@/features/content/data/content-card-action.request";
+import {
+    getContentRemovalErrorMessage,
+    type ContentRemovalTarget,
+} from "@/features/content/domain";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import {
     AnimatedEntityHeader,
@@ -75,7 +80,7 @@ async function fetchCoachDetail(coachId: string) {
 export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageContentProps) {
     const [actionError, setActionError] = useState<string | null>(null);
     const [busyCoachId, setBusyCoachId] = useState<string | null>(null);
-    const [coachToArchive, setCoachToArchive] = useState<CoachListItem | null>(null);
+    const [coachToRemove, setCoachToRemove] = useState<ContentRemovalTarget | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [selectedCoachId, setSelectedCoachId] = useState<string | null>(null);
     const coachesQuery = useQuery({
@@ -114,23 +119,24 @@ export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageCon
         }
     }
 
-    async function handleArchive() {
-        if (!coachToArchive) return;
+    async function handleRemove() {
+        if (!coachToRemove) return;
 
         setActionError(null);
-        setBusyCoachId(coachToArchive.id);
+        setBusyCoachId(coachToRemove.id);
+        const errorMessage = getContentRemovalErrorMessage(coachToRemove.status, "le coach");
 
         try {
             await requestContentCardAction(
-                COACH_ROUTES.api.detail(coachToArchive.id),
+                COACH_ROUTES.api.detail(coachToRemove.id),
                 "DELETE",
-                "Impossible d'archiver le coach.",
+                errorMessage,
             );
-            setCoachToArchive(null);
-            setSelectedCoachId((currentId) => currentId === coachToArchive.id ? null : currentId);
+            setCoachToRemove(null);
+            setSelectedCoachId((currentId) => currentId === coachToRemove.id ? null : currentId);
             await coachesQuery.refetch();
         } catch (error) {
-            setActionError(error instanceof Error ? error.message : "Impossible d'archiver le coach.");
+            setActionError(error instanceof Error ? error.message : errorMessage);
         } finally {
             setBusyCoachId(null);
         }
@@ -162,7 +168,7 @@ export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageCon
                     </Box>
                 )}
 
-                {actionError && !coachToArchive && (
+                {actionError && !coachToRemove && (
                     <CardSurface className={cn("mb-5 rounded-xl border px-4 py-3 shadow-none", uiTokens.tone.danger.soft)}>
                         <Text className="text-[13px] font-semibold">{actionError}</Text>
                     </CardSurface>
@@ -227,15 +233,13 @@ export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageCon
                                                             label={ENTITY_ACTION_LABELS.duplicate}
                                                             onClick={() => void handleDuplicate(coach.id)}
                                                         />
-                                                        <CardActionMenuButton
-                                                            danger
-                                                            disabled={busyCoachId === coach.id}
-                                                            icon={Archive}
-                                                            label={ENTITY_ACTION_LABELS.archive}
+                                                        <ContentRemovalMenuButton
+                                                            busy={busyCoachId === coach.id}
+                                                            status={coach.status}
                                                             onClick={() => {
                                                                 setActionError(null);
                                                                 setOpenMenuId(null);
-                                                                setCoachToArchive(coach);
+                                                                setCoachToRemove(coach);
                                                             }}
                                                         />
                                                     </CardActionMenu>
@@ -291,19 +295,25 @@ export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageCon
                         canManage={canManage}
                         coach={coachDetailQuery.data}
                         onClose={() => setSelectedCoachId(null)}
+                        onRemove={() => {
+                            setActionError(null);
+                            setSelectedCoachId(null);
+                            setCoachToRemove(coachDetailQuery.data);
+                        }}
                     />
                 )}
-                {coachToArchive && (
-                    <ArchiveContentConfirmationModal
-                        busy={busyCoachId === coachToArchive.id}
+                {coachToRemove && (
+                    <ContentRemovalConfirmationModal
+                        busy={busyCoachId === coachToRemove.id}
                         entityLabel="le coach"
                         error={actionError}
-                        name={coachToArchive.name}
+                        name={coachToRemove.name}
                         onCancel={() => {
                             setActionError(null);
-                            setCoachToArchive(null);
+                            setCoachToRemove(null);
                         }}
-                        onConfirm={() => void handleArchive()}
+                        onConfirm={() => void handleRemove()}
+                        status={coachToRemove.status}
                     />
                 )}
             </Box>

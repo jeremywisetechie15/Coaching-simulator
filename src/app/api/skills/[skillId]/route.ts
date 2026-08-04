@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
-    archiveSkill,
     getCurrentSkillPageData,
     parseSaveSkillRequest,
+    removeSkill,
     updateSkill,
 } from "@/features/skills/server";
 import { jsonError } from "@/lib/server/http";
@@ -39,9 +39,9 @@ export async function PATCH(request: NextRequest, context: SkillRouteContext) {
 export async function DELETE(_request: NextRequest, context: SkillRouteContext) {
     try {
         const { skillId } = await context.params;
-        await archiveSkill(skillId);
+        const action = await removeSkill(skillId);
 
-        return NextResponse.json({ ok: true });
+        return NextResponse.json({ action, ok: true });
     } catch (error) {
         return jsonError(error);
     }

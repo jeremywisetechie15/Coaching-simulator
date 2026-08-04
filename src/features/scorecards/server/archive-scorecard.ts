@@ -1,34 +1,16 @@
-import { requireAdmin } from "@/features/auth/server";
-import { CONTENT_STATUS, type ContentStatus } from "@/features/content/domain";
-import { assertContentStatusTransition } from "@/features/content/server";
-import { NotFoundError } from "@/lib/server/errors";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { removeContent } from "@/features/content/server";
 
-export async function archiveScorecard(scorecardId: string) {
-    await requireAdmin();
-    const adminSupabase = createAdminClient();
-    const { data: existing, error: existingError } = await adminSupabase
-        .from("scorecards")
-        .select("status")
-        .eq("id", scorecardId)
-        .maybeSingle<{ status: ContentStatus }>();
-
-    if (existingError) throw existingError;
-    if (!existing) throw new NotFoundError("Scorecard introuvable.");
-
-    assertContentStatusTransition(existing.status, CONTENT_STATUS.archived);
-
-    const { data, error } = await adminSupabase
-        .from("scorecards")
-        .update({
-            is_active: false,
-            status: CONTENT_STATUS.archived,
-            updated_at: new Date().toISOString(),
-        })
-        .eq("id", scorecardId)
-        .select("id")
-        .maybeSingle<{ id: string }>();
-
-    if (error) throw error;
-    if (!data) throw new NotFoundError("Scorecard introuvable.");
+export async function removeScorecard(scorecardId: string) {
+    return removeContent({
+        archiveChanges: { is_active: false },
+        dependencyChecks: [
+            { column: "scorecard_id", table: "scenarios" },
+            { column: "scorecard_id", table: "roleplay_session_results" },
+            { column: "scorecard_id", table: "roleplay_session_step_results" },
+            { column: "scorecard_id", table: "roleplay_session_criterion_results" },
+        ],
+        entityId: scorecardId,
+        entityLabel: "Scorecard",
+        table: "scorecards",
+    });
 }

@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Archive, Copy, Edit3, Eye, History, Info, MoreHorizontal, Phone, Plus } from "lucide-react";
+import { Copy, Edit3, Eye, History, Info, MoreHorizontal, Phone, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
     ContextualLink,
@@ -10,12 +10,14 @@ import {
 } from "@/features/app-shell/components";
 import { withReturnTo, withSearchParams } from "@/features/app-shell/domain";
 import {
-    ArchiveContentConfirmationModal,
+    ContentRemovalConfirmationModal,
+    ContentRemovalMenuButton,
     LearnerContentStatusBadge,
 } from "@/features/content/components";
 import {
     isLearnerContentStatusFilter,
     isSelectableContent,
+    getContentRemovalErrorMessage,
     LEARNER_CONTENT_STATUS_FILTER,
     LEARNER_CONTENT_STATUS_FILTER_OPTIONS,
     type LearnerContentStatusFilter,
@@ -88,12 +90,12 @@ async function duplicateRoleplayRequest(roleplayId: string) {
     }
 }
 
-async function archiveRoleplayRequest(roleplayId: string) {
+async function removeRoleplayRequest(roleplayId: string, errorMessage: string) {
     const response = await fetch(ROLEPLAY_ROUTES.api.detail(roleplayId), { method: "DELETE" });
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
 
     if (!response.ok) {
-        throw new Error(payload?.error || "Impossible d'archiver le roleplay.");
+        throw new Error(payload?.error || errorMessage);
     }
 }
 
@@ -127,7 +129,7 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
     const [busyRoleplayId, setBusyRoleplayId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-    const [roleplayToArchive, setRoleplayToArchive] = useState<RoleplayItem | null>(null);
+    const [roleplayToRemove, setRoleplayToRemove] = useState<RoleplayItem | null>(null);
 
     const categoryOptions = useMemo(() => getRoleplayCategoryFilterOptions(domain), [domain]);
     const filteredRoleplays = useMemo(
@@ -203,19 +205,20 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
         }
     }
 
-    async function handleArchive() {
-        if (!roleplayToArchive) return;
+    async function handleRemove() {
+        if (!roleplayToRemove) return;
 
         setError(null);
-        setBusyRoleplayId(roleplayToArchive.id);
+        setBusyRoleplayId(roleplayToRemove.id);
+        const errorMessage = getContentRemovalErrorMessage(roleplayToRemove.status, "le roleplay");
 
         try {
-            await archiveRoleplayRequest(roleplayToArchive.id);
-            setRoleplayToArchive(null);
+            await removeRoleplayRequest(roleplayToRemove.id, errorMessage);
+            setRoleplayToRemove(null);
             void queryClient.invalidateQueries({ queryKey: ORGANIZATIONS_QUERY_KEY });
             router.refresh();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Impossible d'archiver le roleplay.");
+            setError(err instanceof Error ? err.message : errorMessage);
         } finally {
             setBusyRoleplayId(null);
         }
@@ -297,7 +300,7 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                         </Box>
                 </LibraryFilterBar>
 
-                {error && !roleplayToArchive && (
+                {error && !roleplayToRemove && (
                     <CardSurface className="mb-5 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 shadow-none">
                         <Text className={cn("text-[13px] font-semibold", uiTokens.text.danger)}>{error}</Text>
                     </CardSurface>
@@ -364,15 +367,13 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                                                                 label={ENTITY_ACTION_LABELS.duplicate}
                                                                 onClick={() => void handleDuplicate(roleplay.id)}
                                                             />
-                                                            <CardActionMenuButton
-                                                                danger
-                                                                disabled={busyRoleplayId === roleplay.id}
-                                                                icon={Archive}
-                                                                label={ENTITY_ACTION_LABELS.archive}
+                                                            <ContentRemovalMenuButton
+                                                                busy={busyRoleplayId === roleplay.id}
+                                                                status={roleplay.status}
                                                                 onClick={() => {
                                                                     setError(null);
                                                                     setOpenMenuId(null);
-                                                                    setRoleplayToArchive(roleplay);
+                                                                    setRoleplayToRemove(roleplay);
                                                                 }}
                                                             />
                                                         </CardActionMenu>
@@ -501,17 +502,18 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                     </CardSurface>
                 )}
 
-                {roleplayToArchive && (
-                    <ArchiveContentConfirmationModal
-                        busy={busyRoleplayId === roleplayToArchive.id}
+                {roleplayToRemove && (
+                    <ContentRemovalConfirmationModal
+                        busy={busyRoleplayId === roleplayToRemove.id}
                         entityLabel="le roleplay"
                         error={error}
-                        name={roleplayToArchive.title || roleplayToArchive.name}
+                        name={roleplayToRemove.title || roleplayToRemove.name}
                         onCancel={() => {
-                            setRoleplayToArchive(null);
+                            setRoleplayToRemove(null);
                             setError(null);
                         }}
-                        onConfirm={() => void handleArchive()}
+                        onConfirm={() => void handleRemove()}
+                        status={roleplayToRemove.status}
                     />
                 )}
             </Box>

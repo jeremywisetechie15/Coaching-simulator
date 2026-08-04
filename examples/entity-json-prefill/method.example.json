@@ -1,0 +1,40 @@
+{
+  "schemaVersion": 1,
+  "entityType": "method",
+  "data": {
+    "name": "Méthode de découverte",
+    "domain": "Commercial",
+    "category": "Prospection",
+    "quizId": null,
+    "description": "Structurer un entretien de découverte.",
+    "readingTimeMinutes": 12,
+    "visibility": "public",
+    "organizationId": null,
+    "resources": [
+      {
+        "label": "Guide complémentaire",
+        "externalUrl": "https://example.com/guide"
+      }
+    ],
+    "objectives": ["Qualifier le besoin"],
+    "challenges": ["Éviter une découverte superficielle"],
+    "steps": [
+      {
+        "title": "Explorer le contexte",
+        "description": "Questionner la situation actuelle.",
+        "shortName": "Explorer",
+        "shortDescription": "Comprendre avant de proposer.",
+        "icon": "search",
+        "learningResource": {
+          "label": "Capsule vidéo",
+          "externalUrl": "https://example.com/video"
+        },
+        "objectives": ["Comprendre le contexte"],
+        "bestPractices": ["Poser des questions ouvertes"],
+        "pitfalls": ["Présenter trop tôt"],
+        "posture": ["Écoute active"],
+        "verbatims": ["Comment procédez-vous aujourd’hui ?"]
+      }
+    ]
+  }
+}

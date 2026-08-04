@@ -14,8 +14,11 @@ import {
     Mic2,
     Shapes,
     UsersRound,
+    Edit3,
 } from "lucide-react";
+import { ContextualLink } from "@/features/app-shell/components";
 import {
+    ContentRemovalButton,
     ContentStatusBadge,
     DiscProfileBadge,
     EntityProfileDetailsModal,
@@ -23,16 +26,25 @@ import {
 } from "@/features/content/components";
 import type { PersonaDetail } from "@/features/personas/domain/persona-list";
 import { getPersonaInitials } from "@/features/personas/domain/persona-list";
+import { PERSONA_ROUTES } from "@/features/personas/domain/persona-routes";
+import { Box, InlineIcon } from "@/lib/ui/atoms";
+import { uiTokens } from "@/lib/ui/tokens";
 
 interface PersonaDetailsModalProps {
     canManage: boolean;
     onClose: () => void;
+    onRemove: () => void;
     persona: PersonaDetail;
 }
 
 const optionalValue = (value: string) => value.trim() || "Non renseigné";
 
-export function PersonaDetailsModal({ canManage, onClose, persona }: PersonaDetailsModalProps) {
+export function PersonaDetailsModal({
+    canManage,
+    onClose,
+    onRemove,
+    persona,
+}: PersonaDetailsModalProps) {
     const sections: EntityProfileDetailSection[] = [
         {
             title: "Identité",
@@ -93,6 +105,24 @@ export function PersonaDetailsModal({ canManage, onClose, persona }: PersonaDeta
             avatarUrl={persona.avatarUrl}
             createdAt={persona.createdAt}
             description="Informations complètes du persona IA"
+            headerActions={canManage ? (
+                <Box className={uiTokens.resourceDetailHeader.actions}>
+                    <ContextualLink
+                        href={PERSONA_ROUTES.app.edit(persona.id)}
+                        className={uiTokens.resourceDetailHeader.editButton}
+                    >
+                        <InlineIcon
+                            icon={Edit3}
+                            className={uiTokens.resourceDetailHeader.icon}
+                        />
+                        Modifier
+                    </ContextualLink>
+                    <ContentRemovalButton
+                        onClick={onRemove}
+                        status={persona.status}
+                    />
+                </Box>
+            ) : undefined}
             headerBadge={canManage ? <ContentStatusBadge status={persona.status} /> : undefined}
             initials={getPersonaInitials(persona.name)}
             name={persona.name}

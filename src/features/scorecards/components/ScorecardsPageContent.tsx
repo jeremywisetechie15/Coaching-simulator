@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
-    Archive,
     ClipboardList,
     Copy,
     Edit3,
@@ -16,8 +15,11 @@ import {
 import type { LucideIcon } from "lucide-react";
 import { ContextualLink, useCurrentAppHref } from "@/features/app-shell/components";
 import { withReturnTo, withSearchParams } from "@/features/app-shell/domain";
-import { ArchiveContentConfirmationModal } from "@/features/content/components";
-import { CONTENT_DOMAINS } from "@/features/content/domain";
+import {
+    ContentRemovalConfirmationModal,
+    ContentRemovalMenuButton,
+} from "@/features/content/components";
+import { CONTENT_DOMAINS, getContentRemovalErrorMessage } from "@/features/content/domain";
 import { getQuizStatusLabel } from "@/features/evaluations/domain";
 import { SCORECARD_ROUTES, SCORECARD_VISIBILITY_LABELS, type ScorecardListItem } from "@/features/scorecards/domain";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
@@ -60,12 +62,12 @@ async function duplicateScorecardRequest(scorecardId: string) {
     }
 }
 
-async function archiveScorecardRequest(scorecardId: string) {
+async function removeScorecardRequest(scorecardId: string, errorMessage: string) {
     const response = await fetch(SCORECARD_ROUTES.api.detail(scorecardId), { method: "DELETE" });
     const payload = (await response.json().catch(() => null)) as ApiErrorPayload | null;
 
     if (!response.ok) {
-        throw new Error(payload?.error || "Impossible d'archiver la scorecard.");
+        throw new Error(payload?.error || errorMessage);
     }
 }
 
@@ -81,7 +83,7 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
     const [busyScorecardId, setBusyScorecardId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
-    const [scorecardToArchive, setScorecardToArchive] = useState<ScorecardListItem | null>(null);
+    const [scorecardToRemove, setScorecardToRemove] = useState<ScorecardListItem | null>(null);
 
     const filtered = useMemo(() => {
         const term = query.trim().toLowerCase();
@@ -114,18 +116,19 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
         }
     }
 
-    async function handleArchive() {
-        if (!scorecardToArchive) return;
+    async function handleRemove() {
+        if (!scorecardToRemove) return;
 
         setError(null);
-        setBusyScorecardId(scorecardToArchive.id);
+        setBusyScorecardId(scorecardToRemove.id);
+        const errorMessage = getContentRemovalErrorMessage(scorecardToRemove.status, "la scorecard");
 
         try {
-            await archiveScorecardRequest(scorecardToArchive.id);
-            setScorecardToArchive(null);
+            await removeScorecardRequest(scorecardToRemove.id, errorMessage);
+            setScorecardToRemove(null);
             router.refresh();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Impossible d'archiver la scorecard.");
+            setError(err instanceof Error ? err.message : errorMessage);
         } finally {
             setBusyScorecardId(null);
         }
@@ -181,7 +184,7 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
                     </Box>
                 </LibraryFilterBar>
 
-                {error && !scorecardToArchive && (
+                {error && !scorecardToRemove && (
                     <CardSurface className="mt-5 rounded-xl border border-[#FECACA] bg-[#FEF2F2] px-4 py-3 shadow-none">
                         <Text className={cn("text-[13px] font-semibold", uiTokens.text.danger)}>{error}</Text>
                     </CardSurface>
@@ -201,10 +204,10 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
                                 key={scorecard.id}
                                 busy={busyScorecardId === scorecard.id}
                                 isMenuOpen={openMenuId === scorecard.id}
-                                onArchive={() => {
+                                onRemove={() => {
                                     setError(null);
                                     setOpenMenuId(null);
-                                    setScorecardToArchive(scorecard);
+                                    setScorecardToRemove(scorecard);
                                 }}
                                 onDuplicate={() => void handleDuplicate(scorecard.id)}
                                 onToggleMenu={() => setOpenMenuId(openMenuId === scorecard.id ? null : scorecard.id)}
@@ -215,17 +218,18 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
                     </Box>
                 )}
 
-                {scorecardToArchive && (
-                    <ArchiveContentConfirmationModal
-                        busy={busyScorecardId === scorecardToArchive.id}
+                {scorecardToRemove && (
+                    <ContentRemovalConfirmationModal
+                        busy={busyScorecardId === scorecardToRemove.id}
                         entityLabel="la scorecard"
                         error={error}
-                        name={scorecardToArchive.name}
+                        name={scorecardToRemove.name}
                         onCancel={() => {
-                            setScorecardToArchive(null);
+                            setScorecardToRemove(null);
                             setError(null);
                         }}
-                        onConfirm={() => void handleArchive()}
+                        onConfirm={() => void handleRemove()}
+                        status={scorecardToRemove.status}
                     />
                 )}
             </Box>
@@ -236,7 +240,7 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
 interface ScorecardCardProps {
     busy: boolean;
     isMenuOpen: boolean;
-    onArchive: () => void;
+    onRemove: () => void;
     onDuplicate: () => void;
     onToggleMenu: () => void;
     scorecard: ScorecardListItem;
@@ -246,7 +250,7 @@ interface ScorecardCardProps {
 function ScorecardCard({
     busy,
     isMenuOpen,
-    onArchive,
+    onRemove,
     onDuplicate,
     onToggleMenu,
     scorecard,
@@ -278,12 +282,10 @@ function ScorecardCard({
                                 label={ENTITY_ACTION_LABELS.duplicate}
                                 onClick={onDuplicate}
                             />
-                            <CardActionMenuButton
-                                danger
-                                disabled={busy}
-                                icon={Archive}
-                                label={ENTITY_ACTION_LABELS.archive}
-                                onClick={onArchive}
+                            <ContentRemovalMenuButton
+                                busy={busy}
+                                onClick={onRemove}
+                                status={scorecard.status}
                             />
                         </CardActionMenu>
                     )}

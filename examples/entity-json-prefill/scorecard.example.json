@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "entityType": "scorecard",
+  "data": {
+    "name": "Scorecard découverte",
+    "methodId": "ID_EXACT_DE_LA_METHODE",
+    "domain": "Commercial",
+    "category": "Prospection",
+    "level": "Moyen",
+    "description": "Évaluer un entretien de découverte.",
+    "visibility": "public",
+    "organizationId": null,
+    "steps": [
+      {
+        "methodStepId": "UUID_EXACT_DE_L_ETAPE",
+        "weightPercent": 100,
+        "criteria": [
+          {
+            "key": "Questions ouvertes",
+            "expectedEvidence": "Le vendeur explore le contexte.",
+            "competenceId": "ID_TEXTE_EXACT_DE_LA_COMPETENCE",
+            "dimension": "savoir_faire",
+            "dimensionItemId": "UUID_EXACT_DE_L_ITEM",
+            "maxPoints": 4,
+            "aiInstruction": "Identifier les questions ouvertes.",
+            "verbatim": "Comment faites-vous aujourd’hui ?"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -26,7 +26,7 @@ describe("SkillCardActions", () => {
                 busy={false}
                 currentHref="/skills"
                 isMenuOpen
-                onArchive={vi.fn()}
+                onRemove={vi.fn()}
                 onDuplicate={vi.fn()}
                 onToggleMenu={vi.fn()}
                 skill={skill}

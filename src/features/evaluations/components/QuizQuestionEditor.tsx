@@ -16,7 +16,7 @@ import {
 import { getEntitySelectionLabel } from "@/features/content/domain";
 import type { SkillOption } from "@/features/skills/domain/skills";
 import { CONTENT_UPLOAD_PURPOSES } from "@/lib/uploads/content-upload";
-import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
+import { Box, Button, CardSurface, FieldErrorMessage, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import { FileUploadField, SingleSelectField } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -31,6 +31,7 @@ import {
 } from "./quiz-form-state";
 
 interface QuizQuestionEditorProps {
+    fieldErrors?: Readonly<Record<string, string | undefined>>;
     onAddAttachment: (type: QuizAttachmentType) => void;
     onAddChoice: () => void;
     onAttachmentDeliveryTypeChange: (attachmentId: string, deliveryType: QuizAttachmentDeliveryType) => void;
@@ -39,6 +40,7 @@ interface QuizQuestionEditorProps {
     onAttachmentUploadClear: (attachmentId: string) => void;
     onChoicePatch: (choiceId: string, patch: Partial<QuizChoiceFormState>) => void;
     onError?: (message: string) => void;
+    onClearError?: (path: string, descendants?: boolean) => void;
     onPatch: (patch: Partial<QuizQuestionFormState>) => void;
     onQuestionTypeChange: (type: QuizQuestionType) => void;
     onRemove: () => void;
@@ -59,6 +61,7 @@ const quizAttachmentTypeOptions = QUIZ_ATTACHMENT_TYPES.map((type) => ({
 }));
 
 export function QuizQuestionEditor({
+    fieldErrors = {},
     onAddAttachment,
     onAddChoice,
     onAttachmentDeliveryTypeChange,
@@ -67,6 +70,7 @@ export function QuizQuestionEditor({
     onAttachmentUploadClear,
     onChoicePatch,
     onError,
+    onClearError,
     onPatch,
     onQuestionTypeChange,
     onRemove,
@@ -105,6 +109,8 @@ export function QuizQuestionEditor({
     const points = integerFromText(question.points, 1);
 
     function handleCompetenceChange(skillId: string) {
+        onClearError?.("competenceId");
+        onClearError?.("dimensionItemId");
         onPatch({
             competenceId: skillId,
             dimension: QUIZ_EVALUATED_DIMENSION,
@@ -199,22 +205,33 @@ export function QuizQuestionEditor({
                     <Box className="space-y-3">
                         <FieldLabel required className={uiTokens.form.subLabel}>Énoncé de la question</FieldLabel>
                         <TextArea
+                            aria-invalid={Boolean(fieldErrors.prompt)}
                             value={question.prompt}
-                            onChange={(event) => onPatch({ prompt: event.target.value })}
+                            onChange={(event) => {
+                                onClearError?.("prompt");
+                                onPatch({ prompt: event.target.value });
+                            }}
                             placeholder={`Question ${questionIndex + 1}...`}
                             rows={2}
-                            className={uiTokens.form.textAreaWhite}
+                            className={cn(uiTokens.form.textAreaWhite, fieldErrors.prompt && uiTokens.form.controlError)}
                         />
+                        <FieldErrorMessage message={fieldErrors.prompt} />
                         <SingleSelectField
                             disabled={structureLocked}
+                            hasError={Boolean(fieldErrors.type)}
                             options={QUIZ_QUESTION_TYPES.map((type) => ({
                                 label: QUIZ_QUESTION_TYPE_LABELS[type],
                                 value: type,
                             }))}
                             value={question.type}
                             placeholder="Type de question"
-                            onChange={(value) => onQuestionTypeChange(value as QuizQuestionType)}
+                            onChange={(value) => {
+                                onClearError?.("type");
+                                onClearError?.("choices", true);
+                                onQuestionTypeChange(value as QuizQuestionType);
+                            }}
                         />
+                        <FieldErrorMessage message={fieldErrors.type} />
                     </Box>
 
                 <Box className="space-y-2">
@@ -226,11 +243,12 @@ export function QuizQuestionEditor({
                             <Button
                                 aria-label="Marquer comme bonne réponse"
                                 disabled={structureLocked}
-                                onClick={() =>
+                                onClick={() => {
+                                    onClearError?.("choices", true);
                                     onChoicePatch(choice.id, {
                                         isCorrect: question.type === "QCM" ? !choice.isCorrect : true,
-                                    })
-                                }
+                                    });
+                                }}
                                 className={cn(
                                     "flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 transition disabled:cursor-not-allowed disabled:opacity-60",
                                     choice.isCorrect ? "border-[#5140F0]" : "border-[#9CA3AF]",
@@ -239,17 +257,27 @@ export function QuizQuestionEditor({
                                 {choice.isCorrect && <Box className="h-2.5 w-2.5 rounded-full bg-[#5140F0]" />}
                             </Button>
                             <TextInput
+                                aria-invalid={Boolean(fieldErrors[`choices.${choiceIndex}.label`])}
                                 value={choice.label}
-                                onChange={(event) => onChoicePatch(choice.id, { label: event.target.value })}
+                                onChange={(event) => {
+                                    onClearError?.(`choices.${choiceIndex}.label`);
+                                    onChoicePatch(choice.id, { label: event.target.value });
+                                }}
                                 placeholder={`Réponse ${choiceIndex + 1}...`}
                                 hasLeadingIcon={false}
-                                className={uiTokens.form.controlWhite}
+                                className={cn(
+                                    uiTokens.form.controlWhite,
+                                    fieldErrors[`choices.${choiceIndex}.label`] && uiTokens.form.controlError,
+                                )}
                             />
                             {question.choices.length > 2 && (
                                 <Button
                                     aria-label="Supprimer la réponse"
                                     disabled={structureLocked}
-                                    onClick={() => onRemoveChoice(choice.id)}
+                                    onClick={() => {
+                                        onClearError?.("choices", true);
+                                        onRemoveChoice(choice.id);
+                                    }}
                                     className={cn(
                                         uiTokens.action.listRemoveButton,
                                         "disabled:cursor-not-allowed disabled:opacity-50",
@@ -260,9 +288,13 @@ export function QuizQuestionEditor({
                             )}
                         </Box>
                     ))}
+                    <FieldErrorMessage message={fieldErrors.choices} />
                     <Button
                         disabled={structureLocked}
-                        onClick={onAddChoice}
+                        onClick={() => {
+                            onClearError?.("choices", true);
+                            onAddChoice();
+                        }}
                         className={cn(
                             uiTokens.action.addButton,
                             "disabled:cursor-not-allowed disabled:opacity-50",
@@ -281,11 +313,13 @@ export function QuizQuestionEditor({
                         <FieldLabel required className={uiTokens.form.subLabel}>Compétence évaluée</FieldLabel>
                         <SingleSelectField
                             disabled={structureLocked}
+                            hasError={Boolean(fieldErrors.competenceId)}
                             options={questionCompetenceOptions}
                             value={question.competenceId}
                             placeholder="Sélectionner une compétence..."
                             onChange={handleCompetenceChange}
                         />
+                        <FieldErrorMessage message={fieldErrors.competenceId} />
                     </Box>
                     <Box className="grid gap-4 sm:grid-cols-2">
                         <Box>
@@ -305,6 +339,7 @@ export function QuizQuestionEditor({
                                         dimensionItemId: null,
                                     })
                                 }
+                                hasError={Boolean(fieldErrors.dimensionItemId)}
                             />
                         </Box>
                         <Box>
@@ -327,6 +362,7 @@ export function QuizQuestionEditor({
                                           : "Aucun item disponible pour cette dimension"
                                 }
                                 onChange={(value) => {
+                                    onClearError?.("dimensionItemId");
                                     const selectedItem = selectedDimensionItems.find((item) => item.id === value);
                                     onPatch({
                                         dimensionItem: selectedItem?.label ?? null,
@@ -334,30 +370,41 @@ export function QuizQuestionEditor({
                                     });
                                 }}
                             />
+                            <FieldErrorMessage message={fieldErrors.dimensionItemId} />
                         </Box>
                     </Box>
                     <Box className="sm:max-w-[160px]">
                         <FieldLabel className={uiTokens.form.subLabel}>Points</FieldLabel>
                         <TextInput
+                            aria-invalid={Boolean(fieldErrors.points)}
                             type="number"
                             min={0}
                             value={question.points}
-                            onChange={(event) => onPatch({ points: event.target.value })}
+                            onChange={(event) => {
+                                onClearError?.("points");
+                                onPatch({ points: event.target.value });
+                            }}
                             hasLeadingIcon={false}
-                            className={uiTokens.form.controlWhite}
+                            className={cn(uiTokens.form.controlWhite, fieldErrors.points && uiTokens.form.controlError)}
                         />
+                        <FieldErrorMessage message={fieldErrors.points} />
                     </Box>
                 </Box>
 
                 <Box>
                     <FieldLabel className={uiTokens.form.subLabel}>Explication de la bonne réponse</FieldLabel>
                     <TextArea
+                        aria-invalid={Boolean(fieldErrors.explanation)}
                         value={question.explanation}
-                        onChange={(event) => onPatch({ explanation: event.target.value })}
+                        onChange={(event) => {
+                            onClearError?.("explanation");
+                            onPatch({ explanation: event.target.value });
+                        }}
                         placeholder="Expliquez pourquoi cette réponse est correcte..."
                         rows={2}
-                        className={uiTokens.form.textAreaWhite}
+                        className={cn(uiTokens.form.textAreaWhite, fieldErrors.explanation && uiTokens.form.controlError)}
                     />
+                    <FieldErrorMessage message={fieldErrors.explanation} />
                 </Box>
 
                 <Box>
@@ -366,7 +413,10 @@ export function QuizQuestionEditor({
                         {canAddAttachment && (
                             <Button
                                 disabled={structureLocked}
-                                onClick={() => onAddAttachment("document")}
+                                onClick={() => {
+                                    onClearError?.("attachments", true);
+                                    onAddAttachment("document");
+                                }}
                                 className={cn(
                                     uiTokens.action.addButton,
                                     "disabled:cursor-not-allowed disabled:opacity-50",
@@ -392,7 +442,10 @@ export function QuizQuestionEditor({
                                     <Button
                                         aria-label={`Retirer la pièce jointe ${attachmentIndex + 1}`}
                                         disabled={structureLocked}
-                                        onClick={() => onRemoveAttachment(attachment.id)}
+                                        onClick={() => {
+                                            onClearError?.("attachments", true);
+                                            onRemoveAttachment(attachment.id);
+                                        }}
                                         className={cn(
                                             uiTokens.action.iconButtonGhost,
                                             "disabled:cursor-not-allowed disabled:opacity-50",
@@ -404,27 +457,36 @@ export function QuizQuestionEditor({
                                 <Box>
                                     <FieldLabel className={uiTokens.form.subLabel}>Titre</FieldLabel>
                                     <TextInput
+                                        aria-invalid={Boolean(fieldErrors[`attachments.${attachmentIndex}.label`])}
                                         value={attachment.label}
-                                        onChange={(event) =>
-                                            onAttachmentPatch(attachment.id, { label: event.target.value })
-                                        }
+                                        onChange={(event) => {
+                                            onClearError?.(`attachments.${attachmentIndex}.label`);
+                                            onAttachmentPatch(attachment.id, { label: event.target.value });
+                                        }}
                                         placeholder="Ex: Support de question"
                                         hasLeadingIcon={false}
-                                        className={uiTokens.form.controlWhite}
+                                        className={cn(
+                                            uiTokens.form.controlWhite,
+                                            fieldErrors[`attachments.${attachmentIndex}.label`] && uiTokens.form.controlError,
+                                        )}
                                     />
+                                    <FieldErrorMessage message={fieldErrors[`attachments.${attachmentIndex}.label`]} />
                                 </Box>
                                 <Box className="grid gap-3 sm:grid-cols-2">
                                     <Box>
                                         <FieldLabel className={uiTokens.form.subLabel}>Type de fichier</FieldLabel>
                                         <SingleSelectField
                                             disabled={structureLocked}
+                                            hasError={Boolean(fieldErrors[`attachments.${attachmentIndex}.type`])}
                                             options={quizAttachmentTypeOptions}
                                             value={attachment.type}
                                             placeholder="Sélectionner un type"
-                                            onChange={(value) =>
-                                                handleAttachmentTypeChange(attachment, value as QuizAttachmentType)
-                                            }
+                                            onChange={(value) => {
+                                                onClearError?.(`attachments.${attachmentIndex}.type`);
+                                                handleAttachmentTypeChange(attachment, value as QuizAttachmentType);
+                                            }}
                                         />
+                                        <FieldErrorMessage message={fieldErrors[`attachments.${attachmentIndex}.type`]} />
                                     </Box>
                                     {attachment.type !== "link" && (
                                         <Box>
@@ -463,20 +525,27 @@ export function QuizQuestionEditor({
                                         <>
                                             <FieldLabel className={uiTokens.form.subLabel}>URL</FieldLabel>
                                             <TextInput
+                                                aria-invalid={Boolean(fieldErrors[`attachments.${attachmentIndex}.externalUrl`])}
                                                 value={attachment.externalUrl}
-                                                onChange={(event) =>
-                                                    onAttachmentPatch(attachment.id, { externalUrl: event.target.value })
-                                                }
+                                                onChange={(event) => {
+                                                    onClearError?.(`attachments.${attachmentIndex}.externalUrl`);
+                                                    onAttachmentPatch(attachment.id, { externalUrl: event.target.value });
+                                                }}
                                                 placeholder="https://..."
                                                 hasLeadingIcon={false}
-                                                className={uiTokens.form.controlWhite}
+                                                className={cn(
+                                                    uiTokens.form.controlWhite,
+                                                    fieldErrors[`attachments.${attachmentIndex}.externalUrl`] && uiTokens.form.controlError,
+                                                )}
                                             />
+                                            <FieldErrorMessage message={fieldErrors[`attachments.${attachmentIndex}.externalUrl`]} />
                                         </>
                                     )}
                                 </Box>
                             </Box>
                         ))}
                     </Box>
+                    <FieldErrorMessage message={fieldErrors.attachments} />
                 </Box>
                 </Box>
             )}

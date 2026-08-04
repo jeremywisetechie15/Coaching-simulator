@@ -1,34 +1,16 @@
-import { requireAdmin } from "@/features/auth/server";
-import { CONTENT_STATUS, type ContentStatus } from "@/features/content/domain";
-import { assertContentStatusTransition } from "@/features/content/server";
-import { NotFoundError } from "@/lib/server/errors";
-import { createAdminClient } from "@/lib/supabase/admin";
+import { removeContent } from "@/features/content/server";
 
-export async function archiveSkill(skillId: string) {
-    await requireAdmin();
-    const adminSupabase = createAdminClient();
-    const { data: existing, error: existingError } = await adminSupabase
-        .from("skills")
-        .select("status")
-        .eq("id", skillId)
-        .maybeSingle<{ status: ContentStatus }>();
-
-    if (existingError) throw existingError;
-    if (!existing) throw new NotFoundError("Compétence introuvable.");
-
-    assertContentStatusTransition(existing.status, CONTENT_STATUS.archived);
-
-    const { data, error } = await adminSupabase
-        .from("skills")
-        .update({
-            is_active: false,
-            status: CONTENT_STATUS.archived,
-            updated_at: new Date().toISOString(),
-        })
-        .eq("id", skillId)
-        .select("id")
-        .maybeSingle<{ id: string }>();
-
-    if (error) throw error;
-    if (!data) throw new NotFoundError("Compétence introuvable.");
+export async function removeSkill(skillId: string) {
+    return removeContent({
+        archiveChanges: { is_active: false },
+        dependencyChecks: [
+            { column: "skill_id", table: "scorecard_criteria" },
+            { column: "competence_id", table: "quiz_step_competencies" },
+            { column: "competence_id", table: "quiz_questions" },
+            { column: "skill_id", table: "roleplay_session_criterion_results" },
+        ],
+        entityId: skillId,
+        entityLabel: "Compétence",
+        table: "skills",
+    });
 }

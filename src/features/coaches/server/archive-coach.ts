@@ -1,30 +1,42 @@
-import { requireAdmin } from "@/features/auth/server";
-import { CONTENT_STATUS, type ContentStatus } from "@/features/content/domain";
-import { assertContentStatusTransition } from "@/features/content/server";
-import { NotFoundError } from "@/lib/server/errors";
-import { createAdminClient } from "@/lib/supabase/admin";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { COACH_AVATAR_BUCKET } from "@/features/coaches/domain/coach-list";
+import { removeContent, type ContentStorageObject } from "@/features/content/server";
+import { normalizeStorageAvatarPath } from "@/lib/uploads/avatar-path";
+import { SESSION_BACKGROUND_UPLOAD_BUCKET } from "@/lib/uploads/content-upload";
+import { isOwnedCoachAvatarPath } from "./coach-avatar";
 
-export async function archiveCoach(coachId: string) {
-    await requireAdmin();
-    const adminSupabase = createAdminClient();
-    const { data: existing, error: existingError } = await adminSupabase
+async function loadCoachStorageObjects(
+    supabase: SupabaseClient,
+    coachId: string,
+): Promise<ContentStorageObject[]> {
+    const { data, error } = await supabase
         .from("coaches")
-        .select("status")
+        .select("avatar_url, background_image_path")
         .eq("id", coachId)
-        .maybeSingle<{ status: ContentStatus }>();
-
-    if (existingError) throw existingError;
-    if (!existing) throw new NotFoundError("Coach introuvable.");
-
-    assertContentStatusTransition(existing.status, CONTENT_STATUS.archived);
-
-    const { data, error } = await adminSupabase
-        .from("coaches")
-        .update({ status: CONTENT_STATUS.archived, updated_at: new Date().toISOString() })
-        .eq("id", coachId)
-        .select("id")
-        .maybeSingle<{ id: string }>();
+        .maybeSingle<{ avatar_url: string | null; background_image_path: string | null }>();
 
     if (error) throw error;
-    if (!data) throw new NotFoundError("Coach introuvable.");
+    if (!data) return [];
+
+    return [
+        ...(isOwnedCoachAvatarPath(data.avatar_url, coachId) && data.avatar_url
+            ? [{
+                bucket: COACH_AVATAR_BUCKET,
+                path: normalizeStorageAvatarPath(data.avatar_url, COACH_AVATAR_BUCKET),
+            }]
+            : []),
+        ...(data.background_image_path?.startsWith(`coaches/${coachId}/`)
+            ? [{ bucket: SESSION_BACKGROUND_UPLOAD_BUCKET, path: data.background_image_path }]
+            : []),
+    ];
+}
+
+export async function removeCoach(coachId: string) {
+    return removeContent({
+        dependencyChecks: [{ column: "coach_id", table: "scenarios" }],
+        entityId: coachId,
+        entityLabel: "Coach",
+        loadStorageObjects: loadCoachStorageObjects,
+        table: "coaches",
+    });
 }

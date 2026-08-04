@@ -12,7 +12,7 @@ import {
     type EntitySelectionAvailability,
     type LearnerContentStatus,
 } from "@/features/content/domain";
-import type { MethodSelectionOption } from "@/features/methods/domain/method";
+import type { MethodSelectionOptionWithSteps, MethodSelectionStepOption } from "@/features/methods/domain/method";
 
 export const QUIZ_DEFAULT_VALIDATION_THRESHOLD = 70;
 
@@ -128,16 +128,9 @@ export const QUIZ_ATTACHMENT_TYPES = ["link", "image", "video", "audio", "docume
 
 export type QuizAttachmentType = (typeof QUIZ_ATTACHMENT_TYPES)[number];
 
-export interface QuizMethodStepOption {
-    id: string;
-    order: number;
-    title: string;
-    weight: number | null;
-}
+export type QuizMethodStepOption = MethodSelectionStepOption;
 
-export interface QuizMethodOption extends MethodSelectionOption {
-    steps: QuizMethodStepOption[];
-}
+export type QuizMethodOption = MethodSelectionOptionWithSteps;
 
 export interface QuizOrganizationOption extends EntitySelectionAvailability {
     id: string;

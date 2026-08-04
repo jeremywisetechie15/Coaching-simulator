@@ -9,7 +9,7 @@ import {
     type ContentVisibilityChoice,
     type EntitySelectionAvailability,
 } from "@/features/content/domain";
-import type { MethodSelectionOption } from "@/features/methods/domain/method";
+import type { MethodSelectionOptionWithSteps } from "@/features/methods/domain/method";
 import type { SkillDimension } from "@/features/skills/domain/skills";
 
 function encodeRouteSegment(value: string) {
@@ -56,7 +56,7 @@ export const SCORECARD_CRITERION_DIMENSION_LABELS: Record<ScorecardCriterionDime
     savoir_faire: "Savoir-faire",
 };
 
-export type ScorecardMethodOption = MethodSelectionOption;
+export type ScorecardMethodOption = MethodSelectionOptionWithSteps;
 
 export interface ScorecardOrganizationOption extends EntitySelectionAvailability {
     id: string;
