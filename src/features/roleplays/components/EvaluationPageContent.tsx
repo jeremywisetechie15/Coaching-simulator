@@ -31,10 +31,7 @@ import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 import type { RoleplayItem } from "@/features/roleplays/data/roleplays";
 import type { RoleplaySession } from "@/features/roleplays/data/sessions";
-import {
-    evaluation as fallbackEvaluation,
-    stepStatusStyles,
-} from "@/features/roleplays/data/evaluation";
+import { stepStatusStyles } from "@/features/roleplays/data/evaluation";
 import type { Evaluation, EvaluationCriterion, EvaluationStep } from "@/features/roleplays/data/evaluation";
 import {
     appendRoleplayLiveTranscriptMessage,
@@ -133,7 +130,7 @@ export function getEvaluationNotesCoachMode(mode: SimulationViewMode) {
 
 interface EvaluationPageContentProps {
     canManage?: boolean;
-    evaluation?: Evaluation;
+    evaluation: Evaluation;
     roleplay: RoleplayItem;
     session: RoleplaySession;
 }
@@ -174,7 +171,7 @@ export function EvaluationPageContent({
     const [simView, setSimView] = useState<SimulationViewState | null>(null);
     const [simulationTranscript, setSimulationTranscript] = useState<RoleplayLiveTranscriptMessage[]>([]);
     const [pdfExportStep, setPdfExportStep] = useState<number | null>(null);
-    const evaluationData = evaluation ?? fallbackEvaluation;
+    const evaluationData = evaluation;
     const meetingNotes = useRoleplayMeetingNotes({
         coachMode: getEvaluationNotesCoachMode(simView?.mode ?? "coachFeedback"),
         roleplayId: simView ? roleplay.scenarioId ?? null : null,

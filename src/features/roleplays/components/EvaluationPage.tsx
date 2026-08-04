@@ -11,7 +11,7 @@ import type { RoleplaySession } from "@/features/roleplays/data/sessions";
 import { EvaluationPageContent } from "./EvaluationPageContent";
 
 interface EvaluationPageProps {
-    evaluation?: Evaluation;
+    evaluation: Evaluation;
     profileValues: ProfileFormValues;
     roleplay: RoleplayItem;
     session: RoleplaySession;

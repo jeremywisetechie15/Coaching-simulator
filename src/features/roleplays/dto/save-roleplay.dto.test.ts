@@ -93,6 +93,42 @@ describe("saveRoleplayDto", () => {
         expect(result.learnerRole).toBe("");
     });
 
+    it("rejects an unknown domain", () => {
+        const result = saveRoleplayDto.safeParse(
+            roleplay({ domain: "Domaine inconnu", status: CONTENT_STATUS.draft }),
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues).toContainEqual(
+            expect.objectContaining({
+                message: "Le domaine sélectionné est invalide.",
+                path: ["domain"],
+            }),
+        );
+    });
+
+    it("rejects a category without a domain or outside the selected domain", () => {
+        const missingDomain = saveRoleplayDto.safeParse(
+            roleplay({ domain: "", status: CONTENT_STATUS.draft }),
+        );
+        const mismatchedCategory = saveRoleplayDto.safeParse(
+            roleplay({ category: "Prospection", domain: "Management", status: CONTENT_STATUS.draft }),
+        );
+
+        expect(missingDomain.error?.issues).toContainEqual(
+            expect.objectContaining({
+                message: "Sélectionnez un domaine avant la catégorie.",
+                path: ["category"],
+            }),
+        );
+        expect(mismatchedCategory.error?.issues).toContainEqual(
+            expect.objectContaining({
+                message: "La catégorie ne correspond pas au domaine sélectionné.",
+                path: ["category"],
+            }),
+        );
+    });
+
     it("requires the learner role before publishing", () => {
         const result = saveRoleplayDto.safeParse(roleplay({ learnerRole: "" }));
 

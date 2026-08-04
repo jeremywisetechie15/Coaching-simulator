@@ -378,7 +378,9 @@ export const roleplayEvaluationOptions = [
 
 export const roleplayDomainOptions = [...CONTENT_DOMAINS];
 
-export const roleplayCategoryOptions = [...ALL_CONTENT_CATEGORIES];
+export function getRoleplayCategoryOptions(domain: string | null | undefined) {
+    return [...getCategoriesForDomain(domain)];
+}
 
 /** Retourne la méthode pédagogique associée à un roleplay, ou null si introuvable. */
 export function getRoleplayMethod(roleplay: RoleplayItem): Method | null {

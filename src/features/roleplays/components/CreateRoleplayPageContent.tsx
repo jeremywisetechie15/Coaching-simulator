@@ -58,7 +58,7 @@ import {
     getRoleplayPublicationIssues,
 } from "@/features/roleplays/domain";
 import {
-    roleplayCategoryOptions,
+    getRoleplayCategoryOptions,
     roleplayDifficultyOptions,
     roleplayDomainOptions,
 } from "@/features/roleplays/data/roleplays";
@@ -1201,7 +1201,7 @@ export function CreateRoleplayPageContent({
                             <FieldLabel required className={fieldLabelClasses}>Catégorie</FieldLabel>
                             <SingleSelect
                                 disabled={hasExistingSessions || !domain}
-                                options={staticOptions(roleplayCategoryOptions)}
+                                options={staticOptions(getRoleplayCategoryOptions(domain))}
                                 value={category}
                                 placeholder={domain ? "Sélectionner une catégorie" : "Sélectionnez d'abord un domaine"}
                                 onChange={setCategory}

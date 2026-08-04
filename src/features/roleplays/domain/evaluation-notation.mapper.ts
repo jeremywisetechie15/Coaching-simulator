@@ -1,6 +1,4 @@
 import {
-    demoEvaluationKeyMoments,
-    evaluation as fallbackEvaluation,
     type DiscourseMetric,
     type Evaluation,
     type EvaluationCriterion,
@@ -47,6 +45,11 @@ const KEY_MOMENT_IMPACT_FALLBACK_LABELS: Record<EvaluationKeyMomentImpactType, s
     moment_cle_positif: "Impact positif",
     moment_sensible: "Moment sensible",
     opportunite_manquee: "Opportunité manquée",
+};
+const EMPTY_PLAN_STEP: Evaluation["planEtape"] = {
+    number: 1,
+    text: "",
+    title: "",
 };
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -126,13 +129,13 @@ function listFromValue(value: unknown): string[] {
     return item ? [item] : [];
 }
 
-function firstList(root: JsonRecord | null, paths: string[][], fallback: string[]) {
+function firstList(root: JsonRecord | null, paths: string[][]) {
     for (const path of paths) {
-        const list = listFromValue(getValuePath(root, path));
-        if (list.length > 0) return list;
+        const value = getValuePath(root, path);
+        if (value !== undefined) return listFromValue(value);
     }
 
-    return fallback;
+    return [];
 }
 
 export function extractNotationScore(notationJson: unknown): number | null {
@@ -449,7 +452,6 @@ function mapMethodologySteps(notation: JsonRecord | null): EvaluationStep[] {
             const maxScore = asNumber(rawStep.score_max);
             const title =
                 firstString(rawStep, [["titre"], ["title"], ["etape"], ["name"]]) ??
-                fallbackEvaluation.steps[index]?.title ??
                 `Étape ${index + 1}`;
             const number = Math.max(1, Math.round(asNumber(rawStep.numero) ?? index + 1));
             const criteresReussis = resolveCriterionNames(rawStep, listFromValue(rawStep.criteres_reussis));
@@ -511,7 +513,7 @@ function metricValue(value: unknown): string | null {
 
 function mapDiscourseMetrics(notation: JsonRecord | null): DiscourseMetric[] {
     const discours = asRecord(notation?.discours);
-    if (!discours) return fallbackEvaluation.discourse;
+    if (!discours) return [];
 
     const indicators = getValuePath(discours, ["indicateurs"]) ?? getValuePath(discours, ["metrics"]);
     if (Array.isArray(indicators)) {
@@ -547,7 +549,7 @@ function mapDiscourseMetrics(notation: JsonRecord | null): DiscourseMetric[] {
         .filter((metric): metric is DiscourseMetric => Boolean(metric))
         .slice(0, 6);
 
-    return metrics.length > 0 ? metrics : fallbackEvaluation.discourse;
+    return metrics;
 }
 
 function formatTime(value: string | null) {
@@ -571,7 +573,7 @@ function mapTranscript(messages: NotationTranscriptMessage[]): TranscriptMessage
             time: formatTime(message.timestamp),
         }));
 
-    return transcript.length > 0 ? transcript : fallbackEvaluation.transcript;
+    return transcript;
 }
 
 function mapTranscriptCorrections(
@@ -707,15 +709,14 @@ function planStepNumber(plan: JsonRecord) {
     );
 }
 
-function fallbackPlanStep(steps: EvaluationStep[]): Evaluation["planEtape"] {
+function fallbackPlanStep(steps: EvaluationStep[]): Evaluation["planEtape"] | null {
     const weakestStep = [...steps].sort((a, b) => a.score - b.score)[0];
-    if (!weakestStep) return fallbackEvaluation.planEtape;
+    if (!weakestStep) return null;
 
     return {
         number: weakestStep.number,
         text:
-            weakestStep.criteria.find((criterion) => criterion.conseils && criterion.conseils !== "-")?.conseils ??
-            fallbackEvaluation.planEtape.text,
+            weakestStep.criteria.find((criterion) => criterion.conseils && criterion.conseils !== "-")?.conseils ?? "",
         title: weakestStep.title,
     };
 }
@@ -726,12 +727,11 @@ function mapPlanStepRecord(plan: JsonRecord, steps: EvaluationStep[]): Evaluatio
     return {
         number,
         text:
-            firstString(plan, [["texte"], ["text"], ["description"], ["action"], ["recommandation"]]) ??
-            fallbackEvaluation.planEtape.text,
+            firstString(plan, [["texte"], ["text"], ["description"], ["action"], ["recommandation"]]) ?? "",
         title:
             firstString(plan, [["etape_titre"], ["titre"], ["title"], ["etape"], ["name"]]) ??
             steps.find((step) => step.number === number)?.title ??
-            fallbackEvaluation.planEtape.title,
+            `Étape ${number}`,
     };
 }
 
@@ -759,7 +759,8 @@ function mapPlanSteps(synthese: JsonRecord | null, steps: EvaluationStep[]): Non
         );
     }
 
-    return [fallbackPlanStep(steps)];
+    const fallback = fallbackPlanStep(steps);
+    return fallback ? [fallback] : [];
 }
 
 function normalizeKeyMomentImpactType(value: unknown): EvaluationKeyMomentImpactType {
@@ -798,7 +799,7 @@ function mapKeyMomentTranscript(value: unknown): EvaluationKeyMoment["transcript
 
 function mapKeyMoments(synthese: JsonRecord | null): EvaluationKeyMoment[] {
     const value = getValuePath(synthese, ["moments_cles"]);
-    if (!Array.isArray(value)) return demoEvaluationKeyMoments;
+    if (!Array.isArray(value)) return [];
 
     const moments = value.flatMap((item, index): EvaluationKeyMoment[] => {
         if (!isRecord(item)) return [];
@@ -831,7 +832,23 @@ function mapKeyMoments(synthese: JsonRecord | null): EvaluationKeyMoment[] {
         }];
     });
 
-    return limitRoleplaySynthesisItems(moments.length > 0 ? moments : demoEvaluationKeyMoments);
+    return limitRoleplaySynthesisItems(moments);
+}
+
+function emptyEvaluation(messages: NotationTranscriptMessage[]): Evaluation {
+    return {
+        axesAmelioration: [],
+        coachAppreciation: "",
+        discourse: [],
+        momentsCles: [],
+        personaAvis: "",
+        planEtape: EMPTY_PLAN_STEP,
+        planEtapes: [],
+        pointsPositifs: [],
+        prioriteStrategique: "",
+        steps: [],
+        transcript: mapTranscript(messages),
+    };
 }
 
 export function mapNotationToEvaluation(
@@ -840,11 +857,7 @@ export function mapNotationToEvaluation(
 ): Evaluation {
     const notation = asRecord(notationJson);
     if (!notation) {
-        return {
-            ...fallbackEvaluation,
-            steps: [],
-            transcript: mapTranscript(messages),
-        };
+        return emptyEvaluation(messages);
     }
 
     const synthese = asRecord(notation.synthese);
@@ -862,28 +875,26 @@ export function mapNotationToEvaluation(
                     ["points_a_ameliorer"],
                     ["ameliorations"],
                 ],
-                fallbackEvaluation.axesAmelioration,
             ),
         ),
         coachAppreciation:
             firstString(synthese, [["appreciation_globale"], ["coach_appreciation"], ["synthese"], ["resume"]]) ??
             firstString(scoreGlobal, [["interpretation"]]) ??
-            fallbackEvaluation.coachAppreciation,
+            "",
         discourse: mapDiscourseMetrics(notation),
         momentsCles: mapKeyMoments(synthese),
-        personaAvis: extractNotationPersonaFeedback(notation) ?? fallbackEvaluation.personaAvis,
-        planEtape: planEtapes[0] ?? fallbackEvaluation.planEtape,
+        personaAvis: extractNotationPersonaFeedback(notation) ?? "",
+        planEtape: planEtapes[0] ?? EMPTY_PLAN_STEP,
         planEtapes,
         pointsPositifs: limitRoleplaySynthesisItems(
             firstList(
                 synthese,
                 [["points_positifs"], ["reussites_observees"], ["forces"], ["points_forts"]],
-                fallbackEvaluation.pointsPositifs,
             ),
         ),
         prioriteStrategique:
             firstString(synthese, [["priorite_strategique"], ["priorite"], ["recommandation_prioritaire"]]) ??
-            fallbackEvaluation.prioriteStrategique,
+            "",
         scoreDetails: mapScoreDetails(notation, steps),
         steps,
         transcript: mapTranscriptWithCorrections(notation, messages),

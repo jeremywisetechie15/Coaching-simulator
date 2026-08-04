@@ -3,6 +3,8 @@ import {
     CONTENT_STATUSES,
     CONTENT_VISIBILITY_SCOPE,
     CONTENT_VISIBILITY_SCOPES,
+    isContentCategoryForDomain,
+    isContentDomain,
 } from "@/features/content/domain";
 import { QUIZ_PARTICIPATIONS } from "@/features/evaluations/domain";
 import {
@@ -77,7 +79,13 @@ export const saveRoleplayDto = z
         description: z.string().trim().max(1200, "La description est trop longue.").optional().default(""),
         difficulty: z.enum(ROLEPLAY_DIFFICULTIES).nullable().optional().default(null),
         disc: z.enum(ROLEPLAY_DISC_PROFILES).optional().default("Stable"),
-        domain: z.string().trim().max(120, "Le domaine est trop long.").optional().default(""),
+        domain: z
+            .string()
+            .trim()
+            .max(120, "Le domaine est trop long.")
+            .refine((domain) => !domain || isContentDomain(domain), "Le domaine sélectionné est invalide.")
+            .optional()
+            .default(""),
         estimatedDurationMinutes: z
             .number()
             .int("La durée estimée doit être un nombre entier.")
@@ -139,6 +147,20 @@ export const saveRoleplayDto = z
     })
     .strict()
     .superRefine((roleplay, ctx) => {
+        if (roleplay.category && !roleplay.domain) {
+            ctx.addIssue({
+                code: "custom",
+                message: "Sélectionnez un domaine avant la catégorie.",
+                path: ["category"],
+            });
+        } else if (roleplay.category && !isContentCategoryForDomain(roleplay.domain, roleplay.category)) {
+            ctx.addIssue({
+                code: "custom",
+                message: "La catégorie ne correspond pas au domaine sélectionné.",
+                path: ["category"],
+            });
+        }
+
         if (roleplay.status === "published") {
             for (const issue of getRoleplayPublicationIssues(roleplay)) {
                 ctx.addIssue({

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { LEARNER_CONTENT_STATUS_FILTER } from "@/features/content/domain";
 import {
     filterRoleplaysByLibraryFilters,
+    getRoleplayCategoryOptions,
     getRoleplayCategoryFilterOptions,
     roleplayCategoryFilterOptions,
     roleplayDiscFilterOptions,
@@ -77,6 +78,15 @@ describe("roleplay library filters", () => {
             "Vente",
             "Recommandation",
             "Prise de rendez-vous",
+        ]);
+    });
+
+    it("limits roleplay editor categories to the selected domain", () => {
+        expect(getRoleplayCategoryOptions(null)).toEqual([]);
+        expect(getRoleplayCategoryOptions("Management")).toEqual([
+            "Entretien de Remobilisation",
+            "Feedback",
+            "Pilotage",
         ]);
     });
 });

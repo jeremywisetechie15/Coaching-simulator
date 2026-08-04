@@ -632,7 +632,7 @@ describe("evaluation notation mapper", () => {
         expect(evaluation.pointsPositifs).toEqual(["F1", "F2", "F3"]);
     });
 
-    it("keeps fallback content when notation_json is missing but maps session messages", () => {
+    it("keeps evaluation content empty when notation_json is missing but maps session messages", () => {
         const evaluation = mapNotationToEvaluation(null, [
             {
                 content: "Message sauvegardé",
@@ -641,9 +641,39 @@ describe("evaluation notation mapper", () => {
             },
         ]);
 
-        expect(evaluation.coachAppreciation).toContain("L'appel démontre");
+        expect(evaluation).toMatchObject({
+            axesAmelioration: [],
+            coachAppreciation: "",
+            discourse: [],
+            momentsCles: [],
+            personaAvis: "",
+            planEtapes: [],
+            pointsPositifs: [],
+            prioriteStrategique: "",
+            steps: [],
+        });
         expect(evaluation.transcript).toEqual([
             { id: "M1", speaker: "you", text: "Message sauvegardé", time: "invalid-date" },
         ]);
+    });
+
+    it("preserves explicitly empty scorecard outputs without injecting another case", () => {
+        const evaluation = mapNotationToEvaluation({
+            methodo: { etapes: [] },
+            score_global: { valeur: 0 },
+            synthese: {
+                axes_amelioration: [],
+                moments_cles: [],
+                points_positifs: [],
+            },
+        });
+
+        expect(extractNotationScore({ score_global: { valeur: 0 } })).toBe(0);
+        expect(evaluation.axesAmelioration).toEqual([]);
+        expect(evaluation.discourse).toEqual([]);
+        expect(evaluation.momentsCles).toEqual([]);
+        expect(evaluation.pointsPositifs).toEqual([]);
+        expect(evaluation.transcript).toEqual([]);
+        expect(JSON.stringify(evaluation)).not.toMatch(/Amrani|BFR|poste client|rendez-vous/i);
     });
 });
