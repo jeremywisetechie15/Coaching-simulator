@@ -17,5 +17,7 @@ describe("EntityJsonPrefillDialog", () => {
         expect(html).toContain("Fichier JSON");
         expect(html).toContain("Préremplir le formulaire");
         expect(html).toContain("les identifiants actuellement autorisés");
+        expect(html).not.toContain("Un formulaire prérempli, toujours sous votre contrôle");
+        expect(html).not.toContain("Les valeurs valides seront appliquées");
     });
 });

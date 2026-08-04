@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Copy, FileJson, FileUp, Sparkles } from "lucide-react";
+import { Check, Copy, FileUp, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { Box, Button, InlineIcon, Text } from "@/lib/ui/atoms";
 import { AlertMessage } from "@/lib/ui/molecules";
@@ -69,23 +69,6 @@ export function EntityJsonPrefillDialog({
             title={`Préremplir — ${entityLabel}`}
         >
             <Box className={uiTokens.jsonPrefill.shell}>
-                <Box className={uiTokens.jsonPrefill.hero}>
-                    <Box aria-hidden="true" className={uiTokens.jsonPrefill.heroAccent} />
-                    <Box className="relative flex items-start gap-3">
-                        <Box className={uiTokens.jsonPrefill.heroIcon}>
-                            <InlineIcon icon={FileJson} className="h-5 w-5" />
-                        </Box>
-                        <Box>
-                            <Text className={uiTokens.jsonPrefill.heroTitle}>
-                                Un formulaire prérempli, toujours sous votre contrôle
-                            </Text>
-                            <Text className={uiTokens.jsonPrefill.heroDescription}>
-                                Les valeurs valides seront appliquées. Les champs absents ou incorrects seront signalés directement dans le formulaire.
-                            </Text>
-                        </Box>
-                    </Box>
-                </Box>
-
                 {error && <AlertMessage message={error} />}
 
                 <Box className={uiTokens.jsonPrefill.promptCard}>
