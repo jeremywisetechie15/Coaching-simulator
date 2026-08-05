@@ -1,16 +1,17 @@
-import { QUIZ_KIND } from "@/features/evaluations/domain";
+import { QUIZ_KIND, type QuizKind } from "@/features/evaluations/domain";
 import type { RoleplayQuizOption } from "./roleplay";
 
 export interface RoleplayQuizAssignmentCandidate {
     id: string;
+    kind: QuizKind;
     methodId: string | null;
     title?: string | null;
 }
 
 export type RoleplayQuizAssignmentIssueCode =
     | "method_required"
-    | "quiz_linked_to_selected_method"
     | "quiz_linked_to_other_method"
+    | "selected_method_knowledge_quiz"
     | "quiz_not_found";
 
 export interface RoleplayQuizAssignmentIssue {
@@ -25,7 +26,9 @@ export function isRoleplayQuizAssignableForMethod(
 ) {
     if (!methodId) return false;
 
-    return !quiz.methodId;
+    if (quiz.methodId && quiz.methodId !== methodId) return false;
+
+    return quiz.kind !== QUIZ_KIND.methodKnowledge;
 }
 
 export function getAssignableRoleplayQuizOptions(
@@ -71,15 +74,22 @@ export function validateRoleplayQuizAssignments({
             continue;
         }
 
-        if (!quiz.methodId) {
+        if (quiz.methodId && quiz.methodId !== methodId) {
+            issues.push({
+                code: "quiz_linked_to_other_method",
+                quizId,
+                title: quiz.title,
+            });
             continue;
         }
 
-        issues.push({
-            code: quiz.methodId === methodId ? "quiz_linked_to_selected_method" : "quiz_linked_to_other_method",
-            quizId,
-            title: quiz.title,
-        });
+        if (quiz.kind === QUIZ_KIND.methodKnowledge) {
+            issues.push({
+                code: "selected_method_knowledge_quiz",
+                quizId,
+                title: quiz.title,
+            });
+        }
     }
 
     return issues;

@@ -3,7 +3,7 @@ import {
     CONTENT_STATUS,
     LEARNER_CONTENT_STATUS,
 } from "@/features/content/domain";
-import type { QuizDetail, QuizMethodOption } from "@/features/evaluations/domain";
+import { QUIZ_KIND, type QuizDetail, type QuizMethodOption } from "@/features/evaluations/domain";
 import {
     DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE,
     createQuizStepsFromMethod,
@@ -82,6 +82,7 @@ function quizForm(maxAttempts: string | null): QuizFormState {
         methodId: null,
         organizationId: null,
         participation: "optional",
+        quizKind: QUIZ_KIND.contextual,
         quizType: "knowledge",
         scope: "public",
         steps: [],
@@ -186,6 +187,7 @@ describe("quizToFormState", () => {
         expect(form.organizationId).toBeNull();
         expect(form.groupId).toBe("");
         expect(form.assignedUserId).toBe("");
+        expect(form.quizKind).toBe(QUIZ_KIND.contextual);
     });
 
     it("preserves unlimited attempts when editing a quiz", () => {
@@ -217,6 +219,28 @@ describe("toSaveQuizInput", () => {
         expect(toSaveQuizInput(form, CONTENT_STATUS.draft).difficulty).toBe("Difficile");
     });
 
+    it("keeps a standalone quiz contextual when a reference method is selected", () => {
+        const form = quizForm("3");
+        form.methodId = "11111111-1111-4111-8111-111111111111";
+
+        expect(toSaveQuizInput(form, CONTENT_STATUS.draft)).toMatchObject({
+            methodId: "11111111-1111-4111-8111-111111111111",
+            quizKind: QUIZ_KIND.contextual,
+        });
+    });
+
+    it("preserves the method quiz kind when editing the canonical quiz", () => {
+        const quiz = quizDetail(3);
+        quiz.kind = QUIZ_KIND.methodKnowledge;
+        quiz.methodId = "11111111-1111-4111-8111-111111111111";
+        const form = quizToFormState(quiz, [], []);
+
+        expect(toSaveQuizInput(form, CONTENT_STATUS.draft)).toMatchObject({
+            methodId: "11111111-1111-4111-8111-111111111111",
+            quizKind: QUIZ_KIND.methodKnowledge,
+        });
+    });
+
     it("keeps an edited title in the save payload", () => {
         const form = quizForm("3");
         form.title = "Nouveau titre du quiz";
@@ -245,6 +269,7 @@ describe("toSaveQuizInput", () => {
             methodId: null,
             organizationId: null,
             participation: "optional",
+            quizKind: QUIZ_KIND.contextual,
             quizType: "knowledge",
             scope: "public",
             steps: [
@@ -298,6 +323,7 @@ describe("toSaveQuizInput", () => {
             methodId: null,
             organizationId: null,
             participation: "optional",
+            quizKind: QUIZ_KIND.contextual,
             quizType: "knowledge",
             scope: "public",
             steps: [

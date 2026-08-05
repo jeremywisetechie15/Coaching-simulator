@@ -11,6 +11,7 @@ import {
     type QuizDetail,
     type QuizDimension,
     type QuizGroupOption,
+    type QuizKind,
     type QuizMethodOption,
     type QuizParticipation,
     type QuizQuestionType,
@@ -101,6 +102,7 @@ export interface QuizFormState {
     methodId: string | null;
     organizationId: string | null;
     participation: QuizParticipation;
+    quizKind: QuizKind;
     quizType: QuizType;
     scope: QuizVisibilityScope;
     steps: QuizStepFormState[];
@@ -262,6 +264,7 @@ export function quizToFormState(
             methodId: null,
             organizationId: null,
             participation: "optional",
+            quizKind: QUIZ_KIND.contextual,
             quizType: "knowledge",
             scope: "public",
             steps: [],
@@ -300,6 +303,7 @@ export function quizToFormState(
         methodId: quiz.methodId,
         organizationId,
         participation: quiz.participation,
+        quizKind: quiz.kind,
         quizType: quiz.type,
         scope: quiz.scope,
         steps: quiz.steps.map((step) => ({
@@ -368,7 +372,7 @@ export function toSaveQuizInput(form: QuizFormState, status: ContentStatus): Sav
         organizationId:
             form.scope === "organization" || form.scope === "group" ? form.organizationId : null,
         participation: form.participation,
-        quizKind: form.methodId ? QUIZ_KIND.methodKnowledge : QUIZ_KIND.contextual,
+        quizKind: form.quizKind,
         quizType: form.quizType,
         scope: form.scope,
         status,

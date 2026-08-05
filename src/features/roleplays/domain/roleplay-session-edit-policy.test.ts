@@ -6,7 +6,6 @@ import {
 
 const configuration: RoleplaySessionLockedConfiguration = {
     assignedUserId: null,
-    backgroundImagePath: "backgrounds/roleplay.webp",
     category: "Accueil client",
     coachId: "coach-1",
     difficulty: "Moyen",
@@ -41,7 +40,6 @@ describe("roleplay session edit policy", () => {
         ["audience", { scope: "organization", organizationId: "organization-1" }],
         ["quizzes", { quizzes: [{ id: "quiz-2", participation: "mandatory" }] }],
         ["resources", { resources: [] }],
-        ["background", { backgroundImagePath: "backgrounds/other.webp" }],
     ])("detects a change to the locked %s", (_label, patch) => {
         expect(
             hasRoleplaySessionLockedConfigurationChanged(configuration, {

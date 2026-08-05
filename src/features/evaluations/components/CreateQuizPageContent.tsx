@@ -301,7 +301,7 @@ export function CreateQuizPageContent({
             userOptions,
         });
         const draft = result.draft;
-        setForm({
+        setForm((current) => ({
             assignedUserId: draft.assignedUserId,
             categories: draft.categories,
             description: draft.description,
@@ -313,6 +313,7 @@ export function CreateQuizPageContent({
             methodId: draft.methodId,
             organizationId: draft.organizationId,
             participation: draft.participation,
+            quizKind: current.quizKind,
             quizType: draft.quizType,
             scope: draft.scope,
             steps: draft.steps.map((step) => ({
@@ -355,7 +356,7 @@ export function CreateQuizPageContent({
             tags: draft.tags,
             title: draft.title,
             validationThreshold: draft.validationThreshold === null ? "" : String(draft.validationThreshold),
-        });
+        }));
         setJsonPrefillFieldErrors(result.fieldErrors);
         setJsonPrefillMessage(
             Object.keys(result.fieldErrors).length > 0
@@ -845,7 +846,7 @@ export function CreateQuizPageContent({
                                 <FieldErrorMessage message={jsonPrefillFieldErrors.categories} />
                             </Box>
                             <Box>
-                                <FieldLabel className={uiTokens.form.label}>Méthode associée</FieldLabel>
+                                <FieldLabel className={uiTokens.form.label}>Méthode de référence</FieldLabel>
                                 <SingleSelectField
                                     disabled={hasExistingAttempts}
                                     hasError={Boolean(jsonPrefillFieldErrors.methodId)}

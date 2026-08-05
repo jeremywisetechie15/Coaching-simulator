@@ -76,7 +76,7 @@ function createFakeSupabase(rowsByTable: Record<string, FakeRow[]>) {
 }
 
 const roleplayId = "roleplay-1";
-const currentScenario = {
+const currentScenario: FakeRow = {
     assigned_user_id: null,
     background_image_path: null,
     category: "Accueil client",
@@ -142,6 +142,25 @@ describe("roleplay session edit policy server guard", () => {
                     ...unchangedInput,
                     estimatedDurationMinutes: 15,
                     validationThreshold: 72,
+                },
+            ),
+        ).resolves.toBeUndefined();
+    });
+
+    it("allows replacing or clearing the background after a session", async () => {
+        const rows = baseRows(true);
+        rows.scenarios = [{
+            ...currentScenario,
+            background_image_path: "roleplays/roleplay-1/old-background.webp",
+        }];
+
+        await expect(
+            assertRoleplaySessionEditPolicy(
+                createFakeSupabase(rows) as never,
+                roleplayId,
+                {
+                    ...unchangedInput,
+                    backgroundImagePath: "",
                 },
             ),
         ).resolves.toBeUndefined();

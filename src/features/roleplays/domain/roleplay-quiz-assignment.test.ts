@@ -39,12 +39,20 @@ const quizzes: RoleplayQuizOption[] = [
         questionCount: 5,
         title: "Quiz contexte même méthode",
     },
+    {
+        id: "77777777-7777-4777-8777-777777777777",
+        kind: QUIZ_KIND.methodKnowledge,
+        methodId: otherMethodId,
+        questionCount: 7,
+        title: "Quiz principal d'une autre méthode",
+    },
 ];
 
 describe("roleplay quiz assignment", () => {
-    it("only exposes unlinked quizzes once a method is selected", () => {
+    it("exposes quizzes without a method or with the roleplay method", () => {
         expect(getAssignableRoleplayQuizOptions(quizzes, methodId).map((quiz) => quiz.id)).toEqual([
             "11111111-1111-4111-8111-111111111111",
+            "66666666-6666-4666-8666-666666666666",
         ]);
     });
 
@@ -81,7 +89,7 @@ describe("roleplay quiz assignment", () => {
         ).toEqual([]);
     });
 
-    it("rejects quizzes linked to another method", () => {
+    it("rejects contextual quizzes linked to another method", () => {
         expect(
             validateRoleplayQuizAssignments({
                 methodId,
@@ -97,18 +105,28 @@ describe("roleplay quiz assignment", () => {
         ]);
     });
 
-    it("rejects contextual quizzes already linked to the selected method", () => {
+    it("accepts contextual quizzes linked to the selected method", () => {
         expect(
             validateRoleplayQuizAssignments({
                 methodId,
                 quizIds: ["66666666-6666-4666-8666-666666666666"],
                 quizzes,
             }),
+        ).toEqual([]);
+    });
+
+    it("rejects the knowledge quiz of another method", () => {
+        expect(
+            validateRoleplayQuizAssignments({
+                methodId,
+                quizIds: ["77777777-7777-4777-8777-777777777777"],
+                quizzes,
+            }),
         ).toEqual([
             {
-                code: "quiz_linked_to_selected_method",
-                quizId: "66666666-6666-4666-8666-666666666666",
-                title: "Quiz contexte même méthode",
+                code: "quiz_linked_to_other_method",
+                quizId: "77777777-7777-4777-8777-777777777777",
+                title: "Quiz principal d'une autre méthode",
             },
         ]);
     });
@@ -122,7 +140,7 @@ describe("roleplay quiz assignment", () => {
             }),
         ).toEqual([
             {
-                code: "quiz_linked_to_selected_method",
+                code: "selected_method_knowledge_quiz",
                 quizId: "22222222-2222-4222-8222-222222222222",
                 title: "Quiz de la méthode",
             },

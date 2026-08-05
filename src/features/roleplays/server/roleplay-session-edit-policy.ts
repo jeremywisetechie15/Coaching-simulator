@@ -15,7 +15,6 @@ import {
 
 interface LockedScenarioRow {
     assigned_user_id: string | null;
-    background_image_path: string | null;
     category: string | null;
     coach_id: string | null;
     difficulty_level: string | null;
@@ -45,13 +44,11 @@ interface LockedScenarioResourceRow {
 }
 
 interface RoleplaySessionEditOptions {
-    hasBackgroundUpload?: boolean;
     hasResourceUploads?: boolean;
 }
 
 const LOCKED_SCENARIO_SELECT = [
     "assigned_user_id",
-    "background_image_path",
     "category",
     "coach_id",
     "difficulty_level",
@@ -72,7 +69,6 @@ function currentConfiguration(
 ): RoleplaySessionLockedConfiguration {
     return {
         assignedUserId: scenario.assigned_user_id,
-        backgroundImagePath: scenario.background_image_path,
         category: scenario.category,
         coachId: scenario.coach_id,
         difficulty: scenario.difficulty_level,
@@ -103,7 +99,6 @@ function nextConfiguration(
 ): RoleplaySessionLockedConfiguration {
     return {
         assignedUserId: input.scope === "user" ? input.assignedUserId : null,
-        backgroundImagePath: nullableText(input.backgroundImagePath),
         category: nullableText(input.category),
         coachId: input.coachId,
         difficulty: input.difficulty,
@@ -150,7 +145,6 @@ export async function assertRoleplaySessionEditPolicy(
     roleplayId: string,
     input: SaveRoleplayDto,
     {
-        hasBackgroundUpload = false,
         hasResourceUploads = false,
     }: RoleplaySessionEditOptions = {},
 ) {
@@ -191,11 +185,7 @@ export async function assertRoleplaySessionEditPolicy(
         nextConfiguration(roleplayId, input),
     );
 
-    if (
-        configurationChanged ||
-        hasBackgroundUpload ||
-        hasResourceUploads
-    ) {
+    if (configurationChanged || hasResourceUploads) {
         throw new ConflictError(ROLEPLAY_SESSION_EDIT_RESTRICTION_MESSAGE);
     }
 }

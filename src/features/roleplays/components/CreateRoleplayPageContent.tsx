@@ -1167,7 +1167,7 @@ export function CreateRoleplayPageContent({
 
                         <QuizParticipationField
                             disabled={hasExistingSessions || !method}
-                            emptyMessage="Aucun quiz libre disponible pour cette méthode"
+                            emptyMessage="Aucun quiz complémentaire disponible"
                             options={assignableQuizOptions}
                             placeholder={
                                 method ? "Ajouter un quiz d'évaluation..." : "Sélectionnez d'abord une méthode"
@@ -1297,7 +1297,7 @@ export function CreateRoleplayPageContent({
                         </Box>
 
                         <SessionBackgroundUploadField
-                            disabled={saving || hasExistingSessions}
+                            disabled={saving}
                             file={backgroundFile}
                             inputId="roleplay-session-background"
                             storedPath={backgroundImagePath}

@@ -2,6 +2,7 @@ import {
     type RoleplayQuizAssignmentIssue,
     validateRoleplayQuizAssignments,
 } from "@/features/roleplays/domain";
+import type { QuizKind } from "@/features/evaluations/domain";
 import type { SaveRoleplayDto } from "@/features/roleplays/dto";
 import { AppError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -9,6 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 interface QuizAssignmentRow {
     id: string;
     method_id: string | null;
+    quiz_kind: QuizKind;
     title: string | null;
 }
 
@@ -18,10 +20,10 @@ function getQuizAssignmentIssueMessage(issue: RoleplayQuizAssignmentIssue) {
     switch (issue.code) {
         case "method_required":
             return "Sélectionnez une méthode avant d'associer des quiz au roleplay.";
-        case "quiz_linked_to_selected_method":
-            return `Le quiz${title} est déjà associé à la méthode sélectionnée.`;
         case "quiz_linked_to_other_method":
-            return `Le quiz${title} est déjà associé à une autre méthode.`;
+            return `Le quiz${title} est associé à une autre méthode que celle du roleplay.`;
+        case "selected_method_knowledge_quiz":
+            return `Le quiz${title} est déjà inclus comme quiz principal de la méthode sélectionnée.`;
         case "quiz_not_found":
             return "Un quiz sélectionné est introuvable.";
     }
@@ -35,7 +37,7 @@ export async function assertRoleplayQuizzesMatchMethod(input: SaveRoleplayDto) {
     const adminSupabase = createAdminClient();
     const { data, error } = await adminSupabase
         .from("quizzes")
-        .select("id, method_id, title")
+        .select("id, method_id, quiz_kind, title")
         .in("id", quizIds);
 
     if (error) throw error;
@@ -45,6 +47,7 @@ export async function assertRoleplayQuizzesMatchMethod(input: SaveRoleplayDto) {
         quizIds,
         quizzes: ((data ?? []) as QuizAssignmentRow[]).map((quiz) => ({
             id: quiz.id,
+            kind: quiz.quiz_kind,
             methodId: quiz.method_id,
             title: quiz.title,
         })),

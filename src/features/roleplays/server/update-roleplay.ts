@@ -49,7 +49,6 @@ export async function updateRoleplay(
     if (existingRoleplayError) throw existingRoleplayError;
     if (!existingRoleplay) throw new NotFoundError("Roleplay introuvable.");
     await assertRoleplaySessionEditPolicy(adminSupabase, roleplayId, input, {
-        hasBackgroundUpload: Boolean(backgroundFile),
         hasResourceUploads: uploadFilesByClientId.size > 0,
     });
     await assertScorecardMatchesMethod(input);

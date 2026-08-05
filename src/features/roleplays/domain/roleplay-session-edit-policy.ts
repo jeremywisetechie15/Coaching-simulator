@@ -1,5 +1,5 @@
 export const ROLEPLAY_SESSION_EDIT_RESTRICTION_MESSAGE =
-    "Ce roleplay possède déjà des sessions. Seuls les champs texte et numériques peuvent être modifiés.";
+    "Ce roleplay possède déjà des sessions. Seuls les champs texte, numériques et l’image de fond peuvent être modifiés.";
 
 export interface RoleplaySessionLockedQuiz {
     id: string;
@@ -15,7 +15,6 @@ export interface RoleplaySessionLockedResource {
 
 export interface RoleplaySessionLockedConfiguration {
     assignedUserId: string | null;
-    backgroundImagePath: string | null;
     category: string | null;
     coachId: string | null;
     difficulty: string | null;
