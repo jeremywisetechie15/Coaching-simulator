@@ -19,5 +19,6 @@ export * from "./roleplay-session-edit-policy";
 export * from "./roleplay-session-eligibility";
 export * from "./roleplay-session-history";
 export * from "./roleplay-session-lifecycle";
+export * from "./roleplay-session-result";
 export * from "./scenario-ai-instructions";
 export * from "./transcript-correction";

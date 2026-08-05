@@ -15,6 +15,7 @@ export interface RoleplaySessionLifecycleEvent {
     error: string | null;
     evaluationEligible: boolean;
     scenarioId: string;
+    scorePercent: number | null;
     sessionId: string | null;
     status: RoleplaySessionLifecycleStatus;
     type: typeof ROLEPLAY_SESSION_LIFECYCLE_EVENT;
@@ -29,6 +30,7 @@ export function isRoleplaySessionLifecycleEvent(value: unknown): value is Rolepl
 
     return (
         typeof value.scenarioId === "string" &&
+        (typeof value.scorePercent === "number" || value.scorePercent === null) &&
         (typeof value.sessionId === "string" || value.sessionId === null) &&
         typeof value.evaluationEligible === "boolean" &&
         (typeof value.error === "string" || value.error === null) &&

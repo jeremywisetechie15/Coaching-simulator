@@ -1,3 +1,5 @@
+import { extractNotationScore } from "./evaluation-notation.mapper";
+
 export const ROLEPLAY_NOTATION_FEEDBACK_MESSAGES = {
     generationError: "Impossible de générer l'évaluation complète.",
     generationSuccess: "Évaluation générée avec succès.",
@@ -24,4 +26,10 @@ export function getRoleplayNotationApiErrorMessage(
     return nonEmptyString(payload.details)
         ?? nonEmptyString(payload.error)
         ?? fallback;
+}
+
+export function getRoleplayNotationApiScore(payload: unknown) {
+    if (!isRecord(payload)) return null;
+
+    return extractNotationScore(payload.notation);
 }

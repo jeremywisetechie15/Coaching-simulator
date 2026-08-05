@@ -12,6 +12,7 @@ import {
     FileText,
     GraduationCap,
     NotebookPen,
+    RefreshCw,
     Target,
     User,
 } from "lucide-react";
@@ -33,6 +34,7 @@ import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
 import {
     getRoleplayNotationApiErrorMessage,
+    getRoleplayNotationApiScore,
     isRoleplaySessionLifecycleEvent,
     ROLEPLAY_NOTATION_FEEDBACK_MESSAGES,
     ROLEPLAY_ROUTES,
@@ -45,6 +47,7 @@ import {
 import { notify, notifyHttpError } from "@/lib/ui/feedback/toast";
 import { RoleplayDocumentsModal } from "./RoleplayDocumentsModal";
 import { RoleplayCoachNotesModal } from "./RoleplayCoachNotesModal";
+import { RoleplaySessionResultCard } from "./RoleplaySessionResultCard";
 import { roleplayChipIcons } from "./roleplayChipIcons";
 
 function FactRow({ icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
@@ -82,6 +85,7 @@ export function RoleplaySessionPageContent({
     const [savedNoteGroups, setSavedNoteGroups] = useState(noteGroups);
     const [analysisStep, setAnalysisStep] = useState<number | null>(null);
     const [completedSessionId, setCompletedSessionId] = useState<string | null>(null);
+    const [sessionScorePercent, setSessionScorePercent] = useState<number | null>(null);
     const [sessionLifecycleStatus, setSessionLifecycleStatus] = useState<RoleplaySessionLifecycleStatus | null>(null);
     const [sessionFeedback, setSessionFeedback] = useState<string | null>(null);
     const { detail } = roleplay;
@@ -113,6 +117,7 @@ export function RoleplaySessionPageContent({
             if (event.data.scenarioId !== roleplay.scenarioId) return;
 
             setCompletedSessionId(event.data.sessionId);
+            setSessionScorePercent(event.data.scorePercent);
             setSessionLifecycleStatus(event.data.status);
 
             if (event.data.status === ROLEPLAY_SESSION_LIFECYCLE_STATUS.saved) {
@@ -144,27 +149,27 @@ export function RoleplaySessionPageContent({
         return () => window.removeEventListener("message", receiveSessionLifecycle);
     }, [roleplay.scenarioId]);
 
-    const completeSimulation = async () => {
-        if (analyzing) return;
+    function openEvaluation() {
+        if (!completedSessionId) return;
 
-        if (!completedSessionId) {
-            return;
-        }
+        router.push(
+            withReturnTo(
+                ROLEPLAY_ROUTES.app.sessionHistoryDetail(completedSessionId),
+                roleplayReturnHref,
+            ),
+        );
+    }
 
-        if (sessionLifecycleStatus === ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationCompleted) {
-            router.push(
-                withReturnTo(
-                    ROLEPLAY_ROUTES.app.sessionHistoryDetail(completedSessionId),
-                    roleplayReturnHref,
-                ),
-            );
-            return;
-        }
-
-        if (sessionLifecycleStatus !== ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationFailed) return;
+    const retryEvaluation = async () => {
+        if (
+            analyzing ||
+            !completedSessionId ||
+            sessionLifecycleStatus !== ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationFailed
+        ) return;
 
         let responseStatus: number | null = null;
         setSessionLifecycleStatus(ROLEPLAY_SESSION_LIFECYCLE_STATUS.saved);
+        setSessionScorePercent(null);
         setSessionFeedback(null);
         setAnalysisStep(0);
 
@@ -196,16 +201,12 @@ export function RoleplaySessionPageContent({
                 throw new Error(getRoleplayNotationApiErrorMessage(payload));
             }
 
+            const scorePercent = getRoleplayNotationApiScore(payload);
             setAnalysisStep(null);
             setCompletedSessionId(sessionId);
+            setSessionScorePercent(scorePercent);
             setSessionLifecycleStatus(ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationCompleted);
             notify.success(ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.generationSuccess);
-            router.push(
-                withReturnTo(
-                    ROLEPLAY_ROUTES.app.sessionHistoryDetail(sessionId),
-                    roleplayReturnHref,
-                ),
-            );
         } catch (error) {
             console.error("Erreur pendant l'évaluation complète:", error);
             setAnalysisStep(null);
@@ -224,18 +225,8 @@ export function RoleplaySessionPageContent({
     const canRetryEvaluation =
         Boolean(completedSessionId) &&
         sessionLifecycleStatus === ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationFailed;
-    const completionButtonLabel = canOpenEvaluation
-        ? "Voir mon évaluation"
-        : canRetryEvaluation
-          ? "Relancer l'évaluation"
-          : sessionLifecycleStatus === ROLEPLAY_SESSION_LIFECYCLE_STATUS.saved
-            ? "Analyse en cours..."
-            : sessionLifecycleStatus === ROLEPLAY_SESSION_LIFECYCLE_STATUS.skipped
-              ? "Session trop courte"
-              : "Terminer la simulation";
-    const sessionFeedbackTone = sessionLifecycleStatus === ROLEPLAY_SESSION_LIFECYCLE_STATUS.skipped
-        ? uiTokens.text.muted
-        : uiTokens.text.danger;
+    const feedbackIsInformational =
+        sessionLifecycleStatus === ROLEPLAY_SESSION_LIFECYCLE_STATUS.skipped;
 
     const analysisSteps = ROLEPLAY_ANALYSIS_STEPS.map((label, index) => ({
         label,
@@ -250,7 +241,7 @@ export function RoleplaySessionPageContent({
     return (
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box className="mx-auto max-w-[1320px]">
-                <Box className="mb-5 flex flex-wrap items-center justify-between gap-3">
+                <Box className="mb-5 flex flex-wrap items-center gap-3">
                     <ContextualBackLink
                         fallbackHref={ROLEPLAY_ROUTES.app.detail(roleplay.id)}
                         showLabel
@@ -258,25 +249,52 @@ export function RoleplaySessionPageContent({
                     >
                         <InlineIcon icon={ArrowLeft} className="h-4 w-4" />
                     </ContextualBackLink>
-                    <Box className="flex flex-col items-end gap-1.5">
-                        <Button
-                            onClick={completeSimulation}
-                            disabled={analyzing || (!canOpenEvaluation && !canRetryEvaluation)}
-                            className={cn(
-                                "flex h-10 items-center justify-center gap-2 rounded-lg px-4 text-[14px] font-bold text-white transition disabled:cursor-not-allowed disabled:opacity-50",
-                                uiTokens.action.primaryButton,
-                                analyzing && "cursor-wait opacity-80",
-                            )}
-                        >
-                            {completionButtonLabel}
-                        </Button>
-                        {sessionFeedback && (
-                            <Text className={cn("max-w-[420px] text-right text-[12px] font-semibold", sessionFeedbackTone)}>
-                                {sessionFeedback}
-                            </Text>
-                        )}
-                    </Box>
                 </Box>
+
+                {canOpenEvaluation && (
+                    <RoleplaySessionResultCard
+                        onViewEvaluation={openEvaluation}
+                        scorePercent={sessionScorePercent}
+                        validationThreshold={roleplay.validationThreshold}
+                    />
+                )}
+
+                {canRetryEvaluation && (
+                    <CardSurface className="mb-5 flex flex-col gap-4 rounded-[18px] border border-[#F1C2C2] bg-[#FFF8F8] p-5 sm:flex-row sm:items-center sm:justify-between">
+                        <Box className="flex items-start gap-3">
+                            <InlineIcon icon={AlertCircle} className="mt-0.5 h-5 w-5 shrink-0 text-[#B42318]" />
+                            <Box>
+                                <Text as="h2" className="text-[15px] font-extrabold text-[#7A271A]">
+                                    La notation n’a pas abouti
+                                </Text>
+                                <Text className="mt-1 text-[13px] font-medium leading-5 text-[#8E3B2F]">
+                                    {sessionFeedback ?? ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.generationError}
+                                </Text>
+                            </Box>
+                        </Box>
+                        <Button
+                            onClick={retryEvaluation}
+                            className="inline-flex h-10 shrink-0 items-center justify-center gap-2 rounded-lg bg-[#B42318] px-4 text-[13px] font-bold text-white transition hover:bg-[#912018]"
+                        >
+                            <InlineIcon icon={RefreshCw} className="h-4 w-4" />
+                            Relancer la notation
+                        </Button>
+                    </CardSurface>
+                )}
+
+                {sessionFeedback && !canRetryEvaluation && !canOpenEvaluation && (
+                    <Box
+                        className={cn(
+                            "mb-5 flex items-start gap-3 rounded-[16px] border px-4 py-3.5",
+                            feedbackIsInformational
+                                ? "border-[#DDE1EA] bg-[#F7F8FA] text-[#596273]"
+                                : "border-[#F1C2C2] bg-[#FFF8F8] text-[#8E3B2F]",
+                        )}
+                    >
+                        <InlineIcon icon={AlertCircle} className="mt-0.5 h-4 w-4 shrink-0" />
+                        <Text className="text-[13px] font-semibold leading-5">{sessionFeedback}</Text>
+                    </Box>
+                )}
 
                 <Box className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
                     <CardSurface className={uiTokens.session.frameCard}>

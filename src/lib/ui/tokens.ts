@@ -1538,6 +1538,48 @@ export const uiTokens = {
         resourceList: "mt-1 shrink-0 divide-y divide-[#EDEEF3] border-t border-[#EDEEF3] bg-white",
         resourceRow: "py-4",
         resourceRowLast: "pt-4",
+        result: {
+            action:
+                "mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#5140F0] px-4 text-[14px] font-bold text-white transition hover:bg-[#4433D8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0] focus-visible:ring-offset-2",
+            card:
+                "relative mb-5 overflow-hidden rounded-[20px] border p-0 shadow-[0_8px_28px_rgba(17,24,39,0.06)]",
+            description: "mt-1.5 max-w-[680px] text-[14px] font-medium leading-6 text-[#596273]",
+            inner: "grid gap-5 p-5 sm:grid-cols-[132px_minmax(0,1fr)] sm:items-center sm:p-6",
+            scoreLabel: "mt-1 text-[11px] font-extrabold uppercase tracking-[0.14em]",
+            scorePanel:
+                "flex min-h-[118px] flex-col items-center justify-center rounded-[16px] border text-center",
+            scoreValue: "text-[38px] font-black leading-none tracking-[-0.05em]",
+            status: "inline-flex items-center gap-2 text-[12px] font-extrabold uppercase tracking-[0.1em]",
+            statusIcon: "h-4 w-4",
+            title: "mt-2 text-[20px] font-extrabold leading-tight text-[#111827]",
+            tone: {
+                green: {
+                    card: "border-[#B8E2C7] bg-[#F7FCF9]",
+                    scorePanel: "border-[#A8DDBB] bg-[#E8F7ED] text-[#137A45]",
+                    status: "text-[#137A45]",
+                },
+                neutral: {
+                    card: "border-[#DDE1EA] bg-[#FAFBFC]",
+                    scorePanel: "border-[#D8DCE5] bg-[#F1F3F6] text-[#596273]",
+                    status: "text-[#596273]",
+                },
+                orange: {
+                    card: "border-[#F5D0AA] bg-[#FFF9F3]",
+                    scorePanel: "border-[#F3C491] bg-[#FFF0DE] text-[#B45309]",
+                    status: "text-[#B45309]",
+                },
+                red: {
+                    card: "border-[#F1C2C2] bg-[#FFF8F8]",
+                    scorePanel: "border-[#EFB5B5] bg-[#FDEAEA] text-[#B42318]",
+                    status: "text-[#B42318]",
+                },
+                yellow: {
+                    card: "border-[#EEDB9B] bg-[#FFFDF5]",
+                    scorePanel: "border-[#E9D27D] bg-[#FFF6D8] text-[#946200]",
+                    status: "text-[#946200]",
+                },
+            },
+        },
         sectionIcon: "mt-0.5 h-4 w-4 shrink-0 text-[#5140F0]",
         sectionRow: "flex gap-2.5",
         sectionText: "text-[14px] font-medium leading-6 text-[#4B5563]",

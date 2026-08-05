@@ -18,6 +18,7 @@ import {
 } from "@/features/roleplays/domain/roleplay-session-lifecycle";
 import {
     getRoleplayNotationApiErrorMessage,
+    getRoleplayNotationApiScore,
     ROLEPLAY_NOTATION_FEEDBACK_MESSAGES,
 } from "@/features/roleplays/domain/roleplay-notation-feedback";
 import { useAiConversationTracking } from "@/features/activity-tracking/client";
@@ -693,6 +694,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                         error: null,
                         evaluationEligible: false,
                         scenarioId: config.scenarioId,
+                        scorePercent: null,
                         sessionId: savedSessionId,
                         status: ROLEPLAY_SESSION_LIFECYCLE_STATUS.skipped,
                     });
@@ -703,6 +705,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                     error: null,
                     evaluationEligible: true,
                     scenarioId: config.scenarioId,
+                    scorePercent: null,
                     sessionId: savedSessionId,
                     status: ROLEPLAY_SESSION_LIFECYCLE_STATUS.saved,
                 });
@@ -729,12 +732,13 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                         throw new Error(getRoleplayNotationApiErrorMessage(notationPayload));
                     }
 
-                    const notationResult = notationPayload as { notation?: { note_globale?: unknown } } | null;
-                    console.log("✅ Notation saved:", notationResult?.notation?.note_globale);
+                    const scorePercent = getRoleplayNotationApiScore(notationPayload);
+                    console.log("✅ Notation saved:", scorePercent);
                     notifyParentOfSessionLifecycle({
                         error: null,
                         evaluationEligible: true,
                         scenarioId: config.scenarioId,
+                        scorePercent,
                         sessionId: savedSessionId,
                         status: ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationCompleted,
                     });
@@ -746,6 +750,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                             : ROLEPLAY_NOTATION_FEEDBACK_MESSAGES.generationError,
                         evaluationEligible: true,
                         scenarioId: config.scenarioId,
+                        scorePercent: null,
                         sessionId: savedSessionId,
                         status: ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationFailed,
                     });
@@ -756,6 +761,7 @@ export default function IframeClient({ scenarioId, mode, refSessionId, model, co
                     error: err instanceof Error ? err.message : "Impossible de sauvegarder la session.",
                     evaluationEligible: false,
                     scenarioId: config.scenarioId,
+                    scorePercent: null,
                     sessionId: null,
                     status: ROLEPLAY_SESSION_LIFECYCLE_STATUS.saveFailed,
                 });

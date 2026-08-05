@@ -10,6 +10,7 @@ describe("roleplay session lifecycle event", () => {
         error: null,
         evaluationEligible: true,
         scenarioId: "scenario-1",
+        scorePercent: 84,
         sessionId: "session-1",
         status: ROLEPLAY_SESSION_LIFECYCLE_STATUS.notationCompleted,
         type: ROLEPLAY_SESSION_LIFECYCLE_EVENT,
@@ -22,5 +23,6 @@ describe("roleplay session lifecycle event", () => {
     it("rejects unsupported statuses and incomplete payloads", () => {
         expect(isRoleplaySessionLifecycleEvent({ ...event, status: "unknown" })).toBe(false);
         expect(isRoleplaySessionLifecycleEvent({ ...event, sessionId: undefined })).toBe(false);
+        expect(isRoleplaySessionLifecycleEvent({ ...event, scorePercent: "84" })).toBe(false);
     });
 });
