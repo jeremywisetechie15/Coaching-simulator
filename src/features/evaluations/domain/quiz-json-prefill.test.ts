@@ -126,6 +126,7 @@ describe("quiz JSON prefill", () => {
         expect(prompt).not.toContain(unavailableId);
 
         const structure = prompt.split("Respecte exactement cette structure :\n\n")[1];
+        expect((JSON.parse(structure) as { data: { maxAttempts: number | null } }).data.maxAttempts).toBeNull();
         expect(parseQuizJsonPrefillText(structure, options).fieldErrors).toEqual({});
     });
 

@@ -17,7 +17,6 @@ import {
 } from "@/features/entity-json-prefill/domain";
 import type { SkillOption } from "@/features/skills/domain/skills";
 import {
-    DEFAULT_QUIZ_MAX_ATTEMPTS,
     QUIZ_ATTACHMENT_TYPES,
     QUIZ_EVALUATED_DIMENSION,
     QUIZ_PARTICIPATIONS,
@@ -52,7 +51,7 @@ const QUIZ_SOURCE_ANALYSIS_INSTRUCTIONS = [
     "Une QCU doit avoir au moins deux choix et exactement une bonne réponse. Une QCM doit avoir au moins deux choix et au moins une bonne réponse.",
     "Rédige une explication fidèle à la source pour chaque question. Si aucune explication n’est disponible ou déductible sans invention, utilise une chaîne vide.",
     "Pour difficulty absent, utilise null. Pour domain absent, utilise null et categories=[]. Pour tags absents, utilise [].",
-    `Pour les paramètres absents, utilise durationMinutes=30, maxAttempts=${DEFAULT_QUIZ_MAX_ATTEMPTS}, validationThreshold=70 et participation="optional". Utilise maxAttempts=null uniquement si le document exige des tentatives illimitées.`,
+    "Pour les paramètres absents, utilise durationMinutes=30, maxAttempts=null, validationThreshold=70 et participation=\"optional\". Utilise un entier supérieur à 0 uniquement si le document exige une limite de tentatives.",
     "Si aucune cible privée n’est explicitement identifiable dans les catalogues disponibles, utilise scope=\"public\" et organizationId, groupId, assignedUserId à null.",
     "Si aucune compétence ou aucun item Savoir disponible ne correspond de façon fiable, utilise un tableau vide ou une chaîne vide dans le champ concerné afin que l’interface le signale ; n’invente jamais d’identifiant.",
     "N’ajoute une pièce jointe que si la source contient une URL complète pertinente. Une question accepte au maximum une pièce jointe ; sinon utilise attachments=[].",
@@ -438,7 +437,7 @@ export function parseQuizJsonPrefillText(
             domain,
             durationMinutes: durationResult.success ? durationResult.data : 30,
             groupId,
-            maxAttempts: data.maxAttempts === null ? null : maxAttempts ?? DEFAULT_QUIZ_MAX_ATTEMPTS,
+            maxAttempts,
             methodId: selectedMethod?.id ?? null,
             organizationId,
             participation: participationResult.success ? participationResult.data : "optional",
@@ -543,7 +542,7 @@ export function buildQuizJsonPrefillPrompt({
                 domain: CONTENT_DOMAINS[0],
                 categories: [CONTENT_CATEGORIES_BY_DOMAIN[CONTENT_DOMAINS[0]][0]],
                 durationMinutes: 30,
-                maxAttempts: DEFAULT_QUIZ_MAX_ATTEMPTS,
+                maxAttempts: null,
                 validationThreshold: 70,
                 participation: "optional",
                 methodId: exampleMethod?.id ?? null,

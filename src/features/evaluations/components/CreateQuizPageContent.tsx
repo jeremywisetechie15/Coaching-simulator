@@ -90,6 +90,7 @@ import {
     emptyStep,
     inferQuizAttachmentType,
     integerFromText,
+    maxAttemptsForLimitMode,
     normalizeChoicesForQuestionType,
     quizToFormState,
     toSaveQuizInput,
@@ -918,14 +919,10 @@ export function CreateQuizPageContent({
                                     disabled={hasExistingAttempts}
                                     options={attemptLimitOptions}
                                     value={form.maxAttempts === null ? "unlimited" : "limited"}
-                                    onChange={(value) =>
-                                        patch(
-                                            "maxAttempts",
-                                            value === "unlimited"
-                                                ? null
-                                                : form.maxAttempts ?? DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE,
-                                        )
-                                    }
+                                    onChange={(value) => patch(
+                                        "maxAttempts",
+                                        maxAttemptsForLimitMode(form.maxAttempts, value),
+                                    )}
                                 />
                                 {form.maxAttempts === null ? (
                                     <Text className={cn("mt-2 text-[13px] font-medium", uiTokens.text.muted)}>

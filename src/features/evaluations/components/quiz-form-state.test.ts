@@ -8,6 +8,7 @@ import {
     DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE,
     createQuizStepsFromMethod,
     inferQuizAttachmentType,
+    maxAttemptsForLimitMode,
     normalizeChoicesForQuestionType,
     quizToFormState,
     toSaveQuizInput,
@@ -177,12 +178,10 @@ describe("createQuizStepsFromMethod", () => {
 });
 
 describe("quizToFormState", () => {
-    it("uses the default attempt limit for a new quiz", () => {
+    it("uses unlimited attempts for a new quiz", () => {
         const form = quizToFormState(undefined, [], []);
 
-        expect(form.maxAttempts).toBe(
-            DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE,
-        );
+        expect(form.maxAttempts).toBeNull();
         expect(form.scope).toBe("public");
         expect(form.organizationId).toBeNull();
         expect(form.groupId).toBe("");
@@ -200,6 +199,22 @@ describe("quizToFormState", () => {
 
     it("keeps the persisted difficulty when editing a quiz", () => {
         expect(quizToFormState(quizDetail(3), [], []).difficulty).toBe("Moyen");
+    });
+});
+
+describe("maxAttemptsForLimitMode", () => {
+    it("defaults to three attempts when switching from unlimited to limited", () => {
+        expect(maxAttemptsForLimitMode(null, "limited")).toBe(
+            DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE,
+        );
+    });
+
+    it("keeps an existing limit when limited mode is already configured", () => {
+        expect(maxAttemptsForLimitMode("5", "limited")).toBe("5");
+    });
+
+    it("clears the limit when switching to unlimited", () => {
+        expect(maxAttemptsForLimitMode("3", "unlimited")).toBeNull();
     });
 });
 

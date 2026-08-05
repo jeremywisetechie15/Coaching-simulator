@@ -34,6 +34,17 @@ export const domainOptions = [
 
 export const DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE = String(DEFAULT_QUIZ_MAX_ATTEMPTS);
 
+export type QuizAttemptLimitMode = "limited" | "unlimited";
+
+export function maxAttemptsForLimitMode(
+    currentMaxAttempts: string | null,
+    mode: QuizAttemptLimitMode,
+) {
+    return mode === "unlimited"
+        ? null
+        : currentMaxAttempts ?? DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE;
+}
+
 export const attachmentTypeLabels: Record<QuizAttachmentType, string> = {
     audio: "Audio",
     document: "Document",
@@ -260,7 +271,7 @@ export function quizToFormState(
             domain: null,
             durationMinutes: "30",
             groupId: "",
-            maxAttempts: DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE,
+            maxAttempts: null,
             methodId: null,
             organizationId: null,
             participation: "optional",
