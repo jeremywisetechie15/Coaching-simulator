@@ -2,35 +2,43 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
-const migrationSql = readFileSync(
+const baseMigrationSql = readFileSync(
     resolve(
         process.cwd(),
         "supabase/migrations/20260728100000_protect_used_skill_edits.sql",
     ),
     "utf8",
 );
-const usageFunction = migrationSql.slice(
-    migrationSql.indexOf(
+const nameEditMigrationSql = readFileSync(
+    resolve(
+        process.cwd(),
+        "supabase/migrations/20260805090139_allow_protected_skill_name_edits.sql",
+    ),
+    "utf8",
+);
+const migrationSql = `${baseMigrationSql}\n${nameEditMigrationSql}`;
+const usageFunction = baseMigrationSql.slice(
+    baseMigrationSql.indexOf(
         "create or replace function private.skill_has_protected_usage",
     ),
-    migrationSql.indexOf(
+    baseMigrationSql.indexOf(
         "create or replace function private.skill_locked_configuration_matches",
     ),
 );
-const configurationFunction = migrationSql.slice(
-    migrationSql.indexOf(
+const configurationFunction = nameEditMigrationSql.slice(
+    nameEditMigrationSql.indexOf(
         "create or replace function private.skill_locked_configuration_matches",
     ),
-    migrationSql.indexOf(
-        "create or replace function public.admin_skill_has_protected_usage",
-    ),
-);
-const aggregateFunction = migrationSql.slice(
-    migrationSql.indexOf(
+    nameEditMigrationSql.indexOf(
         "create or replace function public.admin_update_skill_aggregate",
     ),
-    migrationSql.indexOf(
-        "revoke all on function private.skill_has_protected_usage",
+);
+const aggregateFunction = nameEditMigrationSql.slice(
+    nameEditMigrationSql.indexOf(
+        "create or replace function public.admin_update_skill_aggregate",
+    ),
+    nameEditMigrationSql.indexOf(
+        "comment on function private.skill_locked_configuration_matches",
     ),
 );
 
@@ -80,9 +88,8 @@ describe("protected skill database edit policy migration", () => {
         }
     });
 
-    it("compares every identity, taxonomy, target and dimension field but not description", () => {
+    it("compares every taxonomy, target and dimension field but not the name or description", () => {
         for (const lockedColumn of [
-            "name",
             "skill_type",
             "domain",
             "category",
@@ -99,7 +106,16 @@ describe("protected skill database edit policy migration", () => {
             );
         }
 
+        expect(configurationFunction).not.toMatch(/existing\.name\b/);
         expect(configurationFunction).not.toMatch(/\bdescription\b/);
+    });
+
+    it("updates the displayed name and description through the aggregate RPC", () => {
+        expect(aggregateFunction).toContain("set name = payload.name");
+        expect(aggregateFunction).toContain("description = payload.description");
+        expect(aggregateFunction).toContain(
+            "Son libellé et sa description peuvent être modifiés.",
+        );
     });
 
     it("rejects a direct aggregate RPC bypass before updating the skill", () => {

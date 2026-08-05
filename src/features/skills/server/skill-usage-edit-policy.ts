@@ -37,7 +37,6 @@ function currentConfiguration(
         ),
         domain: nullableText(skill.domain),
         groupId: skill.scope === "group" ? skill.groupId : null,
-        name: skill.name.trim(),
         organizationId:
             skill.scope === "organization" || skill.scope === "group"
                 ? skill.organizationId
@@ -64,7 +63,6 @@ function nextConfiguration(
         ),
         domain: nullableText(input.domain),
         groupId: input.scope === "group" ? input.groupId : null,
-        name: input.name.trim(),
         organizationId:
             input.scope === "organization" || input.scope === "group"
                 ? input.organizationId

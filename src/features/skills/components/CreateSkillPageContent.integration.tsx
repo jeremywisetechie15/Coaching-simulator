@@ -67,7 +67,7 @@ describe("CreateSkillPageContent", () => {
         expect(html).not.toContain("Fonctions");
     });
 
-    it("locks structural controls and keeps the description editable after protected usage", () => {
+    it("locks structural controls and keeps the name and description editable after protected usage", () => {
         const html = renderToStaticMarkup(
             <CreateSkillPageContent
                 groupOptions={[]}
@@ -99,7 +99,7 @@ describe("CreateSkillPageContent", () => {
             inputs.some(
                 (input) =>
                     input.includes('value="Gestion des conflits"') &&
-                    input.includes('disabled=""'),
+                    !input.includes('disabled=""'),
             ),
         ).toBe(true);
         expect(

@@ -18,7 +18,6 @@ function lockedConfiguration(): SkillUsageLockedConfiguration {
         ],
         domain: "Commercial",
         groupId: null,
-        name: "Accès au décideur",
         organizationId: null,
         scope: "public",
         type: "Métier",
@@ -38,9 +37,6 @@ describe("skill usage edit policy", () => {
     });
 
     it.each([
-        ["identity", (next: SkillUsageLockedConfiguration) => {
-            next.name = "Nouveau nom";
-        }],
         ["taxonomy", (next: SkillUsageLockedConfiguration) => {
             next.category = "Vente";
         }],

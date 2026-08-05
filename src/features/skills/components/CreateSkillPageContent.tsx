@@ -549,7 +549,6 @@ export function CreateSkillPageContent({
                                 id="skill-name"
                                 aria-describedby={jsonPrefillFieldErrors.name ? "skill-name-error" : undefined}
                                 aria-invalid={jsonPrefillFieldErrors.name ? true : undefined}
-                                disabled={hasProtectedUsage}
                                 hasLeadingIcon={false}
                                 value={name}
                                 onChange={(event) => {
@@ -559,7 +558,6 @@ export function CreateSkillPageContent({
                                 placeholder="Ex: Accès au décideur"
                                 className={cn(
                                     "h-12",
-                                    protectedControlClasses,
                                     jsonPrefillFieldErrors.name && uiTokens.form.controlError,
                                 )}
                             />

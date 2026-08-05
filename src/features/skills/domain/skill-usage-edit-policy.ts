@@ -5,7 +5,7 @@ import type {
 } from "./skills";
 
 export const SKILL_USAGE_EDIT_RESTRICTION_MESSAGE =
-    "Cette compétence est utilisée par un scénario ou un quiz qui n’est plus en brouillon. Seule sa description peut être modifiée. Dupliquez-la pour créer une nouvelle version.";
+    "Cette compétence est utilisée par un scénario ou un quiz qui n’est plus en brouillon. Son libellé et sa description peuvent être modifiés. Dupliquez-la pour modifier sa configuration.";
 
 export interface SkillUsageLockedDimensionItem {
     dimension: SkillDimension;
@@ -20,7 +20,6 @@ export interface SkillUsageLockedConfiguration {
     dimensionItems: SkillUsageLockedDimensionItem[];
     domain: string | null;
     groupId: string | null;
-    name: string;
     organizationId: string | null;
     scope: SkillVisibilityScope;
     type: SkillType;

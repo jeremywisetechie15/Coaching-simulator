@@ -133,22 +133,22 @@ describe("skill usage edit policy server guard", () => {
         );
     });
 
-    it("allows the description to change after protected usage", async () => {
+    it("allows the name and description to change after protected usage", async () => {
         mocks.fetchSkillDetail.mockResolvedValue(currentSkill());
 
         await expect(
             assertSkillUsageEditPolicy(
                 fakeSupabase(true) as never,
                 "acces-decideur",
-                unchangedInput({ description: "Description clarifiée" }),
+                unchangedInput({
+                    description: "Description clarifiée",
+                    name: "Accès aux décideurs",
+                }),
             ),
         ).resolves.toBeUndefined();
     });
 
     it.each([
-        ["name", (input: SaveSkillDto) => {
-            input.name = "Nouveau nom";
-        }],
         ["type", (input: SaveSkillDto) => {
             input.type = "Transversale";
         }],
