@@ -7,6 +7,7 @@ import {
     Check,
     ChevronDown,
     Copy,
+    FileUp,
     LockKeyhole,
     Plus,
     X,
@@ -15,11 +16,23 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import { ContextualBackLink, useContextualReturnHref } from "@/features/app-shell/components";
 import { buildPostSaveHref } from "@/features/app-shell/domain";
 import {
+    ACTIVITY_SECTORS,
     CONTENT_STATUS,
     CONTENT_VISIBILITY_SCOPE,
     getEntitySelectionLabel,
     isEntitySelectionAvailable,
+    type ActivitySectorCode,
 } from "@/features/content/domain";
+import {
+    EntityCreationModeDialog,
+    EntityJsonPrefillDialog,
+} from "@/features/entity-json-prefill/components";
+import {
+    ENTITY_CREATION_MODE,
+    ENTITY_CREATION_MODE_LABELS,
+    type EntityCreationMode,
+    type EntityJsonPrefillFieldErrors,
+} from "@/features/entity-json-prefill/domain";
 import {
     ContentEditorSubmitActions,
     ContentTargetScopeField,
@@ -53,9 +66,11 @@ import {
     ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT,
     ROLEPLAY_ROUTES,
     ROLEPLAY_SESSION_EDIT_RESTRICTION_MESSAGE,
+    buildRoleplayJsonPrefillPrompt,
     getAssignableRoleplayQuizOptions,
     getRoleplayMethodKnowledgeQuizOption,
     getRoleplayPublicationIssues,
+    parseRoleplayJsonPrefillText,
 } from "@/features/roleplays/domain";
 import {
     roleplayCategoryOptions,
@@ -71,7 +86,7 @@ import {
 } from "@/lib/uploads/content-upload";
 import type { PendingDirectUpload } from "@/lib/uploads/direct-upload";
 import { submitWithDirectUploads } from "@/lib/uploads/direct-upload.client";
-import { Box, Button, CardSurface, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
+import { Box, Button, CardSurface, FieldErrorMessage, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import {
     createFormSubmitApiError,
     notifyFormSubmitError,
@@ -82,6 +97,7 @@ import {
     FileUploadField,
     SessionBackgroundUploadField,
     SingleSelectField,
+    StatusMessage,
 } from "@/lib/ui/molecules";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -134,6 +150,10 @@ interface CreateRoleplayPageContentProps {
 const staticOptions = (options: string[]): SelectOption[] => options.map((option) => ({ label: option, value: option }));
 
 const fieldLabelClasses = uiTokens.form.label;
+
+function getJsonPrefillError(errors: EntityJsonPrefillFieldErrors, path: string) {
+    return errors[path] ?? Object.entries(errors).find(([key]) => key.startsWith(`${path}.`))?.[1];
+}
 
 function createClientFileId(prefix: string) {
     return `${prefix}-${globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`}`;
@@ -651,6 +671,7 @@ export function CreateRoleplayPageContent({
     const [localPersonaOptions, setLocalPersonaOptions] = useState(personaOptions);
     const [localCoachOptions, setLocalCoachOptions] = useState(coachOptions);
     const [localMethodOptions, setLocalMethodOptions] = useState(methodOptions);
+    const [activitySectorCode, setActivitySectorCode] = useState(initialRoleplay?.activitySectorCode ?? null);
     const [persona, setPersona] = useState<string | null>(initialRoleplay?.personaId ?? null);
     const [coach, setCoach] = useState<string | null>(initialRoleplay?.coachId ?? null);
     const [method, setMethod] = useState<string | null>(initialRoleplay?.methodId ?? null);
@@ -690,6 +711,10 @@ export function CreateRoleplayPageContent({
     );
     const [openEntityEditor, setOpenEntityEditor] = useState<EntityEditor | null>(null);
     const [formError, setFormError] = useState<string | null>(null);
+    const [creationModeDialogOpen, setCreationModeDialogOpen] = useState(!roleplayId);
+    const [jsonPrefillDialogOpen, setJsonPrefillDialogOpen] = useState(false);
+    const [jsonPrefillFieldErrors, setJsonPrefillFieldErrors] = useState<EntityJsonPrefillFieldErrors>({});
+    const [jsonPrefillMessage, setJsonPrefillMessage] = useState<string | null>(null);
     const [duplicating, setDuplicating] = useState(false);
     const [saving, setSaving] = useState(false);
     const [uploadProgressByClientFileId, setUploadProgressByClientFileId] = useState<Record<string, number>>({});
@@ -742,6 +767,13 @@ export function CreateRoleplayPageContent({
         () => new Set(assignableQuizOptions.map((quiz) => quiz.id)),
         [assignableQuizOptions],
     );
+    const activitySectorOptions = useMemo(
+        () => [
+            { label: "Non renseigné", value: "" },
+            ...ACTIVITY_SECTORS.map(({ code, label }) => ({ label, value: code })),
+        ],
+        [],
+    );
 
     useEffect(() => {
         if (!scorecard) return;
@@ -760,6 +792,9 @@ export function CreateRoleplayPageContent({
     }, [assignableQuizIds]);
 
     function selectMethod(methodId: string) {
+        clearJsonPrefillError("methodId");
+        clearJsonPrefillError("scorecardId");
+        clearJsonPrefillError("quizIds", true);
         setMethod(methodId);
         setScorecard((current) =>
             scorecardOptions.some((option) => option.id === current && option.methodId === methodId)
@@ -771,12 +806,15 @@ export function CreateRoleplayPageContent({
     function toggleQuiz(id: string) {
         if (!assignableQuizIds.has(id)) return;
 
+        clearJsonPrefillError("quizIds", true);
+
         setQuizIds((current) =>
             current.includes(id) ? current.filter((item) => item !== id) : [...current, id],
         );
     }
 
     function updateResource(resourceIndex: number, patch: Partial<RoleplayResourceFormItem>) {
+        clearJsonPrefillError("resources", true);
         setResources((current) =>
             current.map((resource, index) => (index === resourceIndex ? { ...resource, ...patch } : resource)),
         );
@@ -836,6 +874,7 @@ export function CreateRoleplayPageContent({
     }
 
     function removeResource(resourceIndex: number) {
+        clearJsonPrefillError("resources", true);
         setResources((current) => current.filter((_, index) => index !== resourceIndex));
     }
 
@@ -851,7 +890,7 @@ export function CreateRoleplayPageContent({
         );
     }
 
-    const canSave = previewTitle.trim().length > 0;
+    const canSave = previewTitle.trim().length > 0 && Object.keys(jsonPrefillFieldErrors).length === 0;
     const canPublish = canSave && getRoleplayPublicationIssues({
         assignedUserId: targetScope.assignedUserId,
         category,
@@ -884,6 +923,98 @@ export function CreateRoleplayPageContent({
         );
         setPersona(createdPersona.id);
         setOpenEntityEditor(null);
+    }
+
+    function clearJsonPrefillError(path: string, descendants = false) {
+        setJsonPrefillFieldErrors((current) => {
+            const next = { ...current };
+            let changed = false;
+            for (const key of Object.keys(next)) {
+                if (key === path || (descendants && key.startsWith(`${path}.`))) {
+                    delete next[key];
+                    changed = true;
+                }
+            }
+            return changed ? next : current;
+        });
+    }
+
+    function selectCreationMode(mode: EntityCreationMode) {
+        setCreationModeDialogOpen(false);
+        if (mode === ENTITY_CREATION_MODE.json) setJsonPrefillDialogOpen(true);
+    }
+
+    async function importRoleplayJson(file: File) {
+        const result = parseRoleplayJsonPrefillText(await file.text(), {
+            coachOptions: localCoachOptions,
+            groupOptions,
+            methodOptions: localMethodOptions,
+            organizationOptions,
+            personaOptions: localPersonaOptions,
+            quizOptions,
+            scorecardOptions,
+            userOptions,
+        });
+        const draft = result.draft;
+        const user = draft.assignedUserId
+            ? userOptions.find((option) => option.id === draft.assignedUserId)
+            : undefined;
+        const derivedGroupId = draft.scope === CONTENT_VISIBILITY_SCOPE.user
+            ? user?.groupIds[0] ?? ""
+            : draft.groupId ?? "";
+        const derivedOrganizationId = draft.scope === CONTENT_VISIBILITY_SCOPE.user
+            ? groupOptions.find((group) => group.id === derivedGroupId)?.organizationId ??
+              user?.organizationIds[0] ??
+              null
+            : draft.organizationId;
+
+        setActivitySectorCode(draft.activitySectorCode);
+        setAiInstructions(draft.aiInstructions);
+        setCategory(draft.category);
+        setCoach(draft.coachId);
+        setContext(draft.context);
+        setDifficulty(draft.difficulty);
+        setDomain(draft.domain);
+        setEstimatedDurationMinutes(
+            draft.estimatedDurationMinutes === null ? "" : String(draft.estimatedDurationMinutes),
+        );
+        setLearnerRole(draft.learnerRole);
+        setMethod(draft.methodId);
+        setObjective(draft.objective);
+        setObstacles(draft.obstacles);
+        setPersona(draft.personaId);
+        setPreviewDescription(draft.previewDescription);
+        setPreviewTitle(draft.previewTitle);
+        setQuizIds(draft.quizIds);
+        setQuizParticipation(draft.quizParticipation);
+        setResources(draft.resources.map((resource) => ({
+            ...emptyRoleplayResource(),
+            deliveryType: "url",
+            externalUrl: resource.externalUrl,
+            label: resource.label || resource.externalUrl,
+            resourceType: "link",
+        })));
+        setScorecard(draft.scorecardId);
+        setTargetScope({
+            assignedUserId: draft.scope === CONTENT_VISIBILITY_SCOPE.user
+                ? draft.assignedUserId ?? ""
+                : "",
+            groupId:
+                draft.scope === CONTENT_VISIBILITY_SCOPE.group ||
+                draft.scope === CONTENT_VISIBILITY_SCOPE.user
+                    ? derivedGroupId
+                    : "",
+            organizationId: derivedOrganizationId,
+            scope: draft.scope,
+        });
+        setValidationThreshold(String(draft.validationThreshold));
+        setJsonPrefillFieldErrors(result.fieldErrors);
+        setJsonPrefillMessage(
+            Object.keys(result.fieldErrors).length > 0
+                ? "Le fichier a été appliqué. Corrigez les champs signalés avant d’enregistrer."
+                : "Le fichier JSON a correctement prérempli le roleplay.",
+        );
+        setFormError(null);
     }
 
     function selectCreatedCoach(createdCoach: CoachListItem) {
@@ -922,6 +1053,7 @@ export function CreateRoleplayPageContent({
         const scope = targetScope.scope;
         const title = previewTitle.trim();
         return {
+            activitySectorCode,
             aiInstructions,
             assignedUserId: scope === CONTENT_VISIBILITY_SCOPE.user ? targetScope.assignedUserId : null,
             backgroundImagePath,
@@ -1023,26 +1155,45 @@ export function CreateRoleplayPageContent({
     return (
         <Box as="main" className="px-5 pb-16 md:px-9 lg:px-12">
             <Box as="form" onSubmit={handleSubmit} className="mx-auto max-w-[1000px]">
-                <Box className="mb-6 flex items-start gap-4">
-                    <ContextualBackLink
-                        fallbackHref={returnHref}
-                        aria-label="Retour"
-                        className="mt-1.5 flex h-9 w-9 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
-                    >
-                        <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
-                    </ContextualBackLink>
-                    <Box>
-                        <Text as="h1" className="text-[28px] font-extrabold leading-tight text-[#111827] md:text-[32px]">
-                            {roleplayId ? "Modifier le scénario" : "Créer un scénario"}
-                        </Text>
-                        <Text className="mt-1.5 text-[15px] font-semibold text-[#596273]">
-                            Configurez votre scénario de roleplay personnalisé
-                        </Text>
+                <Box className={cn("mb-6", uiTokens.jsonPrefill.formHeader)}>
+                    <Box className="flex items-start gap-4">
+                        <ContextualBackLink
+                            fallbackHref={returnHref}
+                            aria-label="Retour"
+                            className="mt-1.5 flex h-9 w-9 items-center justify-center rounded-full text-[#111827] transition hover:bg-white"
+                        >
+                            <InlineIcon icon={ArrowLeft} className="h-5 w-5" />
+                        </ContextualBackLink>
+                        <Box>
+                            <Text as="h1" className="text-[28px] font-extrabold leading-tight text-[#111827] md:text-[32px]">
+                                {roleplayId ? "Modifier le scénario" : "Créer un scénario"}
+                            </Text>
+                            <Text className="mt-1.5 text-[15px] font-semibold text-[#596273]">
+                                Configurez votre scénario de roleplay personnalisé
+                            </Text>
+                        </Box>
                     </Box>
+                    {!roleplayId && (
+                        <Button
+                            onClick={() => setJsonPrefillDialogOpen(true)}
+                            className={uiTokens.action.secondaryButton}
+                        >
+                            <InlineIcon icon={FileUp} className="h-4 w-4" />
+                            {ENTITY_CREATION_MODE_LABELS.json}
+                        </Button>
+                    )}
                 </Box>
 
                 <CardSurface className="rounded-[24px] border border-[#E9E7FB] p-7 shadow-[0_1px_2px_rgba(17,24,39,0.04)] md:p-9">
                     {formError && <AlertMessage message={formError} />}
+                    {jsonPrefillMessage && (
+                        <Box className={uiTokens.jsonPrefill.formNotice}>
+                            <StatusMessage
+                                tone={Object.keys(jsonPrefillFieldErrors).length > 0 ? "info" : "success"}
+                                message={jsonPrefillMessage}
+                            />
+                        </Box>
+                    )}
                     {hasExistingSessions && (
                         <Box
                             className={cn(
@@ -1085,7 +1236,10 @@ export function CreateRoleplayPageContent({
                                         options={personaSelectOptions}
                                         value={persona}
                                         placeholder="Sélectionner un persona IA"
-                                        onChange={setPersona}
+                                        onChange={(value) => {
+                                            clearJsonPrefillError("personaId");
+                                            setPersona(value);
+                                        }}
                                     />
                                 </Box>
                                 <PlusButton
@@ -1094,6 +1248,7 @@ export function CreateRoleplayPageContent({
                                     onClick={() => setOpenEntityEditor("persona")}
                                 />
                             </Box>
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.personaId} />
                         </Box>
 
                         <Box>
@@ -1105,7 +1260,10 @@ export function CreateRoleplayPageContent({
                                         options={coachSelectOptions}
                                         value={coach}
                                         placeholder="Sélectionner un coach IA"
-                                        onChange={setCoach}
+                                        onChange={(value) => {
+                                            clearJsonPrefillError("coachId");
+                                            setCoach(value);
+                                        }}
                                     />
                                 </Box>
                                 <PlusButton
@@ -1114,6 +1272,7 @@ export function CreateRoleplayPageContent({
                                     onClick={() => setOpenEntityEditor("coach")}
                                 />
                             </Box>
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.coachId} />
                         </Box>
                     </Box>
 
@@ -1138,6 +1297,7 @@ export function CreateRoleplayPageContent({
                                     onClick={() => setOpenEntityEditor("method")}
                                 />
                             </Box>
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.methodId} />
                         </Box>
 
                         {method && <MethodQuizInformationField quiz={methodKnowledgeQuiz} />}
@@ -1161,8 +1321,12 @@ export function CreateRoleplayPageContent({
                                           ? "Sélectionner une scorecard"
                                           : "Aucune scorecard pour cette méthode"
                                 }
-                                onChange={setScorecard}
+                                onChange={(value) => {
+                                    clearJsonPrefillError("scorecardId");
+                                    setScorecard(value);
+                                }}
                             />
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.scorecardId} />
                         </Box>
 
                         <QuizParticipationField
@@ -1175,7 +1339,13 @@ export function CreateRoleplayPageContent({
                             selectedIds={quizIds}
                             participation={quizParticipation}
                             onToggle={toggleQuiz}
-                            onParticipationChange={setQuizParticipation}
+                            onParticipationChange={(value) => {
+                                clearJsonPrefillError("quizParticipation");
+                                setQuizParticipation(value);
+                            }}
+                        />
+                        <FieldErrorMessage
+                            message={getJsonPrefillError(jsonPrefillFieldErrors, "quizIds") ?? jsonPrefillFieldErrors.quizParticipation}
                         />
 
                     </Box>
@@ -1191,10 +1361,13 @@ export function CreateRoleplayPageContent({
                                 value={domain}
                                 placeholder="Sélectionner un domaine"
                                 onChange={(value) => {
+                                    clearJsonPrefillError("domain");
+                                    clearJsonPrefillError("category");
                                     setDomain(value);
                                     setCategory(null);
                                 }}
                             />
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.domain} />
                         </Box>
 
                         <Box>
@@ -1204,8 +1377,30 @@ export function CreateRoleplayPageContent({
                                 options={staticOptions(roleplayCategoryOptions)}
                                 value={category}
                                 placeholder={domain ? "Sélectionner une catégorie" : "Sélectionnez d'abord un domaine"}
-                                onChange={setCategory}
+                                onChange={(value) => {
+                                    clearJsonPrefillError("category");
+                                    setCategory(value);
+                                }}
                             />
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.category} />
+                        </Box>
+
+                        <Box>
+                            <FieldLabel className={fieldLabelClasses}>
+                                Secteur d’activité <span className={uiTokens.text.muted}>(optionnel)</span>
+                            </FieldLabel>
+                            <SingleSelectField
+                                disabled={hasExistingSessions}
+                                hasError={Boolean(jsonPrefillFieldErrors.activitySectorCode)}
+                                options={activitySectorOptions}
+                                value={activitySectorCode ?? ""}
+                                placeholder="Non renseigné"
+                                onChange={(value) => {
+                                    clearJsonPrefillError("activitySectorCode");
+                                    setActivitySectorCode(value ? value as ActivitySectorCode : null);
+                                }}
+                            />
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.activitySectorCode} />
                         </Box>
 
                         <Box>
@@ -1215,8 +1410,12 @@ export function CreateRoleplayPageContent({
                                 options={staticOptions(roleplayDifficultyOptions)}
                                 value={difficulty}
                                 placeholder="Sélectionnez la difficulté"
-                                onChange={setDifficulty}
+                                onChange={(value) => {
+                                    clearJsonPrefillError("difficulty");
+                                    setDifficulty(value);
+                                }}
                             />
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.difficulty} />
                         </Box>
 
                         <Box className="grid gap-5 sm:grid-cols-2">
@@ -1228,11 +1427,15 @@ export function CreateRoleplayPageContent({
                                     type="number"
                                     min={1}
                                     value={estimatedDurationMinutes}
-                                    onChange={(event) => setEstimatedDurationMinutes(event.target.value)}
+                                    onChange={(event) => {
+                                        clearJsonPrefillError("estimatedDurationMinutes");
+                                        setEstimatedDurationMinutes(event.target.value);
+                                    }}
                                     placeholder="10"
                                     hasLeadingIcon={false}
                                     className="h-12"
                                 />
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.estimatedDurationMinutes} />
                             </Box>
                             <Box>
                                 <FieldLabel required className={fieldLabelClasses}>
@@ -1243,11 +1446,15 @@ export function CreateRoleplayPageContent({
                                     min={0}
                                     max={100}
                                     value={validationThreshold}
-                                    onChange={(event) => setValidationThreshold(event.target.value)}
+                                    onChange={(event) => {
+                                        clearJsonPrefillError("validationThreshold");
+                                        setValidationThreshold(event.target.value);
+                                    }}
                                     placeholder={String(ROLEPLAY_DEFAULT_VALIDATION_THRESHOLD_PERCENT)}
                                     hasLeadingIcon={false}
                                     className="h-12"
                                 />
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.validationThreshold} />
                             </Box>
                         </Box>
 
@@ -1260,12 +1467,16 @@ export function CreateRoleplayPageContent({
                             </FieldLabel>
                             <TextInput
                                 value={previewTitle}
-                                onChange={(event) => setPreviewTitle(event.target.value)}
+                                onChange={(event) => {
+                                    clearJsonPrefillError("previewTitle");
+                                    setPreviewTitle(event.target.value);
+                                }}
                                 placeholder="Ex : Décrocher un premier rendez-vous"
                                 hasLeadingIcon={false}
                                 maxLength={180}
                                 className="h-12 bg-[#F3F4F6]"
                             />
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.previewTitle} />
                         </Box>
 
                         <Box>
@@ -1275,12 +1486,16 @@ export function CreateRoleplayPageContent({
                             </Text>
                             <TextArea
                                 value={previewDescription}
-                                onChange={(event) => setPreviewDescription(event.target.value)}
+                                onChange={(event) => {
+                                    clearJsonPrefillError("previewDescription");
+                                    setPreviewDescription(event.target.value);
+                                }}
                                 placeholder="Résumez l'objectif du roleplay en une ou deux phrases..."
                                 rows={3}
                                 maxLength={500}
                                 className={uiTokens.form.textAreaMedium}
                             />
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.previewDescription} />
                         </Box>
 
                         <Box>
@@ -1289,11 +1504,15 @@ export function CreateRoleplayPageContent({
                             </Text>
                             <TextArea
                                 value={context}
-                                onChange={(event) => setContext(event.target.value)}
+                                onChange={(event) => {
+                                    clearJsonPrefillError("context");
+                                    setContext(event.target.value);
+                                }}
                                 placeholder="Décrivez le contexte dans lequel vous contactez ce persona..."
                                 rows={3}
                                 className={uiTokens.form.textAreaMedium}
                             />
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.context} />
                         </Box>
 
                         <SessionBackgroundUploadField
@@ -1318,12 +1537,16 @@ export function CreateRoleplayPageContent({
                             </FieldLabel>
                             <TextArea
                                 value={learnerRole}
-                                onChange={(event) => setLearnerRole(event.target.value)}
+                                onChange={(event) => {
+                                    clearJsonPrefillError("learnerRole");
+                                    setLearnerRole(event.target.value);
+                                }}
                                 placeholder="Décrivez le rôle de l'apprenant dans ce roleplay..."
                                 rows={3}
                                 maxLength={ROLEPLAY_LEARNER_ROLE_MAX_LENGTH}
                                 className={uiTokens.form.textAreaMedium}
                             />
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.learnerRole} />
                         </Box>
 
                         <Box>
@@ -1332,11 +1555,15 @@ export function CreateRoleplayPageContent({
                             </Text>
                             <TextArea
                                 value={objective}
-                                onChange={(event) => setObjective(event.target.value)}
+                                onChange={(event) => {
+                                    clearJsonPrefillError("objective");
+                                    setObjective(event.target.value);
+                                }}
                                 placeholder="Quel est votre objectif principal ?"
                                 rows={3}
                                 className={uiTokens.form.textAreaMedium}
                             />
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.objective} />
                         </Box>
 
                         <Box>
@@ -1345,18 +1572,26 @@ export function CreateRoleplayPageContent({
                             </Text>
                             <TextArea
                                 value={obstacles}
-                                onChange={(event) => setObstacles(event.target.value)}
+                                onChange={(event) => {
+                                    clearJsonPrefillError("obstacles");
+                                    setObstacles(event.target.value);
+                                }}
                                 placeholder="Listez les freins et objections potentiels"
                                 rows={3}
                                 className={uiTokens.form.textAreaMedium}
                             />
+                            <FieldErrorMessage message={jsonPrefillFieldErrors.obstacles} />
                         </Box>
 
                         <RoleplayAiInstructionsField
                             disabled={saving}
-                            onChange={setAiInstructions}
+                            onChange={(value) => {
+                                clearJsonPrefillError("aiInstructions");
+                                setAiInstructions(value);
+                            }}
                             value={aiInstructions}
                         />
+                        <FieldErrorMessage message={jsonPrefillFieldErrors.aiInstructions} />
 
                         <Box>
                             <Box className="flex items-center justify-between">
@@ -1365,7 +1600,10 @@ export function CreateRoleplayPageContent({
                                 </Text>
                                 <Button
                                     disabled={hasExistingSessions}
-                                    onClick={() => setResources((current) => [...current, emptyRoleplayResource()])}
+                                    onClick={() => {
+                                        clearJsonPrefillError("resources", true);
+                                        setResources((current) => [...current, emptyRoleplayResource()]);
+                                    }}
                                     className={cn(
                                         uiTokens.action.addButton,
                                         "disabled:cursor-not-allowed disabled:opacity-60",
@@ -1455,6 +1693,7 @@ export function CreateRoleplayPageContent({
                                     ))}
                                 </Box>
                             )}
+                            <FieldErrorMessage message={getJsonPrefillError(jsonPrefillFieldErrors, "resources")} />
                         </Box>
                     </Box>
 
@@ -1471,7 +1710,21 @@ export function CreateRoleplayPageContent({
                                 organizationOptions={organizationOptions}
                                 userOptions={userOptions}
                                 value={targetScope}
-                                onChange={setTargetScope}
+                                onChange={(value) => {
+                                    clearJsonPrefillError("scope");
+                                    clearJsonPrefillError("organizationId");
+                                    clearJsonPrefillError("groupId");
+                                    clearJsonPrefillError("assignedUserId");
+                                    setTargetScope(value);
+                                }}
+                            />
+                            <FieldErrorMessage
+                                message={
+                                    jsonPrefillFieldErrors.scope ??
+                                    jsonPrefillFieldErrors.organizationId ??
+                                    jsonPrefillFieldErrors.groupId ??
+                                    jsonPrefillFieldErrors.assignedUserId
+                                }
                             />
                         </Box>
                     </Box>
@@ -1516,6 +1769,30 @@ export function CreateRoleplayPageContent({
                         quizOptions={quizOptions}
                     />
                 </EntityEditorDialog>
+            )}
+            {creationModeDialogOpen && (
+                <EntityCreationModeDialog
+                    entityLabel="Roleplay"
+                    onClose={() => setCreationModeDialogOpen(false)}
+                    onSelect={selectCreationMode}
+                />
+            )}
+            {jsonPrefillDialogOpen && (
+                <EntityJsonPrefillDialog
+                    entityLabel="Roleplay"
+                    onClose={() => setJsonPrefillDialogOpen(false)}
+                    onImport={importRoleplayJson}
+                    prompt={buildRoleplayJsonPrefillPrompt({
+                        coachOptions: localCoachOptions,
+                        groupOptions,
+                        methodOptions: localMethodOptions,
+                        organizationOptions,
+                        personaOptions: localPersonaOptions,
+                        quizOptions,
+                        scorecardOptions,
+                        userOptions,
+                    })}
+                />
             )}
         </Box>
     );

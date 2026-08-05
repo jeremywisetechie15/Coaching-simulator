@@ -77,6 +77,7 @@ function createFakeSupabase(rowsByTable: Record<string, FakeRow[]>) {
 
 const roleplayId = "roleplay-1";
 const currentScenario: FakeRow = {
+    activity_sector_code: null,
     assigned_user_id: null,
     background_image_path: null,
     category: "Accueil client",
@@ -93,6 +94,7 @@ const currentScenario: FakeRow = {
     visibility_scope: "public",
 };
 const unchangedInput = {
+    activitySectorCode: null,
     assignedUserId: null,
     backgroundImagePath: "",
     category: "Accueil client",
@@ -174,6 +176,22 @@ describe("roleplay session edit policy server guard", () => {
                 {
                     ...unchangedInput,
                     methodId: "method-2",
+                },
+            ),
+        ).rejects.toMatchObject({
+            message: ROLEPLAY_SESSION_EDIT_RESTRICTION_MESSAGE,
+            status: 409,
+        });
+    });
+
+    it("rejects adding or changing the activity sector after a session", async () => {
+        await expect(
+            assertRoleplaySessionEditPolicy(
+                createFakeSupabase(baseRows(true)) as never,
+                roleplayId,
+                {
+                    ...unchangedInput,
+                    activitySectorCode: "TIC",
                 },
             ),
         ).rejects.toMatchObject({

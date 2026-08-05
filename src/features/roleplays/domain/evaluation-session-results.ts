@@ -33,6 +33,7 @@ export interface EvaluationSessionCriterionResult {
 
 export interface EvaluationSessionResults {
     criteria: EvaluationSessionCriterionResult[];
+    scorePercent?: number | null;
     steps: EvaluationSessionStepResult[];
 }
 

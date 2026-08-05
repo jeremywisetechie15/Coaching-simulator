@@ -1,5 +1,7 @@
 import { z } from "zod";
 import {
+    isActivitySectorCode,
+    type ActivitySectorCode,
     CONTENT_STATUSES,
     CONTENT_VISIBILITY_SCOPE,
     CONTENT_VISIBILITY_SCOPES,
@@ -60,6 +62,13 @@ const roleplayResourceDto = z
 
 export const saveRoleplayDto = z
     .object({
+        activitySectorCode: z
+            .custom<ActivitySectorCode>(isActivitySectorCode, {
+                message: "Le secteur d’activité est invalide.",
+            })
+            .nullable()
+            .optional()
+            .default(null),
         aiInstructions: z
             .string()
             .trim()

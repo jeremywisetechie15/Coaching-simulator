@@ -14,6 +14,7 @@ import {
 } from "./roleplay.persistence";
 
 interface LockedScenarioRow {
+    activity_sector_code: string | null;
     assigned_user_id: string | null;
     category: string | null;
     coach_id: string | null;
@@ -48,6 +49,7 @@ interface RoleplaySessionEditOptions {
 }
 
 const LOCKED_SCENARIO_SELECT = [
+    "activity_sector_code",
     "assigned_user_id",
     "category",
     "coach_id",
@@ -68,6 +70,7 @@ function currentConfiguration(
     resources: LockedScenarioResourceRow[],
 ): RoleplaySessionLockedConfiguration {
     return {
+        activitySectorCode: scenario.activity_sector_code,
         assignedUserId: scenario.assigned_user_id,
         category: scenario.category,
         coachId: scenario.coach_id,
@@ -98,6 +101,7 @@ function nextConfiguration(
     input: SaveRoleplayDto,
 ): RoleplaySessionLockedConfiguration {
     return {
+        activitySectorCode: input.activitySectorCode,
         assignedUserId: input.scope === "user" ? input.assignedUserId : null,
         category: nullableText(input.category),
         coachId: input.coachId,

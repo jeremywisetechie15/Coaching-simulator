@@ -31,6 +31,7 @@ describe("roleplay persistence helpers", () => {
 
     it("maps a group-private roleplay to scenario fields and quiz links", () => {
         const input = saveRoleplayDto.parse({
+            activitySectorCode: "TIC",
             category: "Prise de rendez-vous",
             coachId,
             context: "Appel à froid.",
@@ -64,6 +65,7 @@ describe("roleplay persistence helpers", () => {
         });
 
         expect(createRoleplayInsert(input, userId, "99999999-9999-4999-8999-999999999999")).toMatchObject({
+            activity_sector_code: "TIC",
             assigned_user_id: null,
             background_image_path: null,
             coach_id: coachId,
@@ -104,6 +106,15 @@ describe("roleplay persistence helpers", () => {
                 sort_order: 1,
             },
         ]);
+    });
+
+    it("maps an unknown stored sector to null for legacy safety", () => {
+        expect(mapRoleplayRowsToDetail(
+            { activity_sector_code: "UNKNOWN", id: "scenario-legacy", title: "Ancien roleplay" },
+            [],
+            [],
+            createEmptyRoleplayStats(),
+        ).activitySectorCode).toBeNull();
     });
 
     it("persists and maps the optional roleplay background path", () => {

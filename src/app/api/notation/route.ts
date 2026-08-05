@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server';
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { requireAdmin } from '@/features/auth/server';
-import { PUBLISHED_CONTENT_STATUS } from '@/features/content/domain';
+import { getActivitySectorLabel, PUBLISHED_CONTENT_STATUS } from '@/features/content/domain';
 import {
     getRoleplaySessionEvaluationDecision,
     MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
     ROLEPLAY_NOTATION_FOLLOWUP_TABS,
     ROLEPLAY_NOTATION_SOURCE,
     ROLEPLAY_NOTATION_STATUS,
+    SCORECARD_NOTATION_EVIDENCE_VERSION,
     ROLEPLAY_NOTATION_TABS,
     isForcedRoleplayNotationRegeneration,
     limitRoleplaySynthesisLists,
@@ -28,6 +29,7 @@ import {
     calculateScorecardNotationResult,
     loadScorecardNotationPrompts,
     normalizeScorecardNotationSynthesis,
+    normalizeScorecardMethodoEvidence,
     persistRoleplayScorecardNotationResults,
     validateScorecardMethodoResult,
     type RoleplayScorecardNotationContext,
@@ -85,6 +87,7 @@ type MethodoEtape = {
 };
 
 type NotationPayload = {
+    notation_version?: string;
     score_global?: Record<string, unknown>;
     synthese?: Record<string, unknown>;
     methodo?: { etapes?: MethodoEtape[];[k: string]: unknown };
@@ -778,18 +781,23 @@ async function runScorecardNotation(
         throw new Error(`Réponse methodo scorecard invalide: ${methodoValidationErrors.join(" ")}`);
     }
 
-    const scoreResult = calculateScorecardNotationResult(
+    const normalizedEvidence = normalizeScorecardMethodoEvidence(
         methodoResult.result,
+        context.transcription,
+    );
+    const scoreResult = calculateScorecardNotationResult(
+        normalizedEvidence.methodoResult,
         context.criterionRefs,
         context.stepRefs,
     );
     notation.methodo = buildScorecardMethodoPayload(
-        methodoResult.result,
+        normalizedEvidence.methodoResult,
         scoreResult,
         context.criterionRefs,
         context.transcription,
     );
     notation.score_global = buildScoreGlobalFromScorecard(scoreResult);
+    notation.notation_version = SCORECARD_NOTATION_EVIDENCE_VERSION;
 
     const synthesisPrompt = promptsMap.get("synthese");
     if (!synthesisPrompt) {
@@ -818,7 +826,7 @@ async function runScorecardNotation(
     notation.transcription = { ...context.transcription };
 
     return {
-        errors: [] as string[],
+        errors: normalizedEvidence.warnings,
         notation,
         scoreResult,
     };
@@ -878,12 +886,13 @@ export async function POST(req: Request) {
         let notationMethodId: string | null = null;
         let scenarioTitle = "";
         let scenarioDescription = "";
+        let scenarioActivitySector = "";
 
         if (!effectiveSessionId && (scenario_id || persona_id)) {
             // Cas: scenario_id/persona_id fourni, on cherche la dernière session correspondante
             let latestSessionQuery = supabase
                 .from('sessions')
-                .select('id, scenario_id, duration_seconds, notation_json, notation_status, scenarios!inner(title, description, persona_id, notation_method_id)')
+                .select('id, scenario_id, duration_seconds, notation_json, notation_status, scenarios!inner(title, description, persona_id, notation_method_id, activity_sector_code)')
                 .eq('status', 'completed')
                 .order('created_at', { ascending: false })
                 .limit(1);
@@ -915,16 +924,18 @@ export async function POST(req: Request) {
             const scenario = latestSession.scenarios as unknown as {
                 title: string;
                 description: string | null;
+                activity_sector_code?: string | null;
                 notation_method_id?: string | null;
             } | null;
             scenarioTitle = scenario?.title || "";
             scenarioDescription = scenario?.description || "";
+            scenarioActivitySector = getActivitySectorLabel(scenario?.activity_sector_code) ?? "";
             notationMethodId = scenario?.notation_method_id || null;
         } else {
             // Cas: session_id fourni, on récupère le scénario
             const { data: sessionData, error: sessionError } = await supabase
                 .from('sessions')
-                .select('scenario_id, duration_seconds, notation_json, notation_status, scenarios(title, description, notation_method_id)')
+                .select('scenario_id, duration_seconds, notation_json, notation_status, scenarios(title, description, notation_method_id, activity_sector_code)')
                 .eq('id', effectiveSessionId)
                 .single();
 
@@ -941,10 +952,12 @@ export async function POST(req: Request) {
             const scenario = sessionData.scenarios as unknown as {
                 title: string;
                 description: string | null;
+                activity_sector_code?: string | null;
                 notation_method_id?: string | null;
             } | null;
             scenarioTitle = scenario?.title || "";
             scenarioDescription = scenario?.description || "";
+            scenarioActivitySector = getActivitySectorLabel(scenario?.activity_sector_code) ?? "";
             notationMethodId = scenario?.notation_method_id || null;
         }
 
@@ -1155,6 +1168,7 @@ export async function POST(req: Request) {
                                     text: `CONTEXTE DU SCÉNARIO:
 - Titre: ${scenarioTitle}
 - Description: ${scenarioDescription || "Non disponible"}
+- Secteur d’activité: ${scenarioActivitySector || "Non renseigné"}
 
 TRANSCRIPTION DE L'APPEL:
 ---

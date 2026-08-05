@@ -65,6 +65,7 @@ const context = {
         systemInstructions: "Reste factuel et pressé.",
     },
     scenario: {
+        activitySector: "Informatique, numérique et télécommunications",
         category: "Prospection",
         coachingSteps: "Faire préciser la valeur.",
         context: "Premier appel.",
@@ -139,10 +140,15 @@ describe("scorecard notation inputs", () => {
         expect(input).toContain('"coachingSteps": "Faire préciser la valeur."');
         expect(input).toContain('"category": "Prospection"');
         expect(input).toContain('"domain": "Commercial"');
+        expect(input).toContain('"activitySector": "Informatique, numérique et télécommunications"');
         expect(input).toContain('"etape_ref": "S1"');
         expect(input).toContain('"weightPercent": 100');
         expect(input).toContain('"ref": "C1"');
         expect(input).toContain("points_obtenus peut etre nuance");
+        expect(input).toContain("preuve_message_refs doit toujours etre present");
+        expect(input).toContain("Chaque point strictement positif");
+        expect(input).toContain("Les messages du Persona servent uniquement a comprendre le contexte");
+        expect(input).toContain("Le serveur reconstruira le champ preuve");
         expect(input).toContain("corrections doit toujours etre present et etre un tableau");
         expect(input).toContain("corrections doit obligatoirement etre []");
         expect(input).toContain("examine tous les messages de l'Apprenant");

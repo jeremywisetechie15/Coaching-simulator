@@ -30,6 +30,7 @@ const context = {
     }],
     persona: null,
     scenario: {
+        activitySector: "Informatique, numérique et télécommunications",
         backgroundImagePath: null,
         category: "Vente",
         coachingSteps: "",

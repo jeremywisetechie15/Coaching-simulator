@@ -11,7 +11,10 @@ describe("ProfileActivitySectorField", () => {
 
         expect(html).toContain("Secteur d’activité");
         expect(html).toContain("Non renseigné");
-        expect(html).toContain("AGR — Agriculture, sylviculture et pêche");
+        expect(html).toMatch(
+            /<option value="AGR"[^>]*>Agriculture, sylviculture et pêche<\/option>/,
+        );
+        expect(html).not.toContain(">AGR —");
         expect((html.match(/<option/g) ?? [])).toHaveLength(ACTIVITY_SECTORS.length + 1);
     });
 

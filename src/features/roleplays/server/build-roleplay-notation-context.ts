@@ -63,6 +63,7 @@ export interface RoleplayScorecardNotationContext {
         systemInstructions: string;
     } | null;
     scenario: {
+        activitySector: string;
         category: string;
         coachingSteps: string;
         context: string;
@@ -239,6 +240,7 @@ export async function buildRoleplayScorecardNotationContext(
         },
         persona: buildPersonaContext(runtime.persona),
         scenario: {
+            activitySector: runtime.scenario.activitySector,
             category: runtime.scenario.category,
             coachingSteps: runtime.scenario.coachingSteps,
             context: runtime.scenario.context,

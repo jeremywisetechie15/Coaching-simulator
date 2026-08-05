@@ -5,10 +5,10 @@ import type { RoleplaySession } from "@/features/roleplays/data/sessions";
 import { mapDbRoleplayToUi } from "@/features/roleplays/data/roleplay-ui-adapter";
 import {
     applyEvaluationSessionResults,
-    extractNotationScore,
     isRoleplaySessionEligibleForEvaluation,
     mapNotationToEvaluation,
     MINIMUM_EVALUATED_ROLEPLAY_SESSION_DURATION_SECONDS,
+    resolveRoleplaySessionEvaluationScore,
     type EvaluationSessionResults,
     type NotationTranscriptMessage,
 } from "@/features/roleplays/domain";
@@ -55,6 +55,10 @@ interface SessionCriterionResultRow {
     scorecard_criterion_id: string | null;
     scorecard_step_id: string | null;
     skill_id: string | null;
+}
+
+interface SessionResultRow {
+    score_percent: number | string;
 }
 
 interface ScorecardCriterionDefinitionRow {
@@ -137,7 +141,12 @@ async function fetchEvaluationSessionResults(
     supabase: SupabaseClient,
     sessionId: string,
 ): Promise<EvaluationSessionResults> {
-    const [stepResult, criterionResult] = await Promise.all([
+    const [sessionResult, stepResult, criterionResult] = await Promise.all([
+        supabase
+            .from("roleplay_session_results")
+            .select("score_percent")
+            .eq("session_id", sessionId)
+            .maybeSingle<SessionResultRow>(),
         supabase
             .from("roleplay_session_step_results")
             .select("scorecard_step_id, step_order, title, score_percent, points_awarded, points_max, coach_comment")
@@ -151,6 +160,7 @@ async function fetchEvaluationSessionResults(
             .returns<SessionCriterionResultRow[]>(),
     ]);
 
+    if (sessionResult.error) throw sessionResult.error;
     if (stepResult.error) throw stepResult.error;
     if (criterionResult.error) throw criterionResult.error;
 
@@ -190,6 +200,7 @@ async function fetchEvaluationSessionResults(
                 verbatim: definition?.verbatim ?? null,
             };
         }),
+        scorePercent: sessionResult.data ? toNumber(sessionResult.data.score_percent) : null,
         steps: (stepResult.data ?? []).map((row) => ({
             coachComment: row.coach_comment,
             pointsAwarded: row.points_awarded === null ? null : toNumber(row.points_awarded),
@@ -244,7 +255,10 @@ export async function getRoleplaySessionEvaluation(sessionId: string, userId?: s
     if (messagesResult.error) throw messagesResult.error;
 
     const roleplay = mapDbRoleplayToUi(roleplayDetail);
-    const score = extractNotationScore(session.notation_json) ?? roleplay.detail.scoreActuel ?? 0;
+    const score = resolveRoleplaySessionEvaluationScore({
+        notationJson: session.notation_json,
+        normalizedScorePercent: sessionResults.scorePercent,
+    });
 
     const evaluation = applyEvaluationSessionResults(
         mapNotationToEvaluation(session.notation_json, messagesResult.data ?? []),

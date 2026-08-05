@@ -34,6 +34,12 @@ function roleplay(overrides: Partial<SaveRoleplayInput> = {}): SaveRoleplayInput
 }
 
 describe("saveRoleplayDto", () => {
+    it("accepts a nullable shared activity sector and rejects unknown codes", () => {
+        expect(saveRoleplayDto.parse(roleplay({ activitySectorCode: "TIC" })).activitySectorCode).toBe("TIC");
+        expect(saveRoleplayDto.parse(roleplay({ activitySectorCode: null })).activitySectorCode).toBeNull();
+        expect(saveRoleplayDto.safeParse(roleplay({ activitySectorCode: "UNKNOWN" as "TIC" })).success).toBe(false);
+    });
+
     it("accepts a draft with only its title", () => {
         const result = saveRoleplayDto.parse({ title: "Brouillon minimal" });
 

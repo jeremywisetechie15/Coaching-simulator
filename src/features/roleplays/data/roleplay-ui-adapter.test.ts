@@ -32,6 +32,7 @@ function createRoleplayDetail({
     validationThreshold?: number;
 } = {}): RoleplayDetail {
     return {
+        activitySectorCode: null,
         assignedUserId: null,
         assignedUserName: null,
         attemptCount: 0,

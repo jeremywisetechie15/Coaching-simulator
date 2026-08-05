@@ -198,6 +198,22 @@ function extractText(criterion: JsonRecord, keys: string[]) {
     return "";
 }
 
+function extractStringList(criterion: JsonRecord, keys: string[]) {
+    for (const key of keys) {
+        const value = criterion[key];
+        if (!Array.isArray(value)) continue;
+
+        return Array.from(new Set(
+            value
+                .filter((item): item is string => typeof item === "string")
+                .map((item) => item.trim())
+                .filter(Boolean),
+        ));
+    }
+
+    return [];
+}
+
 function normalizeCriterionResult(
     criterionRef: RoleplayNotationCriterionRef,
     rawCriterion: JsonRecord | null,
@@ -216,6 +232,9 @@ function normalizeCriterionResult(
         evidence: rawCriterion
             ? extractText(rawCriterion, ["preuve", "preuves_observees", "observed_evidence", "evidence"])
             : "",
+        evidenceMessageRefs: rawCriterion
+            ? extractStringList(rawCriterion, ["preuve_message_refs", "evidence_message_refs"])
+            : [],
         pointsAwarded,
         pointsMax: criterionRef.maxPoints,
         ref: criterionRef.ref,

@@ -14,7 +14,7 @@ describe("RoleplaySessionResultCard", () => {
 
         expect(html).toContain("84%");
         expect(html).toContain("Bravo, objectif atteint !");
-        expect(html).toContain("Voir la notation");
+        expect(html).toContain("Voir l’évaluation");
     });
 
     it("adapts the message when the validation threshold is not reached", () => {

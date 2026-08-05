@@ -32,14 +32,14 @@ export function isRoleplayQuizAssignableForMethod(
 }
 
 export function getAssignableRoleplayQuizOptions(
-    quizOptions: RoleplayQuizOption[],
+    quizOptions: readonly RoleplayQuizOption[],
     methodId: string | null | undefined,
 ) {
     return quizOptions.filter((quiz) => isRoleplayQuizAssignableForMethod(quiz, methodId));
 }
 
 export function getRoleplayMethodKnowledgeQuizOption(
-    quizOptions: RoleplayQuizOption[],
+    quizOptions: readonly RoleplayQuizOption[],
     methodId: string | null | undefined,
 ) {
     if (!methodId) return null;

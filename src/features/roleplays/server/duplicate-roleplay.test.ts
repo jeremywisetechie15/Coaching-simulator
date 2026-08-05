@@ -13,6 +13,7 @@ describe("buildDuplicateRoleplayInput", () => {
                 quiz_id: "77777777-7777-4777-8777-777777777777",
             }],
             source: {
+                activitySectorCode: "TIC",
                 assignedUserId: null,
                 category: "Prospection",
                 coachId: "22222222-2222-4222-8222-222222222222",
@@ -38,6 +39,7 @@ describe("buildDuplicateRoleplayInput", () => {
         });
 
         expect(input.aiInstructions).toBe("Conserve cette objection jusqu'à la phase de découverte.");
+        expect(input.activitySectorCode).toBe("TIC");
         expect(input.learnerRole).toBe("Vous incarnez la commerciale chargée d'obtenir un rendez-vous.");
         expect(input.status).toBe(CONTENT_STATUS.draft);
         expect(input.title).toBe("Scénario (copie)");

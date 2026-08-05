@@ -101,6 +101,6 @@ describe("RoleplaySessionPageContent", () => {
         expect(html).toContain("lg:h-[680px]");
         expect(html).toContain("overflow-y-auto");
         expect(html).not.toContain("Terminer la simulation");
-        expect(html).not.toContain("Voir la notation");
+        expect(html).not.toContain("Voir l’évaluation");
     });
 });

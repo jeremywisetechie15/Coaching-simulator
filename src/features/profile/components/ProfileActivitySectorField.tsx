@@ -40,7 +40,7 @@ export function ProfileActivitySectorField({
                     <option value="">Non renseigné</option>
                     {ACTIVITY_SECTORS.map(({ code, label }) => (
                         <option key={code} value={code}>
-                            {code} — {label}
+                            {label}
                         </option>
                     ))}
                 </SelectInput>

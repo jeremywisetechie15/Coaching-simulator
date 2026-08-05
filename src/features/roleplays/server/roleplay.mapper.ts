@@ -1,4 +1,5 @@
 import {
+    isActivitySectorCode,
     CONTENT_STATUS,
     LEARNER_CONTENT_STATUS,
     normalizeContentStatus,
@@ -27,6 +28,7 @@ import { getCoachAvatarPublicUrl } from "@/features/coaches/domain/coach-list";
 import { getPersonaAvatarPublicUrl } from "@/features/personas/domain/persona-list";
 
 export interface RoleplayRow {
+    activity_sector_code?: string | null;
     assigned_user_id?: string | null;
     background_image_path?: string | null;
     assigned_user_name?: string | null;
@@ -163,6 +165,9 @@ export function mapRoleplayRowToListItem(
     bestScore: number | null = null,
 ): RoleplayListItem {
     return {
+        activitySectorCode: isActivitySectorCode(row.activity_sector_code)
+            ? row.activity_sector_code
+            : null,
         assignedUserId: row.assigned_user_id ?? null,
         assignedUserName: row.assigned_user_name ?? null,
         backgroundImagePath: row.background_image_path ?? null,

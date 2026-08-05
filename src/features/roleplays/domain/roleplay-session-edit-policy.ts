@@ -1,5 +1,5 @@
 export const ROLEPLAY_SESSION_EDIT_RESTRICTION_MESSAGE =
-    "Ce roleplay possède déjà des sessions. Seuls les champs texte, numériques et l’image de fond peuvent être modifiés.";
+    "Ce roleplay possède déjà des sessions. Sa configuration, dont le secteur d’activité, est verrouillée ; seuls les contenus éditoriaux, paramètres numériques et l’image de fond peuvent être modifiés.";
 
 export interface RoleplaySessionLockedQuiz {
     id: string;
@@ -14,6 +14,7 @@ export interface RoleplaySessionLockedResource {
 }
 
 export interface RoleplaySessionLockedConfiguration {
+    activitySectorCode: string | null;
     assignedUserId: string | null;
     category: string | null;
     coachId: string | null;

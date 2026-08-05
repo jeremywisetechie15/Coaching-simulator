@@ -25,6 +25,7 @@ export * from "./save-roleplay-coach-notes";
 export * from "./scenario-ai-context";
 export * from "./scorecard-notation-prompts";
 export * from "./scorecard-notation-inputs";
+export * from "./scorecard-notation-evidence";
 export * from "./scorecard-notation-scoring";
 export * from "./scorecard-notation-synthesis";
 export * from "./update-roleplay";

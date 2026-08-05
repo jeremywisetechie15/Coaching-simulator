@@ -16,6 +16,7 @@ interface ScenarioQuizLinkRow {
 
 type DuplicateRoleplaySource = Pick<
     RoleplayDetail,
+    | "activitySectorCode"
     | "assignedUserId"
     | "category"
     | "coachId"
@@ -59,6 +60,7 @@ export function buildDuplicateRoleplayInput({
     source: DuplicateRoleplaySource;
 }): SaveRoleplayDto {
     return {
+        activitySectorCode: source.activitySectorCode,
         aiInstructions,
         assignedUserId: source.assignedUserId,
         backgroundImagePath: "",

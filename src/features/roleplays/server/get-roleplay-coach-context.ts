@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+    getActivitySectorLabel,
     isSelectableContent,
     normalizeContentStatus,
 } from "@/features/content/domain";
@@ -19,6 +20,7 @@ SOURCE DE VÉRITÉ DYNAMIQUE:
 - Respecte le contexte, l'objectif, les difficultés et les objections du scénario. N'invente aucune information métier absente des sources fournies.`;
 
 interface ScenarioRow {
+    activity_sector_code: string | null;
     background_image_path: string | null;
     category: string | null;
     coaching_steps: string | null;
@@ -135,6 +137,7 @@ export interface RoleplayRuntimeContext {
         voiceId: string | null;
     } | null;
     scenario: {
+        activitySector: string;
         backgroundImagePath: string | null;
         category: string;
         coachingSteps: string;
@@ -234,7 +237,7 @@ async function getPersona(supabase: SupabaseClient, personaId: string | null) {
 async function getScenario(supabase: SupabaseClient, scenarioId: string) {
     const { data, error } = await supabase
         .from("scenarios")
-        .select("id, title, description, context, objective, obstacles, difficulty_level, domain, category, disc_profile, coaching_steps, method_id, persona_id, scorecard_id, background_image_path, status, is_active")
+        .select("id, title, description, context, objective, obstacles, activity_sector_code, difficulty_level, domain, category, disc_profile, coaching_steps, method_id, persona_id, scorecard_id, background_image_path, status, is_active")
         .eq("id", scenarioId)
         .maybeSingle<ScenarioRow>();
 
@@ -278,6 +281,7 @@ function mapPersona(persona: PersonaRow | null): RoleplayRuntimeContext["persona
 
 function mapScenario(scenario: ScenarioRow): RoleplayRuntimeContext["scenario"] {
     return {
+        activitySector: getActivitySectorLabel(scenario.activity_sector_code) ?? "",
         backgroundImagePath: scenario.background_image_path,
         category: text(scenario.category),
         coachingSteps: text(scenario.coaching_steps),
@@ -381,6 +385,7 @@ function serializePersonaBusinessContext(persona: NonNullable<RoleplayRuntimeCon
 
 function serializeScenarioBusinessContext(scenario: RoleplayRuntimeContext["scenario"]) {
     return {
+        activitySector: scenario.activitySector,
         category: scenario.category,
         coachingSteps: scenario.coachingSteps,
         context: scenario.context,
@@ -407,6 +412,7 @@ function serializePersonaCoachSummary(persona: NonNullable<RoleplayRuntimeContex
 
 function serializeScenarioCoachSummary(scenario: RoleplayRuntimeContext["scenario"]) {
     return {
+        activitySector: scenario.activitySector,
         category: scenario.category,
         context: scenario.context,
         description: scenario.description,

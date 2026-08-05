@@ -10,6 +10,7 @@ import {
     type ContentStatus,
     type ContentDifficulty,
     type ContentVisibilityScope,
+    type ActivitySectorCode,
     type DiscProfile,
     type EntitySelectionAvailability,
     type LearnerContentStatus,
@@ -128,6 +129,7 @@ export interface RoleplayPersonaFacts {
 }
 
 export interface RoleplayListItem {
+    activitySectorCode: ActivitySectorCode | null;
     assignedUserId: string | null;
     assignedUserName: string | null;
     attemptCount: number;

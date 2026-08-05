@@ -62,7 +62,7 @@ export function RoleplaySessionResultCard({
                     </Text>
                     <Text className={uiTokens.session.result.description}>{result.description}</Text>
                     <Button onClick={onViewEvaluation} className={uiTokens.session.result.action}>
-                        Voir la notation
+                        Voir l’évaluation
                         <InlineIcon icon={ArrowRight} className="h-4 w-4" />
                     </Button>
                 </Box>

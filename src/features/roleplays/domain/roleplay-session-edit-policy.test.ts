@@ -5,6 +5,7 @@ import {
 } from "./roleplay-session-edit-policy";
 
 const configuration: RoleplaySessionLockedConfiguration = {
+    activitySectorCode: null,
     assignedUserId: null,
     category: "Accueil client",
     coachId: "coach-1",
@@ -36,6 +37,7 @@ describe("roleplay session edit policy", () => {
         ["coach", { coachId: "coach-2" }],
         ["method", { methodId: "method-2" }],
         ["scorecard", { scorecardId: "scorecard-2" }],
+        ["activity sector", { activitySectorCode: "TIC" }],
         ["classification", { category: "Gestion des conflits" }],
         ["audience", { scope: "organization", organizationId: "organization-1" }],
         ["quizzes", { quizzes: [{ id: "quiz-2", participation: "mandatory" }] }],

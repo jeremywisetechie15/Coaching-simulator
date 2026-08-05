@@ -36,6 +36,7 @@ const context = {
         voiceId: "alloy",
     },
     scenario: {
+        activitySector: "Informatique, numérique et télécommunications",
         backgroundImagePath: null,
         category: "Découverte",
         coachingSteps: "Étapes de coaching à exclure.",

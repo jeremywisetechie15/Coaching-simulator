@@ -3,6 +3,9 @@ export const ROLEPLAY_NOTATION_SOURCE = {
     scorecard: "scorecard",
 } as const;
 
+/** Contrat des nouvelles notations scorecard avec preuves ancrées à la session. */
+export const SCORECARD_NOTATION_EVIDENCE_VERSION = "scorecard_evidence_v2";
+
 export type RoleplayNotationSource = (typeof ROLEPLAY_NOTATION_SOURCE)[keyof typeof ROLEPLAY_NOTATION_SOURCE];
 
 export const ROLEPLAY_NOTATION_STATUS = {
@@ -98,6 +101,7 @@ export interface RoleplayNotationCriterionResult {
     advice: string;
     coachComment: string;
     evidence: string;
+    evidenceMessageRefs?: string[];
     pointsAwarded: number;
     pointsMax: number;
     ref: string;

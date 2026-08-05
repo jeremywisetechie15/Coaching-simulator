@@ -71,6 +71,7 @@ export function buildScorecardMethodoPayload(
                     points_max: criterion.pointsMax,
                     score: criterion.scorePercent,
                     preuve: criterion.evidence,
+                    preuve_message_refs: criterion.evidenceMessageRefs ?? [],
                     commentaire: criterion.coachComment,
                     conseil: criterion.advice,
                     preuves_attendues: criterionRef?.expectedEvidence,

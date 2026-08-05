@@ -68,6 +68,7 @@ const context = {
         version: "v1",
     },
     scenario: {
+        activitySector: "Informatique, numérique et télécommunications",
         coachingSteps: "",
         category: "Prospection",
         context: "",
