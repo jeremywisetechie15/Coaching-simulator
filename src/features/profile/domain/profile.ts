@@ -1,6 +1,8 @@
 import type { PlatformRole } from "@/features/users/domain/users";
+import type { ActivitySectorCode } from "./activity-sector";
 
 export interface ProfileFormValues {
+    activitySectorCode: ActivitySectorCode | null;
     avatarPath: string | null;
     avatarUrl: string | null;
     bio: string;
@@ -10,9 +12,10 @@ export interface ProfileFormValues {
     platformRole: PlatformRole;
 }
 
-export type ProfileEditableField = Exclude<keyof ProfileFormValues, "platformRole">;
+export type ProfileEditableField = "activitySectorCode" | "bio" | "firstName" | "lastName";
 
 export interface ProfileView {
+    activitySectorCode: ActivitySectorCode | null;
     avatarPath: string | null;
     avatarUrl: string | null;
     bio: string;
@@ -24,6 +27,7 @@ export interface ProfileView {
 
 export function toProfileFormValues(profile: ProfileView): ProfileFormValues {
     return {
+        activitySectorCode: profile.activitySectorCode,
         avatarPath: profile.avatarPath,
         avatarUrl: profile.avatarUrl,
         bio: profile.bio,

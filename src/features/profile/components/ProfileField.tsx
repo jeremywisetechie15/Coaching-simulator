@@ -1,5 +1,7 @@
 import type { ChangeEventHandler } from "react";
 import { FieldLabel, Stack, TextArea, TextInput } from "@/lib/ui/atoms";
+import { uiTokens } from "@/lib/ui/tokens";
+import { cn } from "@/lib/ui/utils/cn";
 
 interface ProfileFieldProps {
     id: string;
@@ -20,9 +22,9 @@ export function ProfileField({
     required = false,
     value,
 }: ProfileFieldProps) {
-    const fieldClassName = readOnly
-        ? "border-[#E8EAF0] bg-[#FCFCFD] text-[#7A7F8B] shadow-none"
-        : "border-[#5140F0]/30 bg-white text-[#171B2A] shadow-[0_0_0_4px_rgba(81,64,240,0.08)]";
+    const fieldStateClassName = readOnly
+        ? uiTokens.profile.field.readonly
+        : uiTokens.profile.field.editable;
 
     return (
         <Stack className="space-y-2">
@@ -33,7 +35,10 @@ export function ProfileField({
                     disabled={readOnly}
                     value={value}
                     onChange={onChange}
-                    className={`min-h-[110px] rounded-xl text-[15px] leading-relaxed disabled:cursor-not-allowed disabled:opacity-100 ${fieldClassName}`}
+                    className={cn(
+                        "min-h-[110px] rounded-xl text-[15px] leading-relaxed disabled:cursor-not-allowed disabled:opacity-100",
+                        fieldStateClassName,
+                    )}
                 />
             ) : (
                 <TextInput
@@ -42,7 +47,7 @@ export function ProfileField({
                     value={value}
                     onChange={onChange}
                     hasLeadingIcon={false}
-                    className={`h-[42px] rounded-xl text-[15px] disabled:cursor-not-allowed disabled:opacity-100 ${fieldClassName}`}
+                    className={cn(uiTokens.profile.field.control, fieldStateClassName)}
                 />
             )}
         </Stack>

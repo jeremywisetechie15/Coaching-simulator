@@ -1,8 +1,10 @@
 import type { ProfileView } from "@/features/profile/domain/profile";
+import { isActivitySectorCode } from "@/features/profile/domain/activity-sector";
 import type { PlatformRole } from "@/features/users/domain/users";
 import { getProfileAvatarPublicUrl } from "@/features/profile/domain/profile-avatar";
 
 export interface ProfileRow {
+    activity_sector_code: string | null;
     avatar_path: string | null;
     bio: string | null;
     email: string | null;
@@ -29,6 +31,9 @@ export function mapProfileRowToView(
     const nameParts = splitName(row?.name ?? null);
 
     return {
+        activitySectorCode: isActivitySectorCode(row?.activity_sector_code)
+            ? row.activity_sector_code
+            : null,
         avatarPath: row?.avatar_path ?? null,
         avatarUrl: getProfileAvatarPublicUrl(row?.avatar_path),
         bio: row?.bio ?? "",

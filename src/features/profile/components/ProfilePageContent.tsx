@@ -35,7 +35,10 @@ export function ProfilePageContent({ initialProfileValues }: ProfilePageContentP
         };
     }, [avatarPreviewUrl]);
 
-    const updateDraftValue = (field: ProfileEditableField, value: string) => {
+    const updateDraftValue = <Field extends ProfileEditableField>(
+        field: Field,
+        value: ProfileFormValues[Field],
+    ) => {
         setDraftValues((currentValues) => ({
             ...currentValues,
             [field]: value,
@@ -91,6 +94,7 @@ export function ProfilePageContent({ initialProfileValues }: ProfilePageContentP
                 method: "PATCH",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
+                    activitySectorCode: nextDraftValues.activitySectorCode,
                     avatarPath: nextDraftValues.avatarPath,
                     bio: nextDraftValues.bio,
                     firstName: nextDraftValues.firstName,
@@ -109,6 +113,7 @@ export function ProfilePageContent({ initialProfileValues }: ProfilePageContentP
             const payload = await response.json();
             const nextProfileValues: ProfileFormValues = {
                 ...nextDraftValues,
+                activitySectorCode: payload.profile.activitySectorCode,
                 avatarPath: payload.profile.avatarPath,
                 avatarUrl: payload.profile.avatarUrl,
                 bio: payload.profile.bio,

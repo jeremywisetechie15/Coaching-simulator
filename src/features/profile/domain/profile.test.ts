@@ -4,6 +4,7 @@ import { toProfileFormValues } from "./profile";
 describe("profile domain", () => {
     it("does not expose a password placeholder in profile values", () => {
         const values = toProfileFormValues({
+            activitySectorCode: null,
             avatarPath: null,
             avatarUrl: null,
             bio: "",
@@ -15,5 +16,6 @@ describe("profile domain", () => {
 
         expect(values).not.toHaveProperty("password");
         expect(values.email).toBe("paul@example.com");
+        expect(values.activitySectorCode).toBeNull();
     });
 });

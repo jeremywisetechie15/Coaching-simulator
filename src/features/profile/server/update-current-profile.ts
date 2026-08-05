@@ -5,7 +5,7 @@ import type { ProfileView } from "@/features/profile/domain/profile";
 import type { UpdateProfileDto } from "@/features/profile/dto/update-profile.dto";
 import { mapProfileRowToView, type ProfileRow } from "./profile.mapper";
 
-const profileSelect = "email, name, first_name, last_name, bio, avatar_path";
+const profileSelect = "email, name, first_name, last_name, bio, avatar_path, activity_sector_code";
 
 export async function updateCurrentProfile(input: UpdateProfileDto): Promise<ProfileView> {
     const context = await requireAuth();
@@ -20,6 +20,9 @@ export async function updateCurrentProfile(input: UpdateProfileDto): Promise<Pro
     const { data: profile, error } = await supabase
         .from("profiles")
         .update({
+            ...(input.activitySectorCode !== undefined
+                ? { activity_sector_code: input.activitySectorCode }
+                : {}),
             ...(input.avatarPath !== undefined ? { avatar_path: avatarPath } : {}),
             bio: input.bio,
             first_name: input.firstName,

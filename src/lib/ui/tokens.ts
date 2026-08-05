@@ -1733,6 +1733,15 @@ export const uiTokens = {
         shell: "space-y-5",
     },
     profile: {
+        field: {
+            control:
+                "h-[42px] rounded-xl text-[15px] disabled:cursor-not-allowed disabled:opacity-100",
+            editable:
+                "border-[#5140F0]/30 bg-white text-[#171B2A] shadow-[0_0_0_4px_rgba(81,64,240,0.08)]",
+            readonly: "border-[#E8EAF0] bg-[#FCFCFD] text-[#7A7F8B] shadow-none",
+            selectChevron:
+                "pointer-events-none absolute right-4 top-1/2 h-5 w-5 -translate-y-1/2 text-[#8C94A4]",
+        },
         security: {
             action: "h-9 shrink-0 px-4",
             description: "text-[12px] font-medium leading-5 text-[#7A7F8B]",

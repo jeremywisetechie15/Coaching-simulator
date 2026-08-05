@@ -2,6 +2,7 @@ import { Box, CardSurface } from "@/lib/ui/atoms";
 import type { ProfileEditableField, ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
 import { ProfileAvatar } from "./ProfileAvatar";
+import { ProfileActivitySectorField } from "./ProfileActivitySectorField";
 import { ProfileField } from "./ProfileField";
 import { ProfilePasswordControl } from "./ProfilePasswordControl";
 import { ProfileSectionTitle } from "./ProfileSectionTitle";
@@ -10,7 +11,10 @@ interface ProfileDetailsCardProps {
     isEditing: boolean;
     onAvatarChange: (file: File) => void;
     onChangePassword: () => void;
-    onChange: (field: ProfileEditableField, value: string) => void;
+    onChange: <Field extends ProfileEditableField>(
+        field: Field,
+        value: ProfileFormValues[Field],
+    ) => void;
     values: ProfileFormValues;
 }
 
@@ -51,6 +55,11 @@ export function ProfileDetailsCard({
                         readOnly={!isEditing}
                         onChange={(event) => onChange("lastName", event.target.value)}
                         required
+                    />
+                    <ProfileActivitySectorField
+                        value={values.activitySectorCode}
+                        readOnly={!isEditing}
+                        onChange={(value) => onChange("activitySectorCode", value)}
                     />
                     <ProfileField
                         id="bio"

@@ -5,7 +5,7 @@ import type { ProfileView } from "@/features/profile/domain/profile";
 import { PLATFORM_ROLE } from "@/features/users/domain/users";
 import { mapProfileRowToView, type ProfileRow } from "./profile.mapper";
 
-const profileSelect = "email, name, first_name, last_name, bio, avatar_path";
+const profileSelect = "email, name, first_name, last_name, bio, avatar_path, activity_sector_code";
 
 export async function getCurrentProfile(): Promise<ProfileView> {
     const context = await requireAuth();
