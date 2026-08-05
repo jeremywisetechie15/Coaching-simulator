@@ -39,6 +39,33 @@ function createFakeSupabase(rowsByTable: Record<string, FakeRow[]>) {
 }
 
 describe("assertRoleplayLifecycle", () => {
+    it("allows a published roleplay to keep its published global coach", async () => {
+        const supabase = createFakeSupabase({
+            coaches: [{
+                id: "coach-1",
+                status: CONTENT_STATUS.published,
+            }],
+        });
+        const input = {
+            assignedUserId: null,
+            coachId: "coach-1",
+            groupId: null,
+            methodId: null,
+            organizationId: null,
+            personaId: null,
+            quizIds: [],
+            scorecardId: null,
+            scope: CONTENT_VISIBILITY_SCOPE.public,
+            status: CONTENT_STATUS.published,
+        } as unknown as SaveRoleplayDto;
+
+        await expect(assertRoleplayLifecycle(
+            supabase as never,
+            input,
+            CONTENT_STATUS.published,
+        )).resolves.toBeUndefined();
+    });
+
     it.each([CONTENT_STATUS.draft, CONTENT_STATUS.archived])(
         "rejects a published roleplay that references %s content",
         async (dependencyStatus) => {

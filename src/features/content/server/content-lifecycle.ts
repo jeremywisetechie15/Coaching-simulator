@@ -44,7 +44,7 @@ interface DependencyRow {
 interface DependencyDefinition {
     defaultLabel: string;
     select: string;
-    scopeColumn: "scope" | "visibility_scope";
+    scopeColumn: "scope" | "visibility_scope" | null;
     table: string;
 }
 
@@ -52,7 +52,7 @@ const DEPENDENCY_DEFINITIONS: Record<ContentDependencyKind, DependencyDefinition
     [CONTENT_DEPENDENCY_KIND.coach]: {
         defaultLabel: "le coach associé",
         select: "id, status",
-        scopeColumn: "visibility_scope",
+        scopeColumn: null,
         table: "coaches",
     },
     [CONTENT_DEPENDENCY_KIND.method]: {
@@ -64,7 +64,7 @@ const DEPENDENCY_DEFINITIONS: Record<ContentDependencyKind, DependencyDefinition
     [CONTENT_DEPENDENCY_KIND.persona]: {
         defaultLabel: "le persona associé",
         select: "id, status",
-        scopeColumn: "visibility_scope",
+        scopeColumn: null,
         table: "personas",
     },
     [CONTENT_DEPENDENCY_KIND.quiz]: {
@@ -99,6 +99,10 @@ function dependencyAudience(
     definition: DependencyDefinition,
     row: DependencyRow,
 ): ContentAudience {
+    if (!definition.scopeColumn) {
+        return { scope: CONTENT_VISIBILITY_SCOPE.public };
+    }
+
     return {
         groupId: row.group_id,
         organizationId: row.organization_id,

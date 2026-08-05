@@ -87,6 +87,33 @@ describe("content lifecycle server guards", () => {
         });
     });
 
+    it.each([
+        {
+            id: "coach-1",
+            kind: CONTENT_DEPENDENCY_KIND.coach,
+            table: "coaches",
+        },
+        {
+            id: "persona-1",
+            kind: CONTENT_DEPENDENCY_KIND.persona,
+            table: "personas",
+        },
+    ])("treats a published $kind without audience columns as globally available", async ({ id, kind, table }) => {
+        const supabase = createFakeSupabase({
+            [table]: [{
+                id,
+                status: CONTENT_STATUS.published,
+            }],
+        });
+
+        await expect(assertContentDependencyScopes(
+            supabase as never,
+            CONTENT_STATUS.published,
+            [{ id, kind }],
+            { scope: CONTENT_VISIBILITY_SCOPE.public },
+        )).resolves.toBeUndefined();
+    });
+
     it("uses active memberships for a user-scoped parent", async () => {
         const supabase = createFakeSupabase({
             group_members: [],
