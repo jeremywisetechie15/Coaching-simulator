@@ -13,7 +13,7 @@ function publishedQuiz(overrides: Partial<SaveQuizInput> = {}): SaveQuizInput {
         categories: ["Prospection"],
         description: "Vérifier la connaissance de la méthode.",
         difficulty: "Moyen",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         durationMinutes: 30,
         maxAttempts: 3,
         participation: "mandatory",
@@ -99,10 +99,10 @@ describe("saveQuizDto", () => {
 
     it("accepts a domain without categories", () => {
         const result = saveQuizDto.parse(
-            publishedQuiz({ categories: [], domain: "Commercial" }),
+            publishedQuiz({ categories: [], domain: "Commerce et développement commercial" }),
         );
 
-        expect(result.domain).toBe("Commercial");
+        expect(result.domain).toBe("Commerce et développement commercial");
         expect(result.categories).toEqual([]);
     });
 
@@ -126,7 +126,7 @@ describe("saveQuizDto", () => {
 
     it("rejects a category from another domain", () => {
         const result = saveQuizDto.safeParse(
-            publishedQuiz({ categories: ["Feedback"], domain: "Commercial" }),
+            publishedQuiz({ categories: ["Feedback"], domain: "Commerce et développement commercial" }),
         );
 
         expect(result.success).toBe(false);

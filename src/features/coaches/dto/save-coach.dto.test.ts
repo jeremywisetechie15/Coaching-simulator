@@ -7,7 +7,7 @@ const validCoach = {
     coachingStyle: "Optimiste",
     diploma: "Master coaching professionnel",
     discProfile: "Stable",
-    expertiseDomain: "Commercial",
+    expertiseDomain: "Commerce et développement commercial",
     name: "Pierre Laurent",
     systemInstructions: "Accompagner l'apprenant avec un ton factuel.",
     voiceId: "cedar",
@@ -23,7 +23,7 @@ describe("saveCoachDto", () => {
             coachingStyle: "Optimiste",
             diploma: "Master coaching professionnel",
             discProfile: "Stable",
-            expertiseDomain: "Commercial",
+            expertiseDomain: "Commerce et développement commercial",
         });
     });
 

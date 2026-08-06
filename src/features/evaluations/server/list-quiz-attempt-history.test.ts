@@ -54,7 +54,7 @@ describe("listQuizAttemptHistory", () => {
             {
                 categories: ["Vente"],
                 difficulty_level: "Moyen",
-                domain: "Commercial",
+                domain: "Commerce et développement commercial",
                 id: "quiz-archived",
                 is_active: false,
                 quiz_type: "knowledge",

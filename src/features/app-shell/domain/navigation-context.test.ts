@@ -125,8 +125,8 @@ describe("navigation context", () => {
         expect(
             withSearchParams("/roleplays?domain=Commercial&category=Vente", {
                 category: null,
-                domain: "Management",
+                domain: "Management, stratégie et transformation",
             }),
-        ).toBe("/roleplays?domain=Management");
+        ).toBe("/roleplays?domain=Management%2C+strat%C3%A9gie+et+transformation");
     });
 });

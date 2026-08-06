@@ -21,7 +21,7 @@ describe("buildDuplicateRoleplayInput", () => {
                 description: "Description",
                 difficulty: "Moyen",
                 disc: "Stable",
-                domain: "Commercial",
+                domain: "Commerce et développement commercial",
                 estimatedDurationMinutes: 12,
                 groupId: null,
                 learnerRole: "Vous incarnez la commerciale chargée d'obtenir un rendez-vous.",

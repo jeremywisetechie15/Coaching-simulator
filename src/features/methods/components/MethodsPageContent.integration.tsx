@@ -20,10 +20,10 @@ describe("MethodsPageContent", () => {
             <MethodsPageContent
                 canManage={false}
                 methods={[{
-                    category: "Gestion des conflits",
+                    category: "Gestion des conflits et médiation",
                     code: "acor",
                     description: "Apaiser un désaccord.",
-                    domain: "Communication",
+                    domain: "Communication et efficacité relationnelle",
                     id: "11111111-1111-4111-8111-111111111111",
                     name: "Méthode ACOR",
                     organizationId: null,

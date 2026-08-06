@@ -12,7 +12,7 @@ const attempts = [
         quiz: {
             categories: ["Prospection"],
             difficulty: "Moyen",
-            domain: "Commercial",
+            domain: "Commerce et développement commercial",
             id: "quiz-b",
             title: "Prise de rendez-vous",
             typeLabel: "Quiz de Connaissance",
@@ -23,7 +23,7 @@ const attempts = [
         quiz: {
             categories: ["Feedback"],
             difficulty: "Difficile",
-            domain: "Management",
+            domain: "Management, stratégie et transformation",
             id: "quiz-a",
             title: "Donner un feedback",
             typeLabel: "Quiz d'Auto-Positionnement",
@@ -38,7 +38,7 @@ describe("quiz attempt history filters", () => {
                 category: "Prospection",
                 dateFrom: "",
                 dateTo: "",
-                domain: "Commercial",
+                domain: "Commerce et développement commercial",
                 level: "Moyen",
                 quizId: "quiz-b",
                 type: "Quiz de Connaissance",
@@ -69,7 +69,7 @@ describe("quiz attempt history filters", () => {
                 ...DEFAULT_QUIZ_ATTEMPT_HISTORY_FILTERS,
                 dateFrom: "2026-07-01",
                 dateTo: "2026-07-31",
-                domain: "Commercial",
+                domain: "Commerce et développement commercial",
                 type: "Quiz de Connaissance",
             }),
         ).toBe(3);

@@ -33,7 +33,7 @@ const roleplay: RoleplayItem = {
     },
     difficulty: "Moyen",
     disc: "Stable",
-    domain: "Commercial",
+    domain: "Commerce et développement commercial",
     id: "roleplay-1",
     isActive: true,
     learnerStatus: LEARNER_CONTENT_STATUS.todo,

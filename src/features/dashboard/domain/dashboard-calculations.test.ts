@@ -39,9 +39,9 @@ describe("dashboard calculations", () => {
             now,
             periodDays: 30,
             scenarios: [
-                { assignedAt: "2026-06-01T10:00:00.000Z", category: "Vente", domain: "Commercial", id: "scenario-a", personaAvatarUrl: null, personaName: "A", title: "Scénario A", validationThreshold: 90 },
-                { assignedAt: "2026-06-02T10:00:00.000Z", category: "Vente", domain: "Commercial", id: "scenario-b", personaAvatarUrl: null, personaName: "B", title: "Scénario B", validationThreshold: 60 },
-                { assignedAt: "2026-07-18T10:00:00.000Z", category: "Feedback", domain: "Management", id: "scenario-c", personaAvatarUrl: null, personaName: "C", title: "Scénario C", validationThreshold: 80 },
+                { assignedAt: "2026-06-01T10:00:00.000Z", category: "Vente", domain: "Commerce et développement commercial", id: "scenario-a", personaAvatarUrl: null, personaName: "A", title: "Scénario A", validationThreshold: 90 },
+                { assignedAt: "2026-06-02T10:00:00.000Z", category: "Vente", domain: "Commerce et développement commercial", id: "scenario-b", personaAvatarUrl: null, personaName: "B", title: "Scénario B", validationThreshold: 60 },
+                { assignedAt: "2026-07-18T10:00:00.000Z", category: "Feedback", domain: "Management, stratégie et transformation", id: "scenario-c", personaAvatarUrl: null, personaName: "C", title: "Scénario C", validationThreshold: 80 },
             ],
             roleplaySessions: [
                 { createdAt: "2026-07-15T10:00:00.000Z", durationSeconds: 180, id: "session-a1", scenarioId: "scenario-a", scorePercent: 50 },
@@ -49,9 +49,9 @@ describe("dashboard calculations", () => {
                 { createdAt: "2026-07-17T10:00:00.000Z", durationSeconds: 300, id: "session-b1", scenarioId: "scenario-b", scorePercent: 60 },
             ],
             quizzes: [
-                { assignedAt: "2026-06-01T10:00:00.000Z", categories: ["Vente", "Prospection"], domain: "Commercial", durationMinutes: 10, id: "quiz-a", maxAttempts: 3, questionCount: 5, title: "Quiz A", validationThreshold: 70 },
-                { assignedAt: "2026-06-01T10:00:00.000Z", categories: ["Vente"], domain: "Commercial", durationMinutes: 10, id: "quiz-b", maxAttempts: null, questionCount: 7, title: "Quiz B", validationThreshold: 70 },
-                { assignedAt: "2026-07-18T10:00:00.000Z", categories: ["Feedback"], domain: "Management", durationMinutes: 10, id: "quiz-c", maxAttempts: 3, questionCount: 9, title: "Quiz C", validationThreshold: 70 },
+                { assignedAt: "2026-06-01T10:00:00.000Z", categories: ["Vente", "Prospection"], domain: "Commerce et développement commercial", durationMinutes: 10, id: "quiz-a", maxAttempts: 3, questionCount: 5, title: "Quiz A", validationThreshold: 70 },
+                { assignedAt: "2026-06-01T10:00:00.000Z", categories: ["Vente"], domain: "Commerce et développement commercial", durationMinutes: 10, id: "quiz-b", maxAttempts: null, questionCount: 7, title: "Quiz B", validationThreshold: 70 },
+                { assignedAt: "2026-07-18T10:00:00.000Z", categories: ["Feedback"], domain: "Management, stratégie et transformation", durationMinutes: 10, id: "quiz-c", maxAttempts: 3, questionCount: 9, title: "Quiz C", validationThreshold: 70 },
             ],
             quizAttempts: [
                 { activeDurationSeconds: 180, attemptNumber: 1, completedAt: "2026-07-14T10:00:00.000Z", id: "attempt-a1", quizId: "quiz-a", scorePercent: 44, startedAt: "2026-07-14T09:00:00.000Z", status: "completed" },
@@ -93,7 +93,11 @@ describe("dashboard calculations", () => {
             attemptsRemaining: null,
             questionCount: 7,
         });
-        expect(dashboard.domainPerformance.roleplays[0]?.score).toBe(72.5);
+        expect(
+            dashboard.domainPerformance.roleplays.find(
+                ({ label }) => label === "Commerce et développement commercial",
+            )?.score,
+        ).toBe(72.5);
     });
 
     it("uses adjacent periods with the same duration", () => {

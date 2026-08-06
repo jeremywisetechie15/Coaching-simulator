@@ -13,7 +13,7 @@ const coach: CoachRow = {
     created_at: "2026-07-13T08:00:00.000Z",
     diploma: "Master coaching",
     disc_profile: "Consciencieux",
-    expertise_domain: "Commercial",
+    expertise_domain: "Commerce et développement commercial",
     id: "coach-1",
     name: "Coach test",
     system_instructions: "Pose des questions courtes et factuelles.",
@@ -30,7 +30,7 @@ describe("roleplay coach instructions", () => {
             coachingStyle: "Exigeant",
             diploma: "Master coaching",
             discProfile: "Consciencieux",
-            expertiseDomain: "Commercial",
+            expertiseDomain: "Commerce et développement commercial",
             name: "Coach test",
         });
         expect(result.avatar_url).toBeUndefined();
@@ -43,7 +43,9 @@ describe("roleplay coach instructions", () => {
 
         expect(result).toContain("Prépare l'apprenant.");
         expect(result).toContain('"coachingStyle": "Exigeant"');
-        expect(result).toContain('"expertiseDomain": "Commercial"');
+        expect(result).toContain(
+            '"expertiseDomain": "Commerce et développement commercial"',
+        );
         expect(result.match(/Pose des questions courtes et factuelles\./g)).toHaveLength(1);
         expect(result).toContain("Le contexte dynamique du roleplay");
     });
@@ -58,7 +60,7 @@ describe("roleplay coach instructions", () => {
         expect(result).toEqual({
             coachingStyle: "Exigeant",
             discProfile: "Consciencieux",
-            expertiseDomain: "Commercial",
+            expertiseDomain: "Commerce et développement commercial",
             name: "Coach test",
         });
     });

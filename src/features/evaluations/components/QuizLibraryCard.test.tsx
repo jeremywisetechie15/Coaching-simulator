@@ -14,10 +14,10 @@ import {
 import { QuizLibraryCard } from "./QuizLibraryCard";
 
 const quiz: QuizListItem = {
-    categories: ["Vente"],
+    categories: ["Accueil et posture relationnelle"],
     description: "Validez vos connaissances commerciales.",
     difficulty: "Moyen",
-    domain: "Relation client",
+    domain: "Relation client et expérience client",
     durationMinutes: 20,
     id: "quiz-1",
     isActive: true,

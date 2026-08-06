@@ -11,7 +11,7 @@ function publishedScorecard(overrides: Partial<SaveScorecardInput> = {}): SaveSc
     return {
         category: "Prospection",
         description: "Scorecard de notation.",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         level: "Intermédiaire",
         methodId,
         name: "Scorecard DAGO",
@@ -76,6 +76,17 @@ describe("saveScorecardDto", () => {
 
         expect(result.organizationId).toBe(organizationId);
         expect(result.steps[0].criteria[0].dimensionItemId).toBe(dimensionItemId);
+    });
+
+    it("rejects a category outside the selected domain", () => {
+        const result = saveScorecardDto.safeParse(
+            publishedScorecard({ category: "Feedback" }),
+        );
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues).toContainEqual(
+            expect.objectContaining({ path: ["category"] }),
+        );
     });
 
     it("requires a dimension item id for criteria", () => {

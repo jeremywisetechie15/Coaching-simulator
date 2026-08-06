@@ -12,7 +12,7 @@ const coach: CoachListItem = {
     createdAt: "",
     diploma: "Master coaching",
     discProfile: "Stable",
-    expertiseDomain: "Management",
+    expertiseDomain: "Management, stratégie et transformation",
     id: "coach-1",
     name: "Pierre Laurent",
     status: "published",

@@ -26,7 +26,7 @@ const context = {
         challenges: ["Créer de l'intérêt"],
         code: "CUSTOM",
         description: "Une méthode personnalisée.",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         id: "method-1",
         name: "Méthode personnalisée",
         objectives: ["Obtenir un rendez-vous"],
@@ -72,7 +72,7 @@ const context = {
         description: "Contacter un prospect.",
         difficulty: "Intermédiaire",
         discProfile: "Stable",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         id: "scenario-1",
         objective: "Obtenir un rendez-vous.",
         obstacles: "Le prospect manque de temps.",
@@ -81,7 +81,7 @@ const context = {
     scorecard: {
         category: "Prospection",
         description: "Grille structurée.",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         id: "scorecard-1",
         level: "Intermédiaire",
         name: "Scorecard test",
@@ -139,7 +139,7 @@ describe("scorecard notation inputs", () => {
         expect(input).toContain('"systemInstructions": "Reste factuel et pressé."');
         expect(input).toContain('"coachingSteps": "Faire préciser la valeur."');
         expect(input).toContain('"category": "Prospection"');
-        expect(input).toContain('"domain": "Commercial"');
+        expect(input).toContain('"domain": "Commerce et développement commercial"');
         expect(input).toContain('"activitySector": "Informatique, numérique et télécommunications"');
         expect(input).toContain('"etape_ref": "S1"');
         expect(input).toContain('"weightPercent": 100');

@@ -11,7 +11,10 @@ import {
     useCurrentAppHref,
 } from "@/features/app-shell/components";
 import { withSearchParams } from "@/features/app-shell/domain";
-import { ContentRemovalConfirmationModal } from "@/features/content/components";
+import {
+    ContentRemovalConfirmationModal,
+    ContentStatusBadge,
+} from "@/features/content/components";
 import { requestContentCardAction } from "@/features/content/data/content-card-action.request";
 import {
     CONTENT_DOMAINS,
@@ -244,6 +247,7 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
                                             {skill.name}
                                         </Text>
                                         <Box className="mt-3 flex flex-wrap gap-2">
+                                            <ContentStatusBadge status={skill.status} />
                                             <Box className={cn("inline-flex min-h-6 w-fit items-center rounded-md border px-2 py-0.5 text-[12px] font-semibold", typeTone.soft)}>
                                                 Type · {skill.type}
                                             </Box>

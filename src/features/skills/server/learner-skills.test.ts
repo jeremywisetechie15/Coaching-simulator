@@ -59,7 +59,7 @@ function skillRow(id: string, name: string) {
         assigned_user_id: null,
         category: "Prospection",
         description: `${name} description`,
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         group_id: null,
         id,
         is_active: true,

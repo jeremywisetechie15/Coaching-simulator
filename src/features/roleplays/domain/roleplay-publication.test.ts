@@ -6,7 +6,7 @@ const completeRoleplay = {
     category: "Prospection",
     coachId: "coach-1",
     difficulty: "Moyen",
-    domain: "Commercial",
+    domain: "Commerce et développement commercial",
     learnerRole: "Vous incarnez le commercial chargé de mener l'entretien.",
     methodId: "method-1",
     personaId: "persona-1",

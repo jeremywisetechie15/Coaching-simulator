@@ -16,7 +16,7 @@ function lockedConfiguration(): SkillUsageLockedConfiguration {
                 order: 1,
             },
         ],
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         groupId: null,
         organizationId: null,
         scope: "public",

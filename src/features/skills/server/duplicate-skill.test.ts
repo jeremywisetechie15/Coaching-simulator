@@ -25,7 +25,7 @@ describe("duplicateSkill", () => {
         mocks.createSkill.mockResolvedValue({ id: "gestion-des-conflits-copie" });
         mocks.fetchSkillDetail.mockResolvedValue({
             assignedUserId: null,
-            category: "Gestion des conflits",
+            category: "Gestion des conflits et médiation",
             description: "Prévenir et résoudre un désaccord.",
             dimensionItems: [
                 { dimension: "savoir_faire", id: "item-2", isActive: true, label: "Reformuler", order: 2, skillId: "source" },
@@ -33,7 +33,7 @@ describe("duplicateSkill", () => {
                 { dimension: "savoir_faire", id: "item-3", isActive: true, label: "Questionner", order: 1, skillId: "source" },
                 { dimension: "savoir_etre", id: "item-4", isActive: false, label: "Ancien item", order: 1, skillId: "source" },
             ],
-            domain: "Communication",
+            domain: "Communication et efficacité relationnelle",
             groupId: null,
             id: "source",
             isActive: true,

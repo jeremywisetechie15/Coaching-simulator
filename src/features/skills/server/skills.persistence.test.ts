@@ -17,7 +17,7 @@ const skillInput: SaveSkillDto = {
         savoir_faire: [{ label: "Application en situation" }, { label: "Traitement des objections" }],
     },
     assignedUserId: null,
-    domain: "Commercial",
+    domain: "Commerce et développement commercial",
     groupId: null,
     id: "",
     name: "Gestion des objections",
@@ -104,12 +104,12 @@ describe("skills.persistence", () => {
 
         expect(insert).toMatchObject({
             category: "Prospection",
-            domain: "Commercial",
+            domain: "Commerce et développement commercial",
             skill_type: "Métier",
         });
         expect(update).toMatchObject({
             category: "Prospection",
-            domain: "Commercial",
+            domain: "Commerce et développement commercial",
             skill_type: "Métier",
         });
         expect(insert).not.toHaveProperty("functions");

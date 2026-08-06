@@ -54,7 +54,7 @@ function currentSkill(overrides: Partial<SkillDetail> = {}): SkillDetail {
                 skillId: "acces-decideur",
             },
         ],
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         groupId: null,
         id: "acces-decideur",
         isActive: true,
@@ -77,7 +77,7 @@ function unchangedInput(overrides: Partial<SaveSkillDto> = {}): SaveSkillDto {
             savoir_etre: [{ id: savoirEtreId, label: "Rester assuré" }],
             savoir_faire: [{ id: savoirFaireId, label: "Formuler une demande" }],
         },
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         groupId: null,
         id: "",
         name: "Accès au décideur",
@@ -153,8 +153,8 @@ describe("skill usage edit policy server guard", () => {
             input.type = "Transversale";
         }],
         ["domain", (input: SaveSkillDto) => {
-            input.domain = "Communication";
-            input.category = "Gestion des conflits";
+            input.domain = "Communication et efficacité relationnelle";
+            input.category = "Gestion des conflits et médiation";
         }],
         ["category", (input: SaveSkillDto) => {
             input.category = "Vente";

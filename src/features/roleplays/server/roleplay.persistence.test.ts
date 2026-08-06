@@ -37,7 +37,7 @@ describe("roleplay persistence helpers", () => {
             context: "Appel à froid.",
             description: "Décrocher un rendez-vous.",
             difficulty: "Moyen",
-            domain: "Commercial",
+            domain: "Commerce et développement commercial",
             estimatedDurationMinutes: 12,
             groupId,
             learnerRole: "Vous incarnez le conseiller commercial.",

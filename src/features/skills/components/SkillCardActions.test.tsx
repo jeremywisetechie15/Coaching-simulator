@@ -6,9 +6,9 @@ import { SkillCardActions } from "./SkillCardActions";
 
 const skill: SkillListItem = {
     assignedUserId: null,
-    category: "Gestion des conflits",
+    category: "Gestion des conflits et médiation",
     description: "Prévenir et résoudre un désaccord.",
-    domain: "Communication",
+    domain: "Communication et efficacité relationnelle",
     groupId: null,
     id: "gestion-conflits",
     isActive: true,

@@ -52,7 +52,7 @@ function createRoleplayDetail({
         previewTitle,
         difficulty: "Moyen",
         disc: "Stable",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         estimatedDurationMinutes: null,
         groupId: null,
         groupName: null,

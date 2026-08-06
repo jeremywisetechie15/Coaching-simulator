@@ -6,7 +6,7 @@
     "description": "Valider les fondamentaux de la découverte.",
     "quizType": "knowledge",
     "difficulty": "Moyen",
-    "domain": "Commercial",
+    "domain": "Commerce et développement commercial",
     "categories": ["Prospection"],
     "durationMinutes": 15,
     "maxAttempts": 3,

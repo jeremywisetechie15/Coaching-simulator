@@ -12,7 +12,7 @@ const sessions = [
         roleplay: {
             category: "Prospection",
             difficulty: "Moyen",
-            domain: "Commercial",
+            domain: "Commerce et développement commercial",
             id: "roleplay-b",
             name: "Prospection B",
         },
@@ -22,7 +22,7 @@ const sessions = [
         roleplay: {
             category: "Feedback",
             difficulty: "Difficile",
-            domain: "Management",
+            domain: "Management, stratégie et transformation",
             id: "roleplay-a",
             name: "Feedback A",
         },
@@ -36,7 +36,7 @@ describe("roleplay session history filters", () => {
                 category: "Prospection",
                 dateFrom: "",
                 dateTo: "",
-                domain: "Commercial",
+                domain: "Commerce et développement commercial",
                 level: "Moyen",
                 roleplayId: "roleplay-b",
             }),
@@ -66,7 +66,7 @@ describe("roleplay session history filters", () => {
                 ...DEFAULT_ROLEPLAY_SESSION_HISTORY_FILTERS,
                 dateFrom: "2026-06-01",
                 dateTo: "2026-06-30",
-                domain: "Commercial",
+                domain: "Commerce et développement commercial",
             }),
         ).toBe(2);
     });

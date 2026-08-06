@@ -5,9 +5,9 @@ import { mapSkillRowToListItem, mapSkillRowsToDetail } from "./skill.mapper";
 describe("skill.mapper", () => {
     it("maps the database type and shared taxonomy without legacy functions", () => {
         const skill = mapSkillRowToListItem({
-            category: "Gestion des conflits",
+            category: "Gestion des conflits et médiation",
             description: "Gérer un désaccord de façon constructive.",
-            domain: "Communication",
+            domain: "Communication et efficacité relationnelle",
             id: "gestion-conflits",
             is_active: true,
             name: "Gestion des conflits",
@@ -17,8 +17,8 @@ describe("skill.mapper", () => {
         });
 
         expect(skill).toMatchObject({
-            category: "Gestion des conflits",
-            domain: "Communication",
+            category: "Gestion des conflits et médiation",
+            domain: "Communication et efficacité relationnelle",
             type: "Comportementale",
         });
         expect(skill).not.toHaveProperty("functions");
@@ -42,14 +42,14 @@ describe("skill.mapper", () => {
         expect(
             mapSkillRowToListItem({
                 category: "Feedback",
-                domain: "Commercial",
+                domain: "Commerce et développement commercial",
                 id: "mismatched-skill",
                 name: "Compétence mal classée",
                 skill_type: "Transversale",
             }),
         ).toMatchObject({
             category: null,
-            domain: "Commercial",
+            domain: "Commerce et développement commercial",
             type: "Transversale",
         });
     });

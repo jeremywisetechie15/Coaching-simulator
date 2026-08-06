@@ -51,7 +51,7 @@ function queryResult(table: string) {
         return {
             data: [{
                 categories: ["Vente", "Prospection"],
-                domain: "Commercial",
+                domain: "Commerce et développement commercial",
                 duration_minutes: 10,
                 id: "quiz-1",
                 max_attempts: 3,

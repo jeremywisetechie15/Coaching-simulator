@@ -26,13 +26,13 @@ describe("mapMethodStepRow", () => {
 describe("mapMethodRowToListItem", () => {
     it("keeps the method domain and category distinct", () => {
         expect(mapMethodRowToListItem({
-            category: "Gestion des conflits",
-            domain: "Communication",
+            category: "Gestion des conflits et médiation",
+            domain: "Communication et efficacité relationnelle",
             id: "11111111-1111-4111-8111-111111111111",
             name: "Méthode ACOR",
         })).toMatchObject({
-            category: "Gestion des conflits",
-            domain: "Communication",
+            category: "Gestion des conflits et médiation",
+            domain: "Communication et efficacité relationnelle",
         });
     });
 });

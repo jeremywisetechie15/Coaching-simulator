@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { CONTENT_STATUSES } from "@/features/content/domain";
+import {
+    CONTENT_STATUSES,
+    isContentCategoryForDomain,
+    isContentDomain,
+} from "@/features/content/domain";
 import {
     getScorecardStepWeightTotal,
     roundScorecardPercent,
@@ -86,6 +90,29 @@ export const saveScorecardDto = z
     })
     .strict()
     .superRefine((scorecard, ctx) => {
+        if (scorecard.domain && !isContentDomain(scorecard.domain)) {
+            ctx.addIssue({
+                code: "custom",
+                message: "Le domaine sélectionné est invalide.",
+                path: ["domain"],
+            });
+        } else if (scorecard.category && !scorecard.domain) {
+            ctx.addIssue({
+                code: "custom",
+                message: "Sélectionnez un domaine avant la catégorie.",
+                path: ["category"],
+            });
+        } else if (
+            scorecard.category
+            && !isContentCategoryForDomain(scorecard.domain, scorecard.category)
+        ) {
+            ctx.addIssue({
+                code: "custom",
+                message: "La catégorie ne correspond pas au domaine sélectionné.",
+                path: ["category"],
+            });
+        }
+
         if (scorecard.visibility === "private" && !scorecard.organizationId) {
             ctx.addIssue({
                 code: "custom",

@@ -9,7 +9,7 @@ const scorecardDetail: ScorecardDetail = {
     createdAt: "2026-06-29T12:00:00.000Z",
     criteriaCount: 2,
     description: "Grille de notation DAGO.",
-    domain: "Commercial",
+    domain: "Commerce et développement commercial",
     id: "scorecard-1",
     level: "Moyen",
     methodId: "method-1",
@@ -59,7 +59,7 @@ const scorecardDetail: ScorecardDetail = {
 const skillOptions: SkillOption[] = [
     {
         dimensionItems: [],
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         id: "skill-1",
         name: "Accès au décideur",
     },

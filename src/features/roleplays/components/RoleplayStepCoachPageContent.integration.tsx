@@ -25,7 +25,7 @@ const step: MethodStep = {
 };
 
 const method: Method = {
-    category: "Commercial",
+    category: "Prise de rendez-vous",
     description: "Description",
     enjeux: [],
     id: "method-1",
@@ -61,7 +61,7 @@ const roleplay: RoleplayItem = {
     },
     difficulty: "Moyen",
     disc: "Stable",
-    domain: "Commercial",
+    domain: "Commerce et développement commercial",
     id: "roleplay-1",
     isActive: true,
     learnerStatus: LEARNER_CONTENT_STATUS.todo,

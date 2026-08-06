@@ -17,10 +17,10 @@ vi.mock("next/navigation", () => ({
 
 const skill: SkillDetail = {
     assignedUserId: null,
-    category: "Gestion des conflits",
+    category: "Gestion des conflits et médiation",
     description: "Prévenir et résoudre un désaccord.",
     dimensionItems: [],
-    domain: "Communication",
+    domain: "Communication et efficacité relationnelle",
     groupId: null,
     id: "gestion-conflits",
     isActive: true,
@@ -38,11 +38,23 @@ describe("SkillDetailPageContent", () => {
         );
 
         expect(html).toContain("Type · Comportementale");
+        expect(html).toContain("Publié");
         expect(html).toContain("Domaine · Communication");
         expect(html).toContain("Catégorie · Gestion des conflits");
         expect(html).toContain("Non évalué");
         expect(html).not.toContain("Fonctions associées");
         expect(html).not.toContain("+8%");
+    });
+
+    it("displays the draft badge on the skill detail page", () => {
+        const html = renderToStaticMarkup(
+            <SkillDetailPageContent
+                canManage
+                skill={{ ...skill, status: CONTENT_STATUS.draft }}
+            />,
+        );
+
+        expect(html).toContain("Brouillon");
     });
 
     it("keeps a real zero score distinct from an unevaluated skill", () => {

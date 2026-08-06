@@ -5,6 +5,8 @@ import {
     CONTENT_STATUSES,
     CONTENT_VISIBILITY_SCOPE,
     CONTENT_VISIBILITY_SCOPES,
+    isContentCategoryForDomain,
+    isContentDomain,
 } from "@/features/content/domain";
 import { QUIZ_PARTICIPATIONS } from "@/features/evaluations/domain";
 import {
@@ -148,6 +150,29 @@ export const saveRoleplayDto = z
     })
     .strict()
     .superRefine((roleplay, ctx) => {
+        if (roleplay.domain && !isContentDomain(roleplay.domain)) {
+            ctx.addIssue({
+                code: "custom",
+                message: "Le domaine sélectionné est invalide.",
+                path: ["domain"],
+            });
+        } else if (roleplay.category && !roleplay.domain) {
+            ctx.addIssue({
+                code: "custom",
+                message: "Sélectionnez un domaine avant la catégorie.",
+                path: ["category"],
+            });
+        } else if (
+            roleplay.category
+            && !isContentCategoryForDomain(roleplay.domain, roleplay.category)
+        ) {
+            ctx.addIssue({
+                code: "custom",
+                message: "La catégorie ne correspond pas au domaine sélectionné.",
+                path: ["category"],
+            });
+        }
+
         if (roleplay.status === "published") {
             for (const issue of getRoleplayPublicationIssues(roleplay)) {
                 ctx.addIssue({

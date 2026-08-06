@@ -103,7 +103,7 @@ function currentMethod(): MethodDetail {
         challenges: ["Créer de l'intérêt"],
         code: "DAGO",
         description: "Description initiale",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         id: methodId,
         name: "Méthode initiale",
         notationMethodId: null,
@@ -156,7 +156,7 @@ function unchangedInput(): SaveMethodDto {
         category: "Prospection",
         challenges: ["Créer de l'intérêt"],
         description: "Description initiale",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         name: "Méthode initiale",
         objectives: ["Obtenir un rendez-vous"],
         organizationId: null,
@@ -226,7 +226,7 @@ describe("method usage edit policy server guard", () => {
 
     it("rejects selections and list structure changes after usage", async () => {
         const input = unchangedInput();
-        input.domain = "Relation client";
+        input.domain = "Relation client et expérience client";
         input.steps[0]!.objectives.push("Un objectif en plus");
 
         await expect(

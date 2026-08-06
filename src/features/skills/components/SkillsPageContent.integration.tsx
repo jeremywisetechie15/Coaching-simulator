@@ -20,9 +20,9 @@ describe("SkillsPageContent", () => {
                 canManage={false}
                 skills={[{
                     assignedUserId: null,
-                    category: "Gestion des conflits",
+                    category: "Gestion des conflits et médiation",
                     description: "Prévenir et résoudre un désaccord.",
-                    domain: "Communication",
+                    domain: "Communication et efficacité relationnelle",
                     groupId: null,
                     id: "gestion-conflits",
                     isActive: true,
@@ -36,9 +36,34 @@ describe("SkillsPageContent", () => {
         );
 
         expect(html).toContain("Type · Comportementale");
+        expect(html).toContain("Publié");
         expect(html).toContain("Domaine · Communication");
         expect(html).toContain("Catégorie · Gestion des conflits");
         expect(html).not.toContain("Fonctions");
+    });
+
+    it("displays the draft badge on a draft skill card", () => {
+        const html = renderToStaticMarkup(
+            <SkillsPageContent
+                canManage
+                skills={[{
+                    assignedUserId: null,
+                    category: null,
+                    description: "",
+                    domain: null,
+                    groupId: null,
+                    id: "draft-skill",
+                    isActive: true,
+                    name: "Compétence à finaliser",
+                    organizationId: null,
+                    scope: CONTENT_VISIBILITY_SCOPE.public,
+                    status: CONTENT_STATUS.draft,
+                    type: "Métier",
+                }]}
+            />,
+        );
+
+        expect(html).toContain("Brouillon");
     });
 
     it("explains the empty assigned state to a learner", () => {

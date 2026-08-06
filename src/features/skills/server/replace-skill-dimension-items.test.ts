@@ -19,7 +19,7 @@ const editedSkillInput: SaveSkillDto = {
         ],
     },
     assignedUserId: null,
-    domain: "Commercial",
+    domain: "Commerce et développement commercial",
     groupId: null,
     id: "",
     name: "Gestion des objections",

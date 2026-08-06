@@ -10,7 +10,7 @@ const completeSkillInput = {
         savoir_etre: [{ label: "Rester calme face au refus" }],
         savoir_faire: [{ label: "Reformuler l'objection" }],
     },
-    domain: "Commercial",
+    domain: "Commerce et développement commercial",
     name: "Gestion des objections",
 };
 
@@ -34,7 +34,7 @@ describe("saveSkillDto", () => {
         });
 
         expect(result.category).toBe("Prospection");
-        expect(result.domain).toBe("Commercial");
+        expect(result.domain).toBe("Commerce et développement commercial");
         expect(result.status).toBe(CONTENT_STATUS.draft);
         expect(result.scope).toBe(CONTENT_VISIBILITY_SCOPE.public);
         expect(result.type).toBe("Métier");

@@ -55,7 +55,7 @@ function quizInput(): SaveQuizDto {
         categories: ["Prospection"],
         description: "Description",
         difficulty: "Moyen",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         durationMinutes: 10,
         groupId: null,
         maxAttempts: 2,

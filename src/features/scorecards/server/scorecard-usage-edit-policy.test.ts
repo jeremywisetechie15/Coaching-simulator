@@ -91,7 +91,7 @@ function currentScorecard(): ScorecardDetail {
         createdAt: null,
         criteriaCount: 1,
         description: "Description initiale",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         id: scorecardId,
         level: "Intermédiaire",
         methodId,
@@ -127,7 +127,7 @@ function unchangedInput(): SaveScorecardDto {
     return {
         category: "Prospection",
         description: "Description initiale",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         level: "Intermédiaire",
         methodId,
         name: "Scorecard initiale",

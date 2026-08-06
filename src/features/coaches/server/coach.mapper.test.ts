@@ -40,7 +40,7 @@ describe("coach.mapper", () => {
             coaching_style: "Exigeant",
             diploma: "Master coaching",
             disc_profile: "Consciencieux",
-            expertise_domain: "Management",
+            expertise_domain: "Management, stratégie et transformation",
         });
 
         expect(values).toMatchObject({
@@ -49,7 +49,7 @@ describe("coach.mapper", () => {
             coachingStyle: "Exigeant",
             diploma: "Master coaching",
             discProfile: "Consciencieux",
-            expertiseDomain: "Management",
+            expertiseDomain: "Management, stratégie et transformation",
         });
     });
 
@@ -65,7 +65,7 @@ describe("coach.mapper", () => {
             coaching_style: "Exigeant",
             diploma: "Master coaching",
             disc_profile: "Consciencieux",
-            expertise_domain: "Management",
+            expertise_domain: "Management, stratégie et transformation",
         }, "https://example.com/background.webp");
 
         expect(item).toMatchObject({
@@ -74,7 +74,7 @@ describe("coach.mapper", () => {
             coachingStyle: "Exigeant",
             diploma: "Master coaching",
             discProfile: "Consciencieux",
-            expertiseDomain: "Management",
+            expertiseDomain: "Management, stratégie et transformation",
         });
     });
 

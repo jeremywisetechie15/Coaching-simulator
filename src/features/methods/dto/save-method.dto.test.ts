@@ -12,13 +12,13 @@ describe("saveMethodDto", () => {
     it("accepts a category from the selected domain", () => {
         const result = saveMethodDto.parse({
             ...minimalMethodInput,
-            category: "Gestion des conflits",
-            domain: "Communication",
+            category: "Gestion des conflits et médiation",
+            domain: "Communication et efficacité relationnelle",
         });
 
         expect(result).toMatchObject({
-            category: "Gestion des conflits",
-            domain: "Communication",
+            category: "Gestion des conflits et médiation",
+            domain: "Communication et efficacité relationnelle",
         });
     });
 
@@ -50,7 +50,7 @@ describe("saveMethodDto", () => {
     it("rejects a category without a domain", () => {
         const result = saveMethodDto.safeParse({
             ...minimalMethodInput,
-            category: "Gestion des conflits",
+            category: "Gestion des conflits et médiation",
         });
 
         expect(result.success).toBe(false);
@@ -69,8 +69,8 @@ describe("saveMethodDto", () => {
     it("rejects a category from another domain", () => {
         const result = saveMethodDto.safeParse({
             ...minimalMethodInput,
-            category: "Gestion des conflits",
-            domain: "Commercial",
+            category: "Gestion des conflits et médiation",
+            domain: "Commerce et développement commercial",
         });
 
         expect(result.success).toBe(false);

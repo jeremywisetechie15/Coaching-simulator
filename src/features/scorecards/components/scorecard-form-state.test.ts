@@ -8,7 +8,7 @@ const scorecardDetail: ScorecardDetail = {
     createdAt: "2026-06-29T12:00:00.000Z",
     criteriaCount: 1,
     description: "Scorecard de notation.",
-    domain: "Commercial",
+    domain: "Commerce et développement commercial",
     id: "scorecard-1",
     level: "Moyen",
     methodId: "11111111-1111-4111-8111-111111111111",
@@ -50,7 +50,7 @@ describe("scorecard form state", () => {
         expect(form).toMatchObject({
             category: "Prospection",
             description: "Scorecard de notation.",
-            domain: "Commercial",
+            domain: "Commerce et développement commercial",
             level: "Moyen",
             methodId: "11111111-1111-4111-8111-111111111111",
             name: "Scorecard DAGO",

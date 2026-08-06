@@ -30,7 +30,7 @@ const validSkillJson = {
         name: "Conduire un entretien de découverte",
         description: "Identifier le contexte, les besoins et les enjeux du prospect.",
         type: "Métier",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         category: "Prospection",
         scope: "public",
         organizationId: null,
@@ -58,7 +58,7 @@ describe("skill JSON prefill", () => {
                 savoir_etre: ["Faire preuve d'écoute"],
                 savoir_faire: ["Questionner et reformuler"],
             },
-            domain: "Commercial",
+            domain: "Commerce et développement commercial",
             groupId: "",
             name: "Conduire un entretien de découverte",
             organizationId: null,
@@ -91,7 +91,7 @@ describe("skill JSON prefill", () => {
                 ...validSkillJson,
                 data: {
                     ...validSkillJson.data,
-                    category: "Pilotage",
+                    category: "Pilotage de la performance",
                     description: "",
                     scope: "organization",
                     type: "Inconnue",
@@ -113,7 +113,9 @@ describe("skill JSON prefill", () => {
         expect(result.draft.dimensionItems.savoir_etre).toEqual([""]);
         expect(result.fieldErrors[SKILL_JSON_PREFILL_FIELD.description]).toBeDefined();
         expect(result.fieldErrors[SKILL_JSON_PREFILL_FIELD.type]).toContain("Métier");
-        expect(result.fieldErrors[SKILL_JSON_PREFILL_FIELD.category]).toContain("Commercial");
+        expect(result.fieldErrors[SKILL_JSON_PREFILL_FIELD.category]).toContain(
+            "Commerce et développement commercial",
+        );
         expect(result.fieldErrors[SKILL_JSON_PREFILL_FIELD.organizationId]).toBeDefined();
         expect(result.fieldErrors[SKILL_JSON_PREFILL_FIELD.knowledge]).toBeDefined();
         expect(result.fieldErrors["dimensionItems.savoir_faire.1"]).toBeDefined();
@@ -125,7 +127,7 @@ describe("skill JSON prefill", () => {
 
         expect(prompt).toContain('"Métier"');
         expect(prompt).toContain('"Comportementale"');
-        expect(prompt).toContain('"Commercial"');
+        expect(prompt).toContain('"Commerce et développement commercial"');
         expect(prompt).toContain('"Prospection"');
         expect(prompt).toContain('"scope": "public"');
         expect(prompt).toContain('"organizationId": null');

@@ -50,11 +50,11 @@ describe("CreateMethodPageContent", () => {
 
     it("renders existing method-level resources as separate documents", () => {
         const initialMethod: MethodDetail = {
-            category: "Gestion des conflits",
+            category: "Gestion des conflits et médiation",
             challenges: [],
             code: "dago",
             description: "",
-            domain: "Communication",
+            domain: "Communication et efficacité relationnelle",
             id: "11111111-1111-4111-8111-111111111100",
             name: "Méthode DAGO",
             notationMethodId: null,

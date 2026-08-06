@@ -18,7 +18,7 @@ function roleplay(overrides: Partial<SaveRoleplayInput> = {}): SaveRoleplayInput
         context: "Appel de prospection.",
         description: "Décrocher un rendez-vous.",
         difficulty: "Moyen",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         learnerRole: "Vous incarnez le conseiller chargé d'obtenir un rendez-vous.",
         methodId,
         objective: "Obtenir un créneau.",
@@ -172,6 +172,15 @@ describe("saveRoleplayDto", () => {
             }),
         ]);
         expect(result.status).toBe(CONTENT_STATUS.published);
+    });
+
+    it("rejects a category outside the selected domain", () => {
+        const result = saveRoleplayDto.safeParse(roleplay({ category: "Feedback" }));
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues).toContainEqual(
+            expect.objectContaining({ path: ["category"] }),
+        );
     });
 
     it("accepts an existing background path while editing", () => {

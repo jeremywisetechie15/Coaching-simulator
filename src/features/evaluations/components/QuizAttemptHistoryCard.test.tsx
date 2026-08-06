@@ -16,7 +16,7 @@ const item: QuizAttemptHistoryItem = {
     quiz: {
         categories: ["Vente"],
         difficulty: "Moyen",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         id: "quiz-1",
         status: CONTENT_STATUS.archived,
         title: "Quiz historique",

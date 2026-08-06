@@ -333,7 +333,7 @@ export const methods: Method[] = [
         id: "dago",
         name: "Méthode DAGO",
         subtitle: "Méthode de prise de rendez-vous",
-        category: "Commercial",
+        category: "Prise de rendez-vous",
         description:
             "La prise de rendez-vous B2B vise à obtenir un échange qualifié avec un décideur en créant rapidement légitimité, pertinence et valeur perçue. La méthode DAGO structure l'appel en 4 étapes mémorisables pour : accéder au bon interlocuteur, installer l'intérêt, lever les objections, puis fixer un rendez-vous clair et sécurisé. DAGO signifie: D — Démarrer et passer le barrage (standard / secrétaire) A — Accrocher (se présenter + capter l'intérêt du prospect) G — Gérer (les objections) O — Obtenir (le rendez-vous : conclure et fixer)",
         readingTime: "12 min",
@@ -361,7 +361,7 @@ export const methods: Method[] = [
         id: "4c",
         name: "Méthode 4C",
         subtitle: "Méthode opérationnelle en 4 étapes (4C)",
-        category: "Management",
+        category: "Entretien vente-conseil",
         description:
             "La méthode 4C structure l'entretien commercial en 4 temps clairs — Contact, Connaître, Convaincre, Conclure — pour conduire un échange centré sur le client, de la mise en confiance jusqu'à l'engagement. Elle aide à découvrir les besoins réels avant d'argumenter et à transformer l'intérêt en décision concrète.",
         readingTime: "10 min",
@@ -389,7 +389,7 @@ export const methods: Method[] = [
         id: "acdc",
         name: "Méthode ACDC",
         subtitle: "Méthode d'entretien commercial B2B",
-        category: "Management",
+        category: "Entretien vente-conseil",
         description:
             "La méthode ACDC structure l'entretien commercial B2B en 4 étapes — Accueillir, Cadrer, Découvrir, Confirmer — pour mener une découverte approfondie et un échange consultatif. Elle privilégie l'alignement des attentes et la validation d'un diagnostic partagé avant tout engagement.",
         readingTime: "11 min",

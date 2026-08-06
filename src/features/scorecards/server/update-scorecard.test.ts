@@ -46,7 +46,7 @@ function scorecardInput(): SaveScorecardDto {
     return {
         category: "Prospection",
         description: "Description",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         level: "Intermédiaire",
         methodId,
         name: "Scorecard",

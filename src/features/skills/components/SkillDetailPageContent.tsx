@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ResourceDetailHeader } from "@/features/app-shell/components";
+import { ContentStatusBadge } from "@/features/content/components";
 import { getContentRemovalErrorMessage } from "@/features/content/domain";
 import {
     getSkillLevel,
@@ -112,6 +113,7 @@ export function SkillDetailPageContent({
                         <Text as="h1" className={cn("text-[26px] font-extrabold leading-tight", uiTokens.text.heading)}>
                             {skill.name}
                         </Text>
+                        <ContentStatusBadge status={skill.status} />
                         {skill.isActive && (
                             <Box className="inline-flex h-6 items-center gap-1.5 rounded-full border border-[#BBF7D0] bg-[#F0FDF4] px-2.5 text-[12px] font-semibold text-[#16A34A]">
                                 <Box className="h-1.5 w-1.5 rounded-full bg-[#22C55E]" />

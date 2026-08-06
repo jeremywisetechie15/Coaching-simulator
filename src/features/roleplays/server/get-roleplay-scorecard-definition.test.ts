@@ -6,7 +6,7 @@ const rowsByTable: Record<string, Array<Record<string, unknown>>> = {
     scorecards: [{
         category: "Prospection",
         description: "Grille commerciale",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         id: "scorecard-1",
         level: "Intermédiaire",
         method_id: "method-1",
@@ -90,7 +90,7 @@ describe("getRoleplayScorecardDefinition", () => {
 
         expect(result).toMatchObject({
             category: "Prospection",
-            domain: "Commercial",
+            domain: "Commerce et développement commercial",
             name: "Scorecard test",
         });
         expect(result?.steps).toHaveLength(1);

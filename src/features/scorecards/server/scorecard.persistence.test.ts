@@ -22,7 +22,7 @@ describe("scorecard persistence helpers", () => {
         const input = saveScorecardDto.parse({
             category: "Prospection",
             description: "Scorecard de notation.",
-            domain: "Commercial",
+            domain: "Commerce et développement commercial",
             level: "Intermédiaire",
             methodId,
             name: "Scorecard DAGO",
@@ -157,7 +157,7 @@ describe("scorecard persistence helpers", () => {
                 {
                     category: "Prospection",
                     description: "Scorecard source.",
-                    domain: "Commercial",
+                    domain: "Commerce et développement commercial",
                     level: "Intermédiaire",
                     method_id: methodId,
                     name: "Scorecard DAGO",

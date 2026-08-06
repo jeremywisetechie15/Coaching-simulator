@@ -53,7 +53,7 @@ function skillInput(): SaveSkillDto {
             savoir_etre: [],
             savoir_faire: [],
         },
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         groupId: null,
         id: "",
         name: "Accès au décideur",

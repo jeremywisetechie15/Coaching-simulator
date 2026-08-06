@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { LEARNER_CONTENT_STATUS_FILTER } from "@/features/content/domain";
+import {
+    getCategoriesForDomain,
+    LEARNER_CONTENT_STATUS_FILTER,
+} from "@/features/content/domain";
 import {
     filterRoleplaysByLibraryFilters,
     getRoleplayCategoryFilterOptions,
@@ -15,22 +18,26 @@ describe("roleplay library filters", () => {
         const filtered = filterRoleplaysByLibraryFilters(roleplays, {
             category: roleplayCategoryFilterOptions[0],
             disc: roleplayDiscFilterOptions[0],
-            domain: "Management",
+            domain: "Management, stratégie et transformation",
             learnerStatus: LEARNER_CONTENT_STATUS_FILTER.all,
             level: roleplayLevelFilterOptions[0],
             query: "",
         });
 
         expect(filtered).toHaveLength(1);
-        expect(filtered.every((roleplay) => roleplay.domain === "Management")).toBe(true);
+        expect(
+            filtered.every(
+                (roleplay) => roleplay.domain === "Management, stratégie et transformation",
+            ),
+        ).toBe(true);
         expect(filtered[0]?.name).toBe("Claude SAVARY");
     });
 
     it("combines domain, category, level and DISC filters", () => {
         const filtered = filterRoleplaysByLibraryFilters(roleplays, {
-            category: "Négociation",
+            category: "Négociation commerciale",
             disc: "Influent",
-            domain: "Commercial",
+            domain: "Commerce et développement commercial",
             learnerStatus: LEARNER_CONTENT_STATUS_FILTER.all,
             level: "Facile",
             query: "",
@@ -70,13 +77,9 @@ describe("roleplay library filters", () => {
 
     it("limits category options to the selected domain", () => {
         expect(getRoleplayCategoryFilterOptions(roleplayDomainFilterOptions[0])).toContain("Entretien de Remobilisation");
-        expect(getRoleplayCategoryFilterOptions("Commercial")).toEqual([
+        expect(getRoleplayCategoryFilterOptions("Commerce et développement commercial")).toEqual([
             roleplayCategoryFilterOptions[0],
-            "Prospection",
-            "Négociation",
-            "Vente",
-            "Recommandation",
-            "Prise de rendez-vous",
+            ...getCategoriesForDomain("Commerce et développement commercial"),
         ]);
     });
 });

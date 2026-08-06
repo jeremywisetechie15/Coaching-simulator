@@ -21,7 +21,7 @@ const options = {
             order: 1,
             skillId: "decouverte",
         }],
-        domain: "Commercial" as const,
+        domain: "Commerce et développement commercial" as const,
         id: "decouverte",
         name: "Découverte",
     }],
@@ -33,7 +33,7 @@ const document = {
     data: {
         name: "Scorecard découverte",
         methodId,
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         category: "Prospection",
         level: "Moyen",
         description: "Évaluer un entretien de découverte.",
@@ -97,7 +97,7 @@ describe("scorecard JSON prefill", () => {
         expect(prompt).toContain(organizationId);
         expect(prompt).toContain("dimensionItemId doit appartenir");
         expect(prompt).toContain('Dimensions autorisées : ["savoir_faire","savoir_etre"]');
-        expect(prompt).toContain('Domaines autorisés : ["Commercial"');
+        expect(prompt).toContain('Domaines autorisés : ["Management, stratégie et transformation"');
         expect(prompt).toContain('Niveaux autorisés : ["Débutant","Moyen","Avancé","Expert"]');
         expect(prompt).toContain('Visibilités autorisées : ["public","private"]');
         expect(prompt).toContain('applique la règle client visibility="public" avec organizationId=null');

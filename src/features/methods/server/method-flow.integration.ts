@@ -13,19 +13,19 @@ import { createMethodInsert, createMethodUpdate, createResourceRows } from "./me
 describe("method write/read flow", () => {
     it("persists the same domain and category on create and update", () => {
         const input = saveMethodDto.parse({
-            category: "Gestion des conflits",
-            domain: "Communication",
+            category: "Gestion des conflits et médiation",
+            domain: "Communication et efficacité relationnelle",
             name: "Méthode ACOR",
             steps: [{ title: "Accueillir" }],
         });
 
         expect(createMethodInsert(input, "acor", "11111111-1111-4111-8111-111111111110")).toMatchObject({
-            category: "Gestion des conflits",
-            domain: "Communication",
+            category: "Gestion des conflits et médiation",
+            domain: "Communication et efficacité relationnelle",
         });
         expect(createMethodUpdate(input)).toMatchObject({
-            category: "Gestion des conflits",
-            domain: "Communication",
+            category: "Gestion des conflits et médiation",
+            domain: "Communication et efficacité relationnelle",
         });
     });
 

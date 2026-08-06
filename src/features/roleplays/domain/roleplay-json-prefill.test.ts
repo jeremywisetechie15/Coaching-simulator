@@ -43,7 +43,7 @@ function payload(overrides: Record<string, unknown> = {}) {
             coachId: "coach-1",
             context: "Premier appel.",
             difficulty: "Moyen",
-            domain: "Commercial",
+            domain: "Commerce et développement commercial",
             estimatedDurationMinutes: 10,
             groupId: null,
             learnerRole: "Vous incarnez la commerciale.",

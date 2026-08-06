@@ -17,10 +17,10 @@ vi.mock("next/navigation", () => ({
 
 const editedSkill: SkillDetail = {
     assignedUserId: null,
-    category: "Gestion des conflits",
+    category: "Gestion des conflits et médiation",
     description: "Prévenir et résoudre un désaccord.",
     dimensionItems: [],
-    domain: "Communication",
+    domain: "Communication et efficacité relationnelle",
     groupId: null,
     id: "gestion-conflits",
     isActive: true,

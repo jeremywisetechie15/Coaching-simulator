@@ -80,7 +80,7 @@ export const roleplays: RoleplayItem[] = [
     {
         id: "rachid-hamrani",
         category: "Prise de rendez-vous",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         name: "Rachid HAMRANI",
         role: "Dirigeant",
         company: "CLEANTECH",
@@ -118,7 +118,7 @@ export const roleplays: RoleplayItem[] = [
     {
         id: "claude-savary",
         category: "Entretien de Remobilisation",
-        domain: "Management",
+        domain: "Management, stratégie et transformation",
         name: "Claude SAVARY",
         role: "Commercial Senior",
         company: "INNOVATECH",
@@ -154,8 +154,8 @@ export const roleplays: RoleplayItem[] = [
     },
     {
         id: "sophie-martin",
-        category: "Négociation",
-        domain: "Commercial",
+        category: "Négociation commerciale",
+        domain: "Commerce et développement commercial",
         name: "Sophie Martin",
         role: "Directrice des Achats",
         company: "TechCorp",
@@ -191,7 +191,7 @@ export const roleplays: RoleplayItem[] = [
     {
         id: "marc-dubois",
         category: "Vente",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         name: "Marc Dubois",
         role: "Directeur Commercial",
         company: "Innovatech",
@@ -228,7 +228,7 @@ export const roleplays: RoleplayItem[] = [
     {
         id: "thomas-lion",
         category: "Vente",
-        domain: "Commercial",
+        domain: "Commerce et développement commercial",
         name: "Thomas Lion",
         role: "CEO",
         company: "INNOVATECH",
