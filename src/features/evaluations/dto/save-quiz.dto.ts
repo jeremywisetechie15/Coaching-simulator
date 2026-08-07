@@ -142,7 +142,9 @@ export const saveQuizDto = z
         methodId: z.string().uuid("La méthode associée est invalide.").nullable().optional().default(null),
         organizationId: z.string().uuid("L'organisation sélectionnée est invalide.").nullable().optional().default(null),
         participation: z.enum(QUIZ_PARTICIPATIONS).optional().default("optional"),
-        quizKind: z.enum(QUIZ_KINDS).optional().default("contextual"),
+        quizKind: z.enum(QUIZ_KINDS, {
+            message: "L’usage du quiz est requis.",
+        }),
         quizType: z.enum(QUIZ_TYPES).optional().default("knowledge"),
         scope: z.enum(QUIZ_VISIBILITY_SCOPES).optional().default("public"),
         status: z.enum(CONTENT_STATUSES).optional().default("draft"),

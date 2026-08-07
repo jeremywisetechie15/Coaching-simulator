@@ -40,9 +40,13 @@ import {
     QUIZ_ATTEMPT_EDIT_RESTRICTION_MESSAGE,
     QUIZ_PARTICIPATION_LABELS,
     QUIZ_PARTICIPATIONS,
+    QUIZ_KIND,
+    QUIZ_KIND_LABELS,
+    QUIZ_KINDS,
     QUIZ_TYPE_LABELS,
     QUIZ_TYPES,
     hasActiveQuizKnowledgeItem,
+    isQuizMethodSelectableForKind,
     buildQuizJsonPrefillPrompt,
     parseQuizJsonPrefillText,
     type QuizDetail,
@@ -219,8 +223,19 @@ export function CreateQuizPageContent({
     );
 
     const methodSelectOptions = [
-        { label: "Aucune", value: "" },
-        ...methodOptions.map(toMethodSelectOption),
+        {
+            disabled: form.quizKind === QUIZ_KIND.methodKnowledge,
+            label: "Aucune",
+            value: "",
+        },
+        ...methodOptions.map((method) => toMethodSelectOption({
+            ...method,
+            isSelectable: isQuizMethodSelectableForKind(
+                method,
+                form.quizKind,
+                initialQuiz?.id,
+            ),
+        })),
     ];
     const selectedMethod = methodOptions.find((method) => method.id === form.methodId) ?? null;
     const methodGeneratedStepCount = form.steps.filter((step) => step.methodStepId !== null).length;
@@ -257,6 +272,11 @@ export function CreateQuizPageContent({
         [form.steps],
     );
 
+    const quizUsageReady = form.quizKind === QUIZ_KIND.contextual || Boolean(
+        form.quizKind === QUIZ_KIND.methodKnowledge &&
+        selectedMethod &&
+        isQuizMethodSelectableForKind(selectedMethod, form.quizKind, initialQuiz?.id),
+    );
     const isPrivate = form.scope !== "public";
     const scopeTargetReady =
         form.scope === "public" ||
@@ -264,6 +284,7 @@ export function CreateQuizPageContent({
         (form.scope === "group" && Boolean(form.organizationId) && Boolean(form.groupId.trim())) ||
         (form.scope === "user" && Boolean(form.assignedUserId.trim()));
     const canSaveDraft =
+        quizUsageReady &&
         form.title.trim().length > 0 &&
         Object.keys(jsonPrefillFieldErrors).length === 0;
     const canPublish =
@@ -302,7 +323,7 @@ export function CreateQuizPageContent({
             userOptions,
         });
         const draft = result.draft;
-        setForm((current) => ({
+        setForm(() => ({
             assignedUserId: draft.assignedUserId,
             categories: draft.categories,
             description: draft.description,
@@ -314,7 +335,7 @@ export function CreateQuizPageContent({
             methodId: draft.methodId,
             organizationId: draft.organizationId,
             participation: draft.participation,
-            quizKind: current.quizKind,
+            quizKind: draft.quizKind,
             quizType: draft.quizType,
             scope: draft.scope,
             steps: draft.steps.map((step) => ({
@@ -578,8 +599,13 @@ export function CreateQuizPageContent({
     }
 
     function selectMethod(value: string) {
-        const methodId = value || null;
-        const selectedMethod = methodOptions.find((method) => method.id === methodId);
+        const requestedMethodId = value || null;
+        const selectedMethod = methodOptions.find(
+            (method) =>
+                method.id === requestedMethodId &&
+                isQuizMethodSelectableForKind(method, form.quizKind, initialQuiz?.id),
+        );
+        const methodId = selectedMethod?.id ?? null;
         clearJsonPrefillError("methodId");
         clearJsonPrefillError("steps", true);
 
@@ -593,6 +619,37 @@ export function CreateQuizPageContent({
                       methodStepId: null,
                   })),
         }));
+    }
+
+    function selectQuizKind(value: string) {
+        const quizKind = QUIZ_KINDS.find((kind) => kind === value) ?? null;
+        clearJsonPrefillError("quizKind");
+        clearJsonPrefillError("methodId");
+
+        setForm((current) => {
+            const selectedMethod = methodOptions.find(
+                (method) => method.id === current.methodId,
+            );
+            const keepMethod = selectedMethod && isQuizMethodSelectableForKind(
+                selectedMethod,
+                quizKind,
+                initialQuiz?.id,
+            );
+
+            if (keepMethod) {
+                return { ...current, quizKind };
+            }
+
+            return {
+                ...current,
+                methodId: null,
+                quizKind,
+                steps: current.steps.map((step) => ({
+                    ...step,
+                    methodStepId: null,
+                })),
+            };
+        });
     }
 
     function collectUploadFiles(): QuizUploadFile[] {
@@ -750,6 +807,21 @@ export function CreateQuizPageContent({
                                 <FieldErrorMessage message={jsonPrefillFieldErrors.title} />
                             </Box>
                             <Box>
+                                <FieldLabel required className={uiTokens.form.label}>Usage du quiz</FieldLabel>
+                                <SingleSelectField
+                                    disabled={hasExistingAttempts}
+                                    hasError={Boolean(jsonPrefillFieldErrors.quizKind)}
+                                    options={QUIZ_KINDS.map((kind) => ({
+                                        label: QUIZ_KIND_LABELS[kind],
+                                        value: kind,
+                                    }))}
+                                    value={form.quizKind ?? ""}
+                                    placeholder="Sélectionner un usage"
+                                    onChange={selectQuizKind}
+                                />
+                                <FieldErrorMessage message={jsonPrefillFieldErrors.quizKind} />
+                            </Box>
+                            <Box>
                                 <FieldLabel className={uiTokens.form.label}>Type de quiz</FieldLabel>
                                 <SingleSelectField
                                     disabled={hasExistingAttempts}
@@ -847,13 +919,20 @@ export function CreateQuizPageContent({
                                 <FieldErrorMessage message={jsonPrefillFieldErrors.categories} />
                             </Box>
                             <Box>
-                                <FieldLabel className={uiTokens.form.label}>Méthode de référence</FieldLabel>
+                                <FieldLabel
+                                    required={form.quizKind === QUIZ_KIND.methodKnowledge}
+                                    className={uiTokens.form.label}
+                                >
+                                    Méthode de référence
+                                </FieldLabel>
                                 <SingleSelectField
                                     disabled={hasExistingAttempts}
                                     hasError={Boolean(jsonPrefillFieldErrors.methodId)}
                                     options={methodSelectOptions}
                                     value={form.methodId ?? ""}
-                                    placeholder="Aucune"
+                                    placeholder={form.quizKind === QUIZ_KIND.methodKnowledge
+                                        ? "Sélectionner une méthode"
+                                        : "Aucune"}
                                     onChange={selectMethod}
                                 />
                                 <FieldErrorMessage message={jsonPrefillFieldErrors.methodId} />

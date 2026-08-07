@@ -1,6 +1,7 @@
 import { requireAuth } from "@/features/auth/server";
 import { isSelectableContent } from "@/features/content/domain";
 import { QUIZ_KIND, type QuizListItem, type QuizOption } from "@/features/evaluations/domain/quiz";
+import { isQuizAssignableAsMethodKnowledge } from "@/features/methods/domain/method-quiz-selection";
 import { createClient } from "@/lib/supabase/server";
 import { fetchQuizList } from "./quiz-query";
 import { getQuizById } from "./get-quiz-by-id";
@@ -16,14 +17,15 @@ interface ListQuizSelectionOptionsParams extends ListQuizOptionsParams {
 
 function filterQuizOptions(quizzes: QuizListItem[], params: ListQuizOptionsParams) {
     return quizzes.filter((quiz) => {
-        const isCurrentMethodQuiz = Boolean(
-            params.availableForMethodId
-            && quiz.methodId === params.availableForMethodId
-            && quiz.kind === QUIZ_KIND.methodKnowledge
-        );
+        if (params.availableForMethodId) {
+            return isQuizAssignableAsMethodKnowledge(quiz, params.availableForMethodId);
+        }
 
-        if (params.unassignedOnly && quiz.methodId && !isCurrentMethodQuiz) return false;
-        return !params.availableForMethodId || !quiz.methodId || quiz.methodId === params.availableForMethodId;
+        if (params.unassignedOnly) {
+            return isQuizAssignableAsMethodKnowledge(quiz, null);
+        }
+
+        return true;
     });
 }
 

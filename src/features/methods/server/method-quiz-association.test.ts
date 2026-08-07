@@ -30,7 +30,12 @@ function createFakeSupabase(rows: FakeQuizRow[]) {
                                 return {
                                     maybeSingle: async () => {
                                         const row = rows.find((item) => item[column as keyof FakeQuizRow] === value) ?? null;
-                                        return { data: row, error: null };
+                                        return {
+                                            data: row
+                                                ? { ...row, is_active: true, status: "published" }
+                                                : null,
+                                            error: null,
+                                        };
                                     },
                                 };
                             },

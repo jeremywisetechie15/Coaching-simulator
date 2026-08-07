@@ -38,6 +38,20 @@ export function parseEntityJsonPrefillData(
     entityLabel: string,
     schemaVersion = 1,
 ) {
+    return parseEntityJsonPrefillDocument(
+        text,
+        expectedEntityType,
+        entityLabel,
+        [schemaVersion],
+    ).data;
+}
+
+export function parseEntityJsonPrefillDocument(
+    text: string,
+    expectedEntityType: string,
+    entityLabel: string,
+    acceptedSchemaVersions: readonly number[],
+) {
     const normalizedText = text.replace(/^\uFEFF/, "").trim();
     if (!normalizedText) {
         throw new Error("Le fichier JSON est vide.");
@@ -54,13 +68,20 @@ export function parseEntityJsonPrefillData(
         throw new Error("La racine du fichier JSON doit être un objet.");
     }
 
-    if (payload.schemaVersion !== schemaVersion) {
-        throw new Error(`La version du fichier doit être ${schemaVersion}.`);
+    if (
+        typeof payload.schemaVersion !== "number" ||
+        !acceptedSchemaVersions.includes(payload.schemaVersion)
+    ) {
+        const expectedVersions = acceptedSchemaVersions.join(" ou ");
+        throw new Error(`La version du fichier doit être ${expectedVersions}.`);
     }
 
     if (payload.entityType !== expectedEntityType) {
         throw new Error(`Ce fichier JSON ne correspond pas à ${entityLabel}.`);
     }
 
-    return isJsonPrefillRecord(payload.data) ? payload.data : {};
+    return {
+        data: isJsonPrefillRecord(payload.data) ? payload.data : {},
+        schemaVersion: payload.schemaVersion,
+    };
 }

@@ -12,6 +12,7 @@ export * from "./list-quiz-form-options";
 export * from "./list-quiz-target-options";
 export * from "./list-quizzes";
 export * from "./quiz-question-counts";
+export * from "./quiz-method-selection.validation";
 export * from "./quiz-attempt-edit-policy";
 export * from "./revalidate-quiz-consumers";
 export * from "./save-quiz-request";

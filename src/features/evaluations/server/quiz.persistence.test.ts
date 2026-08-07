@@ -166,6 +166,7 @@ describe("quiz persistence helpers", () => {
 
     it("marks archived quiz updates inactive", () => {
         const input = saveQuizDto.parse({
+            quizKind: QUIZ_KIND.contextual,
             status: CONTENT_STATUS.archived,
             title: "Quiz archivé",
         });
@@ -177,7 +178,10 @@ describe("quiz persistence helpers", () => {
     });
 
     it("persists a renamed title in quiz updates", () => {
-        const input = saveQuizDto.parse({ title: "Nouveau titre du quiz" });
+        const input = saveQuizDto.parse({
+            quizKind: QUIZ_KIND.contextual,
+            title: "Nouveau titre du quiz",
+        });
 
         expect(createQuizUpdate(input).title).toBe("Nouveau titre du quiz");
     });
@@ -185,6 +189,7 @@ describe("quiz persistence helpers", () => {
     it("persists unlimited attempts as null", () => {
         const input = saveQuizDto.parse({
             maxAttempts: null,
+            quizKind: QUIZ_KIND.contextual,
             title: "Quiz sans limite",
         });
 
@@ -194,6 +199,7 @@ describe("quiz persistence helpers", () => {
 
     it("preserves an incomplete private visibility target for a draft", () => {
         const input = saveQuizDto.parse({
+            quizKind: QUIZ_KIND.contextual,
             scope: QUIZ_VISIBILITY_SCOPE.organization,
             title: "Quiz privé en préparation",
         });

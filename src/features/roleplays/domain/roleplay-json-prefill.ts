@@ -42,6 +42,7 @@ import type {
     RoleplayUserOption,
 } from "./roleplay";
 import { getAssignableRoleplayQuizOptions } from "./roleplay-quiz-assignment";
+import { getAssignableRoleplayScorecardOptions } from "./roleplay-scorecard-selection";
 
 export const ROLEPLAY_JSON_PREFILL_SCHEMA_VERSION = 1;
 export const ROLEPLAY_JSON_PREFILL_ENTITY_TYPE = "roleplay";
@@ -227,12 +228,10 @@ export function parseRoleplayJsonPrefillText(
 
     let scorecardId: string | null = null;
     if (data.scorecardId !== null) {
-        const scorecard = options.scorecardOptions.find(
-            (option) =>
-                option.isSelectable !== false &&
-                option.id === data.scorecardId &&
-                option.methodId === methodId,
-        );
+        const scorecard = getAssignableRoleplayScorecardOptions(
+            options.scorecardOptions,
+            methodId,
+        ).find((option) => option.id === data.scorecardId);
         if (scorecard) scorecardId = scorecard.id;
         else errors.scorecardId = "La scorecard doit être disponible et appartenir à la méthode sélectionnée.";
     }
@@ -243,7 +242,6 @@ export function parseRoleplayJsonPrefillText(
     } else {
         const allowedQuizIds = new Set(
             getAssignableRoleplayQuizOptions(options.quizOptions, methodId)
-                .filter((quiz) => quiz.isSelectable !== false)
                 .map((quiz) => quiz.id),
         );
         quizIds = [...new Set(data.quizIds.flatMap((value, index) => {

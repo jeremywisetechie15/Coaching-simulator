@@ -51,7 +51,10 @@ function publishedQuiz(overrides: Partial<SaveQuizInput> = {}): SaveQuizInput {
 
 describe("saveQuizDto", () => {
     it("accepts a minimal contextual draft", () => {
-        const result = saveQuizDto.parse({ title: "Quiz brouillon" });
+        const result = saveQuizDto.parse({
+            quizKind: QUIZ_KIND.contextual,
+            title: "Quiz brouillon",
+        });
 
         expect(result.categories).toEqual([]);
         expect(result.difficulty).toBeNull();
@@ -68,13 +71,18 @@ describe("saveQuizDto", () => {
     it.each(["Facile", "Moyen", "Difficile"] as const)(
         "accepts the shared %s difficulty",
         (difficulty) => {
-            expect(saveQuizDto.parse({ difficulty, title: "Quiz" }).difficulty).toBe(difficulty);
+            expect(saveQuizDto.parse({
+                difficulty,
+                quizKind: QUIZ_KIND.contextual,
+                title: "Quiz",
+            }).difficulty).toBe(difficulty);
         },
     );
 
     it("rejects a difficulty outside the shared vocabulary", () => {
         const result = saveQuizDto.safeParse({
             difficulty: "Expert",
+            quizKind: QUIZ_KIND.contextual,
             title: "Quiz",
         });
 
@@ -136,6 +144,7 @@ describe("saveQuizDto", () => {
     it("accepts unlimited attempts", () => {
         const result = saveQuizDto.parse({
             maxAttempts: null,
+            quizKind: QUIZ_KIND.contextual,
             title: "Quiz sans limite",
         });
 
@@ -145,6 +154,7 @@ describe("saveQuizDto", () => {
     it.each([0, -1, 1.5])("rejects an invalid %s attempt limit", (maxAttempts) => {
         const result = saveQuizDto.safeParse({
             maxAttempts,
+            quizKind: QUIZ_KIND.contextual,
             title: "Quiz invalide",
         });
 
@@ -169,7 +179,11 @@ describe("saveQuizDto", () => {
         QUIZ_VISIBILITY_SCOPE.group,
         QUIZ_VISIBILITY_SCOPE.user,
     ])("accepts an incomplete %s visibility target in a draft", (scope) => {
-        const result = saveQuizDto.parse({ scope, title: "Quiz privé" });
+        const result = saveQuizDto.parse({
+            quizKind: QUIZ_KIND.contextual,
+            scope,
+            title: "Quiz privé",
+        });
 
         expect(result.scope).toBe(scope);
         expect(result.organizationId).toBeNull();

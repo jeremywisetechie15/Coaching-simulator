@@ -2,6 +2,7 @@ import {
     type RoleplayQuizAssignmentIssue,
     validateRoleplayQuizAssignments,
 } from "@/features/roleplays/domain";
+import { isSelectableContent, type ContentStatus } from "@/features/content/domain";
 import type { QuizKind } from "@/features/evaluations/domain";
 import type { SaveRoleplayDto } from "@/features/roleplays/dto";
 import { AppError } from "@/lib/server/errors";
@@ -9,9 +10,11 @@ import { createAdminClient } from "@/lib/supabase/admin";
 
 interface QuizAssignmentRow {
     id: string;
+    is_active: boolean;
     method_id: string | null;
     quiz_kind: QuizKind;
     title: string | null;
+    status: ContentStatus;
 }
 
 function getQuizAssignmentIssueMessage(issue: RoleplayQuizAssignmentIssue) {
@@ -26,6 +29,8 @@ function getQuizAssignmentIssueMessage(issue: RoleplayQuizAssignmentIssue) {
             return `Le quiz${title} est déjà inclus comme quiz principal de la méthode sélectionnée.`;
         case "quiz_not_found":
             return "Un quiz sélectionné est introuvable.";
+        case "quiz_unavailable":
+            return `Le quiz${title} n’est plus disponible.`;
     }
 }
 
@@ -37,7 +42,7 @@ export async function assertRoleplayQuizzesMatchMethod(input: SaveRoleplayDto) {
     const adminSupabase = createAdminClient();
     const { data, error } = await adminSupabase
         .from("quizzes")
-        .select("id, method_id, quiz_kind, title")
+        .select("id, method_id, quiz_kind, title, status, is_active")
         .in("id", quizIds);
 
     if (error) throw error;
@@ -47,6 +52,7 @@ export async function assertRoleplayQuizzesMatchMethod(input: SaveRoleplayDto) {
         quizIds,
         quizzes: ((data ?? []) as QuizAssignmentRow[]).map((quiz) => ({
             id: quiz.id,
+            isSelectable: isSelectableContent(quiz.status, quiz.is_active),
             kind: quiz.quiz_kind,
             methodId: quiz.method_id,
             title: quiz.title,

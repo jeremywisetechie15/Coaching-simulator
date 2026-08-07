@@ -1,5 +1,9 @@
 import { requireAdmin } from "@/features/auth/server";
-import type { RoleplayDetail } from "@/features/roleplays/domain";
+import { isSelectableContent, type ContentStatus } from "@/features/content/domain";
+import {
+    isRoleplayScorecardAssignableForMethod,
+    type RoleplayDetail,
+} from "@/features/roleplays/domain";
 import type { SaveRoleplayDto } from "@/features/roleplays/dto";
 import { AppError } from "@/lib/server/errors";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -35,14 +39,19 @@ export async function resolveNotationMethodId(methodId: string | null) {
 }
 
 export async function assertScorecardMatchesMethod(input: SaveRoleplayDto) {
-    if (!input.scorecardId || !input.methodId) return;
+    if (!input.scorecardId) return;
 
     const adminSupabase = createAdminClient();
     const { data, error } = await adminSupabase
         .from("scorecards")
-        .select("method_id")
+        .select("id, method_id, status, is_active")
         .eq("id", input.scorecardId)
-        .maybeSingle<{ method_id: string | null }>();
+        .maybeSingle<{
+            id: string;
+            is_active: boolean;
+            method_id: string | null;
+            status: ContentStatus;
+        }>();
 
     if (error) throw error;
 
@@ -50,7 +59,11 @@ export async function assertScorecardMatchesMethod(input: SaveRoleplayDto) {
         throw new AppError("La scorecard sélectionnée est introuvable.", 400, "VALIDATION_ERROR");
     }
 
-    if (data.method_id !== input.methodId) {
+    if (!isRoleplayScorecardAssignableForMethod({
+        id: data.id,
+        isSelectable: isSelectableContent(data.status, data.is_active),
+        methodId: data.method_id,
+    }, input.methodId)) {
         throw new AppError("La scorecard sélectionnée ne correspond pas à la méthode du roleplay.", 400, "VALIDATION_ERROR");
     }
 }

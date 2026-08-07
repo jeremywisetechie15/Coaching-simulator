@@ -3,6 +3,7 @@ import type { RoleplayQuizOption } from "./roleplay";
 
 export interface RoleplayQuizAssignmentCandidate {
     id: string;
+    isSelectable?: boolean;
     kind: QuizKind;
     methodId: string | null;
     title?: string | null;
@@ -10,6 +11,7 @@ export interface RoleplayQuizAssignmentCandidate {
 
 export type RoleplayQuizAssignmentIssueCode =
     | "method_required"
+    | "quiz_unavailable"
     | "quiz_linked_to_other_method"
     | "selected_method_knowledge_quiz"
     | "quiz_not_found";
@@ -24,7 +26,7 @@ export function isRoleplayQuizAssignableForMethod(
     quiz: RoleplayQuizAssignmentCandidate,
     methodId: string | null | undefined,
 ) {
-    if (!methodId) return false;
+    if (!methodId || quiz.isSelectable === false) return false;
 
     if (quiz.methodId && quiz.methodId !== methodId) return false;
 
@@ -71,6 +73,11 @@ export function validateRoleplayQuizAssignments({
 
         if (!methodId) {
             issues.push({ code: "method_required", quizId, title: quiz.title });
+            continue;
+        }
+
+        if (quiz.isSelectable === false) {
+            issues.push({ code: "quiz_unavailable", quizId, title: quiz.title });
             continue;
         }
 

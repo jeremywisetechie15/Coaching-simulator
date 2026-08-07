@@ -16,6 +16,7 @@ export * from "./roleplay-publication";
 export * from "./roleplay-quiz-assignment";
 export * from "./roleplay-routes";
 export * from "./roleplay-score";
+export * from "./roleplay-scorecard-selection";
 export * from "./roleplay-session-edit-policy";
 export * from "./roleplay-session-evaluation-score";
 export * from "./roleplay-session-eligibility";

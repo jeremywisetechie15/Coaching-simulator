@@ -50,6 +50,7 @@ import {
     buildMethodJsonPrefillPrompt,
     parseMethodJsonPrefillText,
 } from "@/features/methods/domain/method-json-prefill";
+import { getMethodKnowledgeQuizOptions } from "@/features/methods/domain/method-quiz-selection";
 import {
     CONTENT_RESOURCE_DELIVERY_OPTIONS,
     type ContentResourceDeliveryType,
@@ -435,10 +436,9 @@ export function CreateMethodPageContent({
         label: getEntitySelectionLabel(organization.name, organization),
         value: organization.id,
     }));
-    const availableQuizOptions = quizOptions.filter((quiz) =>
-        initialMethod
-            ? !quiz.methodId || (quiz.methodId === initialMethod.id && quiz.kind === QUIZ_KIND.methodKnowledge)
-            : !quiz.methodId,
+    const availableQuizOptions = getMethodKnowledgeQuizOptions(
+        quizOptions,
+        initialMethod?.id ?? null,
     );
     const initialQuizId = initialMethod
         ? availableQuizOptions.find(

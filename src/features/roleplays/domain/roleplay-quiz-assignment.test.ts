@@ -4,6 +4,7 @@ import type { RoleplayQuizOption } from "./roleplay";
 import {
     getAssignableRoleplayQuizOptions,
     getRoleplayMethodKnowledgeQuizOption,
+    isRoleplayQuizAssignableForMethod,
     validateRoleplayQuizAssignments,
 } from "./roleplay-quiz-assignment";
 
@@ -49,6 +50,15 @@ const quizzes: RoleplayQuizOption[] = [
 ];
 
 describe("roleplay quiz assignment", () => {
+    it("rejects an unavailable quiz even when its method matches", () => {
+        expect(isRoleplayQuizAssignableForMethod({
+            id: "quiz-unavailable",
+            isSelectable: false,
+            kind: QUIZ_KIND.contextual,
+            methodId,
+        }, methodId)).toBe(false);
+    });
+
     it("exposes quizzes without a method or with the roleplay method", () => {
         expect(getAssignableRoleplayQuizOptions(quizzes, methodId).map((quiz) => quiz.id)).toEqual([
             "11111111-1111-4111-8111-111111111111",

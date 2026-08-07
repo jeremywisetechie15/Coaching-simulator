@@ -113,7 +113,7 @@ export interface QuizFormState {
     methodId: string | null;
     organizationId: string | null;
     participation: QuizParticipation;
-    quizKind: QuizKind;
+    quizKind: QuizKind | null;
     quizType: QuizType;
     scope: QuizVisibilityScope;
     steps: QuizStepFormState[];
@@ -367,6 +367,10 @@ export function quizToFormState(
 }
 
 export function toSaveQuizInput(form: QuizFormState, status: ContentStatus): SaveQuizInput {
+    if (!form.quizKind) {
+        throw new Error("L’usage du quiz doit être sélectionné avant l’enregistrement.");
+    }
+
     return {
         assignedUserId: form.scope === "user" ? textOrNull(form.assignedUserId) : null,
         categories: form.domain ? cleanList(form.categories) : [],

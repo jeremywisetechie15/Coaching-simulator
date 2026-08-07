@@ -10,7 +10,7 @@ import {
     buildEntityJsonPrefillLiveCatalogInstruction,
     buildEntityJsonPrefillPromptPreamble,
     isJsonPrefillRecord,
-    parseEntityJsonPrefillData,
+    parseEntityJsonPrefillDocument,
     readJsonPrefillText,
     requireJsonPrefillKeys,
     type EntityJsonPrefillFieldErrors,
@@ -19,12 +19,15 @@ import type { SkillOption } from "@/features/skills/domain/skills";
 import {
     QUIZ_ATTACHMENT_TYPES,
     QUIZ_EVALUATED_DIMENSION,
+    QUIZ_KIND,
+    QUIZ_KINDS,
     QUIZ_PARTICIPATIONS,
     QUIZ_QUESTION_TYPES,
     QUIZ_TYPES,
     QUIZ_VISIBILITY_SCOPES,
     type QuizAttachmentType,
     type QuizGroupOption,
+    type QuizKind,
     type QuizMethodOption,
     type QuizOrganizationOption,
     type QuizParticipation,
@@ -33,8 +36,13 @@ import {
     type QuizUserOption,
     type QuizVisibilityScope,
 } from "./quiz";
+import {
+    getQuizMethodOptionsForKind,
+    isQuizMethodSelectableForKind,
+} from "./quiz-method-selection";
 
-export const QUIZ_JSON_PREFILL_SCHEMA_VERSION = 1;
+export const QUIZ_JSON_PREFILL_SCHEMA_VERSION = 2;
+export const QUIZ_JSON_PREFILL_LEGACY_SCHEMA_VERSION = 1;
 export const QUIZ_JSON_PREFILL_ENTITY_TYPE = "quiz";
 
 const QUIZ_SOURCE_ANALYSIS_INSTRUCTIONS = [
@@ -42,6 +50,7 @@ const QUIZ_SOURCE_ANALYSIS_INSTRUCTIONS = [
     "Lis toutes les sections, tableaux, annexes et exemples avant de rédiger les questions. Couvre les notions importantes sans créer de doublons artificiels.",
     "Le titre doit résumer le quiz en 180 caractères maximum et la description doit préciser ce qui est évalué en 4 000 caractères maximum.",
     "Utilise quizType=\"knowledge\" par défaut. Utilise quizType=\"self_assessment\" uniquement si le document décrit explicitement une auto-évaluation ou un auto-positionnement.",
+    "Utilise quizKind=\"method_knowledge\" uniquement si la source décrit le quiz principal de validation d’une méthode. Utilise quizKind=\"contextual\" pour un quiz complémentaire ou contextuel.",
     "Si une méthode disponible correspond sans ambiguïté au document, utilise son methodId exact et inclus chacune de ses étapes exactement une fois avec son methodStepId exact. Sinon, utilise methodId=null, methodStepId=null et construis des étapes thématiques fidèles au document.",
     "Associe chaque étape et chaque question aux compétences et items Savoir disponibles par correspondance sémantique. Une question ne peut utiliser qu’une competenceId déjà présente dans competenceIds de son étape.",
     "Si le document fournit des pondérations d’étapes valides, entières et totalisant 100, conserve-les. Sinon, répartis 100 équitablement entre les étapes en nombres entiers et attribue le reliquat d’un point aux premières étapes.",
@@ -99,6 +108,7 @@ export interface QuizJsonPrefillDraft {
     methodId: string | null;
     organizationId: string | null;
     participation: QuizParticipation;
+    quizKind: QuizKind | null;
     quizType: QuizType;
     scope: QuizVisibilityScope;
     steps: QuizJsonPrefillStepDraft[];
@@ -175,11 +185,11 @@ export function parseQuizJsonPrefillText(
         userOptions,
     }: QuizJsonPrefillOptions,
 ): QuizJsonPrefillResult {
-    const data = parseEntityJsonPrefillData(
+    const { data, schemaVersion } = parseEntityJsonPrefillDocument(
         text,
         QUIZ_JSON_PREFILL_ENTITY_TYPE,
         "un quiz",
-        QUIZ_JSON_PREFILL_SCHEMA_VERSION,
+        [QUIZ_JSON_PREFILL_LEGACY_SCHEMA_VERSION, QUIZ_JSON_PREFILL_SCHEMA_VERSION],
     );
     const errors: EntityJsonPrefillFieldErrors = {};
     requireJsonPrefillKeys(
@@ -192,6 +202,18 @@ export function parseQuizJsonPrefillText(
         "",
         errors,
     );
+
+    if (schemaVersion === QUIZ_JSON_PREFILL_SCHEMA_VERSION) {
+        requireJsonPrefillKeys(data, ["quizKind"], "", errors);
+    }
+
+    const quizKindResult = z.enum(QUIZ_KINDS).safeParse(data.quizKind);
+    const quizKind = quizKindResult.success ? quizKindResult.data : null;
+    if (!quizKindResult.success) {
+        errors.quizKind = schemaVersion === QUIZ_JSON_PREFILL_LEGACY_SCHEMA_VERSION
+            ? "Ancien format détecté : choisissez explicitement l’usage du quiz avant d’enregistrer."
+            : `L’usage doit être l’une des valeurs suivantes : ${QUIZ_KINDS.join(", ")}.`;
+    }
 
     const quizTypeResult = z.enum(QUIZ_TYPES).safeParse(data.quizType);
     if (!quizTypeResult.success) errors.quizType = `Le type doit être l’une des valeurs suivantes : ${QUIZ_TYPES.join(", ")}.`;
@@ -236,12 +258,20 @@ export function parseQuizJsonPrefillText(
         else errors.validationThreshold = "Le seuil doit être null ou un entier compris entre 0 et 100.";
     }
 
-    const selectableMethods = methodOptions.filter((option) => option.isSelectable !== false);
+    const selectableMethods = getQuizMethodOptionsForKind(
+        methodOptions,
+        quizKind ?? QUIZ_KIND.contextual,
+    );
     const selectedMethod = data.methodId === null
         ? null
         : selectableMethods.find((option) => option.id === data.methodId) ?? null;
     if (data.methodId !== null && !selectedMethod) {
-        errors.methodId = "Aucune méthode disponible ne correspond à cet identifiant.";
+        errors.methodId = quizKind === QUIZ_KIND.methodKnowledge
+            ? "Cette méthode possède déjà un autre quiz principal ou n’est pas disponible."
+            : "Aucune méthode disponible ne correspond à cet identifiant.";
+    }
+    if (quizKind === QUIZ_KIND.methodKnowledge && !selectedMethod) {
+        errors.methodId = "Un quiz principal doit être rattaché à une méthode disponible sans autre quiz principal.";
     }
 
     const scope = scopeResult.success ? scopeResult.data : "public";
@@ -441,6 +471,7 @@ export function parseQuizJsonPrefillText(
             methodId: selectedMethod?.id ?? null,
             organizationId,
             participation: participationResult.success ? participationResult.data : "optional",
+            quizKind,
             quizType: quizTypeResult.success ? quizTypeResult.data : "knowledge",
             scope,
             steps,
@@ -459,10 +490,15 @@ export function buildQuizJsonPrefillPrompt({
     skillOptions,
     userOptions,
 }: QuizJsonPrefillOptions) {
-    const methods = methodOptions.filter((method) => method.isSelectable !== false).map(({ id, name, steps }) => ({
-        id,
-        name,
-        steps: steps.map(({ id: stepId, order, title, weight }) => ({ id: stepId, order, title, weight })),
+    const methods = methodOptions.filter((method) => method.isSelectable !== false).map((method) => ({
+        canReceiveMethodKnowledgeQuiz: isQuizMethodSelectableForKind(
+            method,
+            QUIZ_KIND.methodKnowledge,
+        ),
+        id: method.id,
+        methodKnowledgeQuizId: method.methodKnowledgeQuizId,
+        name: method.name,
+        steps: method.steps.map(({ id: stepId, order, title, weight }) => ({ id: stepId, order, title, weight })),
     }));
     const organizations = organizationOptions.filter((option) => option.isSelectable !== false).map(({ id, name }) => ({ id, name }));
     const groups = groupOptions.filter((option) => option.isSelectable !== false).map(({ id, name, organizationId }) => ({ id, name, organizationId }));
@@ -477,7 +513,10 @@ export function buildQuizJsonPrefillPrompt({
                 .map(({ id: itemId, label }) => ({ id: itemId, label })),
         }))
         .filter((skill) => skill.savoirItems.length > 0);
-    const exampleMethod = methods[0] ?? null;
+    const exampleMethod = methods.find((method) => method.canReceiveMethodKnowledgeQuiz) ?? methods[0] ?? null;
+    const exampleQuizKind = exampleMethod?.canReceiveMethodKnowledgeQuiz
+        ? QUIZ_KIND.methodKnowledge
+        : QUIZ_KIND.contextual;
     const exampleSkill = skills[0];
     const rawExampleSteps = exampleMethod?.steps.length
         ? exampleMethod.steps
@@ -524,10 +563,10 @@ export function buildQuizJsonPrefillPrompt({
             "Règles d’analyse du document et de construction du quiz :",
             ...QUIZ_SOURCE_ANALYSIS_INSTRUCTIONS.map((instruction) => `- ${instruction}`),
         ].join("\n"),
-        `Méthodes et étapes disponibles : ${JSON.stringify(methods)}. Utilise null pour un quiz contextuel ; sinon utilise les id exacts et inclus chaque étape de la méthode une seule fois.`,
+        `Méthodes et étapes disponibles : ${JSON.stringify(methods)}. Pour quizKind="method_knowledge", choisis uniquement une méthode avec canReceiveMethodKnowledgeQuiz=true. Pour quizKind="contextual", methodId peut être null ou l’id exact d’une méthode disponible. Si methodId est renseigné, inclus chaque étape de la méthode une seule fois.`,
         `Compétences et items Savoir disponibles : ${JSON.stringify(skills)}. Utilise uniquement les id exacts. Chaque question doit cibler une compétence de son étape et un item Savoir appartenant à cette compétence.`,
         `Domaines : ${JSON.stringify(CONTENT_DOMAINS)}. Catégories par domaine : ${JSON.stringify(CONTENT_CATEGORIES_BY_DOMAIN)}. Difficultés : ${JSON.stringify(CONTENT_DIFFICULTIES)}.`,
-        `Types de quiz : ${JSON.stringify(QUIZ_TYPES)}. Participation : ${JSON.stringify(QUIZ_PARTICIPATIONS)}. Visibilités : ${JSON.stringify(QUIZ_VISIBILITY_SCOPES)}. Types de questions : ${JSON.stringify(QUIZ_QUESTION_TYPES)}. Types de pièces jointes : ${JSON.stringify(QUIZ_ATTACHMENT_TYPES)}. Dimension évaluée : ${JSON.stringify(QUIZ_EVALUATED_DIMENSION)}.`,
+        `Usages de quiz : ${JSON.stringify(QUIZ_KINDS)}. Types de quiz : ${JSON.stringify(QUIZ_TYPES)}. Participation : ${JSON.stringify(QUIZ_PARTICIPATIONS)}. Visibilités : ${JSON.stringify(QUIZ_VISIBILITY_SCOPES)}. Types de questions : ${JSON.stringify(QUIZ_QUESTION_TYPES)}. Types de pièces jointes : ${JSON.stringify(QUIZ_ATTACHMENT_TYPES)}. Dimension évaluée : ${JSON.stringify(QUIZ_EVALUATED_DIMENSION)}.`,
         `Organisations : ${JSON.stringify(organizations)}. Groupes : ${JSON.stringify(groups)}. Utilisateurs : ${JSON.stringify(users)}. Respecte les relations entre ces identifiants. Pour scope="public", les trois identifiants de ciblage doivent être null.`,
         "Chaque étape doit contenir au moins une compétence disponible et au moins une question. La somme des pondérations des étapes doit être exactement 100.",
         "Respecte exactement cette structure :",
@@ -537,6 +576,7 @@ export function buildQuizJsonPrefillPrompt({
             data: {
                 title: "Titre du quiz",
                 description: "Description complète du quiz",
+                quizKind: exampleQuizKind,
                 quizType: "knowledge",
                 difficulty: CONTENT_DIFFICULTIES[0],
                 domain: CONTENT_DOMAINS[0],

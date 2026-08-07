@@ -67,6 +67,7 @@ import {
     ROLEPLAY_ROUTES,
     ROLEPLAY_SESSION_EDIT_RESTRICTION_MESSAGE,
     buildRoleplayJsonPrefillPrompt,
+    getAssignableRoleplayScorecardOptions,
     getAssignableRoleplayQuizOptions,
     getRoleplayMethodKnowledgeQuizOption,
     getRoleplayPublicationIssues,
@@ -746,10 +747,8 @@ export function CreateRoleplayPageContent({
     );
     const scorecardSelectOptions = useMemo(
         () =>
-            scorecardOptions
-                .filter((item) => method && item.methodId === method)
+            getAssignableRoleplayScorecardOptions(scorecardOptions, method)
                 .map((item) => ({
-                    disabled: item.isSelectable === false,
                     label: getEntitySelectionLabel(item.name, item),
                     value: item.id,
                 })),

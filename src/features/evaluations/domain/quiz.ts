@@ -130,7 +130,9 @@ export type QuizAttachmentType = (typeof QUIZ_ATTACHMENT_TYPES)[number];
 
 export type QuizMethodStepOption = MethodSelectionStepOption;
 
-export type QuizMethodOption = MethodSelectionOptionWithSteps;
+export interface QuizMethodOption extends MethodSelectionOptionWithSteps {
+    methodKnowledgeQuizId: string | null;
+}
 
 export interface QuizOrganizationOption extends EntitySelectionAvailability {
     id: string;

@@ -21,6 +21,7 @@ import {
 } from "./quiz-upload-files";
 import { assertQuizLifecycle } from "./assert-quiz-lifecycle";
 import { assertQuizAttemptEditPolicy } from "./quiz-attempt-edit-policy";
+import { assertQuizMethodSelection } from "./quiz-method-selection.validation";
 
 export async function updateQuiz(
     quizId: string,
@@ -48,6 +49,7 @@ export async function updateQuiz(
     await assertQuizAttemptEditPolicy(adminSupabase, quizId, input, {
         hasUploads: uploadFilesByClientId.size > 0,
     });
+    await assertQuizMethodSelection(adminSupabase, input, quizId);
     await assertQuizLifecycle(adminSupabase, input, existingQuiz.status);
 
     try {

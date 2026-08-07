@@ -12,6 +12,7 @@ import {
     type UploadedQuizStorageObject,
 } from "./quiz-upload-files";
 import { assertQuizLifecycle } from "./assert-quiz-lifecycle";
+import { assertQuizMethodSelection } from "./quiz-method-selection.validation";
 
 export async function createQuiz(
     input: SaveQuizDto,
@@ -22,6 +23,7 @@ export async function createQuiz(
     let createdQuizId: string | null = null;
     const uploadedObjects: UploadedQuizStorageObject[] = [];
 
+    await assertQuizMethodSelection(adminSupabase, input);
     await assertQuizLifecycle(adminSupabase, input);
 
     try {

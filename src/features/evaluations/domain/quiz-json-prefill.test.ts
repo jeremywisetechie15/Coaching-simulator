@@ -8,6 +8,7 @@ const options = {
     groupOptions: [],
     methodOptions: [{
         id: methodId,
+        methodKnowledgeQuizId: null,
         name: "Méthode Démo",
         steps: [{ id: methodStepId, order: 1, title: "Découvrir", weight: 100 }],
     }],
@@ -29,11 +30,12 @@ const options = {
 };
 
 const document = {
-    schemaVersion: 1,
+    schemaVersion: 2,
     entityType: "quiz",
     data: {
         title: "Quiz découverte",
         description: "Valider les fondamentaux de la découverte.",
+        quizKind: "method_knowledge",
         quizType: "knowledge",
         difficulty: "Moyen",
         domain: "Commerce et développement commercial",
@@ -76,7 +78,33 @@ describe("quiz JSON prefill", () => {
 
         expect(result.fieldErrors).toEqual({});
         expect(result.draft.methodId).toBe(methodId);
+        expect(result.draft.quizKind).toBe("method_knowledge");
         expect(result.draft.steps[0].questions[0].dimensionItemId).toBe(dimensionItemId);
+    });
+
+    it("keeps legacy v1 data but requires an explicit quiz usage before save", () => {
+        const result = parseQuizJsonPrefillText(JSON.stringify({
+            ...document,
+            data: { ...document.data, quizKind: undefined },
+            schemaVersion: 1,
+        }), options);
+
+        expect(result.draft.methodId).toBe(methodId);
+        expect(result.draft.quizKind).toBeNull();
+        expect(result.fieldErrors.quizKind).toContain("Ancien format");
+    });
+
+    it("rejects a method knowledge relation when the method already has a canonical quiz", () => {
+        const result = parseQuizJsonPrefillText(JSON.stringify(document), {
+            ...options,
+            methodOptions: options.methodOptions.map((method) => ({
+                ...method,
+                methodKnowledgeQuizId: "99999999-9999-4999-8999-999999999999",
+            })),
+        });
+
+        expect(result.draft.methodId).toBeNull();
+        expect(result.fieldErrors.methodId).toContain("quiz principal");
     });
 
     it("flags unknown skills and inconsistent QCU answers", () => {
@@ -109,7 +137,7 @@ describe("quiz JSON prefill", () => {
             ...options,
             methodOptions: [
                 ...options.methodOptions,
-                { id: unavailableId, isSelectable: false, name: "Méthode non publiée", steps: [] },
+                { id: unavailableId, isSelectable: false, methodKnowledgeQuizId: null, name: "Méthode non publiée", steps: [] },
             ],
         });
 
@@ -123,6 +151,9 @@ describe("quiz JSON prefill", () => {
         expect(prompt).toContain("attribue le reliquat d’un point aux premières étapes");
         expect(prompt).toContain('Visibilités : ["public","organization","group","user"]');
         expect(prompt).toContain('Types de pièces jointes : ["link","image","video","audio","document"]');
+        expect(prompt).toContain('Usages de quiz : ["method_knowledge","contextual"]');
+        expect(prompt).toContain('"schemaVersion": 2');
+        expect(prompt).toContain('"quizKind": "method_knowledge"');
         expect(prompt).not.toContain(unavailableId);
 
         const structure = prompt.split("Respecte exactement cette structure :\n\n")[1];
@@ -135,6 +166,7 @@ describe("quiz JSON prefill", () => {
             ...options,
             methodOptions: [{
                 id: methodId,
+                methodKnowledgeQuizId: null,
                 name: "Méthode Démo",
                 steps: [
                     { id: "step-1", order: 1, title: "Étape 1", weight: null },
