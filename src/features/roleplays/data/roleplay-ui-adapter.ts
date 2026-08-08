@@ -192,6 +192,7 @@ export function mapDbRoleplayToUi(roleplay: RoleplayListItem | DbRoleplayDetail,
     const cardTitle = textOrMock(roleplay.previewTitle, textOrMock(roleplay.title, mock?.title ?? roleplay.category));
 
     return {
+        activitySectorCode: roleplay.activitySectorCode,
         category: textOrMock(roleplay.category, mock?.category ?? ""),
         coachAvatarSrc: roleplay.coachAvatarUrl ?? "",
         coachId: roleplay.coachId ?? undefined,

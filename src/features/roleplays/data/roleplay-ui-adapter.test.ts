@@ -114,6 +114,15 @@ describe("roleplay UI adapter", () => {
         expect(roleplay.detail.learnerRole).toBe("Vous incarnez le conseiller commercial.");
     });
 
+    it("exposes the activity sector on the roleplay detail page model", () => {
+        const detail = createRoleplayDetail();
+        detail.activitySectorCode = "TIC";
+
+        const roleplay = mapDbRoleplayToUi(detail, null);
+
+        expect(roleplay.activitySectorCode).toBe("TIC");
+    });
+
     it("exposes the scenario validation threshold to global score views", () => {
         const roleplay = mapDbRoleplayToUi(
             createRoleplayDetail({ validationThreshold: 90 }),

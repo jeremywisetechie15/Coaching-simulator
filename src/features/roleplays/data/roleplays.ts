@@ -8,6 +8,7 @@ import {
     getCategoriesForDomain,
     LEARNER_CONTENT_STATUS,
     matchesLearnerContentStatusFilter,
+    type ActivitySectorCode,
     type ContentStatus,
     type LearnerContentStatus,
     type LearnerContentStatusFilter,
@@ -45,6 +46,8 @@ export interface RoleplayDetail {
 
 export interface RoleplayItem {
     id: string;
+    /** Secteur d’activité du scénario DB ; absent uniquement pour les anciens mocks. */
+    activitySectorCode?: ActivitySectorCode | null;
     isActive: boolean;
     status: ContentStatus;
     title?: string;

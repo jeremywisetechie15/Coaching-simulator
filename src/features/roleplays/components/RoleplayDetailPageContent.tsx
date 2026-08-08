@@ -13,7 +13,11 @@ import {
     DiscProfileBadge,
     LearnerContentStatusBadge,
 } from "@/features/content/components";
-import { getContentRemovalErrorMessage, isSelectableContent } from "@/features/content/domain";
+import {
+    getActivitySectorLabel,
+    getContentRemovalErrorMessage,
+    isSelectableContent,
+} from "@/features/content/domain";
 import {
     categoryBadgeStyles,
     difficultyBadgeStyles,
@@ -121,6 +125,8 @@ export function RoleplayDetailPageContent({
     const prepQuizzes = roleplay.prepQuizzes ?? [];
     const canStartRoleplay = isSelectableContent(roleplay.status, roleplay.isActive);
     const roleplayId = roleplay.scenarioId ?? roleplay.id;
+    const activitySectorLabel =
+        getActivitySectorLabel(roleplay.activitySectorCode) ?? "Secteur non renseigné.";
 
     useEffect(() => {
         setSavedNoteGroups(noteGroups);
@@ -280,10 +286,11 @@ export function RoleplayDetailPageContent({
                     <Box className="mt-3">
                         <InfoBox title="Contexte">{detail.context}</InfoBox>
                     </Box>
-                    <Box className="mt-4">
+                    <Box className="mt-4 grid gap-4 md:grid-cols-2">
                         <InfoBox title="Votre rôle">
                             {detail.learnerRole || "Rôle non renseigné."}
                         </InfoBox>
+                        <InfoBox title="Secteur d’activité">{activitySectorLabel}</InfoBox>
                     </Box>
                     <Box className="mt-4 grid gap-4 md:grid-cols-2">
                         <InfoBox title="Objectif">{roleplay.description}</InfoBox>
