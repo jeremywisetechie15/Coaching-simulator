@@ -5,6 +5,7 @@ export * from "./get-skill-by-id";
 export * from "./get-skill-editor-by-id";
 export * from "./learner-skills";
 export * from "./list-skill-target-options";
+export * from "./list-skill-method-filters";
 export * from "./list-skills";
 export * from "./save-skill-request";
 export * from "./skill-usage-edit-policy";

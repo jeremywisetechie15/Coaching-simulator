@@ -17,7 +17,9 @@ import {
 } from "@/features/content/components";
 import { requestContentCardAction } from "@/features/content/data/content-card-action.request";
 import {
+    ALL_CONTENT_CATEGORIES,
     CONTENT_DOMAINS,
+    getCategoriesForDomain,
     getContentRemovalErrorMessage,
     isContentDomain,
 } from "@/features/content/domain";
@@ -37,22 +39,41 @@ import {
     isSkillType,
     skillTypeOptions,
     type SkillListItem,
+    type SkillMethodFilterData,
 } from "@/features/skills/domain/skills";
 import { SKILL_TYPE_TONES } from "./skill-ui";
 import { SkillCardActions } from "./SkillCardActions";
 
 interface SkillsPageContentProps {
     canManage: boolean;
+    methodFilterData: SkillMethodFilterData;
     skills: SkillListItem[];
 }
 
 const allDomainsOption = { label: "Tous les domaines", value: "" } as const;
+const allCategoriesOption = { label: "Toutes les catégories", value: "" } as const;
+const allMethodsOption = { label: "Toutes les méthodes", value: "" } as const;
 const allTypesOption = { label: skillTypeOptions[0], value: "" } as const;
 
 const domainFilterOptions: FilterSelectOption[] = [allDomainsOption, ...CONTENT_DOMAINS];
 const typeFilterOptions: FilterSelectOption[] = [allTypesOption, ...SKILL_TYPES];
 
-export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps) {
+function getCategoryFilterOptions(domain: string): FilterSelectOption[] {
+    return [
+        allCategoriesOption,
+        ...(domain ? getCategoriesForDomain(domain) : ALL_CONTENT_CATEGORIES),
+    ];
+}
+
+function getFilterOptionValue(option: FilterSelectOption) {
+    return typeof option === "string" ? option : option.value;
+}
+
+export function SkillsPageContent({
+    canManage,
+    methodFilterData,
+    skills,
+}: SkillsPageContentProps) {
     const router = useRouter();
     const searchParams = useSearchParams();
     const currentHref = useCurrentAppHref();
@@ -62,13 +83,37 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
     const initialType = isSkillType(searchParams.get("type"))
         ? searchParams.get("type")!
         : "";
+    const initialCategoryOptions = getCategoryFilterOptions(initialDomain);
+    const initialCategory = initialCategoryOptions.some(
+        (option) => getFilterOptionValue(option) === searchParams.get("category"),
+    )
+        ? searchParams.get("category")!
+        : "";
+    const initialMethod = methodFilterData.methodOptions.some(
+        (option) => option.id === searchParams.get("method"),
+    )
+        ? searchParams.get("method")!
+        : "";
     const [query, setQuery] = useState(searchParams.get("q") ?? "");
     const [domain, setDomain] = useState(initialDomain);
+    const [category, setCategory] = useState(initialCategory);
+    const [method, setMethod] = useState(initialMethod);
     const [type, setType] = useState(initialType);
     const [actionError, setActionError] = useState<string | null>(null);
     const [busySkillId, setBusySkillId] = useState<string | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [skillToRemove, setSkillToRemove] = useState<SkillListItem | null>(null);
+    const categoryFilterOptions = useMemo(
+        () => getCategoryFilterOptions(domain),
+        [domain],
+    );
+    const methodFilterOptions: FilterSelectOption[] = [
+        allMethodsOption,
+        ...methodFilterData.methodOptions.map((option) => ({
+            label: option.name,
+            value: option.id,
+        })),
+    ];
 
     const filteredSkills = useMemo(() => {
         const normalized = query.trim().toLowerCase();
@@ -79,11 +124,15 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
                     .some((value) => value.toLowerCase().includes(normalized));
             const matchesDomain =
                 !domain || skill.domain === domain;
+            const matchesCategory =
+                !category || skill.category === category;
+            const matchesMethod =
+                !method || Boolean(methodFilterData.methodIdsBySkillId[skill.id]?.includes(method));
             const matchesType =
                 !type || skill.type === type;
-            return matchesQuery && matchesDomain && matchesType;
+            return matchesQuery && matchesDomain && matchesCategory && matchesMethod && matchesType;
         });
-    }, [domain, query, skills, type]);
+    }, [category, domain, method, methodFilterData.methodIdsBySkillId, query, skills, type]);
 
     function updateQuery(value: string) {
         setQuery(value);
@@ -94,11 +143,40 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
         const nextDomain = isContentDomain(value) ? value : "";
 
         setDomain(nextDomain);
+        setCategory("");
         router.replace(
             withSearchParams(currentHref, {
                 category: null,
                 domain: nextDomain || null,
             }),
+            { scroll: false },
+        );
+    }
+
+    function updateCategory(value: string) {
+        const nextCategory = getCategoryFilterOptions(domain).some(
+            (option) => getFilterOptionValue(option) === value,
+        )
+            ? value
+            : "";
+
+        setCategory(nextCategory);
+        router.replace(
+            withSearchParams(currentHref, { category: nextCategory || null }),
+            { scroll: false },
+        );
+    }
+
+    function updateMethod(value: string) {
+        const nextMethod = methodFilterData.methodOptions.some(
+            (option) => option.id === value,
+        )
+            ? value
+            : "";
+
+        setMethod(nextMethod);
+        router.replace(
+            withSearchParams(currentHref, { method: nextMethod || null }),
             { scroll: false },
         );
     }
@@ -188,6 +266,24 @@ export function SkillsPageContent({ canManage, skills }: SkillsPageContentProps)
                             onChange={updateDomain}
                             options={domainFilterOptions}
                             value={domain}
+                        />
+                    </Box>
+                    <Box className={uiTokens.filterBar.librarySelectCategory}>
+                        <FilterSelect
+                            appearance="library"
+                            ariaLabel="Filtrer par catégorie"
+                            onChange={updateCategory}
+                            options={categoryFilterOptions}
+                            value={category}
+                        />
+                    </Box>
+                    <Box className={uiTokens.filterBar.librarySelectMethod}>
+                        <FilterSelect
+                            appearance="library"
+                            ariaLabel="Filtrer par méthode"
+                            onChange={updateMethod}
+                            options={methodFilterOptions}
+                            value={method}
                         />
                     </Box>
                     <Box className={uiTokens.filterBar.librarySelectType}>

@@ -127,6 +127,16 @@ export interface SkillListItem {
     assignedUserId: string | null;
 }
 
+export interface SkillMethodFilterOption {
+    id: string;
+    name: string;
+}
+
+export interface SkillMethodFilterData {
+    methodIdsBySkillId: Record<string, string[]>;
+    methodOptions: SkillMethodFilterOption[];
+}
+
 export interface SkillDetail extends SkillListItem {
     dimensionItems: SkillDimensionItem[];
 }

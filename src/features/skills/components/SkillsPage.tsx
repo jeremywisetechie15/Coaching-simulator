@@ -2,15 +2,19 @@ import { AppShell } from "@/features/app-shell/components";
 import { APP_NAVIGATION_RESOURCE, canManageAppResource } from "@/features/auth/domain/access-control";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
-import type { SkillListItem } from "@/features/skills/domain/skills";
+import type {
+    SkillListItem,
+    SkillMethodFilterData,
+} from "@/features/skills/domain/skills";
 import { SkillsPageContent } from "./SkillsPageContent";
 
 interface SkillsPageProps {
+    methodFilterData: SkillMethodFilterData;
     profileValues: ProfileFormValues;
     skills: SkillListItem[];
 }
 
-export function SkillsPage({ profileValues, skills }: SkillsPageProps) {
+export function SkillsPage({ methodFilterData, profileValues, skills }: SkillsPageProps) {
     const canManageSkills = canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.skills);
 
     return (
@@ -23,7 +27,11 @@ export function SkillsPage({ profileValues, skills }: SkillsPageProps) {
             email={profileValues.email}
             searchPlaceholder="Rechercher..."
         >
-            <SkillsPageContent canManage={canManageSkills} skills={skills} />
+            <SkillsPageContent
+                canManage={canManageSkills}
+                methodFilterData={methodFilterData}
+                skills={skills}
+            />
         </AppShell>
     );
 }

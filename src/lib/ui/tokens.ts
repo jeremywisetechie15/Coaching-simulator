@@ -1063,6 +1063,7 @@ export const uiTokens = {
         librarySelectCategory: "w-[188px]",
         librarySelectDomain: "w-[180px]",
         librarySelectLevel: "w-[156px]",
+        librarySelectMethod: "w-[210px]",
         librarySelectQuizLevel: "w-[160px]",
         librarySelectScorecardDomain: "w-[192px]",
         librarySelectStatus: "w-[160px]",

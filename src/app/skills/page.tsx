@@ -2,7 +2,10 @@ import { redirect } from "next/navigation";
 import { SkillsPage } from "@/features/skills/components";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
-import { listSkillsForCurrentUser } from "@/features/skills/server";
+import {
+    listSkillMethodFilterData,
+    listSkillsForCurrentUser,
+} from "@/features/skills/server";
 import { SKILL_ROUTES } from "@/features/skills/domain/skills";
 import { UnauthorizedError } from "@/lib/server/errors";
 import { buildAuthRedirectHref, withReturnTo, withSearchParams } from "@/features/app-shell/domain";
@@ -11,6 +14,7 @@ interface PageProps {
     searchParams?: Promise<{
         category?: string;
         domain?: string;
+        method?: string;
         q?: string;
         returnTo?: string;
         type?: string;
@@ -38,6 +42,7 @@ export default async function Page({ searchParams }: PageProps) {
                     withSearchParams(SKILL_ROUTES.app.collection, {
                         category: filters.category,
                         domain: filters.domain,
+                        method: filters.method,
                         q: filters.q,
                         type: filters.type,
                     }),
@@ -48,6 +53,15 @@ export default async function Page({ searchParams }: PageProps) {
     }
 
     const skills = await listSkillsForCurrentUser();
+    const methodFilterData = await listSkillMethodFilterData(
+        skills.map((skill) => skill.id),
+    );
 
-    return <SkillsPage profileValues={toProfileFormValues(profile)} skills={skills} />;
+    return (
+        <SkillsPage
+            methodFilterData={methodFilterData}
+            profileValues={toProfileFormValues(profile)}
+            skills={skills}
+        />
+    );
 }
