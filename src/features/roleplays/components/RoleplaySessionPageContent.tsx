@@ -251,14 +251,6 @@ export function RoleplaySessionPageContent({
                     </ContextualBackLink>
                 </Box>
 
-                {canOpenEvaluation && (
-                    <RoleplaySessionResultCard
-                        onViewEvaluation={openEvaluation}
-                        scorePercent={sessionScorePercent}
-                        validationThreshold={roleplay.validationThreshold}
-                    />
-                )}
-
                 {canRetryEvaluation && (
                     <CardSurface className="mb-5 flex flex-col gap-4 rounded-[18px] border border-[#F1C2C2] bg-[#FFF8F8] p-5 sm:flex-row sm:items-center sm:justify-between">
                         <Box className="flex items-start gap-3">
@@ -298,7 +290,15 @@ export function RoleplaySessionPageContent({
 
                 <Box className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_360px]">
                     <CardSurface className={uiTokens.session.frameCard}>
-                        {iframeSrc ? (
+                        {canOpenEvaluation ? (
+                            <Box className={uiTokens.session.result.stage}>
+                                <RoleplaySessionResultCard
+                                    onViewEvaluation={openEvaluation}
+                                    scorePercent={sessionScorePercent}
+                                    validationThreshold={roleplay.validationThreshold}
+                                />
+                            </Box>
+                        ) : iframeSrc ? (
                             <iframe
                                 ref={iframeRef}
                                 title={`Simulation — ${roleplay.name}`}

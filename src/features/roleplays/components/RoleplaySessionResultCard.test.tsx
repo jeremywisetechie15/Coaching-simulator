@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { uiTokens } from "@/lib/ui/tokens";
 import { RoleplaySessionResultCard } from "./RoleplaySessionResultCard";
 
 describe("RoleplaySessionResultCard", () => {
@@ -12,12 +13,18 @@ describe("RoleplaySessionResultCard", () => {
             />,
         );
 
+        expect(html).toContain("Session évaluée");
+        expect(html).not.toContain("Session terminée");
         expect(html).toContain("84%");
-        expect(html).toContain("Bravo, objectif atteint !");
         expect(html).toContain("Voir l’évaluation");
+        expect(html).not.toContain("Bravo, objectif atteint !");
+        expect(html).not.toContain("<svg");
+        expect(html).toContain("aspect-square");
+        expect(html).toContain("backdrop-blur-2xl");
+        expect(html).toContain(uiTokens.progression.level.green.fill);
     });
 
-    it("adapts the message when the validation threshold is not reached", () => {
+    it("does not render a score-dependent message", () => {
         const html = renderToStaticMarkup(
             <RoleplaySessionResultCard
                 onViewEvaluation={vi.fn()}
@@ -27,7 +34,9 @@ describe("RoleplaySessionResultCard", () => {
         );
 
         expect(html).toContain("74%");
-        expect(html).toContain("Il vous manque 6 points");
-        expect(html).not.toContain("Bravo");
+        expect(html).not.toContain("Il vous manque");
+        expect(html).not.toContain("objectif");
+        expect(html).toContain(uiTokens.progression.level.yellow.fill);
+        expect(html).not.toContain("#FFFBEB");
     });
 });

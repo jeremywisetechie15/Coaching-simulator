@@ -1541,45 +1541,14 @@ export const uiTokens = {
         resourceRowLast: "pt-4",
         result: {
             action:
-                "mt-4 inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-[#5140F0] px-4 text-[14px] font-bold text-white transition hover:bg-[#4433D8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0] focus-visible:ring-offset-2",
+                "mt-8 inline-flex h-11 items-center justify-center rounded-lg bg-[#5140F0] px-6 text-[14px] font-bold text-white transition hover:bg-[#4433D8] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0] focus-visible:ring-offset-2",
             card:
-                "relative mb-5 overflow-hidden rounded-[20px] border p-0 shadow-[0_8px_28px_rgba(17,24,39,0.06)]",
-            description: "mt-1.5 max-w-[680px] text-[14px] font-medium leading-6 text-[#596273]",
-            inner: "grid gap-5 p-5 sm:grid-cols-[132px_minmax(0,1fr)] sm:items-center sm:p-6",
-            scoreLabel: "mt-1 text-[11px] font-extrabold uppercase tracking-[0.14em]",
-            scorePanel:
-                "flex min-h-[118px] flex-col items-center justify-center rounded-[16px] border text-center",
-            scoreValue: "text-[38px] font-black leading-none tracking-[-0.05em]",
-            status: "inline-flex items-center gap-2 text-[12px] font-extrabold uppercase tracking-[0.1em]",
-            statusIcon: "h-4 w-4",
-            title: "mt-2 text-[20px] font-extrabold leading-tight text-[#111827]",
-            tone: {
-                green: {
-                    card: "border-[#B8E2C7] bg-[#F7FCF9]",
-                    scorePanel: "border-[#A8DDBB] bg-[#E8F7ED] text-[#137A45]",
-                    status: "text-[#137A45]",
-                },
-                neutral: {
-                    card: "border-[#DDE1EA] bg-[#FAFBFC]",
-                    scorePanel: "border-[#D8DCE5] bg-[#F1F3F6] text-[#596273]",
-                    status: "text-[#596273]",
-                },
-                orange: {
-                    card: "border-[#F5D0AA] bg-[#FFF9F3]",
-                    scorePanel: "border-[#F3C491] bg-[#FFF0DE] text-[#B45309]",
-                    status: "text-[#B45309]",
-                },
-                red: {
-                    card: "border-[#F1C2C2] bg-[#FFF8F8]",
-                    scorePanel: "border-[#EFB5B5] bg-[#FDEAEA] text-[#B42318]",
-                    status: "text-[#B42318]",
-                },
-                yellow: {
-                    card: "border-[#EEDB9B] bg-[#FFFDF5]",
-                    scorePanel: "border-[#E9D27D] bg-[#FFF6D8] text-[#946200]",
-                    status: "text-[#946200]",
-                },
-            },
+                "aspect-square w-full max-w-[360px] overflow-hidden rounded-[28px] border border-white/80 bg-white/55 p-0 shadow-[0_20px_60px_rgba(46,37,133,0.16)] ring-1 ring-[#5140F0]/10 backdrop-blur-2xl",
+            inner: "flex h-full flex-col items-center justify-center p-8 text-center",
+            scoreValue: "mt-7 text-[64px] font-black leading-none tracking-[-0.06em]",
+            stage:
+                "flex h-full items-center justify-center bg-[radial-gradient(circle_at_50%_44%,#FFFFFF_0%,#F5F4FE_58%,#ECEAF9_100%)] p-6",
+            status: "text-[14px] font-extrabold uppercase tracking-[0.12em] text-[#5140F0]",
         },
         sectionIcon: "mt-0.5 h-4 w-4 shrink-0 text-[#5140F0]",
         sectionRow: "flex gap-2.5",
@@ -1610,7 +1579,7 @@ export const uiTokens = {
             yellow: { pill: "bg-[#FEF3C7] text-[#B45309]", fill: "#F59E0B", dot: "bg-[#F59E0B]" },
             orange: { pill: "bg-[#FFEDD5] text-[#C2410C]", fill: "#F97316", dot: "bg-[#F97316]" },
             red: { pill: "bg-[#FEE2E2] text-[#DC2626]", fill: "#EF4444", dot: "bg-[#EF4444]" },
-            neutral: { pill: "bg-[#F3F4F6] text-[#6B7280]", fill: "#D1D5DB", dot: "bg-[#D1D5DB]" },
+            neutral: { pill: "bg-[#F3F4F6] text-[#6B7280]", fill: "#6B7280", dot: "bg-[#D1D5DB]" },
         },
         /** Teintes d'icône des 3 dimensions (résumé + tableau détaillé). */
         dimensionTone: {
