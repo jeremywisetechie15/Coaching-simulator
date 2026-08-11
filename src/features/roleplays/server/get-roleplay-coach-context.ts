@@ -7,6 +7,10 @@ import {
 import { ConflictError, NotFoundError } from "@/lib/server/errors";
 import { getPersonaAvatarPublicUrl } from "@/features/personas/domain/persona-list";
 import {
+    getPersonaPcsGroupLabel,
+    getPersonaSexLabel,
+} from "@/features/personas/domain/persona-demographics";
+import {
     getRoleplayScorecardDefinition,
     type RoleplayScorecardDefinition,
 } from "./get-roleplay-scorecard-definition";
@@ -41,6 +45,7 @@ interface ScenarioRow {
 }
 
 interface PersonaRow {
+    activity_sector_code: string | null;
     age: number | null;
     annual_revenue: string | null;
     avatar_url: string | null;
@@ -50,13 +55,14 @@ interface PersonaRow {
     diploma: string | null;
     disc_profile: string | null;
     employee_count: number | null;
-    industry: string | null;
     marital_status: string | null;
     name: string;
     nationality: string | null;
     net_income_before_tax: string | null;
+    pcs_group_code: string | null;
     residence_country: string | null;
     role: string | null;
+    sex_code: string | null;
     system_instructions: string;
     voice_id: string | null;
 }
@@ -131,8 +137,10 @@ export interface RoleplayRuntimeContext {
         name: string;
         nationality: string;
         netIncomeBeforeTax: string;
+        pcsGroup: string;
         residenceCountry: string;
         role: string;
+        sex: string;
         systemInstructions: string;
         voiceId: string | null;
     } | null;
@@ -226,7 +234,7 @@ async function getPersona(supabase: SupabaseClient, personaId: string | null) {
 
     const { data, error } = await supabase
         .from("personas")
-        .select("name, role, company, age, industry, employee_count, annual_revenue, company_description, disc_profile, children_count, diploma, marital_status, nationality, net_income_before_tax, residence_country, system_instructions, voice_id, avatar_url")
+        .select("name, role, company, age, activity_sector_code, employee_count, annual_revenue, company_description, disc_profile, sex_code, pcs_group_code, children_count, diploma, marital_status, nationality, net_income_before_tax, residence_country, system_instructions, voice_id, avatar_url")
         .eq("id", personaId)
         .maybeSingle<PersonaRow>();
 
@@ -267,13 +275,15 @@ function mapPersona(persona: PersonaRow | null): RoleplayRuntimeContext["persona
         diploma: text(persona.diploma),
         discProfile: text(persona.disc_profile),
         employeeCount: persona.employee_count,
-        industry: text(persona.industry),
+        industry: getActivitySectorLabel(persona.activity_sector_code) ?? "",
         maritalStatus: text(persona.marital_status),
         name: persona.name,
         nationality: text(persona.nationality),
         netIncomeBeforeTax: text(persona.net_income_before_tax),
+        pcsGroup: getPersonaPcsGroupLabel(persona.pcs_group_code) ?? "",
         residenceCountry: text(persona.residence_country),
         role: text(persona.role),
+        sex: getPersonaSexLabel(persona.sex_code) ?? "",
         systemInstructions: persona.system_instructions,
         voiceId: persona.voice_id,
     };
@@ -378,8 +388,10 @@ function serializePersonaBusinessContext(persona: NonNullable<RoleplayRuntimeCon
         name: persona.name,
         nationality: persona.nationality,
         netIncomeBeforeTax: persona.netIncomeBeforeTax,
+        pcsGroup: persona.pcsGroup,
         residenceCountry: persona.residenceCountry,
         role: persona.role,
+        sex: persona.sex,
     };
 }
 
@@ -406,7 +418,9 @@ function serializePersonaCoachSummary(persona: NonNullable<RoleplayRuntimeContex
         discProfile: persona.discProfile,
         industry: persona.industry,
         name: persona.name,
+        pcsGroup: persona.pcsGroup,
         role: persona.role,
+        sex: persona.sex,
     };
 }
 

@@ -31,9 +31,30 @@ export const ACTIVITY_SECTORS = [
 
 export type ActivitySectorCode = (typeof ACTIVITY_SECTORS)[number]["code"];
 
+export const ACTIVITY_SECTOR_CODES = ACTIVITY_SECTORS.map(({ code }) => code) as [
+    ActivitySectorCode,
+    ...ActivitySectorCode[],
+];
+
 const activitySectorsByCode = new Map<string, (typeof ACTIVITY_SECTORS)[number]>(
     ACTIVITY_SECTORS.map((sector) => [sector.code, sector]),
 );
+const activitySectorsByLabel = new Map<string, (typeof ACTIVITY_SECTORS)[number]>(
+    ACTIVITY_SECTORS.map((sector) => [sector.label, sector]),
+);
+const legacyActivitySectorCodesByLabel: Readonly<Record<string, ActivitySectorCode>> = {
+    "Nettoyage industriel": "ADM",
+    Restauration: "THR",
+    "Profession libérale santé": "SAN",
+    Technologie: "TIC",
+    "Services informatiques": "TIC",
+    Commerce: "COM",
+    Industrie: "IND",
+    Conseil: "CST",
+    Finance: "BFA",
+    Immobilier: "IMM",
+    Autre: "SER",
+};
 
 export function isActivitySectorCode(value: unknown): value is ActivitySectorCode {
     return typeof value === "string" && activitySectorsByCode.has(value);
@@ -41,4 +62,10 @@ export function isActivitySectorCode(value: unknown): value is ActivitySectorCod
 
 export function getActivitySectorLabel(value: unknown): string | null {
     return typeof value === "string" ? activitySectorsByCode.get(value)?.label ?? null : null;
+}
+
+export function getActivitySectorCode(value: unknown): ActivitySectorCode | null {
+    return typeof value === "string"
+        ? activitySectorsByLabel.get(value)?.code ?? legacyActivitySectorCodesByLabel[value] ?? null
+        : null;
 }

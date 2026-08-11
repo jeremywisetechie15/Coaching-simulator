@@ -58,8 +58,10 @@ export interface RoleplayScorecardNotationContext {
         name: string;
         nationality: string;
         netIncomeBeforeTax: string;
+        pcsGroup: string;
         residenceCountry: string;
         role: string;
+        sex: string;
         systemInstructions: string;
     } | null;
     scenario: {
@@ -134,8 +136,10 @@ function buildPersonaContext(
         name: persona.name,
         nationality: persona.nationality,
         netIncomeBeforeTax: persona.netIncomeBeforeTax,
+        pcsGroup: persona.pcsGroup,
         residenceCountry: persona.residenceCountry,
         role: persona.role,
+        sex: persona.sex,
         systemInstructions: persona.systemInstructions,
     };
 }

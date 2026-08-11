@@ -27,6 +27,11 @@ import {
 import type { PersonaDetail } from "@/features/personas/domain/persona-list";
 import { getPersonaInitials } from "@/features/personas/domain/persona-list";
 import { PERSONA_ROUTES } from "@/features/personas/domain/persona-routes";
+import { getActivitySectorLabel } from "@/features/content/domain";
+import {
+    getPersonaPcsGroupLabel,
+    getPersonaSexLabel,
+} from "@/features/personas/domain/persona-demographics";
 import { Box, InlineIcon } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 
@@ -51,13 +56,19 @@ export function PersonaDetailsModal({
             fields: [
                 { icon: BriefcaseBusiness, label: "Fonction", value: optionalValue(persona.role) },
                 { icon: CalendarDays, label: "Âge", value: persona.age ? `${persona.age} ans` : "Non renseigné" },
+                { icon: UsersRound, label: "Sexe", value: getPersonaSexLabel(persona.sexCode) ?? "Non renseigné" },
+                { icon: Shapes, label: "CSP INSEE", value: getPersonaPcsGroupLabel(persona.pcsGroupCode) ?? "Non renseigné" },
             ],
         },
         {
             title: "Informations professionnelles",
             fields: [
                 { icon: Building2, label: "Entreprise", value: optionalValue(persona.company) },
-                { icon: Shapes, label: "Secteur d’activité", value: optionalValue(persona.industry) },
+                {
+                    icon: Shapes,
+                    label: "Secteur d’activité",
+                    value: getActivitySectorLabel(persona.activitySectorCode) ?? "Non renseigné",
+                },
                 { icon: UsersRound, label: "Nombre d’employés", value: optionalValue(persona.employeeCount) },
                 { icon: BadgeEuro, label: "Chiffre d’affaires", value: optionalValue(persona.annualRevenue) },
                 {

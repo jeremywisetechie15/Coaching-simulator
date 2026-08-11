@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import { ConflictError } from "@/lib/server/errors";
 import { getRoleplayPersonaContext } from "./get-roleplay-coach-context";
 
-function createScenarioClient(row: Record<string, unknown>) {
+function createScenarioClient(
+    row: Record<string, unknown>,
+    persona: Record<string, unknown> | null = null,
+) {
     return {
         from(table: string) {
-            if (table !== "scenarios") {
+            if (table !== "scenarios" && table !== "personas") {
                 throw new Error(`Unexpected table ${table}`);
             }
 
@@ -13,7 +16,10 @@ function createScenarioClient(row: Record<string, unknown>) {
                 eq() {
                     return query;
                 },
-                maybeSingle: async () => ({ data: row, error: null }),
+                maybeSingle: async () => ({
+                    data: table === "scenarios" ? row : persona,
+                    error: null,
+                }),
                 select() {
                     return query;
                 },
@@ -40,6 +46,31 @@ describe("roleplay runtime context availability", () => {
         expect(context.scenario.activitySector).toBe(
             "Informatique, numérique et télécommunications",
         );
+    });
+
+    it("maps persona demographics and sector codes to labels for AI contexts", async () => {
+        const client = createScenarioClient({
+            activity_sector_code: "TIC",
+            id: "scenario-1",
+            is_active: true,
+            persona_id: "persona-1",
+            status: "published",
+            title: "Prospection numérique",
+        }, {
+            activity_sector_code: "BFA",
+            name: "Sophie Martin",
+            pcs_group_code: "3",
+            sex_code: "female",
+            system_instructions: "Rester factuelle.",
+        });
+
+        const context = await getRoleplayPersonaContext(client as never, "scenario-1");
+
+        expect(context.persona).toMatchObject({
+            industry: "Banque, finance et assurance",
+            pcsGroup: "Cadres et professions intellectuelles supérieures",
+            sex: "Femme",
+        });
     });
 
     it.each([

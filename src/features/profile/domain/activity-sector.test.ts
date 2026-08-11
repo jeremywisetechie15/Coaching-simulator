@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { ACTIVITY_SECTORS, isActivitySectorCode } from "./activity-sector";
+import {
+    ACTIVITY_SECTORS,
+    getActivitySectorCode,
+    getActivitySectorLabel,
+    isActivitySectorCode,
+} from "./activity-sector";
 
 describe("activity sector catalog", () => {
     it("exposes the 28 unique stable codes", () => {
@@ -24,5 +29,11 @@ describe("activity sector catalog", () => {
         expect(isActivitySectorCode("BTP")).toBe(true);
         expect(isActivitySectorCode("btp")).toBe(false);
         expect(isActivitySectorCode(null)).toBe(false);
+    });
+
+    it("maps labels and codes through the same catalog", () => {
+        expect(getActivitySectorCode("Immobilier")).toBe("IMM");
+        expect(getActivitySectorLabel("IMM")).toBe("Immobilier");
+        expect(getActivitySectorCode("Secteur inconnu")).toBeNull();
     });
 });

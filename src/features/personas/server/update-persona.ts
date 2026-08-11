@@ -80,6 +80,7 @@ export async function updatePersona(
         const result = await adminSupabase
             .from("personas")
             .update({
+                activity_sector_code: input.activitySectorCode,
                 age: toNullableInteger(input.age),
                 annual_revenue: input.annualRevenue || null,
                 avatar_url: nextAvatarUrl,
@@ -89,13 +90,14 @@ export async function updatePersona(
                 diploma: input.diploma || null,
                 disc_profile: input.discProfile || null,
                 employee_count: toNullableInteger(input.employeeCount),
-                industry: input.industry || null,
                 marital_status: input.maritalStatus || null,
                 name: input.name,
                 nationality: input.nationality || null,
                 net_income_before_tax: input.netIncomeBeforeTax || null,
+                pcs_group_code: input.pcsGroupCode,
                 residence_country: input.residenceCountry || null,
                 role: input.role || null,
+                sex_code: input.sexCode,
                 status: input.status,
                 system_instructions: input.systemInstructions,
                 updated_at: new Date().toISOString(),

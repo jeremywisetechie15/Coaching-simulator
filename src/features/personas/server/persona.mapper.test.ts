@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { mapPersonaRowToDetail, mapPersonaRowToEditorValues, toNullableInteger, type PersonaRow } from "./persona.mapper";
+import {
+    mapPersonaRowToDetail,
+    mapPersonaRowToEditorValues,
+    mapPersonaRowToListItem,
+    toNullableInteger,
+    type PersonaRow,
+} from "./persona.mapper";
 
 const basePersonaRow: PersonaRow = {
+    activity_sector_code: null,
     age: null,
     annual_revenue: null,
     avatar_url: null,
@@ -18,8 +25,10 @@ const basePersonaRow: PersonaRow = {
     name: "Sophie Martin",
     nationality: null,
     net_income_before_tax: null,
+    pcs_group_code: null,
     residence_country: null,
     role: null,
+    sex_code: null,
     status: "published",
     system_instructions: "Instructions persona",
     updated_at: "2026-06-27T11:00:00.000Z",
@@ -36,7 +45,7 @@ describe("persona.mapper", () => {
             companyDescription: "",
             discProfile: "Stable",
             employeeCount: "",
-            industry: "",
+            activitySectorCode: null,
             name: "Sophie Martin",
             netIncomeBeforeTax: "",
         });
@@ -51,6 +60,8 @@ describe("persona.mapper", () => {
             employee_count: 50,
             industry: "Conseil",
             net_income_before_tax: "3 200 € / mois",
+            pcs_group_code: "3",
+            sex_code: "female",
         });
 
         expect(values).toMatchObject({
@@ -58,15 +69,38 @@ describe("persona.mapper", () => {
             childrenCount: "2",
             discProfile: "Consciencieux",
             employeeCount: "50",
-            industry: "Conseil",
+            activitySectorCode: "CST",
             netIncomeBeforeTax: "3 200 € / mois",
+            pcsGroupCode: "3",
+            sexCode: "female",
+        });
+    });
+
+    it("exposes normalized filter fields in list rows", () => {
+        const item = mapPersonaRowToListItem({
+            ...basePersonaRow,
+            activity_sector_code: "TIC",
+            age: 42,
+            disc_profile: "Stable",
+            employee_count: 50,
+            pcs_group_code: "3",
+            sex_code: "female",
+        });
+
+        expect(item).toMatchObject({
+            activitySectorCode: "TIC",
+            ageYears: 42,
+            discProfile: "Stable",
+            employeeCountValue: 50,
+            pcsGroupCode: "3",
+            sexCode: "female",
         });
     });
 
     it("ignores a legacy industry outside the shared taxonomy", () => {
         const values = mapPersonaRowToEditorValues({ ...basePersonaRow, industry: "Legacy" });
 
-        expect(values.industry).toBe("");
+        expect(values.activitySectorCode).toBeNull();
     });
 
     it("uses the canonical persona voice for missing or unsupported legacy values", () => {

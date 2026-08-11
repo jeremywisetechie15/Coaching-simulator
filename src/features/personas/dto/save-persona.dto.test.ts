@@ -6,6 +6,7 @@ import {
 import { savePersonaDto } from "./save-persona.dto";
 
 const validPersona = {
+    activitySectorCode: "TIC",
     age: "42",
     annualRevenue: "5 M€",
     avatarUrl: "/personas/avatar.png",
@@ -15,13 +16,14 @@ const validPersona = {
     diploma: "Master commerce",
     discProfile: "Stable",
     employeeCount: "50",
-    industry: "Technologie",
     maritalStatus: "Marié",
     name: "Sophie Martin",
     nationality: "Française",
     netIncomeBeforeTax: "3 200 € / mois",
+    pcsGroupCode: "3",
     residenceCountry: "France",
     role: "Directrice commerciale",
+    sexCode: "female",
     systemInstructions: "Répondre comme une persona exigeante.",
     voiceId: "alloy",
 };
@@ -36,17 +38,19 @@ describe("savePersonaDto", () => {
             companyDescription: "Entreprise technologique B2B.",
             discProfile: "Stable",
             employeeCount: "50",
-            industry: "Technologie",
+            activitySectorCode: "TIC",
             netIncomeBeforeTax: "3 200 € / mois",
+            pcsGroupCode: "3",
+            sexCode: "female",
         });
     });
 
-    it("rejects unknown industry and non-numeric count fields", () => {
+    it("rejects unknown taxonomy codes and non-numeric count fields", () => {
         expect(() =>
             savePersonaDto.parse({
                 ...validPersona,
                 childrenCount: "deux",
-                industry: "Secteur inconnu",
+                activitySectorCode: "UNKNOWN",
             }),
         ).toThrow();
     });

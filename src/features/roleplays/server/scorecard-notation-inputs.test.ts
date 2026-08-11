@@ -60,8 +60,10 @@ const context = {
         name: "Richard Martin",
         nationality: "Française",
         netIncomeBeforeTax: "4 500 €",
+        pcsGroup: "Cadres et professions intellectuelles supérieures",
         residenceCountry: "France",
         role: "Directeur commercial",
+        sex: "Homme",
         systemInstructions: "Reste factuel et pressé.",
     },
     scenario: {

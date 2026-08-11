@@ -1,11 +1,17 @@
 import { z } from "zod";
 import { isOpenAIRealtimeVoiceId, type VoiceId } from "@/lib/openai/realtime-voices";
 import {
-    PERSONA_BUSINESS_SECTORS,
     PERSONA_DISC_PROFILE,
     PERSONA_DISC_PROFILES,
 } from "@/features/personas/domain/persona-profile";
-import { CONTENT_STATUSES } from "@/features/content/domain";
+import {
+    ACTIVITY_SECTOR_CODES,
+    CONTENT_STATUSES,
+} from "@/features/content/domain";
+import {
+    PERSONA_PCS_GROUP_CODES,
+    PERSONA_SEX_CODES,
+} from "@/features/personas/domain/persona-demographics";
 import {
     MAX_PERSONA_CV_UPLOAD_SIZE_BYTES,
     PERSONA_CV_UPLOAD_MIME_TYPE,
@@ -42,6 +48,7 @@ export const personaCvInputDto = z.discriminatedUnion("kind", [
 ]);
 
 export const savePersonaDto = z.object({
+    activitySectorCode: z.enum(ACTIVITY_SECTOR_CODES).nullable().optional().default(null),
     age: optionalIntegerString("L'âge doit être un nombre entier positif inférieur ou égal à 130.", { max: 130 }),
     annualRevenue: optionalString(120, "Le chiffre d'affaires est trop long."),
     avatarUrl: z.string().trim().max(500, "L'URL de l'avatar est trop longue.").optional().default(""),
@@ -52,7 +59,6 @@ export const savePersonaDto = z.object({
     diploma: optionalString(160, "Le diplôme est trop long."),
     discProfile: z.enum(PERSONA_DISC_PROFILES).optional().default(PERSONA_DISC_PROFILE.stable),
     employeeCount: optionalIntegerString("Le nombre d'employés doit être un nombre entier positif."),
-    industry: z.union([z.enum(PERSONA_BUSINESS_SECTORS), z.literal("")]).optional().default(""),
     maritalStatus: optionalString(120, "Le statut marital est trop long."),
     name: z
         .string()
@@ -61,8 +67,10 @@ export const savePersonaDto = z.object({
         .max(160, "Le nom du persona est trop long."),
     nationality: optionalString(120, "La nationalité est trop longue."),
     netIncomeBeforeTax: optionalString(120, "Le revenu net avant impôt est trop long."),
+    pcsGroupCode: z.enum(PERSONA_PCS_GROUP_CODES).nullable().optional().default(null),
     residenceCountry: optionalString(120, "Le pays de résidence est trop long."),
     role: z.string().trim().max(120, "La fonction est trop longue.").optional().default(""),
+    sexCode: z.enum(PERSONA_SEX_CODES).nullable().optional().default(null),
     status: z.enum(CONTENT_STATUSES).default("published"),
     systemInstructions: z
         .string()

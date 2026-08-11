@@ -22,11 +22,18 @@ import {
 } from "@/features/personas/domain/persona-list";
 import type { PersonaCvSummary } from "@/features/personas/domain/persona-cv";
 import type { PersonaCvInput } from "@/features/personas/dto/save-persona.dto";
-import { CONTENT_STATUS } from "@/features/content/domain";
 import {
-    PERSONA_BUSINESS_SECTORS,
-    PERSONA_DISC_PROFILE_OPTIONS,
-} from "@/features/personas/domain/persona-profile";
+    ACTIVITY_SECTORS,
+    CONTENT_STATUS,
+    isActivitySectorCode,
+} from "@/features/content/domain";
+import { PERSONA_DISC_PROFILE_OPTIONS } from "@/features/personas/domain/persona-profile";
+import {
+    PERSONA_PCS_GROUPS,
+    PERSONA_SEXES,
+    isPersonaPcsGroupCode,
+    isPersonaSexCode,
+} from "@/features/personas/domain/persona-demographics";
 import { PersonaAvatarField } from "./PersonaAvatarField";
 import { PersonaCvField } from "./PersonaCvField";
 import {
@@ -310,6 +317,34 @@ export function CreatePersonaPageContent({
                                     onChange={(event) => patch("age", event.target.value)}
                                 />
                             </Field>
+                            <Box>
+                                <FieldLabel className="mb-1.5 text-[12px] font-semibold text-[#374151]">
+                                    Sexe
+                                </FieldLabel>
+                                <SingleSelectField
+                                    options={PERSONA_SEXES.map(({ code, label }) => ({ label, value: code }))}
+                                    value={form.sexCode}
+                                    placeholder="Sélectionner le sexe"
+                                    onChange={(value) => patch(
+                                        "sexCode",
+                                        isPersonaSexCode(value) ? value : null,
+                                    )}
+                                />
+                            </Box>
+                            <Box>
+                                <FieldLabel className="mb-1.5 text-[12px] font-semibold text-[#374151]">
+                                    CSP INSEE
+                                </FieldLabel>
+                                <SingleSelectField
+                                    options={PERSONA_PCS_GROUPS.map(({ code, label }) => ({ label, value: code }))}
+                                    value={form.pcsGroupCode}
+                                    placeholder="Sélectionner la CSP"
+                                    onChange={(value) => patch(
+                                        "pcsGroupCode",
+                                        isPersonaPcsGroupCode(value) ? value : null,
+                                    )}
+                                />
+                            </Box>
                             <Field label="Fonction" htmlFor="persona-role">
                                 <TextInput
                                     density="sm"
@@ -352,10 +387,13 @@ export function CreatePersonaPageContent({
                                     Secteur d&apos;activité
                                 </FieldLabel>
                                 <SingleSelectField
-                                    options={[...PERSONA_BUSINESS_SECTORS]}
-                                    value={form.industry || null}
+                                    options={ACTIVITY_SECTORS.map(({ code, label }) => ({ label, value: code }))}
+                                    value={form.activitySectorCode}
                                     placeholder="Sélectionner un secteur"
-                                    onChange={(value) => patch("industry", value)}
+                                    onChange={(value) => patch(
+                                        "activitySectorCode",
+                                        isActivitySectorCode(value) ? value : null,
+                                    )}
                                 />
                             </Box>
                             <Field label="Nombre d'employés" htmlFor="persona-employee-count">

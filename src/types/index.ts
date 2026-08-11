@@ -7,8 +7,11 @@ import type { VoiceId } from "@/lib/openai/realtime-voices";
 export type { VoiceId } from "@/lib/openai/realtime-voices";
 
 export interface Persona {
+    activity_sector_code?: string | null;
     id: string;
     name: string;
+    pcs_group_code?: string | null;
+    sex_code?: string | null;
     voice_id: VoiceId;
     system_instructions: string;
     avatar_url?: string;

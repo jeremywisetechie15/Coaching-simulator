@@ -11,13 +11,24 @@ import {
     getStorageAvatarPublicUrl,
     isStorageAvatarPath,
 } from "@/lib/uploads/avatar-path";
+import type { ActivitySectorCode } from "@/features/content/domain";
+import type {
+    PersonaPcsGroupCode,
+    PersonaSexCode,
+} from "./persona-demographics";
 
 export interface PersonaListItem {
+    activitySectorCode: ActivitySectorCode | null;
+    ageYears: number | null;
     avatarUrl: string | null;
     company: string;
+    discProfile: PersonaDiscProfile;
+    employeeCountValue: number | null;
     id: string;
     name: string;
+    pcsGroupCode: PersonaPcsGroupCode | null;
     role: string;
+    sexCode: PersonaSexCode | null;
     status: ContentStatus;
     voiceCharacteristic: string | null;
     voiceId: string | null;
@@ -25,6 +36,7 @@ export interface PersonaListItem {
 }
 
 export interface PersonaEditorValues {
+    activitySectorCode: ActivitySectorCode | null;
     age: string;
     annualRevenue: string;
     avatarUrl: string;
@@ -34,20 +46,23 @@ export interface PersonaEditorValues {
     diploma: string;
     discProfile: PersonaDiscProfile;
     employeeCount: string;
-    industry: string;
     maritalStatus: string;
     name: string;
     nationality: string;
     netIncomeBeforeTax: string;
+    pcsGroupCode: PersonaPcsGroupCode | null;
     residenceCountry: string;
     role: string;
+    sexCode: PersonaSexCode | null;
     status: ContentStatus;
     systemInstructions: string;
     voiceId: VoiceId;
 }
 
 export interface PersonaDetail extends PersonaEditorValues {
+    ageYears: number | null;
     createdAt: string | null;
+    employeeCountValue: number | null;
     id: string;
     updatedAt: string | null;
     voiceCharacteristic: string | null;
@@ -57,6 +72,7 @@ export interface PersonaDetail extends PersonaEditorValues {
 export const PERSONA_AVATAR_BUCKET = "personas-avatars";
 
 export const EMPTY_PERSONA_EDITOR_VALUES: PersonaEditorValues = {
+    activitySectorCode: null,
     age: "",
     annualRevenue: "",
     avatarUrl: "",
@@ -66,13 +82,14 @@ export const EMPTY_PERSONA_EDITOR_VALUES: PersonaEditorValues = {
     diploma: "",
     discProfile: PERSONA_DISC_PROFILE.stable,
     employeeCount: "",
-    industry: "",
     maritalStatus: "",
     name: "",
     nationality: "",
     netIncomeBeforeTax: "",
+    pcsGroupCode: null,
     residenceCountry: "",
     role: "",
+    sexCode: null,
     status: CONTENT_STATUS.published,
     systemInstructions: "",
     voiceId: DEFAULT_OPENAI_REALTIME_VOICE_ID,

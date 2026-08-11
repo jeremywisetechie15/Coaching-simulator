@@ -2,8 +2,13 @@
 
 import { Copy, Edit3, MoreHorizontal, Plus, UserRoundCog } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { ContextualLink } from "@/features/app-shell/components";
+import { useMemo, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import {
+    ContextualLink,
+    useCurrentAppHref,
+} from "@/features/app-shell/components";
+import { withSearchParams } from "@/features/app-shell/domain";
 import {
     ContentRemovalConfirmationModal,
     ContentRemovalMenuButton,
@@ -11,7 +16,10 @@ import {
 } from "@/features/content/components";
 import { requestContentCardAction } from "@/features/content/data/content-card-action.request";
 import {
+    ACTIVITY_SECTORS,
     getContentRemovalErrorMessage,
+    isActivitySectorCode,
+    type ActivitySectorCode,
     type ContentRemovalTarget,
 } from "@/features/content/domain";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
@@ -20,10 +28,36 @@ import {
     CardActionMenu,
     CardActionMenuButton,
     CardActionMenuLink,
+    FilterSelect,
+    LibraryFilterBar,
+    LibrarySearchField,
+    type FilterSelectOption,
 } from "@/lib/ui/molecules";
 import { ENTITY_ACTION_LABELS } from "@/lib/ui/domain/entity-action";
 import type { PersonaDetail, PersonaListItem } from "@/features/personas/domain/persona-list";
 import { getPersonaInitials } from "@/features/personas/domain/persona-list";
+import {
+    PERSONA_PCS_GROUPS,
+    PERSONA_SEXES,
+    isPersonaPcsGroupCode,
+    isPersonaSexCode,
+    type PersonaPcsGroupCode,
+    type PersonaSexCode,
+} from "@/features/personas/domain/persona-demographics";
+import {
+    PERSONA_AGE_RANGES,
+    PERSONA_COMPANY_SIZES,
+    filterPersonasByLibraryFilters,
+    isPersonaAgeRange,
+    isPersonaCompanySize,
+    type PersonaAgeRange,
+    type PersonaCompanySize,
+} from "@/features/personas/domain/persona-library-filters";
+import {
+    PERSONA_DISC_PROFILES,
+    isPersonaDiscProfile,
+    type PersonaDiscProfile,
+} from "@/features/personas/domain/persona-profile";
 import { PERSONA_ROUTES } from "@/features/personas/domain/persona-routes";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -45,6 +79,31 @@ interface PersonaDetailPayload {
 }
 
 const personasQueryKey = ["personas"] as const;
+
+const sexFilterOptions: FilterSelectOption[] = [
+    { label: "Tous les sexes", value: "" },
+    ...PERSONA_SEXES.map(({ code, label }) => ({ label, value: code })),
+];
+const ageFilterOptions: FilterSelectOption[] = [
+    { label: "Tous les âges", value: "" },
+    ...PERSONA_AGE_RANGES.map(({ label, value }) => ({ label, value })),
+];
+const pcsFilterOptions: FilterSelectOption[] = [
+    { label: "Toutes les CSP", value: "" },
+    ...PERSONA_PCS_GROUPS.map(({ code, label }) => ({ label, value: code })),
+];
+const sectorFilterOptions: FilterSelectOption[] = [
+    { label: "Tous les secteurs", value: "" },
+    ...ACTIVITY_SECTORS.map(({ code, label }) => ({ label, value: code })),
+];
+const companySizeFilterOptions: FilterSelectOption[] = [
+    { label: "Toutes les tailles", value: "" },
+    ...PERSONA_COMPANY_SIZES.map(({ label, value }) => ({ label, value })),
+];
+const discFilterOptions: FilterSelectOption[] = [
+    { label: "Tous les profils DISC", value: "" },
+    ...PERSONA_DISC_PROFILES.map((profile) => ({ label: profile, value: profile })),
+];
 
 async function fetchPersonas() {
     const response = await fetch("/api/personas", {
@@ -73,6 +132,34 @@ async function fetchPersonaDetail(personaId: string) {
 }
 
 export function PersonasPageContent({ canManage, initialPersonas }: PersonasPageContentProps) {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+    const currentHref = useCurrentAppHref();
+    const initialSex = searchParams.get("sex");
+    const initialAge = searchParams.get("age");
+    const initialPcs = searchParams.get("csp");
+    const initialSector = searchParams.get("sector");
+    const initialCompanySize = searchParams.get("companySize");
+    const initialDisc = searchParams.get("disc");
+    const [query, setQuery] = useState(searchParams.get("q") ?? "");
+    const [sexCode, setSexCode] = useState<PersonaSexCode | "">(
+        isPersonaSexCode(initialSex) ? initialSex : "",
+    );
+    const [ageRange, setAgeRange] = useState<PersonaAgeRange | "">(
+        isPersonaAgeRange(initialAge) ? initialAge : "",
+    );
+    const [pcsGroupCode, setPcsGroupCode] = useState<PersonaPcsGroupCode | "">(
+        isPersonaPcsGroupCode(initialPcs) ? initialPcs : "",
+    );
+    const [activitySectorCode, setActivitySectorCode] = useState<ActivitySectorCode | "">(
+        isActivitySectorCode(initialSector) ? initialSector : "",
+    );
+    const [companySize, setCompanySize] = useState<PersonaCompanySize | "">(
+        isPersonaCompanySize(initialCompanySize) ? initialCompanySize : "",
+    );
+    const [discProfile, setDiscProfile] = useState<PersonaDiscProfile | "">(
+        isPersonaDiscProfile(initialDisc) ? initialDisc : "",
+    );
     const [actionError, setActionError] = useState<string | null>(null);
     const [busyPersonaId, setBusyPersonaId] = useState<string | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -84,6 +171,18 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
         queryKey: personasQueryKey,
     });
     const personas = personasQuery.data;
+    const filteredPersonas = useMemo(
+        () => filterPersonasByLibraryFilters(personas, {
+            activitySectorCode,
+            ageRange,
+            companySize,
+            discProfile,
+            pcsGroupCode,
+            query,
+            sexCode,
+        }),
+        [activitySectorCode, ageRange, companySize, discProfile, pcsGroupCode, personas, query, sexCode],
+    );
     const personaDetailQuery = useQuery({
         enabled: Boolean(selectedPersonaId),
         queryFn: () => fetchPersonaDetail(selectedPersonaId as string),
@@ -93,6 +192,51 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
     function openPersonaDetails(personaId: string) {
         setOpenMenuId(null);
         setSelectedPersonaId(personaId);
+    }
+
+    function replaceFilterParam(param: string, value: string) {
+        router.replace(withSearchParams(currentHref, { [param]: value || null }), { scroll: false });
+    }
+
+    function updateQuery(value: string) {
+        setQuery(value);
+        replaceFilterParam("q", value.trim());
+    }
+
+    function updateSex(value: string) {
+        const nextValue = isPersonaSexCode(value) ? value : "";
+        setSexCode(nextValue);
+        replaceFilterParam("sex", nextValue);
+    }
+
+    function updateAge(value: string) {
+        const nextValue = isPersonaAgeRange(value) ? value : "";
+        setAgeRange(nextValue);
+        replaceFilterParam("age", nextValue);
+    }
+
+    function updatePcs(value: string) {
+        const nextValue = isPersonaPcsGroupCode(value) ? value : "";
+        setPcsGroupCode(nextValue);
+        replaceFilterParam("csp", nextValue);
+    }
+
+    function updateSector(value: string) {
+        const nextValue = isActivitySectorCode(value) ? value : "";
+        setActivitySectorCode(nextValue);
+        replaceFilterParam("sector", nextValue);
+    }
+
+    function updateCompanySize(value: string) {
+        const nextValue = isPersonaCompanySize(value) ? value : "";
+        setCompanySize(nextValue);
+        replaceFilterParam("companySize", nextValue);
+    }
+
+    function updateDisc(value: string) {
+        const nextValue = isPersonaDiscProfile(value) ? value : "";
+        setDiscProfile(nextValue);
+        replaceFilterParam("disc", nextValue);
     }
 
     async function handleDuplicate(personaId: string) {
@@ -157,6 +301,69 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
                     }
                 />
 
+                <LibraryFilterBar>
+                    <LibrarySearchField
+                        ariaLabel="Rechercher un persona"
+                        onChange={updateQuery}
+                        placeholder="Rechercher un persona..."
+                        value={query}
+                    />
+                    <Box className={uiTokens.filterBar.librarySelectSex}>
+                        <FilterSelect
+                            appearance="library"
+                            ariaLabel="Filtrer par sexe"
+                            onChange={updateSex}
+                            options={sexFilterOptions}
+                            value={sexCode}
+                        />
+                    </Box>
+                    <Box className={uiTokens.filterBar.librarySelectAge}>
+                        <FilterSelect
+                            appearance="library"
+                            ariaLabel="Filtrer par tranche d’âge"
+                            onChange={updateAge}
+                            options={ageFilterOptions}
+                            value={ageRange}
+                        />
+                    </Box>
+                    <Box className={uiTokens.filterBar.librarySelectPcs}>
+                        <FilterSelect
+                            appearance="library"
+                            ariaLabel="Filtrer par CSP INSEE"
+                            onChange={updatePcs}
+                            options={pcsFilterOptions}
+                            value={pcsGroupCode}
+                        />
+                    </Box>
+                    <Box className={uiTokens.filterBar.librarySelectSector}>
+                        <FilterSelect
+                            appearance="library"
+                            ariaLabel="Filtrer par secteur d’activité"
+                            onChange={updateSector}
+                            options={sectorFilterOptions}
+                            value={activitySectorCode}
+                        />
+                    </Box>
+                    <Box className={uiTokens.filterBar.librarySelectCompanySize}>
+                        <FilterSelect
+                            appearance="library"
+                            ariaLabel="Filtrer par taille d’entreprise"
+                            onChange={updateCompanySize}
+                            options={companySizeFilterOptions}
+                            value={companySize}
+                        />
+                    </Box>
+                    <Box className={uiTokens.filterBar.librarySelectDisc}>
+                        <FilterSelect
+                            appearance="library"
+                            ariaLabel="Filtrer par profil DISC"
+                            onChange={updateDisc}
+                            options={discFilterOptions}
+                            value={discProfile}
+                        />
+                    </Box>
+                </LibraryFilterBar>
+
                 {personasQuery.isError && (
                     <Box className="mb-5 rounded-lg border border-[#F3C7C7] bg-[#FFF4F4] px-4 py-3 text-[13px] font-semibold text-[#A43A3A]">
                         {personasQuery.error.message}
@@ -169,9 +376,9 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
                     </CardSurface>
                 )}
 
-                {personas.length > 0 ? (
+                {filteredPersonas.length > 0 ? (
                     <Box className={cn("grid gap-5 md:grid-cols-2 xl:grid-cols-3", uiTokens.motion.cardGridReveal)}>
-                        {personas.map((persona) => {
+                        {filteredPersonas.map((persona) => {
                             const isMenuOpen = openMenuId === persona.id;
 
                             return (
@@ -266,7 +473,9 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
                             Aucun persona IA trouvé
                         </Text>
                         <Text className="mt-2 text-[14px] font-semibold text-[#737B8E]">
-                            Créez votre premier persona pour alimenter vos scénarios.
+                            {personas.length > 0
+                                ? "Aucun persona ne correspond aux filtres sélectionnés."
+                                : "Créez votre premier persona pour alimenter vos scénarios."}
                         </Text>
                     </CardSurface>
                 )}

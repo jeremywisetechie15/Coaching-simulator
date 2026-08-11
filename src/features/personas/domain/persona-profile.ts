@@ -10,6 +10,10 @@ export const PERSONA_DISC_PROFILES = DISC_PROFILES_WITH_UNKNOWN;
 
 export type PersonaDiscProfile = DiscProfileValue;
 
+export function isPersonaDiscProfile(value: unknown): value is PersonaDiscProfile {
+    return typeof value === "string" && PERSONA_DISC_PROFILES.includes(value as PersonaDiscProfile);
+}
+
 export const PERSONA_DISC_PROFILE_OPTIONS: Array<{
     description: string;
     label: PersonaDiscProfile;
@@ -41,19 +45,3 @@ export const PERSONA_DISC_PROFILE_OPTIONS: Array<{
         value: PERSONA_DISC_PROFILE.unknown,
     },
 ];
-
-export const PERSONA_BUSINESS_SECTORS = [
-    "Nettoyage industriel",
-    "Restauration",
-    "Profession libérale santé",
-    "Technologie",
-    "Services informatiques",
-    "Commerce",
-    "Industrie",
-    "Conseil",
-    "Finance",
-    "Immobilier",
-    "Autre",
-] as const;
-
-export type PersonaBusinessSector = (typeof PERSONA_BUSINESS_SECTORS)[number];

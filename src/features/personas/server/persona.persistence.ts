@@ -4,7 +4,7 @@ import { toNullableInteger } from "./persona.mapper";
 
 interface PersonaInsertContext {
     avatarUrl: string | null;
-    createdBy: string;
+    createdBy: string | null;
     id: string;
     now: string;
     status: ContentStatus;
@@ -12,6 +12,7 @@ interface PersonaInsertContext {
 
 export function createPersonaInsert(input: SavePersonaDto, context: PersonaInsertContext) {
     return {
+        activity_sector_code: input.activitySectorCode,
         age: toNullableInteger(input.age),
         annual_revenue: input.annualRevenue || null,
         avatar_url: context.avatarUrl,
@@ -24,13 +25,14 @@ export function createPersonaInsert(input: SavePersonaDto, context: PersonaInser
         disc_profile: input.discProfile || null,
         employee_count: toNullableInteger(input.employeeCount),
         id: context.id,
-        industry: input.industry || null,
         marital_status: input.maritalStatus || null,
         name: input.name,
         nationality: input.nationality || null,
         net_income_before_tax: input.netIncomeBeforeTax || null,
+        pcs_group_code: input.pcsGroupCode,
         residence_country: input.residenceCountry || null,
         role: input.role || null,
+        sex_code: input.sexCode,
         status: context.status,
         system_instructions: input.systemInstructions,
         updated_at: context.now,

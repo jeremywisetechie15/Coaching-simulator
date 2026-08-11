@@ -1,5 +1,6 @@
 export {
     ACTIVITY_SECTORS,
+    getActivitySectorCode,
     getActivitySectorLabel,
     isActivitySectorCode,
     type ActivitySectorCode,
