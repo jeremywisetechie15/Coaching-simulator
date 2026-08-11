@@ -31,7 +31,7 @@ const quizzes: RoleplayQuizOption[] = [
         kind: QUIZ_KIND.contextual,
         methodId: otherMethodId,
         questionCount: 3,
-        title: "Quiz autre méthode",
+        title: "Ancien quiz contextuel incohérent",
     },
     {
         id: "66666666-6666-4666-8666-666666666666",
@@ -59,7 +59,7 @@ describe("roleplay quiz assignment", () => {
         }, methodId)).toBe(false);
     });
 
-    it("exposes quizzes without a method or with the roleplay method", () => {
+    it("exposes contextual quizzes without a method or with the roleplay method", () => {
         expect(getAssignableRoleplayQuizOptions(quizzes, methodId).map((quiz) => quiz.id)).toEqual([
             "11111111-1111-4111-8111-111111111111",
             "66666666-6666-4666-8666-666666666666",
@@ -110,7 +110,7 @@ describe("roleplay quiz assignment", () => {
             {
                 code: "quiz_linked_to_other_method",
                 quizId: "55555555-5555-4555-8555-555555555555",
-                title: "Quiz autre méthode",
+                title: "Ancien quiz contextuel incohérent",
             },
         ]);
     });

@@ -107,6 +107,40 @@ describe("quiz JSON prefill", () => {
         expect(result.fieldErrors.methodId).toContain("quiz principal");
     });
 
+    it("keeps method-step links optional without changing quiz groups", () => {
+        const result = parseQuizJsonPrefillText(JSON.stringify({
+            ...document,
+            data: {
+                ...document.data,
+                steps: document.data.steps.map((step) => ({
+                    ...step,
+                    methodStepId: null,
+                    name: "Groupe métier indépendant",
+                })),
+            },
+        }), options);
+
+        expect(result.fieldErrors).toEqual({});
+        expect(result.draft.steps[0]).toMatchObject({
+            methodStepId: null,
+            name: "Groupe métier indépendant",
+        });
+    });
+
+    it("keeps an optional reference method on contextual quizzes", () => {
+        const result = parseQuizJsonPrefillText(JSON.stringify({
+            ...document,
+            data: {
+                ...document.data,
+                quizKind: "contextual",
+            },
+        }), options);
+
+        expect(result.fieldErrors).toEqual({});
+        expect(result.draft.methodId).toBe(methodId);
+        expect(result.draft.steps[0].methodStepId).toBe(methodStepId);
+    });
+
     it("flags unknown skills and inconsistent QCU answers", () => {
         const result = parseQuizJsonPrefillText(JSON.stringify({
             ...document,
@@ -152,6 +186,7 @@ describe("quiz JSON prefill", () => {
         expect(prompt).toContain('Visibilités : ["public","organization","group","user"]');
         expect(prompt).toContain('Types de pièces jointes : ["link","image","video","audio","document"]');
         expect(prompt).toContain('Usages de quiz : ["method_knowledge","contextual"]');
+        expect(prompt).toContain("methodStepId sont facultatifs");
         expect(prompt).toContain('"schemaVersion": 2');
         expect(prompt).toContain('"quizKind": "method_knowledge"');
         expect(prompt).not.toContain(unavailableId);

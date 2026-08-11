@@ -12,19 +12,27 @@ import {
     type UploadedQuizStorageObject,
 } from "./quiz-upload-files";
 import { assertQuizLifecycle } from "./assert-quiz-lifecycle";
-import { assertQuizMethodSelection } from "./quiz-method-selection.validation";
+import {
+    assertQuizMethodSelection,
+    type QuizMethodSelectionValidationOptions,
+} from "./quiz-method-selection.validation";
 
 export async function createQuiz(
     input: SaveQuizDto,
     uploadFilesByClientId: QuizUploadFilesByClientId = new Map(),
+    { allowedDraftMethodId = null }: QuizMethodSelectionValidationOptions = {},
 ): Promise<QuizDetail> {
     const context = await requireAdmin();
     const adminSupabase = createAdminClient();
     let createdQuizId: string | null = null;
     const uploadedObjects: UploadedQuizStorageObject[] = [];
 
-    await assertQuizMethodSelection(adminSupabase, input);
-    await assertQuizLifecycle(adminSupabase, input);
+    await assertQuizMethodSelection(adminSupabase, input, null, {
+        allowedDraftMethodId,
+    });
+    await assertQuizLifecycle(adminSupabase, input, undefined, {
+        allowedDraftMethodId,
+    });
 
     try {
         const { data: quizRow, error: quizError } = await adminSupabase

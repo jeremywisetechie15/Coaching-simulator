@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { QUIZ_KIND } from "./quiz";
-import { isQuizMethodSelectableForKind } from "./quiz-method-selection";
+import {
+    getQuizMethodAssociationError,
+    isQuizMethodSelectableForKind,
+    normalizeQuizMethodId,
+} from "./quiz-method-selection";
 
 const method = {
     id: "method-1",
@@ -9,7 +13,7 @@ const method = {
 };
 
 describe("quiz method selection policy", () => {
-    it("allows every selectable method for a contextual quiz", () => {
+    it("allows every selectable reference method for a contextual quiz", () => {
         expect(isQuizMethodSelectableForKind({
             ...method,
             methodKnowledgeQuizId: "other-quiz",
@@ -36,5 +40,14 @@ describe("quiz method selection policy", () => {
             ...method,
             isSelectable: false,
         }, QUIZ_KIND.contextual)).toBe(false);
+    });
+
+    it("keeps the method ownership rule in one place", () => {
+        expect(getQuizMethodAssociationError(QUIZ_KIND.contextual, "method-1")).toBeNull();
+        expect(getQuizMethodAssociationError(QUIZ_KIND.methodKnowledge, null)).toContain(
+            "lié à une méthode",
+        );
+        expect(getQuizMethodAssociationError(QUIZ_KIND.methodKnowledge, "method-1")).toBeNull();
+        expect(normalizeQuizMethodId(QUIZ_KIND.contextual, "method-1")).toBe("method-1");
     });
 });

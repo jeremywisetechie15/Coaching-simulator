@@ -11,7 +11,6 @@ import {
     FileUp,
     LockKeyhole,
     Plus,
-    Sparkles,
     Trash2,
     X,
 } from "lucide-react";
@@ -60,7 +59,7 @@ import {
     type QuizUserOption,
 } from "@/features/evaluations/domain";
 import type { SaveQuizInput } from "@/features/evaluations/dto";
-import { getMethodSelectionLabel, toMethodSelectOption } from "@/features/methods/domain/method";
+import { toMethodSelectOption } from "@/features/methods/domain/method";
 import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
 import type { SkillOption } from "@/features/skills/domain/skills";
 import { CONTENT_UPLOAD_PURPOSES } from "@/lib/uploads/content-upload";
@@ -86,7 +85,7 @@ import { QuizQuestionEditor } from "./QuizQuestionEditor";
 import {
     DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE,
     createFormId,
-    createQuizStepsFromMethod,
+    changeQuizMethod,
     domainOptions,
     emptyAttachment,
     emptyChoice,
@@ -238,7 +237,7 @@ export function CreateQuizPageContent({
         })),
     ];
     const selectedMethod = methodOptions.find((method) => method.id === form.methodId) ?? null;
-    const methodGeneratedStepCount = form.steps.filter((step) => step.methodStepId !== null).length;
+    const mappedMethodStepCount = form.steps.filter((step) => step.methodStepId !== null).length;
     const organizationSelectOptions = organizationOptions.map((organization) => ({
         disabled: organization.isSelectable === false,
         label: getEntitySelectionLabel(organization.name, organization),
@@ -609,16 +608,7 @@ export function CreateQuizPageContent({
         clearJsonPrefillError("methodId");
         clearJsonPrefillError("steps", true);
 
-        setForm((current) => ({
-            ...current,
-            methodId,
-            steps: selectedMethod
-                ? createQuizStepsFromMethod(selectedMethod)
-                : current.steps.map((step) => ({
-                      ...step,
-                      methodStepId: null,
-                  })),
-        }));
+        setForm((current) => changeQuizMethod(current, methodId));
     }
 
     function selectQuizKind(value: string) {
@@ -640,15 +630,7 @@ export function CreateQuizPageContent({
                 return { ...current, quizKind };
             }
 
-            return {
-                ...current,
-                methodId: null,
-                quizKind,
-                steps: current.steps.map((step) => ({
-                    ...step,
-                    methodStepId: null,
-                })),
-            };
+            return changeQuizMethod({ ...current, quizKind }, null);
         });
     }
 
@@ -932,23 +914,22 @@ export function CreateQuizPageContent({
                                     value={form.methodId ?? ""}
                                     placeholder={form.quizKind === QUIZ_KIND.methodKnowledge
                                         ? "Sélectionner une méthode"
-                                        : "Aucune"}
+                                        : "Aucune méthode"}
                                     onChange={selectMethod}
                                 />
                                 <FieldErrorMessage message={jsonPrefillFieldErrors.methodId} />
-                                {selectedMethod && methodGeneratedStepCount > 0 && (
-                                    <Text
-                                        className={cn(
-                                            "mt-2 flex items-center gap-1.5 text-[13px] font-semibold",
-                                            uiTokens.text.primary,
-                                        )}
-                                    >
-                                        <InlineIcon icon={Sparkles} className="h-4 w-4" />
-                                        {methodGeneratedStepCount} étape{methodGeneratedStepCount > 1 ? "s" : ""} →{" "}
-                                        {methodGeneratedStepCount} catégorie{methodGeneratedStepCount > 1 ? "s" : ""}{" "}
-                                        auto-générée{methodGeneratedStepCount > 1 ? "s" : ""}
+                                {selectedMethod ? (
+                                    <Text className={cn("mt-2 text-[13px] font-semibold", uiTokens.text.muted)}>
+                                        Le changement de méthode conserve tous les groupes et toutes les questions.
+                                        {mappedMethodStepCount > 0
+                                            ? ` ${mappedMethodStepCount} groupe${mappedMethodStepCount > 1 ? "s sont" : " est"} rattaché${mappedMethodStepCount > 1 ? "s" : ""} à une étape.`
+                                            : " Le rattachement détaillé aux étapes reste optionnel."}
                                     </Text>
-                                )}
+                                ) : form.quizKind === QUIZ_KIND.contextual ? (
+                                    <Text className={cn("mt-2 text-[13px] font-semibold", uiTokens.text.muted)}>
+                                        La méthode de référence reste optionnelle pour un quiz contextuel.
+                                    </Text>
+                                ) : null}
                             </Box>
                             <Box>
                                 <FieldLabel required className={uiTokens.form.label}>Description</FieldLabel>
@@ -1232,16 +1213,44 @@ export function CreateQuizPageContent({
                                 {form.steps.map((step, stepIndex) => {
                                     const competenceCount = step.competenceIds.length;
                                     const questionCount = step.questions.length;
-                                    const isFromMethod = step.methodStepId !== null;
 
                                     return (
                                         <CardSurface key={step.id} className={uiTokens.surface.stepCard}>
                                             <Box className="flex flex-col gap-3 sm:flex-row sm:items-start">
                                                 <Box className="flex-1 space-y-1.5">
-                                                    {isFromMethod && (
-                                                        <Text className={cn("text-[12px] font-bold", uiTokens.text.primary)}>
-                                                            Étape {stepIndex + 1} · {selectedMethod ? getMethodSelectionLabel(selectedMethod) : ""}
-                                                        </Text>
+                                                    {selectedMethod && (
+                                                        <Box className="mb-3">
+                                                            <FieldLabel className={uiTokens.form.subLabel}>
+                                                                Étape de méthode évaluée <span className={uiTokens.text.muted}>(optionnel)</span>
+                                                            </FieldLabel>
+                                                            <SingleSelectField
+                                                                disabled={hasExistingAttempts}
+                                                                hasError={Boolean(jsonPrefillFieldErrors[`steps.${stepIndex}.methodStepId`])}
+                                                                options={[
+                                                                    { label: "Aucune — groupe complémentaire", value: "" },
+                                                                    ...selectedMethod.steps
+                                                                        .slice()
+                                                                        .sort((first, second) => first.order - second.order)
+                                                                        .map((methodStep) => ({
+                                                                            label: `${methodStep.order}. ${methodStep.title}`,
+                                                                            value: methodStep.id,
+                                                                        })),
+                                                                ]}
+                                                                value={step.methodStepId ?? ""}
+                                                                placeholder="Groupe complémentaire"
+                                                                onChange={(value) => {
+                                                                    clearJsonPrefillError(`steps.${stepIndex}.methodStepId`);
+                                                                    updateStep(step.id, (current) => ({
+                                                                        ...current,
+                                                                        methodStepId: value || null,
+                                                                    }));
+                                                                }}
+                                                            />
+                                                            <Text className={cn("mt-1.5 text-[12px] font-medium", uiTokens.text.muted)}>
+                                                                Cette liaison affine la progression par étape ; elle ne change ni les questions ni la note du quiz.
+                                                            </Text>
+                                                            <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.methodStepId`]} />
+                                                        </Box>
                                                     )}
                                                     <FieldLabel
                                                         required={!isDraft}
@@ -1261,16 +1270,12 @@ export function CreateQuizPageContent({
                                                         }}
                                                         placeholder="Nom de la catégorie..."
                                                         hasLeadingIcon={false}
-                                                        readOnly={isFromMethod}
                                                         className={cn(
-                                                            isFromMethod
-                                                                ? uiTokens.form.controlReadonly
-                                                                : uiTokens.form.controlWhite,
+                                                            uiTokens.form.controlWhite,
                                                             jsonPrefillFieldErrors[`steps.${stepIndex}.name`] && uiTokens.form.controlError,
                                                         )}
                                                     />
                                                     <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.name`]} />
-                                                    <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.methodStepId`]} />
                                                     <Text className={cn("text-[12px] font-semibold", uiTokens.text.muted)}>
                                                         {questionCount} question{questionCount > 1 ? "s" : ""} ·{" "}
                                                         {competenceCount} compétence{competenceCount > 1 ? "s" : ""}

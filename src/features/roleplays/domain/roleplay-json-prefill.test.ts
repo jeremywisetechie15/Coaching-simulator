@@ -20,7 +20,7 @@ const options: RoleplayJsonPrefillOptions = {
     }],
     quizOptions: [
         { id: "quiz-shared", kind: "contextual", methodId: null, questionCount: 3, title: "Complément" },
-        { id: "quiz-method", kind: "contextual", methodId: "method-1", questionCount: 4, title: "Contexte DAGO" },
+        { id: "quiz-context", kind: "contextual", methodId: "method-1", questionCount: 4, title: "Contexte DAGO" },
         { id: "quiz-other", kind: "contextual", methodId: "method-2", questionCount: 4, title: "Autre" },
         { id: "quiz-knowledge", kind: "method_knowledge", methodId: "method-1", questionCount: 5, title: "Validation DAGO" },
     ],
@@ -54,7 +54,7 @@ function payload(overrides: Record<string, unknown> = {}) {
             personaId: "persona-1",
             previewDescription: "Un appel de prospection.",
             previewTitle: "Décrocher un rendez-vous",
-            quizIds: ["quiz-method", "quiz-shared"],
+            quizIds: ["quiz-context", "quiz-shared"],
             quizParticipation: "optional",
             resources: [{ externalUrl: "https://example.com/brief", label: "Brief" }],
             scope: CONTENT_VISIBILITY_SCOPE.public,
@@ -73,7 +73,7 @@ describe("roleplay JSON prefill", () => {
 
         expect(result.fieldErrors).toEqual({});
         expect(result.draft.activitySectorCode).toBe("TIC");
-        expect(result.draft.quizIds).toEqual(["quiz-method", "quiz-shared"]);
+        expect(result.draft.quizIds).toEqual(["quiz-context", "quiz-shared"]);
         expect(result.draft.resources).toEqual([
             { externalUrl: "https://example.com/brief", label: "Brief" },
         ]);

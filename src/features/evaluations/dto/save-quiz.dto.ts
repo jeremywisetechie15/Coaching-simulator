@@ -14,6 +14,7 @@ import {
     QUIZ_TYPES,
     QUIZ_VISIBILITY_SCOPES,
 } from "@/features/evaluations/domain/quiz";
+import { getQuizMethodAssociationError } from "@/features/evaluations/domain/quiz-method-selection";
 
 function uniqueTextArrayDto(tooLongMessage: string) {
     return z
@@ -186,10 +187,14 @@ export const saveQuizDto = z
             });
         }
 
-        if (quiz.quizKind === "method_knowledge" && !quiz.methodId) {
+        const methodAssociationError = getQuizMethodAssociationError(
+            quiz.quizKind,
+            quiz.methodId,
+        );
+        if (methodAssociationError) {
             ctx.addIssue({
                 code: "custom",
-                message: "Un quiz de méthode doit être lié à une méthode.",
+                message: methodAssociationError,
                 path: ["methodId"],
             });
         }

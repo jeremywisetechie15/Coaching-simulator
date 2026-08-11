@@ -7,12 +7,12 @@ import {
     DEFAULT_QUIZ_MAX_ATTEMPTS,
     QUIZ_KIND,
     QUIZ_EVALUATED_DIMENSION,
+    normalizeQuizMethodId,
     type QuizAttachmentType,
     type QuizDetail,
     type QuizDimension,
     type QuizGroupOption,
     type QuizKind,
-    type QuizMethodOption,
     type QuizParticipation,
     type QuizQuestionType,
     type QuizType,
@@ -180,34 +180,20 @@ export function emptyStep(weight = "0"): QuizStepFormState {
     };
 }
 
-function distributeStepWeights(stepCount: number) {
-    if (stepCount <= 0) return [];
+export function changeQuizMethod(
+    form: QuizFormState,
+    methodId: string | null,
+): QuizFormState {
+    if (form.methodId === methodId) return form;
 
-    const baseWeight = Math.floor(100 / stepCount);
-    const remainder = 100 % stepCount;
-
-    return Array.from({ length: stepCount }, (_, index) =>
-        String(baseWeight + (index < remainder ? 1 : 0)),
-    );
-}
-
-function hasCompleteMethodWeights(method: QuizMethodOption) {
-    const totalWeight = method.steps.reduce((sum, step) => sum + (step.weight ?? 0), 0);
-
-    return method.steps.length > 0 && totalWeight === 100;
-}
-
-export function createQuizStepsFromMethod(method: QuizMethodOption): QuizStepFormState[] {
-    const orderedMethodSteps = method.steps.slice().sort((first, second) => first.order - second.order);
-    const weights = hasCompleteMethodWeights(method)
-        ? orderedMethodSteps.map((step) => String(step.weight ?? 0))
-        : distributeStepWeights(orderedMethodSteps.length);
-
-    return orderedMethodSteps.map((methodStep, index) => ({
-        ...emptyStep(weights[index] ?? "0"),
-        methodStepId: methodStep.id,
-        name: methodStep.title,
-    }));
+    return {
+        ...form,
+        methodId,
+        steps: form.steps.map((step) => ({
+            ...step,
+            methodStepId: null,
+        })),
+    };
 }
 
 export function textOrNull(value: string | null | undefined) {
@@ -371,6 +357,8 @@ export function toSaveQuizInput(form: QuizFormState, status: ContentStatus): Sav
         throw new Error("L’usage du quiz doit être sélectionné avant l’enregistrement.");
     }
 
+    const methodId = normalizeQuizMethodId(form.quizKind, form.methodId);
+
     return {
         assignedUserId: form.scope === "user" ? textOrNull(form.assignedUserId) : null,
         categories: form.domain ? cleanList(form.categories) : [],
@@ -383,7 +371,7 @@ export function toSaveQuizInput(form: QuizFormState, status: ContentStatus): Sav
             form.maxAttempts === null
                 ? null
                 : integerFromText(form.maxAttempts, DEFAULT_QUIZ_MAX_ATTEMPTS),
-        methodId: form.methodId,
+        methodId,
         organizationId:
             form.scope === "organization" || form.scope === "group" ? form.organizationId : null,
         participation: form.participation,
@@ -394,7 +382,7 @@ export function toSaveQuizInput(form: QuizFormState, status: ContentStatus): Sav
         steps: form.steps.map((step) => ({
             competenceIds: cleanList(step.competenceIds),
             id: step.id,
-            methodStepId: step.methodStepId,
+            methodStepId: methodId ? step.methodStepId : null,
             name: step.name,
             questions: step.questions.map((question) => ({
                 attachments: question.attachments.map((attachment) => ({

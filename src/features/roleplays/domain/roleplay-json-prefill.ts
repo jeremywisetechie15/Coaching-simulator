@@ -408,7 +408,7 @@ export function buildRoleplayJsonPrefillPrompt(options: RoleplayJsonPrefillOptio
         `Coachs disponibles : ${JSON.stringify(liveCatalog(options.coachOptions, ({ id, name }) => ({ id, name })))}.`,
         `Méthodes disponibles : ${JSON.stringify(liveCatalog(options.methodOptions, ({ id, name }) => ({ id, name })))}.`,
         `Scorecards disponibles : ${JSON.stringify(liveCatalog(options.scorecardOptions, ({ id, methodId, name }) => ({ id, methodId, name })))}. Une scorecard doit appartenir à methodId.`,
-        `Quiz disponibles : ${JSON.stringify(liveCatalog(options.quizOptions, ({ id, kind, methodId, title }) => ({ id, kind, methodId, title })))}. quizIds contient uniquement les quiz complémentaires autorisés : même methodId que le roleplay ou methodId=null. Le quiz de connaissance principal de la méthode est associé automatiquement et ne doit pas être ajouté.`,
+        `Quiz disponibles : ${JSON.stringify(liveCatalog(options.quizOptions, ({ id, kind, methodId, title }) => ({ id, kind, methodId, title })))}. quizIds contient uniquement les quiz contextuels autorisés : même methodId que le roleplay ou methodId=null. Le quiz de connaissance principal de la méthode est associé automatiquement et ne doit pas être ajouté.`,
         `Organisations disponibles : ${JSON.stringify(liveCatalog(options.organizationOptions, ({ id, name }) => ({ id, name })))}.`,
         `Groupes disponibles : ${JSON.stringify(liveCatalog(options.groupOptions, ({ id, name, organizationId }) => ({ id, name, organizationId })))}.`,
         `Utilisateurs disponibles : ${JSON.stringify(liveCatalog(options.userOptions, ({ id, name, groupIds, organizationIds }) => ({ id, name, groupIds, organizationIds })))}.`,

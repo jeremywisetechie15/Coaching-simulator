@@ -1,5 +1,9 @@
 import { QUIZ_KIND, type QuizKind } from "./quiz";
 
+export const QUIZ_METHOD_ASSOCIATION_ERROR = {
+    methodRequired: "Un quiz de méthode doit être lié à une méthode.",
+} as const;
+
 export interface QuizMethodSelectionCandidate {
     id: string;
     isSelectable?: boolean;
@@ -15,6 +19,24 @@ export function isQuizMethodSelectableForKind(
     if (quizKind === QUIZ_KIND.contextual) return true;
 
     return !method.methodKnowledgeQuizId || method.methodKnowledgeQuizId === currentQuizId;
+}
+
+export function getQuizMethodAssociationError(
+    quizKind: QuizKind | null | undefined,
+    methodId: string | null | undefined,
+) {
+    if (quizKind === QUIZ_KIND.methodKnowledge && !methodId) {
+        return QUIZ_METHOD_ASSOCIATION_ERROR.methodRequired;
+    }
+
+    return null;
+}
+
+export function normalizeQuizMethodId(
+    _quizKind: QuizKind | null | undefined,
+    methodId: string | null | undefined,
+) {
+    return methodId ?? null;
 }
 
 export function getQuizMethodOptionsForKind<T extends QuizMethodSelectionCandidate>(

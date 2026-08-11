@@ -174,6 +174,16 @@ describe("saveQuizDto", () => {
         );
     });
 
+    it("keeps an optional reference method on contextual quizzes", () => {
+        const result = saveQuizDto.parse({
+            methodId,
+            quizKind: QUIZ_KIND.contextual,
+            title: "Quiz contextuel",
+        });
+
+        expect(result.methodId).toBe(methodId);
+    });
+
     it.each([
         QUIZ_VISIBILITY_SCOPE.organization,
         QUIZ_VISIBILITY_SCOPE.group,

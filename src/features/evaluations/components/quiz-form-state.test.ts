@@ -3,10 +3,10 @@ import {
     CONTENT_STATUS,
     LEARNER_CONTENT_STATUS,
 } from "@/features/content/domain";
-import { QUIZ_KIND, type QuizDetail, type QuizMethodOption } from "@/features/evaluations/domain";
+import { QUIZ_KIND, type QuizDetail } from "@/features/evaluations/domain";
 import {
     DEFAULT_QUIZ_MAX_ATTEMPTS_FORM_VALUE,
-    createQuizStepsFromMethod,
+    changeQuizMethod,
     inferQuizAttachmentType,
     maxAttemptsForLimitMode,
     normalizeChoicesForQuestionType,
@@ -22,15 +22,6 @@ function choices(values: boolean[]): QuizChoiceFormState[] {
         isCorrect,
         label: `Réponse ${index + 1}`,
     }));
-}
-
-function methodWithSteps(steps: QuizMethodOption["steps"]): QuizMethodOption {
-    return {
-        id: "11111111-1111-4111-8111-111111111111",
-        methodKnowledgeQuizId: null,
-        name: "Méthode DAGO",
-        steps,
-    };
 }
 
 function quizDetail(maxAttempts: number | null): QuizDetail {
@@ -121,60 +112,34 @@ describe("inferQuizAttachmentType", () => {
     });
 });
 
-describe("createQuizStepsFromMethod", () => {
-    it("creates quiz steps from method steps without persisting anything", () => {
-        const steps = createQuizStepsFromMethod(
-            methodWithSteps([
-                {
-                    id: "33333333-3333-4333-8333-333333333333",
-                    order: 2,
-                    title: "Accrocher",
-                    weight: null,
-                },
-                {
-                    id: "22222222-2222-4222-8222-222222222222",
-                    order: 1,
-                    title: "Démarrer",
-                    weight: null,
-                },
-                {
-                    id: "44444444-4444-4444-8444-444444444444",
-                    order: 3,
-                    title: "Conclure",
-                    weight: null,
-                },
-            ]),
-        );
+describe("changeQuizMethod", () => {
+    it("preserves groups and questions while clearing only stale method-step links", () => {
+        const form = quizForm("3");
+        const questions = [{ id: "question-1" }] as QuizFormState["steps"][number]["questions"];
+        form.methodId = "11111111-1111-4111-8111-111111111111";
+        form.steps = [{
+            collapsed: false,
+            competenceIds: ["skill-1"],
+            id: "step-1",
+            methodStepId: "22222222-2222-4222-8222-222222222222",
+            name: "Découverte",
+            questions,
+            weight: "100",
+        }];
 
-        expect(steps.map((step) => step.methodStepId)).toEqual([
-            "22222222-2222-4222-8222-222222222222",
+        const result = changeQuizMethod(
+            form,
             "33333333-3333-4333-8333-333333333333",
-            "44444444-4444-4444-8444-444444444444",
-        ]);
-        expect(steps.map((step) => step.name)).toEqual(["Démarrer", "Accrocher", "Conclure"]);
-        expect(steps.map((step) => step.weight)).toEqual(["34", "33", "33"]);
-        expect(steps.every((step) => step.questions.length === 0)).toBe(true);
-    });
-
-    it("keeps method weights when they already total 100", () => {
-        const steps = createQuizStepsFromMethod(
-            methodWithSteps([
-                {
-                    id: "22222222-2222-4222-8222-222222222222",
-                    order: 1,
-                    title: "Démarrer",
-                    weight: 60,
-                },
-                {
-                    id: "33333333-3333-4333-8333-333333333333",
-                    order: 2,
-                    title: "Conclure",
-                    weight: 40,
-                },
-            ]),
         );
 
-        expect(steps.map((step) => step.weight)).toEqual(["60", "40"]);
+        expect(result.steps).toHaveLength(1);
+        expect(result.steps[0]).toMatchObject({
+            competenceIds: ["skill-1"],
+            methodStepId: null,
+            name: "Découverte",
+            weight: "100",
+        });
+        expect(result.steps[0].questions).toBe(questions);
     });
 });
 
@@ -235,7 +200,7 @@ describe("toSaveQuizInput", () => {
         expect(toSaveQuizInput(form, CONTENT_STATUS.draft).difficulty).toBe("Difficile");
     });
 
-    it("keeps a standalone quiz contextual when a reference method is selected", () => {
+    it("keeps optional method links on contextual quiz payloads", () => {
         const form = quizForm("3");
         form.methodId = "11111111-1111-4111-8111-111111111111";
 

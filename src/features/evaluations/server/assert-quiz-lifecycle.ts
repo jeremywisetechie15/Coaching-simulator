@@ -11,6 +11,7 @@ import {
 import { QUIZ_EVALUATED_DIMENSION } from "@/features/evaluations/domain";
 import type { SaveQuizDto } from "@/features/evaluations/dto";
 import { ConflictError } from "@/lib/server/errors";
+import type { QuizMethodSelectionValidationOptions } from "./quiz-method-selection.validation";
 
 interface QuizKnowledgeSkillRow {
     skill_id: string;
@@ -45,6 +46,7 @@ export async function assertQuizLifecycle(
     supabase: SupabaseClient,
     input: SaveQuizDto,
     currentStatus?: ContentStatus,
+    { allowedDraftMethodId = null }: QuizMethodSelectionValidationOptions = {},
 ) {
     if (currentStatus) {
         assertContentStatusTransition(currentStatus, input.status);
@@ -53,7 +55,9 @@ export async function assertQuizLifecycle(
     }
 
     const dependencies: ContentDependencyReference[] = [];
-    if (input.methodId) dependencies.push({ id: input.methodId, kind: CONTENT_DEPENDENCY_KIND.method });
+    if (input.methodId && input.methodId !== allowedDraftMethodId) {
+        dependencies.push({ id: input.methodId, kind: CONTENT_DEPENDENCY_KIND.method });
+    }
 
     const skillIds = new Set<string>();
 
