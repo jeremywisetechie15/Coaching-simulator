@@ -7,6 +7,7 @@ import { ContextualLink } from "@/features/app-shell/components";
 import {
     ContentRemovalConfirmationModal,
     ContentRemovalMenuButton,
+    ContentStatusBadge,
     EntityDetailsModalFeedback,
 } from "@/features/content/components";
 import { requestContentCardAction } from "@/features/content/data/content-card-action.request";
@@ -204,7 +205,8 @@ export function CoachesPageContent({ canManage, initialCoaches }: CoachesPageCon
                                     }}
                                 >
                                     {canManage && (
-                                        <Box className="flex justify-end">
+                                        <Box className="flex items-start justify-between gap-3">
+                                            <ContentStatusBadge status={coach.status} />
                                             <Box
                                                 className="relative z-10"
                                                 onClick={(event) => event.stopPropagation()}

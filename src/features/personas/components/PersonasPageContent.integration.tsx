@@ -56,10 +56,10 @@ const personas: PersonaListItem[] = [
     },
 ];
 
-function renderPage() {
+function renderPage(canManage = false) {
     return renderToStaticMarkup(
         <QueryClientProvider client={new QueryClient()}>
-            <PersonasPageContent canManage={false} initialPersonas={personas} />
+            <PersonasPageContent canManage={canManage} initialPersonas={personas} />
         </QueryClientProvider>,
     );
 }
@@ -97,5 +97,10 @@ describe("PersonasPageContent", () => {
         expect(html).not.toContain("Marc Leroy");
         expect(html).toContain("35 à 44 ans");
         expect(html).toContain("PME · 10 à 249 salariés");
+    });
+
+    it("shows content-status badges only to administrators", () => {
+        expect(renderPage(true)).toContain("Brouillon");
+        expect(renderPage(false)).not.toContain("Brouillon");
     });
 });

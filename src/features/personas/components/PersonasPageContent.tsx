@@ -12,6 +12,7 @@ import { withSearchParams } from "@/features/app-shell/domain";
 import {
     ContentRemovalConfirmationModal,
     ContentRemovalMenuButton,
+    ContentStatusBadge,
     EntityDetailsModalFeedback,
 } from "@/features/content/components";
 import { requestContentCardAction } from "@/features/content/data/content-card-action.request";
@@ -398,6 +399,12 @@ export function PersonasPageContent({ canManage, initialPersonas }: PersonasPage
                                     }}
                                     className="relative min-h-[218px] cursor-pointer rounded-[14px] border border-[#E1E4EB] px-5 py-6 text-center shadow-none transition duration-200 hover:-translate-y-0.5 hover:border-[#D8DCE6] hover:shadow-[0_14px_34px_rgba(17,24,39,0.10)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5140F0]/40"
                                 >
+                                    {canManage && (
+                                        <ContentStatusBadge
+                                            className="absolute left-4 top-4 z-10"
+                                            status={persona.status}
+                                        />
+                                    )}
                                     {canManage && (
                                         <Box
                                             className="absolute right-4 top-4 z-10"
