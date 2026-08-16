@@ -4,6 +4,7 @@ import {
     CONTENT_STATUS,
     getActivitySectorLabel,
     resolveLearnerContentStatus,
+    type ContentStatus,
     type LearnerContentStatus,
 } from "@/features/content/domain";
 import { QUIZ_KIND } from "@/features/evaluations/domain";
@@ -623,11 +624,20 @@ async function fetchRoleplayLearnerProgress(
     );
 }
 
-export async function fetchRoleplayList(supabase: SupabaseClient, userId?: string | null): Promise<RoleplayListItem[]> {
-    const { data, error } = await supabase
+export async function fetchRoleplayList(
+    supabase: SupabaseClient,
+    userId?: string | null,
+    options: { status?: ContentStatus } = {},
+): Promise<RoleplayListItem[]> {
+    let query = supabase
         .from("scenarios")
-        .select(ROLEPLAY_SELECT)
-        .neq("status", "archived")
+        .select(ROLEPLAY_SELECT);
+
+    if (options.status) {
+        query = query.eq("status", options.status);
+    }
+
+    const { data, error } = await query
         .order("updated_at", { ascending: false })
         .returns<RoleplayRow[]>();
 

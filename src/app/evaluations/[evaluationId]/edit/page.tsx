@@ -4,7 +4,9 @@ import {
     APP_NAVIGATION_RESOURCE,
     canManageAppResource,
 } from "@/features/auth/domain/access-control";
+import { canEditContent } from "@/features/content/domain";
 import { CreateQuizPage } from "@/features/evaluations/components";
+import { EVALUATION_ROUTES } from "@/features/evaluations/domain";
 import {
     getQuizById,
     getQuizEditorById,
@@ -79,6 +81,10 @@ export default async function Page({ params, searchParams }: PageProps) {
         }
 
         throw error;
+    }
+
+    if (!canEditContent(quiz.status)) {
+        redirect(withReturnTo(EVALUATION_ROUTES.app.detail(evaluationId), returnTo));
     }
 
     const currentSkillIds = [...new Set(quiz.steps.flatMap((step) => [

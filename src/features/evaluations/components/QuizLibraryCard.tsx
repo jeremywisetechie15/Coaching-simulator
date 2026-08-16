@@ -2,7 +2,10 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { BookOpen, Clock, Eye, FileText, History, Info, Play, RefreshCw } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { LearnerContentStatusBadge } from "@/features/content/components";
+import {
+    ContentStatusBadge,
+    LearnerContentStatusBadge,
+} from "@/features/content/components";
 import { isSelectableContent } from "@/features/content/domain";
 import { getQuizTypeLabel, type QuizListItem } from "@/features/evaluations/domain";
 import { Box, CardSurface, InlineIcon, Text, Tooltip } from "@/lib/ui/atoms";
@@ -14,12 +17,14 @@ interface QuizLibraryCardProps {
     actions?: ReactNode;
     detailHref: string;
     quiz: QuizListItem;
+    showPublicationStatus?: boolean;
 }
 
 export function QuizLibraryCard({
     actions,
     detailHref,
     quiz,
+    showPublicationStatus = false,
 }: QuizLibraryCardProps) {
     const category = (quiz.categories[0] ?? quiz.domain) || "Non affecté";
     const bestScore = quiz.learnerStats.bestScore;
@@ -59,10 +64,17 @@ export function QuizLibraryCard({
 
             <Box className={uiTokens.quizLibraryCard.body}>
                 <Box className={uiTokens.quizLibraryCard.badgeRow}>
-                    <LearnerContentStatusBadge
-                        className={uiTokens.quizLibraryCard.badge}
-                        status={quiz.learnerStatus}
-                    />
+                    {showPublicationStatus ? (
+                        <ContentStatusBadge
+                            className={uiTokens.quizLibraryCard.badge}
+                            status={quiz.status}
+                        />
+                    ) : (
+                        <LearnerContentStatusBadge
+                            className={uiTokens.quizLibraryCard.badge}
+                            status={quiz.learnerStatus}
+                        />
+                    )}
                     <QuizMetadataBadge
                         className={uiTokens.quizLibraryCard.badge}
                         tone="type"

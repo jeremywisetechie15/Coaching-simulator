@@ -14,6 +14,7 @@ interface PageProps {
         domain?: string;
         learnerStatus?: string;
         level?: string;
+        publicationStatus?: string;
         q?: string;
         returnTo?: string;
     }>;
@@ -43,6 +44,7 @@ export default async function Page({ searchParams }: PageProps) {
                         domain: filters.domain,
                         learnerStatus: filters.learnerStatus,
                         level: filters.level,
+                        publicationStatus: filters.publicationStatus,
                         q: filters.q,
                     }),
                     filters.returnTo,

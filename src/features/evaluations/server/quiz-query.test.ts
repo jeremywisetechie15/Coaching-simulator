@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
-import { LEARNER_CONTENT_STATUS } from "@/features/content/domain";
-import { fetchQuizLearnerProgress } from "./quiz-query";
+import { CONTENT_STATUS, LEARNER_CONTENT_STATUS } from "@/features/content/domain";
+import { fetchQuizLearnerProgress, fetchQuizList } from "./quiz-query";
 
 function createProgressClient(
     attempts: Array<{
@@ -25,6 +25,38 @@ function createProgressClient(
         select,
     };
 }
+
+function createQuizListClient() {
+    const order = vi.fn().mockResolvedValue({ data: [], error: null });
+    const eq = vi.fn().mockReturnValue({ order });
+    const select = vi.fn().mockReturnValue({ eq, order });
+    const from = vi.fn().mockReturnValue({ select });
+
+    return {
+        client: { from } as unknown as SupabaseClient,
+        eq,
+        order,
+    };
+}
+
+describe("fetchQuizList", () => {
+    it("applies the requested publication status in the database query", async () => {
+        const { client, eq } = createQuizListClient();
+
+        await fetchQuizList(client, "learner-1", { status: CONTENT_STATUS.published });
+
+        expect(eq).toHaveBeenCalledWith("status", CONTENT_STATUS.published);
+    });
+
+    it("does not exclude archived quizzes from an unrestricted admin query", async () => {
+        const { client, eq, order } = createQuizListClient();
+
+        await fetchQuizList(client, "admin-1");
+
+        expect(eq).not.toHaveBeenCalled();
+        expect(order).toHaveBeenCalledWith("updated_at", { ascending: false });
+    });
+});
 
 describe("fetchQuizLearnerProgress", () => {
     it("derives roleplay quiz progress from completed and in-progress attempts", async () => {

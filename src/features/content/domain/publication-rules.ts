@@ -22,6 +22,10 @@ export interface ContentTransitionBlock {
     code: ContentTransitionBlockCode;
 }
 
+export function canEditContent(status: ContentStatus) {
+    return status !== CONTENT_STATUS.archived;
+}
+
 /**
  * Every viewer of a published parent must also be allowed to read its private
  * dependency. This access rule is independent from the content lifecycle.

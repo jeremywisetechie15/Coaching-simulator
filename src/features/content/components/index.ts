@@ -5,6 +5,7 @@ export * from "./ContentRemovalConfirmationModal";
 export * from "./ContentRemovalButton";
 export * from "./ContentRemovalMenuButton";
 export * from "./ContentEditorSubmitActions";
+export * from "./ContentEditMenuLink";
 export * from "./ContentStatusBadge";
 export * from "./DeleteContentConfirmationModal";
 export * from "./DiscProfileBadge";

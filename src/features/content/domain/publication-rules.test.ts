@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CONTENT_STATUS } from "./content-status";
 import {
+    canEditContent,
     contentAudienceCoversDependency,
     CONTENT_TRANSITION_BLOCK_CODE,
     getContentTransitionBlock,
@@ -8,6 +9,12 @@ import {
 import { CONTENT_VISIBILITY_SCOPE } from "./visibility-scope";
 
 describe("content publication rules", () => {
+    it("keeps archived content read-only", () => {
+        expect(canEditContent(CONTENT_STATUS.draft)).toBe(true);
+        expect(canEditContent(CONTENT_STATUS.published)).toBe(true);
+        expect(canEditContent(CONTENT_STATUS.archived)).toBe(false);
+    });
+
     it("keeps published content out of draft", () => {
         expect(getContentTransitionBlock(CONTENT_STATUS.published, CONTENT_STATUS.draft)).toEqual({
             code: CONTENT_TRANSITION_BLOCK_CODE.publishedToDraftUnsupported,

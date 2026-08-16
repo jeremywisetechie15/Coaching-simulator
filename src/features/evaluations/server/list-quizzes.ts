@@ -1,5 +1,6 @@
 import { requireAuth } from "@/features/auth/server";
-import { isSelectableContent } from "@/features/content/domain";
+import { isPlatformAdmin } from "@/features/auth/domain/access-control";
+import { CONTENT_STATUS, isSelectableContent } from "@/features/content/domain";
 import { QUIZ_KIND, type QuizListItem, type QuizOption } from "@/features/evaluations/domain/quiz";
 import { isQuizAssignableAsMethodKnowledge } from "@/features/methods/domain/method-quiz-selection";
 import { createClient } from "@/lib/supabase/server";
@@ -43,7 +44,13 @@ export async function listQuizzes(): Promise<QuizListItem[]> {
     const context = await requireAuth();
     const supabase = await createClient();
 
-    return fetchQuizList(supabase, context.userId);
+    return fetchQuizList(
+        supabase,
+        context.userId,
+        isPlatformAdmin(context.platformRole)
+            ? {}
+            : { status: CONTENT_STATUS.published },
+    );
 }
 
 export async function listQuizOptions(params: ListQuizOptionsParams = {}): Promise<QuizOption[]> {

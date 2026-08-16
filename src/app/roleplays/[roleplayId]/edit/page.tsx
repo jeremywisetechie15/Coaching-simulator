@@ -4,9 +4,13 @@ import {
     APP_NAVIGATION_RESOURCE,
     canManageAppResource,
 } from "@/features/auth/domain/access-control";
+import { canEditContent } from "@/features/content/domain";
 import { CreateRoleplayPage } from "@/features/roleplays/components";
 import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
+import {
+    ROLEPLAY_ROUTES,
+} from "@/features/roleplays/domain";
 import {
     getRoleplayEditorById,
     listRoleplayCoachOptions,
@@ -64,6 +68,10 @@ export default async function Page({ params, searchParams }: PageProps) {
         }
 
         throw error;
+    }
+
+    if (!canEditContent(roleplay.status)) {
+        redirect(withReturnTo(ROLEPLAY_ROUTES.app.detail(roleplayId), returnTo));
     }
 
     const [

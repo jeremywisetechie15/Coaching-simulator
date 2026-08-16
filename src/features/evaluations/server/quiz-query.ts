@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+    type ContentStatus,
     LEARNER_CONTENT_STATUS,
     resolveLearnerContentStatus,
     type LearnerContentStatus,
@@ -45,6 +46,10 @@ export interface QuizLearnerProgress {
     hasInProgress: boolean;
     stats: QuizLearnerStats;
     status: LearnerContentStatus;
+}
+
+interface FetchQuizListOptions {
+    status?: ContentStatus;
 }
 
 function normalizeScore(value: number | string | null) {
@@ -161,12 +166,17 @@ async function withMethodNames(supabase: SupabaseClient, rows: QuizRow[]) {
 export async function fetchQuizList(
     supabase: SupabaseClient,
     userId?: string | null,
+    options: FetchQuizListOptions = {},
 ): Promise<QuizListItem[]> {
-    const { data: rows, error } = await supabase
+    let query = supabase
         .from("quizzes")
-        .select(QUIZ_SELECT)
-        .neq("status", "archived")
-        .order("updated_at", { ascending: false });
+        .select(QUIZ_SELECT);
+
+    if (options.status) {
+        query = query.eq("status", options.status);
+    }
+
+    const { data: rows, error } = await query.order("updated_at", { ascending: false });
 
     if (error) {
         throw error;

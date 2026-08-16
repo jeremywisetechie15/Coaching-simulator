@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Copy, Edit3, History, MoreHorizontal, Plus } from "lucide-react";
+import { Copy, History, MoreHorizontal, Plus } from "lucide-react";
 import {
     ContextualLink,
     useCurrentAppHref,
@@ -18,15 +18,21 @@ import {
     ALL_CONTENT_CATEGORIES,
     CONTENT_DIFFICULTIES,
     CONTENT_DOMAINS,
+    CONTENT_STATUS_FILTER,
+    CONTENT_STATUS_FILTER_OPTIONS,
     getCategoriesForDomain,
     getContentRemovalErrorMessage,
+    isContentStatusFilter,
     isLearnerContentStatusFilter,
     LEARNER_CONTENT_STATUS_FILTER,
     LEARNER_CONTENT_STATUS_FILTER_OPTIONS,
+    matchesContentStatusFilter,
     matchesLearnerContentStatusFilter,
+    type ContentStatusFilter,
     type LearnerContentStatusFilter,
 } from "@/features/content/domain";
 import {
+    ContentEditMenuLink,
     ContentRemovalConfirmationModal,
     ContentRemovalMenuButton,
 } from "@/features/content/components";
@@ -42,7 +48,6 @@ import {
     AnimatedEntityHeader,
     CardActionMenu,
     CardActionMenuButton,
-    CardActionMenuLink,
     FilterSelect,
     LibraryFilterBar,
     LibrarySearchField,
@@ -126,6 +131,12 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
             ? requestedLearnerStatus
             : LEARNER_CONTENT_STATUS_FILTER.all,
     );
+    const requestedPublicationStatus = searchParams.get("publicationStatus");
+    const [publicationStatus, setPublicationStatus] = useState<ContentStatusFilter>(
+        isContentStatusFilter(requestedPublicationStatus)
+            ? requestedPublicationStatus
+            : CONTENT_STATUS_FILTER.all,
+    );
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [busyQuizId, setBusyQuizId] = useState<string | null>(null);
@@ -155,15 +166,19 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                 quiz.learnerStatus,
                 learnerStatus,
             );
+            const matchesPublicationStatus = matchesContentStatusFilter(
+                quiz.status,
+                publicationStatus,
+            );
 
             return matchesTerm
                 && matchesDomain
                 && matchesCategory
                 && matchesType
                 && matchesDifficulty
-                && matchesLearnerStatus;
+                && (canManage ? matchesPublicationStatus : matchesLearnerStatus);
         });
-    }, [category, difficulty, domain, learnerStatus, query, quizzes, type]);
+    }, [canManage, category, difficulty, domain, learnerStatus, publicationStatus, query, quizzes, type]);
 
     async function handleDuplicate(quizId: string) {
         setError(null);
@@ -234,6 +249,19 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
             withSearchParams(currentHref, {
                 learnerStatus:
                     value === LEARNER_CONTENT_STATUS_FILTER.all ? null : value,
+            }),
+            { scroll: false },
+        );
+    }
+
+    function selectPublicationStatus(value: string) {
+        if (!isContentStatusFilter(value)) return;
+
+        setPublicationStatus(value);
+        router.replace(
+            withSearchParams(currentHref, {
+                publicationStatus:
+                    value === CONTENT_STATUS_FILTER.all ? null : value,
             }),
             { scroll: false },
         );
@@ -318,13 +346,23 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                             />
                         </Box>
                         <Box className={uiTokens.filterBar.librarySelectStatus}>
-                            <FilterSelect
-                                appearance="library"
-                                ariaLabel="Filtrer par statut"
-                                value={learnerStatus}
-                                onChange={selectLearnerStatus}
-                                options={LEARNER_CONTENT_STATUS_FILTER_OPTIONS}
-                            />
+                            {canManage ? (
+                                <FilterSelect
+                                    appearance="library"
+                                    ariaLabel="Filtrer par statut de publication"
+                                    value={publicationStatus}
+                                    onChange={selectPublicationStatus}
+                                    options={CONTENT_STATUS_FILTER_OPTIONS}
+                                />
+                            ) : (
+                                <FilterSelect
+                                    appearance="library"
+                                    ariaLabel="Filtrer par progression"
+                                    value={learnerStatus}
+                                    onChange={selectLearnerStatus}
+                                    options={LEARNER_CONTENT_STATUS_FILTER_OPTIONS}
+                                />
+                            )}
                         </Box>
                 </LibraryFilterBar>
 
@@ -338,6 +376,7 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                                     currentHref,
                                 )}
                                 quiz={quiz}
+                                showPublicationStatus={canManage}
                                 actions={
                                     canManage ? (
                                         <Box className="relative">
@@ -357,13 +396,12 @@ export function EvaluationsPageContent({ canManage, quizzes }: EvaluationsPageCo
                                             </Button>
                                             {openMenuId === quiz.id && (
                                                 <CardActionMenu>
-                                                    <CardActionMenuLink
+                                                    <ContentEditMenuLink
                                                         href={withReturnTo(
                                                             EVALUATION_ROUTES.app.edit(quiz.id),
                                                             currentHref,
                                                         )}
-                                                        icon={Edit3}
-                                                        label={ENTITY_ACTION_LABELS.modify}
+                                                        status={quiz.status}
                                                     />
                                                     <CardActionMenuButton
                                                         disabled={busyQuizId === quiz.id}

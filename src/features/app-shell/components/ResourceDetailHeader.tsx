@@ -6,7 +6,11 @@ import {
     ContentRemovalButton,
     ContentRemovalConfirmationModal,
 } from "@/features/content/components";
-import { getContentRemovalAction, type ContentStatus } from "@/features/content/domain";
+import {
+    canEditContent,
+    getContentRemovalAction,
+    type ContentStatus,
+} from "@/features/content/domain";
 import { Box, InlineIcon } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { ContextualBackLink } from "./ContextualBackLink";
@@ -39,6 +43,9 @@ export function ResourceDetailHeader({
     const removalType = removalAction
         ? getContentRemovalAction(removalAction.status)
         : null;
+    const resolvedEditHref = removalAction && !canEditContent(removalAction.status)
+        ? undefined
+        : editHref;
 
     async function handleRemove() {
         if (!removalAction || !removalType || isRemoving) return;
@@ -72,11 +79,11 @@ export function ResourceDetailHeader({
                     />
                 </ContextualBackLink>
 
-                {canManage && (editHref || removalType) && (
+                {canManage && (resolvedEditHref || removalType) && (
                     <Box className={uiTokens.resourceDetailHeader.actions}>
-                        {editHref && (
+                        {resolvedEditHref && (
                             <ContextualLink
-                                href={editHref}
+                                href={resolvedEditHref}
                                 className={uiTokens.resourceDetailHeader.editButton}
                             >
                                 <InlineIcon

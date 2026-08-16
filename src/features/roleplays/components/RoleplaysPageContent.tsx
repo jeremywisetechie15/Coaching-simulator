@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { Copy, Edit3, Eye, History, Info, MoreHorizontal, Phone, Plus } from "lucide-react";
+import { Copy, Eye, History, Info, MoreHorizontal, Phone, Plus } from "lucide-react";
 import { useMemo, useState } from "react";
 import {
     ContextualLink,
@@ -10,16 +10,23 @@ import {
 } from "@/features/app-shell/components";
 import { withReturnTo, withSearchParams } from "@/features/app-shell/domain";
 import {
+    ContentEditMenuLink,
     ContentRemovalConfirmationModal,
     ContentRemovalMenuButton,
+    ContentStatusBadge,
     LearnerContentStatusBadge,
 } from "@/features/content/components";
 import {
+    CONTENT_STATUS_FILTER,
+    CONTENT_STATUS_FILTER_OPTIONS,
     isLearnerContentStatusFilter,
+    isContentStatusFilter,
     isSelectableContent,
     getContentRemovalErrorMessage,
     LEARNER_CONTENT_STATUS_FILTER,
     LEARNER_CONTENT_STATUS_FILTER_OPTIONS,
+    matchesContentStatusFilter,
+    type ContentStatusFilter,
     type LearnerContentStatusFilter,
 } from "@/features/content/domain";
 import { ORGANIZATIONS_QUERY_KEY } from "@/features/organizations/domain/organization-query";
@@ -47,7 +54,6 @@ import {
     AnimatedEntityHeader,
     CardActionMenu,
     CardActionMenuButton,
-    CardActionMenuLink,
     FilterSelect,
     LibraryFilterBar,
     LibrarySearchField,
@@ -126,6 +132,12 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
             ? requestedLearnerStatus
             : LEARNER_CONTENT_STATUS_FILTER.all,
     );
+    const requestedPublicationStatus = searchParams.get("publicationStatus");
+    const [publicationStatus, setPublicationStatus] = useState<ContentStatusFilter>(
+        isContentStatusFilter(requestedPublicationStatus)
+            ? requestedPublicationStatus
+            : CONTENT_STATUS_FILTER.all,
+    );
     const [busyRoleplayId, setBusyRoleplayId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
@@ -141,8 +153,11 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                 learnerStatus,
                 level,
                 query,
-            }),
-        [category, domain, learnerStatus, level, query, roleplays],
+            }).filter(
+                (roleplay) =>
+                    !canManage || matchesContentStatusFilter(roleplay.status, publicationStatus),
+            ),
+        [canManage, category, domain, learnerStatus, level, publicationStatus, query, roleplays],
     );
 
     function updateQuery(value: string) {
@@ -185,6 +200,19 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
             withSearchParams(currentHref, {
                 learnerStatus:
                     value === LEARNER_CONTENT_STATUS_FILTER.all ? null : value,
+            }),
+            { scroll: false },
+        );
+    }
+
+    function selectPublicationStatus(value: string) {
+        if (!isContentStatusFilter(value)) return;
+
+        setPublicationStatus(value);
+        router.replace(
+            withSearchParams(currentHref, {
+                publicationStatus:
+                    value === CONTENT_STATUS_FILTER.all ? null : value,
             }),
             { scroll: false },
         );
@@ -290,13 +318,23 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                             />
                         </Box>
                         <Box className={uiTokens.filterBar.librarySelectStatus}>
-                            <FilterSelect
-                                appearance="library"
-                                ariaLabel="Filtrer par statut"
-                                options={LEARNER_CONTENT_STATUS_FILTER_OPTIONS}
-                                value={learnerStatus}
-                                onChange={selectLearnerStatus}
-                            />
+                            {canManage ? (
+                                <FilterSelect
+                                    appearance="library"
+                                    ariaLabel="Filtrer par statut de publication"
+                                    options={CONTENT_STATUS_FILTER_OPTIONS}
+                                    value={publicationStatus}
+                                    onChange={selectPublicationStatus}
+                                />
+                            ) : (
+                                <FilterSelect
+                                    appearance="library"
+                                    ariaLabel="Filtrer par progression"
+                                    options={LEARNER_CONTENT_STATUS_FILTER_OPTIONS}
+                                    value={learnerStatus}
+                                    onChange={selectLearnerStatus}
+                                />
+                            )}
                         </Box>
                 </LibraryFilterBar>
 
@@ -356,10 +394,9 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                                                     </Button>
                                                     {openMenuId === roleplay.id && (
                                                         <CardActionMenu>
-                                                            <CardActionMenuLink
+                                                            <ContentEditMenuLink
                                                                 href={withReturnTo(ROLEPLAY_ROUTES.app.edit(roleplay.id), currentHref)}
-                                                                icon={Edit3}
-                                                                label={ENTITY_ACTION_LABELS.modify}
+                                                                status={roleplay.status}
                                                             />
                                                             <CardActionMenuButton
                                                                 disabled={busyRoleplayId === roleplay.id}
@@ -411,10 +448,17 @@ export function RoleplaysPageContent({ canManage, roleplays }: RoleplaysPageCont
                                             >
                                                 {roleplay.difficulty}
                                             </Box>
-                                            <LearnerContentStatusBadge
-                                                status={roleplay.learnerStatus}
-                                                className="h-[26px] text-[12px]"
-                                            />
+                                            {canManage ? (
+                                                <ContentStatusBadge
+                                                    status={roleplay.status}
+                                                    className="h-[26px] text-[12px]"
+                                                />
+                                            ) : (
+                                                <LearnerContentStatusBadge
+                                                    status={roleplay.learnerStatus}
+                                                    className="h-[26px] text-[12px]"
+                                                />
+                                            )}
                                         </Box>
 
                                         <Box className={uiTokens.roleplayCard.divider} />

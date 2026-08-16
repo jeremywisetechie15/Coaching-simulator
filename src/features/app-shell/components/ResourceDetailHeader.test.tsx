@@ -78,4 +78,25 @@ describe("ResourceDetailHeader", () => {
         expect(html).toContain("Supprimer");
         expect(html).not.toContain("Archiver");
     });
+
+    it("keeps archived content read-only on its detail page", () => {
+        const html = renderToStaticMarkup(
+            <ResourceDetailHeader
+                removalAction={{
+                    entityLabel: "la méthode",
+                    errorMessage: "Impossible de modifier la méthode.",
+                    name: "Méthode archivée",
+                    onRemove: vi.fn(),
+                    status: "archived",
+                }}
+                canManage
+                editHref="/methods/method-1/edit"
+                fallbackHref="/methods"
+            />,
+        );
+
+        expect(html).toContain("Retour aux méthodes");
+        expect(html).not.toContain("Modifier");
+        expect(html).not.toContain('href="/methods/method-1/edit"');
+    });
 });

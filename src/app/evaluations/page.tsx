@@ -17,6 +17,7 @@ interface PageProps {
         difficulty?: string;
         domain?: string;
         learnerStatus?: string;
+        publicationStatus?: string;
         q?: string;
         returnTo?: string;
         type?: string;
@@ -46,6 +47,7 @@ export default async function Page({ searchParams }: PageProps) {
                         difficulty: filters.difficulty,
                         domain: filters.domain,
                         learnerStatus: filters.learnerStatus,
+                        publicationStatus: filters.publicationStatus,
                         q: filters.q,
                         type: filters.type,
                     }),

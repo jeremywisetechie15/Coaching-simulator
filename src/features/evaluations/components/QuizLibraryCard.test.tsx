@@ -95,4 +95,26 @@ describe("QuizLibraryCard", () => {
         expect(html).not.toContain("Commencer le quiz");
         expect(html).not.toContain("Retenter le quiz");
     });
+
+    it("shows publication status instead of learner progress on administrator cards", () => {
+        const html = renderToStaticMarkup(
+            <QuizLibraryCard
+                detailHref="/evaluations/quiz-1"
+                quiz={{ ...quiz, status: CONTENT_STATUS.draft }}
+                showPublicationStatus
+            />,
+        );
+
+        expect(html).toContain("Brouillon");
+        expect(html).not.toContain("Validé");
+    });
+
+    it("keeps learner progress on learner cards", () => {
+        const html = renderToStaticMarkup(
+            <QuizLibraryCard detailHref="/evaluations/quiz-1" quiz={quiz} />,
+        );
+
+        expect(html).toContain("Validé");
+        expect(html).not.toContain(">Publié<");
+    });
 });
