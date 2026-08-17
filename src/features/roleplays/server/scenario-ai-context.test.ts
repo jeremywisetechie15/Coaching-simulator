@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
     composeRoleplayPersonaSimulationInstructions,
+    getScenarioAiInstructions,
     SCENARIO_GLOBAL_PROMPT_TITLE,
 } from "./scenario-ai-context";
 
@@ -38,5 +39,26 @@ describe("scenario AI context", () => {
 
         expect(result).not.toContain("INSTRUCTIONS IA SPÉCIFIQUES AU SCÉNARIO");
         expect(result).toContain("Prompt persona");
+    });
+
+    it("loads the latest stored instructions for the next session", async () => {
+        const query = {
+            eq: () => query,
+            maybeSingle: async () => ({
+                data: { ai_instructions: "  Nouvelle consigne publiée.  " },
+                error: null,
+            }),
+            select: () => query,
+        };
+        const supabase = {
+            from: (table: string) => {
+                expect(table).toBe("scenario_ai_settings");
+                return query;
+            },
+        };
+
+        await expect(
+            getScenarioAiInstructions(supabase as never, "roleplay-1"),
+        ).resolves.toBe("Nouvelle consigne publiée.");
     });
 });

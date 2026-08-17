@@ -31,12 +31,14 @@ import {
     type ContentStatus,
     type ContentVisibilityChoice,
 } from "@/features/content/domain";
+import { HistoricalImpactConfirmationModal } from "@/features/content/components";
 import { QUIZ_KIND, type QuizOption } from "@/features/evaluations/domain";
 import {
     DEFAULT_METHOD_STEP_ICON,
     type MethodDetail,
     type MethodEditorDetail,
     METHOD_ROUTES,
+    METHOD_QUIZ_HISTORICAL_IMPACT_CONFIRMATION_REQUIRED_CODE,
     METHOD_SCOPE,
     METHOD_USAGE_EDIT_RESTRICTION_MESSAGE,
     normalizeMethodStepIcon,
@@ -64,6 +66,7 @@ import { Box, Button, CardSurface, FieldErrorMessage, FieldLabel, InlineIcon, Te
 import {
     createFormSubmitApiError,
     createFormSubmitError,
+    FormSubmitError,
     notifyFormSubmitError,
     notifyFormSubmitSuccess,
 } from "@/lib/ui/feedback/form-submit-feedback";
@@ -495,6 +498,7 @@ export function CreateMethodPageContent({
     const [formError, setFormError] = useState<string | null>(null);
     const [duplicating, setDuplicating] = useState(false);
     const [savingStatus, setSavingStatus] = useState<ContentStatus | null>(null);
+    const [pendingHistoricalImpactStatus, setPendingHistoricalImpactStatus] = useState<ContentStatus | null>(null);
     const [uploadProgressByClientFileId, setUploadProgressByClientFileId] = useState<Record<string, number>>({});
 
     const isSaving = savingStatus !== null;
@@ -806,7 +810,7 @@ export function CreateMethodPageContent({
         ];
     }
 
-    async function handleSave(status: ContentStatus) {
+    async function handleSave(status: ContentStatus, historicalImpactConfirmed = false) {
         if (isSaving || duplicating || Object.keys(jsonPrefillFieldErrors).length > 0) return;
 
         setFormError(null);
@@ -817,6 +821,15 @@ export function CreateMethodPageContent({
             return;
         }
 
+        if (
+            !historicalImpactConfirmed
+            && hasExistingUsage
+            && initialQuizId !== quiz
+        ) {
+            setPendingHistoricalImpactStatus(status);
+            return;
+        }
+
         setSavingStatus(status);
         setUploadProgressByClientFileId({});
 
@@ -824,7 +837,10 @@ export function CreateMethodPageContent({
             const savedMethod = await submitWithDirectUploads({
                 onProgress: (clientFileId, percentage) =>
                     setUploadProgressByClientFileId((current) => ({ ...current, [clientFileId]: percentage })),
-                payload: payload.data,
+                payload: {
+                    ...payload.data,
+                    historicalImpactConfirmed,
+                },
                 save: (payload) => saveMethod(initialMethod?.id, payload),
                 uploads: collectUploadFiles(),
             });
@@ -843,6 +859,15 @@ export function CreateMethodPageContent({
             );
             router.refresh();
         } catch (error) {
+            if (
+                !historicalImpactConfirmed
+                && error instanceof FormSubmitError
+                && error.code === METHOD_QUIZ_HISTORICAL_IMPACT_CONFIRMATION_REQUIRED_CODE
+            ) {
+                setPendingHistoricalImpactStatus(status);
+                return;
+            }
+
             setFormError(notifyFormSubmitError(error, "Impossible d'enregistrer la méthode."));
         } finally {
             setSavingStatus(null);
@@ -994,7 +1019,6 @@ export function CreateMethodPageContent({
                                 Quiz et évaluation associés (optionnel)
                             </FieldLabel>
                             <SingleSelectField
-                                disabled={hasExistingUsage}
                                 hasError={Boolean(jsonPrefillFieldErrors.quizId)}
                                 options={quizSelectOptions}
                                 value={quiz ?? noQuizOptionValue}
@@ -1683,6 +1707,24 @@ export function CreateMethodPageContent({
                         organizationOptions,
                         quizOptions: availableQuizOptions,
                     })}
+                />
+            )}
+            {pendingHistoricalImpactStatus && (
+                <HistoricalImpactConfirmationModal
+                    busy={isSaving}
+                    description="Confirmez la modification du quiz principal de cette méthode."
+                    message={initialQuizId && quiz
+                        ? "L’ancien quiz devient contextuel et le nouveau devient le quiz principal. Les tentatives et les notes sont conservées, mais leur attribution actuelle à la méthode peut changer."
+                        : initialQuizId
+                          ? "L’ancien quiz devient contextuel et la méthode n’aura plus de quiz principal. Les tentatives et les notes sont conservées."
+                          : "Le quiz sélectionné devient le quiz principal de la méthode. Ses tentatives et ses notes sont conservées, mais leur attribution actuelle à la méthode peut changer."}
+                    onCancel={() => setPendingHistoricalImpactStatus(null)}
+                    onConfirm={() => {
+                        const status = pendingHistoricalImpactStatus;
+                        setPendingHistoricalImpactStatus(null);
+                        void handleSave(status, true);
+                    }}
+                    title="Modifier le quiz principal"
                 />
             )}
         </Box>

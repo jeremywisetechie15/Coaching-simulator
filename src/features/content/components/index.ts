@@ -12,5 +12,6 @@ export * from "./DiscProfileBadge";
 export * from "./DiscProfileSelector";
 export * from "./EntityProfileDetailsModal";
 export * from "./EntityDetailsModalFeedback";
+export * from "./HistoricalImpactConfirmationModal";
 export * from "./LearnerContentStatusBadge";
 export * from "./VoiceDescriptor";

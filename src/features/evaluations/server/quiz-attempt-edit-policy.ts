@@ -29,19 +29,16 @@ function currentConfiguration(quiz: QuizDetail): QuizAttemptLockedConfiguration 
         domain: nullableText(quiz.domain),
         groupId: quiz.scope === "group" ? quiz.groupId : null,
         hasAttemptLimit: quiz.maxAttempts !== null,
-        methodId: quiz.methodId,
         organizationId:
             quiz.scope === "organization" || quiz.scope === "group"
                 ? quiz.organizationId
                 : null,
         participation: quiz.participation,
-        quizKind: quiz.kind,
         quizType: quiz.type,
         scope: quiz.scope,
         steps: quiz.steps.map((step) => ({
             competenceIds: sorted(step.competenceIds),
             id: step.id,
-            methodStepId: step.methodStepId,
             questions: step.questions.map((question) => ({
                 attachments: question.attachments.map((attachment) => ({
                     deliveryType: attachment.storagePath ? "file" : "url",
@@ -72,19 +69,16 @@ function nextConfiguration(input: SaveQuizDto): QuizAttemptLockedConfiguration {
         domain: nullableText(input.domain),
         groupId: input.scope === "group" ? input.groupId : null,
         hasAttemptLimit: input.maxAttempts !== null,
-        methodId: input.methodId,
         organizationId:
             input.scope === "organization" || input.scope === "group"
                 ? input.organizationId
                 : null,
         participation: input.participation,
-        quizKind: input.quizKind,
         quizType: input.quizType,
         scope: input.scope,
         steps: input.steps.map((step) => ({
             competenceIds: sorted(step.competenceIds),
             id: step.id ?? null,
-            methodStepId: step.methodStepId,
             questions: step.questions.map((question) => ({
                 attachments: question.attachments.map((attachment) => ({
                     deliveryType:

@@ -34,6 +34,7 @@ import {
     type ContentDifficulty,
     type ContentStatus,
 } from "@/features/content/domain";
+import { HistoricalImpactConfirmationModal } from "@/features/content/components";
 import {
     EVALUATION_ROUTES,
     QUIZ_ATTEMPT_EDIT_RESTRICTION_MESSAGE,
@@ -45,6 +46,7 @@ import {
     QUIZ_TYPE_LABELS,
     QUIZ_TYPES,
     hasActiveQuizKnowledgeItem,
+    hasQuizMethodAssociationChanged,
     isQuizMethodSelectableForKind,
     buildQuizJsonPrefillPrompt,
     parseQuizJsonPrefillText,
@@ -204,6 +206,7 @@ export function CreateQuizPageContent({
     const [formError, setFormError] = useState<string | null>(null);
     const [duplicating, setDuplicating] = useState(false);
     const [savingStatus, setSavingStatus] = useState<ContentStatus | null>(null);
+    const [pendingHistoricalImpactStatus, setPendingHistoricalImpactStatus] = useState<ContentStatus | null>(null);
     const [uploadProgressByClientFileId, setUploadProgressByClientFileId] = useState<Record<string, number>>({});
     const [tagDraft, setTagDraft] = useState("");
     const quizSkillOptions = useMemo(
@@ -650,13 +653,34 @@ export function CreateQuizPageContent({
         );
     }
 
-    async function handleSave(status: ContentStatus) {
+    async function handleSave(status: ContentStatus, historicalImpactConfirmed = false) {
         if (
             isSaving ||
             duplicating ||
             Object.keys(jsonPrefillFieldErrors).length > 0 ||
             (status === CONTENT_STATUS.published ? !canPublish : !canSaveDraft)
         ) {
+            return;
+        }
+
+        if (
+            !historicalImpactConfirmed
+            && initialQuiz
+            && hasExistingAttempts
+            && hasQuizMethodAssociationChanged(
+                {
+                    methodId: initialQuiz.methodId,
+                    quizKind: initialQuiz.kind,
+                    steps: initialQuiz.steps,
+                },
+                {
+                    methodId: form.methodId,
+                    quizKind: form.quizKind,
+                    steps: form.steps,
+                },
+            )
+        ) {
+            setPendingHistoricalImpactStatus(status);
             return;
         }
 
@@ -791,7 +815,6 @@ export function CreateQuizPageContent({
                             <Box>
                                 <FieldLabel required className={uiTokens.form.label}>Usage du quiz</FieldLabel>
                                 <SingleSelectField
-                                    disabled={hasExistingAttempts}
                                     hasError={Boolean(jsonPrefillFieldErrors.quizKind)}
                                     options={QUIZ_KINDS.map((kind) => ({
                                         label: QUIZ_KIND_LABELS[kind],
@@ -908,7 +931,6 @@ export function CreateQuizPageContent({
                                     Méthode de référence
                                 </FieldLabel>
                                 <SingleSelectField
-                                    disabled={hasExistingAttempts}
                                     hasError={Boolean(jsonPrefillFieldErrors.methodId)}
                                     options={methodSelectOptions}
                                     value={form.methodId ?? ""}
@@ -1224,7 +1246,6 @@ export function CreateQuizPageContent({
                                                                 Étape de méthode évaluée <span className={uiTokens.text.muted}>(optionnel)</span>
                                                             </FieldLabel>
                                                             <SingleSelectField
-                                                                disabled={hasExistingAttempts}
                                                                 hasError={Boolean(jsonPrefillFieldErrors[`steps.${stepIndex}.methodStepId`])}
                                                                 options={[
                                                                     { label: "Aucune — groupe complémentaire", value: "" },
@@ -1554,6 +1575,20 @@ export function CreateQuizPageContent({
                         skillOptions,
                         userOptions,
                     })}
+                />
+            )}
+            {pendingHistoricalImpactStatus && (
+                <HistoricalImpactConfirmationModal
+                    busy={isSaving}
+                    description="Confirmez la correction du rattachement de ce quiz."
+                    message="Cette correction ne supprime aucune tentative ni aucune note. Elle peut toutefois modifier l’attribution des anciens résultats aux étapes de méthode."
+                    onCancel={() => setPendingHistoricalImpactStatus(null)}
+                    onConfirm={() => {
+                        const status = pendingHistoricalImpactStatus;
+                        setPendingHistoricalImpactStatus(null);
+                        void handleSave(status, true);
+                    }}
+                    title="Corriger le rattachement du quiz"
                 />
             )}
         </Box>

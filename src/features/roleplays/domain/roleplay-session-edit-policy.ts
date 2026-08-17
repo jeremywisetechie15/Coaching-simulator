@@ -1,7 +1,7 @@
 export const ROLEPLAY_SESSION_EDIT_RESTRICTION_MESSAGE =
-    "Ce roleplay possède déjà des sessions. Sa configuration, dont le secteur d’activité, est verrouillée ; seuls les contenus éditoriaux, paramètres numériques et l’image de fond peuvent être modifiés.";
+    "Ce roleplay possède déjà des sessions. Sa méthode, son persona, son coach, sa scorecard, son audience et ses ressources structurelles sont verrouillés ; ses quiz complémentaires et ses contenus éditoriaux restent modifiables.";
 
-export interface RoleplaySessionLockedQuiz {
+export interface RoleplayQuizAssignmentSnapshot {
     id: string;
     participation: string;
 }
@@ -25,10 +25,16 @@ export interface RoleplaySessionLockedConfiguration {
     methodId: string | null;
     organizationId: string | null;
     personaId: string | null;
-    quizzes: RoleplaySessionLockedQuiz[];
     resources: RoleplaySessionLockedResource[];
     scope: string;
     scorecardId: string | null;
+}
+
+export function hasRoleplayQuizAssignmentsChanged(
+    current: readonly RoleplayQuizAssignmentSnapshot[],
+    next: readonly RoleplayQuizAssignmentSnapshot[],
+) {
+    return JSON.stringify(current) !== JSON.stringify(next);
 }
 
 export function hasRoleplaySessionLockedConfigurationChanged(

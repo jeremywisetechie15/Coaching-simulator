@@ -35,6 +35,12 @@ export const METHOD_SCOPE = {
 
 export const METHOD_SCOPES = ORGANIZATION_CONTENT_VISIBILITY_SCOPES;
 
+export const METHOD_QUIZ_HISTORICAL_IMPACT_CONFIRMATION_REQUIRED_CODE =
+    "METHOD_QUIZ_HISTORICAL_IMPACT_CONFIRMATION_REQUIRED";
+
+export const METHOD_QUIZ_ROLEPLAY_LINK_CONFLICT_MESSAGE =
+    "Ce quiz est encore utilisé comme quiz complémentaire dans un ou plusieurs roleplays. Retirez-le d’abord de ces roleplays avant de le définir comme quiz principal.";
+
 export type MethodScope = OrganizationContentVisibilityScope;
 
 export const METHOD_SCOPE_LABELS: Record<MethodScope, string> = {
@@ -346,7 +352,7 @@ export interface MethodDetail extends MethodListItem {
 }
 
 export const METHOD_USAGE_EDIT_RESTRICTION_MESSAGE =
-    "Cette méthode est déjà utilisée. Seuls les champs texte et numériques existants peuvent être modifiés.";
+    "Cette méthode est déjà utilisée. Sa structure reste verrouillée ; ses textes, valeurs numériques et son quiz principal restent modifiables.";
 
 export interface MethodEditorDetail extends MethodDetail {
     hasUsage: boolean;

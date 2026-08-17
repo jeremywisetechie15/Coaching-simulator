@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { isSelectableContent, type ContentStatus } from "@/features/content/domain";
 import { QUIZ_KIND } from "@/features/evaluations/domain";
 import { isQuizAssignableAsMethodKnowledge } from "@/features/methods/domain/method-quiz-selection";
-import { AppError, NotFoundError } from "@/lib/server/errors";
+import { AppError, mapDatabaseError, NotFoundError } from "@/lib/server/errors";
 
 interface QuizAssociationRow {
     id: string;
@@ -52,31 +52,10 @@ export async function syncMethodQuizAssociation(
         }
     }
 
-    let detachQuery = supabase
-        .from("quizzes")
-        .update({ method_id: null, quiz_kind: QUIZ_KIND.contextual })
-        .eq("method_id", methodId)
-        .eq("quiz_kind", QUIZ_KIND.methodKnowledge);
+    const { error } = await supabase.rpc("admin_sync_method_quiz_association", {
+        p_method_id: methodId,
+        p_quiz_id: quizId,
+    });
 
-    if (quizId) {
-        detachQuery = detachQuery.neq("id", quizId);
-    }
-
-    const { error: detachError } = await detachQuery;
-    if (detachError) {
-        throw detachError;
-    }
-
-    if (!quizId) {
-        return;
-    }
-
-    const { error: attachError } = await supabase
-        .from("quizzes")
-        .update({ method_id: methodId, quiz_kind: QUIZ_KIND.methodKnowledge })
-        .eq("id", quizId);
-
-    if (attachError) {
-        throw attachError;
-    }
+    if (error) throw mapDatabaseError(error);
 }

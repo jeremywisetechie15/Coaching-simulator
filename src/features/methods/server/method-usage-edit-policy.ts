@@ -40,7 +40,6 @@ interface LockedMethodConfiguration {
     domain: string | null;
     objectiveCount: number;
     organizationId: string | null;
-    quizId: string | null;
     resources: LockedMethodResource[];
     scope: string;
     steps: LockedMethodStep[];
@@ -81,7 +80,6 @@ function nextResource(
 
 function currentConfiguration(
     method: MethodDetail,
-    quizId: string | null,
 ): LockedMethodConfiguration {
     return {
         category: nullableText(method.category),
@@ -89,7 +87,6 @@ function currentConfiguration(
         domain: nullableText(method.domain),
         objectiveCount: method.objectives.length,
         organizationId: method.scope === "organization" ? method.organizationId : null,
-        quizId,
         resources: sortResources(method.resources.map(currentResource)),
         scope: method.scope,
         steps: method.steps.map((step) => ({
@@ -114,7 +111,6 @@ function nextConfiguration(input: SaveMethodDto): LockedMethodConfiguration {
         domain: nullableText(input.domain),
         objectiveCount: input.objectives.length,
         organizationId: input.scope === "organization" ? input.organizationId : null,
-        quizId: input.quizId,
         resources: sortResources(input.resources.map(nextResource)),
         scope: input.scope,
         steps: input.steps.map((step) => ({
@@ -130,22 +126,6 @@ function nextConfiguration(input: SaveMethodDto): LockedMethodConfiguration {
             verbatimCount: step.verbatims.length,
         })),
     };
-}
-
-async function getAssociatedQuizId(
-    supabase: SupabaseClient,
-    methodId: string,
-) {
-    const { data, error } = await supabase
-        .from("quizzes")
-        .select("id")
-        .eq("method_id", methodId)
-        .eq("quiz_kind", "method_knowledge")
-        .maybeSingle<{ id: string }>();
-
-    if (error) throw error;
-
-    return data?.id ?? null;
 }
 
 async function hasAssociatedQuizAttempts(
@@ -180,17 +160,17 @@ export async function assertMethodUsageEditPolicy(
     input: SaveMethodDto,
     { hasUploads = false }: MethodUsageEditOptions = {},
 ) {
-    if (!(await hasMethodUsage(supabase, methodId))) return;
+    const hasUsage = await hasMethodUsage(supabase, methodId);
+    if (!hasUsage) return false;
 
-    const [currentMethod, currentQuizId] = await Promise.all([
-        fetchMethodDetail(supabase, methodId),
-        getAssociatedQuizId(supabase, methodId),
-    ]);
+    const currentMethod = await fetchMethodDetail(supabase, methodId);
     const configurationChanged =
-        JSON.stringify(currentConfiguration(currentMethod, currentQuizId)) !==
+        JSON.stringify(currentConfiguration(currentMethod)) !==
         JSON.stringify(nextConfiguration(input));
 
     if (configurationChanged || hasUploads) {
         throw new ConflictError(METHOD_USAGE_EDIT_RESTRICTION_MESSAGE);
     }
+
+    return true;
 }

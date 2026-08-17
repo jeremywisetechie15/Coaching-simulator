@@ -84,6 +84,7 @@ export const saveMethodDto = z
         challenges: textArrayDto,
         description: z.string().trim().max(4000, "La description est trop longue.").optional().default(""),
         domain: optionalMethodDomainDto,
+        historicalImpactConfirmed: z.boolean().optional(),
         name: z
             .string()
             .trim()

@@ -8,5 +8,6 @@ export * from "./get-method-mastery";
 export * from "./get-method-resource-access";
 export * from "./list-methods";
 export * from "./method-usage-edit-policy";
+export * from "./method-quiz-change-policy";
 export * from "./save-method-request";
 export * from "./update-method";

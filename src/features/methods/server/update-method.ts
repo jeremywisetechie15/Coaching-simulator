@@ -29,6 +29,7 @@ import {
 } from "./method-upload-files";
 import { assertMethodLifecycle } from "./assert-method-lifecycle";
 import { assertMethodUsageEditPolicy } from "./method-usage-edit-policy";
+import { assertMethodQuizChangePolicy } from "./method-quiz-change-policy";
 
 type StepMutationRow = ReturnType<typeof createStepRows>[number];
 type ResourceMutationRow = ReturnType<typeof createResourceRows>[number] & { id?: string };
@@ -74,8 +75,14 @@ export async function updateMethod(
         throw new NotFoundError("Méthode introuvable.");
     }
 
-    await assertMethodUsageEditPolicy(adminSupabase, methodId, normalizedInput, {
+    const hasExistingUsage = await assertMethodUsageEditPolicy(adminSupabase, methodId, normalizedInput, {
         hasUploads: uploadFilesByClientId.size > 0,
+    });
+    await assertMethodQuizChangePolicy(adminSupabase, {
+        hasExistingUsage,
+        historicalImpactConfirmed: normalizedInput.historicalImpactConfirmed,
+        methodId,
+        nextQuizId: normalizedInput.quizId,
     });
     await assertMethodLifecycle(adminSupabase, normalizedInput, existingMethod.status);
 

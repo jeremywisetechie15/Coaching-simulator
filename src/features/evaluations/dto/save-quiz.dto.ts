@@ -14,7 +14,10 @@ import {
     QUIZ_TYPES,
     QUIZ_VISIBILITY_SCOPES,
 } from "@/features/evaluations/domain/quiz";
-import { getQuizMethodAssociationError } from "@/features/evaluations/domain/quiz-method-selection";
+import {
+    getQuizMethodAssociationError,
+    getQuizMethodStepAssociationError,
+} from "@/features/evaluations/domain/quiz-method-selection";
 
 function uniqueTextArrayDto(tooLongMessage: string) {
     return z
@@ -196,6 +199,18 @@ export const saveQuizDto = z
                 code: "custom",
                 message: methodAssociationError,
                 path: ["methodId"],
+            });
+        }
+
+        const methodStepAssociationError = getQuizMethodStepAssociationError(
+            quiz.methodId,
+            quiz.steps,
+        );
+        if (methodStepAssociationError) {
+            ctx.addIssue({
+                code: "custom",
+                message: methodStepAssociationError,
+                path: ["steps"],
             });
         }
 

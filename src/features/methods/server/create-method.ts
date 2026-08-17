@@ -28,6 +28,7 @@ import {
     type UploadedStorageObject,
 } from "./method-upload-files";
 import { assertMethodLifecycle } from "./assert-method-lifecycle";
+import { assertMethodQuizChangePolicy } from "./method-quiz-change-policy";
 
 export async function createMethod(
     input: SaveMethodDto,
@@ -40,6 +41,11 @@ export async function createMethod(
     let createdMethodId: string | null = null;
     const uploadedObjects: UploadedStorageObject[] = [];
 
+    await assertMethodQuizChangePolicy(adminSupabase, {
+        hasExistingUsage: false,
+        historicalImpactConfirmed: normalizedInput.historicalImpactConfirmed,
+        nextQuizId: normalizedInput.quizId,
+    });
     await assertMethodLifecycle(adminSupabase, normalizedInput);
 
     try {

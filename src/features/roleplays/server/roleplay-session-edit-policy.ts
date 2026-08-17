@@ -9,7 +9,6 @@ import { ConflictError, NotFoundError } from "@/lib/server/errors";
 import {
     createScenarioResourceRows,
     nullableText,
-    SCENARIO_QUIZ_SELECT,
     SCENARIO_RESOURCE_SELECT,
 } from "./roleplay.persistence";
 
@@ -27,12 +26,6 @@ interface LockedScenarioRow {
     persona_id: string | null;
     scorecard_id: string | null;
     visibility_scope: string;
-}
-
-interface LockedScenarioQuizRow {
-    participation: string;
-    quiz_id: string;
-    sort_order: number;
 }
 
 interface LockedScenarioResourceRow {
@@ -66,7 +59,6 @@ const LOCKED_SCENARIO_SELECT = [
 
 function currentConfiguration(
     scenario: LockedScenarioRow,
-    quizzes: LockedScenarioQuizRow[],
     resources: LockedScenarioResourceRow[],
 ): RoleplaySessionLockedConfiguration {
     return {
@@ -81,10 +73,6 @@ function currentConfiguration(
         methodId: scenario.method_id,
         organizationId: scenario.organization_id,
         personaId: scenario.persona_id,
-        quizzes: quizzes.map((quiz) => ({
-            id: quiz.quiz_id,
-            participation: quiz.participation,
-        })),
         resources: resources.map((resource) => ({
             id: resource.id,
             resourceType: resource.resource_type,
@@ -115,10 +103,6 @@ function nextConfiguration(
                 ? input.organizationId
                 : null,
         personaId: input.personaId,
-        quizzes: input.quizIds.map((id) => ({
-            id,
-            participation: input.quizParticipation,
-        })),
         resources: createScenarioResourceRows(roleplayId, input).map((resource) => ({
             id: resource.id ?? null,
             resourceType: resource.resource_type,
@@ -154,18 +138,12 @@ export async function assertRoleplaySessionEditPolicy(
 ) {
     if (!(await hasRoleplaySessions(supabase, roleplayId))) return;
 
-    const [scenarioResult, quizzesResult, resourcesResult] = await Promise.all([
+    const [scenarioResult, resourcesResult] = await Promise.all([
         supabase
             .from("scenarios")
             .select(LOCKED_SCENARIO_SELECT)
             .eq("id", roleplayId)
             .maybeSingle<LockedScenarioRow>(),
-        supabase
-            .from("scenario_quizzes")
-            .select(SCENARIO_QUIZ_SELECT)
-            .eq("scenario_id", roleplayId)
-            .order("sort_order", { ascending: true })
-            .returns<LockedScenarioQuizRow[]>(),
         supabase
             .from("scenario_resources")
             .select(SCENARIO_RESOURCE_SELECT)
@@ -176,14 +154,12 @@ export async function assertRoleplaySessionEditPolicy(
     ]);
 
     if (scenarioResult.error) throw scenarioResult.error;
-    if (quizzesResult.error) throw quizzesResult.error;
     if (resourcesResult.error) throw resourcesResult.error;
     if (!scenarioResult.data) throw new NotFoundError("Roleplay introuvable.");
 
     const configurationChanged = hasRoleplaySessionLockedConfigurationChanged(
         currentConfiguration(
             scenarioResult.data,
-            quizzesResult.data ?? [],
             resourcesResult.data ?? [],
         ),
         nextConfiguration(roleplayId, input),

@@ -167,9 +167,11 @@ describe("saveMethodDto", () => {
     it("accepts an optional quiz association on method writes", () => {
         const result = saveMethodDto.parse({
             ...minimalMethodInput,
+            historicalImpactConfirmed: true,
             quizId: "00000000-0000-4000-8000-000000000001",
         });
 
+        expect(result.historicalImpactConfirmed).toBe(true);
         expect(result.quizId).toBe("00000000-0000-4000-8000-000000000001");
     });
 

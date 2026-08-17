@@ -184,6 +184,22 @@ describe("saveQuizDto", () => {
         expect(result.methodId).toBe(methodId);
     });
 
+    it("rejects a method-step link without a reference method", () => {
+        const result = saveQuizDto.safeParse({
+            quizKind: QUIZ_KIND.contextual,
+            steps: [{
+                methodStepId: "22222222-2222-4222-8222-222222222222",
+                name: "Groupe",
+            }],
+            title: "Quiz contextuel",
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.message)).toContain(
+            "Un groupe ne peut pas cibler une étape sans méthode de référence.",
+        );
+    });
+
     it.each([
         QUIZ_VISIBILITY_SCOPE.organization,
         QUIZ_VISIBILITY_SCOPE.group,

@@ -245,9 +245,39 @@ describe("quiz attempt edit policy server guard", () => {
         ).resolves.toBeUndefined();
     });
 
-    it("rejects select and correct-answer changes after an attempt", async () => {
+    it("allows method usage and step mappings to be corrected after an attempt", async () => {
+        const input = unchangedInput();
+        input.quizKind = "method_knowledge";
+        input.methodId = "88888888-8888-4888-8888-888888888888";
+        input.steps[0]!.methodStepId = "99999999-9999-4999-8999-999999999999";
+
+        await expect(
+            assertQuizAttemptEditPolicy(
+                createFakeSupabase(true) as never,
+                "quiz-1",
+                input,
+            ),
+        ).resolves.toBeUndefined();
+    });
+
+    it("keeps the quiz type locked after an attempt", async () => {
         const input = unchangedInput();
         input.quizType = "self_assessment";
+
+        await expect(
+            assertQuizAttemptEditPolicy(
+                createFakeSupabase(true) as never,
+                "quiz-1",
+                input,
+            ),
+        ).rejects.toMatchObject({
+            message: QUIZ_ATTEMPT_EDIT_RESTRICTION_MESSAGE,
+            status: 409,
+        });
+    });
+
+    it("keeps correct answers locked after an attempt", async () => {
+        const input = unchangedInput();
         input.steps[0]!.questions[0]!.choices[0]!.isCorrect = false;
 
         await expect(

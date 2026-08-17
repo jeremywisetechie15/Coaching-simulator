@@ -6,6 +6,7 @@ import {
 } from "@/features/content/domain";
 import {
     getQuizMethodAssociationError,
+    getQuizMethodStepAssociationError,
     QUIZ_KIND,
     isQuizMethodSelectableForKind,
 } from "@/features/evaluations/domain";
@@ -49,12 +50,15 @@ export async function assertQuizMethodSelection(
         input.steps.flatMap((step) => step.methodStepId ? [step.methodStepId] : []),
     ));
 
+    const methodStepAssociationError = getQuizMethodStepAssociationError(
+        input.methodId,
+        input.steps,
+    );
+    if (methodStepAssociationError) {
+        throw new ConflictError(methodStepAssociationError);
+    }
+
     if (!input.methodId) {
-        if (methodStepIds.length > 0) {
-            throw new ConflictError(
-                "Un groupe ne peut pas cibler une étape sans méthode de référence.",
-            );
-        }
         return;
     }
 

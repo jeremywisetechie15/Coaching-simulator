@@ -221,7 +221,7 @@ describe("method usage edit policy server guard", () => {
                 methodId,
                 input,
             ),
-        ).resolves.toBeUndefined();
+        ).resolves.toBe(true);
     });
 
     it("rejects selections and list structure changes after usage", async () => {
@@ -239,6 +239,19 @@ describe("method usage edit policy server guard", () => {
             message: METHOD_USAGE_EDIT_RESTRICTION_MESSAGE,
             status: 409,
         });
+    });
+
+    it("allows the principal quiz association to change after usage", async () => {
+        const input = unchangedInput();
+        input.quizId = "55555555-5555-4555-8555-555555555555";
+
+        await expect(
+            assertMethodUsageEditPolicy(
+                createFakeSupabase(true) as never,
+                methodId,
+                input,
+            ),
+        ).resolves.toBe(true);
     });
 
     it("rejects uploads after usage", async () => {
@@ -266,7 +279,7 @@ describe("method usage edit policy server guard", () => {
                 input,
                 { hasUploads: true },
             ),
-        ).resolves.toBeUndefined();
+        ).resolves.toBe(false);
         expect(mocks.fetchMethodDetail).not.toHaveBeenCalled();
     });
 });

@@ -149,6 +149,33 @@ describe("roleplay session edit policy server guard", () => {
         ).resolves.toBeUndefined();
     });
 
+    it("allows complementary quizzes and their participation to change after a session", async () => {
+        await expect(
+            assertRoleplaySessionEditPolicy(
+                createFakeSupabase(baseRows(true)) as never,
+                roleplayId,
+                {
+                    ...unchangedInput,
+                    quizIds: ["77777777-7777-4777-8777-777777777777"],
+                    quizParticipation: "mandatory",
+                },
+            ),
+        ).resolves.toBeUndefined();
+    });
+
+    it("allows published scenario AI instructions to change after a session", async () => {
+        await expect(
+            assertRoleplaySessionEditPolicy(
+                createFakeSupabase(baseRows(true)) as never,
+                roleplayId,
+                {
+                    ...unchangedInput,
+                    aiInstructions: "Nouvelle consigne IA pour les prochaines sessions.",
+                },
+            ),
+        ).resolves.toBeUndefined();
+    });
+
     it("allows replacing or clearing the background after a session", async () => {
         const rows = baseRows(true);
         rows.scenarios = [{
@@ -168,14 +195,18 @@ describe("roleplay session edit policy server guard", () => {
         ).resolves.toBeUndefined();
     });
 
-    it("rejects a locked configuration change after a session", async () => {
+    it.each([
+        ["method", { methodId: "method-2" }],
+        ["persona", { personaId: "persona-2" }],
+        ["scorecard", { scorecardId: "scorecard-2" }],
+    ])("keeps the %s locked after a session", async (_label, patch) => {
         await expect(
             assertRoleplaySessionEditPolicy(
                 createFakeSupabase(baseRows(true)) as never,
                 roleplayId,
                 {
                     ...unchangedInput,
-                    methodId: "method-2",
+                    ...patch,
                 },
             ),
         ).rejects.toMatchObject({

@@ -1,5 +1,5 @@
 export const QUIZ_ATTEMPT_EDIT_RESTRICTION_MESSAGE =
-    "Ce quiz possède déjà des tentatives. Ses contenus et paramètres structurels sont verrouillés ; les champs éditoriaux, numériques et le niveau de difficulté restent modifiables.";
+    "Ce quiz possède déjà des tentatives. Ses questions, réponses, compétences, ciblages et pièces jointes sont verrouillés ; son usage et ses rattachements de méthode restent corrigeables.";
 
 export interface QuizAttemptLockedAttachment {
     deliveryType: "file" | "url";
@@ -28,7 +28,6 @@ export interface QuizAttemptLockedQuestion {
 export interface QuizAttemptLockedStep {
     competenceIds: string[];
     id: string | null;
-    methodStepId: string | null;
     questions: QuizAttemptLockedQuestion[];
 }
 
@@ -38,10 +37,8 @@ export interface QuizAttemptLockedConfiguration {
     domain: string | null;
     groupId: string | null;
     hasAttemptLimit: boolean;
-    methodId: string | null;
     organizationId: string | null;
     participation: string;
-    quizKind: string;
     quizType: string;
     scope: string;
     steps: QuizAttemptLockedStep[];

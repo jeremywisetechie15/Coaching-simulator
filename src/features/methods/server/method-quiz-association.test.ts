@@ -9,14 +9,8 @@ interface FakeQuizRow {
 }
 
 function createFakeSupabase(rows: FakeQuizRow[]) {
-    const updates: Array<{
-        filters: Array<{ column: string; operator: "eq" | "neq"; value: string }>;
-        payload: Partial<FakeQuizRow>;
-    }> = [];
-
     return {
         rows,
-        updates,
         supabase: {
             from(table: string) {
                 if (table !== "quizzes") {
@@ -41,44 +35,34 @@ function createFakeSupabase(rows: FakeQuizRow[]) {
                             },
                         };
                     },
-                    update(payload: Partial<FakeQuizRow>) {
-                        const filters: Array<{ column: string; operator: "eq" | "neq"; value: string }> = [];
-                        const apply = async () => {
-                            rows.forEach((row) => {
-                                const matches = filters.every((filter) => {
-                                    const currentValue = row[filter.column as keyof FakeQuizRow];
-                                    return filter.operator === "eq"
-                                        ? currentValue === filter.value
-                                        : currentValue !== filter.value;
-                                });
-
-                                if (matches) {
-                                    Object.assign(row, payload);
-                                }
-                            });
-                            updates.push({ filters: [...filters], payload });
-                            return { error: null };
-                        };
-                        const builder = {
-                            eq(column: string, value: string) {
-                                filters.push({ column, operator: "eq", value });
-                                return builder;
-                            },
-                            neq(column: string, value: string) {
-                                filters.push({ column, operator: "neq", value });
-                                return builder;
-                            },
-                            then<TResult1 = { error: null }, TResult2 = never>(
-                                onfulfilled?: ((value: { error: null }) => TResult1 | PromiseLike<TResult1>) | null,
-                                onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
-                            ) {
-                                return apply().then(onfulfilled, onrejected);
-                            },
-                        };
-
-                        return builder;
-                    },
                 };
+            },
+            async rpc(
+                functionName: string,
+                args: { p_method_id: string; p_quiz_id: string | null },
+            ) {
+                if (functionName !== "admin_sync_method_quiz_association") {
+                    throw new Error(`Unexpected function ${functionName}`);
+                }
+
+                rows.forEach((row) => {
+                    if (
+                        row.method_id === args.p_method_id
+                        && row.quiz_kind === "method_knowledge"
+                        && row.id !== args.p_quiz_id
+                    ) {
+                        row.method_id = null;
+                        row.quiz_kind = "contextual";
+                    }
+                });
+
+                const selectedQuiz = rows.find((row) => row.id === args.p_quiz_id);
+                if (selectedQuiz) {
+                    selectedQuiz.method_id = args.p_method_id;
+                    selectedQuiz.quiz_kind = "method_knowledge";
+                }
+
+                return { error: null };
             },
         },
     };

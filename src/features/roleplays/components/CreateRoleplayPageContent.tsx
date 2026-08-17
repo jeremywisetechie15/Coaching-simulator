@@ -36,6 +36,7 @@ import {
 import {
     ContentEditorSubmitActions,
     ContentTargetScopeField,
+    HistoricalImpactConfirmationModal,
     type ContentTargetScopeValue,
 } from "@/features/content/components";
 import { CreateCoachPageContent } from "@/features/coaches/components/CreateCoachPageContent";
@@ -69,6 +70,7 @@ import {
     buildRoleplayJsonPrefillPrompt,
     getAssignableRoleplayScorecardOptions,
     getAssignableRoleplayQuizOptions,
+    hasRoleplayQuizAssignmentsChanged,
     getRoleplayMethodKnowledgeQuizOption,
     getRoleplayPublicationIssues,
     parseRoleplayJsonPrefillText,
@@ -718,6 +720,7 @@ export function CreateRoleplayPageContent({
     const [jsonPrefillMessage, setJsonPrefillMessage] = useState<string | null>(null);
     const [duplicating, setDuplicating] = useState(false);
     const [saving, setSaving] = useState(false);
+    const [pendingHistoricalImpactStatus, setPendingHistoricalImpactStatus] = useState<SaveRoleplayInput["status"] | null>(null);
     const [uploadProgressByClientFileId, setUploadProgressByClientFileId] = useState<Record<string, number>>({});
 
     const personaSelectOptions = useMemo(
@@ -1093,9 +1096,28 @@ export function CreateRoleplayPageContent({
         };
     }
 
-    async function handleSave(status: SaveRoleplayInput["status"]) {
+    async function handleSave(
+        status: SaveRoleplayInput["status"],
+        historicalImpactConfirmed = false,
+    ) {
         const canSaveStatus = status === CONTENT_STATUS.published ? canPublish : canSave;
         if (!canSaveStatus || saving) return;
+
+        if (
+            !historicalImpactConfirmed
+            && hasExistingSessions
+            && initialRoleplay
+            && hasRoleplayQuizAssignmentsChanged(
+                initialRoleplay.quizzes.map((quiz) => ({
+                    id: quiz.id,
+                    participation: quiz.participation,
+                })),
+                quizIds.map((id) => ({ id, participation: quizParticipation })),
+            )
+        ) {
+            setPendingHistoricalImpactStatus(status);
+            return;
+        }
 
         setFormError(null);
         setSaving(true);
@@ -1329,7 +1351,7 @@ export function CreateRoleplayPageContent({
                         </Box>
 
                         <QuizParticipationField
-                            disabled={hasExistingSessions || !method}
+                            disabled={!method}
                             emptyMessage="Aucun quiz complémentaire disponible"
                             options={assignableQuizOptions}
                             placeholder={
@@ -1791,6 +1813,20 @@ export function CreateRoleplayPageContent({
                         scorecardOptions,
                         userOptions,
                     })}
+                />
+            )}
+            {pendingHistoricalImpactStatus && (
+                <HistoricalImpactConfirmationModal
+                    busy={saving}
+                    description="Confirmez la modification des quiz complémentaires."
+                    message="Les sessions et tentatives existantes sont conservées. La progression de ce roleplay utilisera désormais la nouvelle liste de quiz et pourra donc afficher des résultats différents."
+                    onCancel={() => setPendingHistoricalImpactStatus(null)}
+                    onConfirm={() => {
+                        const status = pendingHistoricalImpactStatus;
+                        setPendingHistoricalImpactStatus(null);
+                        void handleSave(status, true);
+                    }}
+                    title="Modifier les quiz du roleplay"
                 />
             )}
         </Box>
