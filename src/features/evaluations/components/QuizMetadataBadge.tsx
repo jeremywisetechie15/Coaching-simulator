@@ -6,12 +6,13 @@ import { cn } from "@/lib/ui/utils/cn";
 interface QuizMetadataBadgeProps {
     children: ReactNode;
     className?: string;
-    tone: "category" | "difficulty" | "type";
+    tone: "category" | "difficulty" | "kind" | "type";
 }
 
 const TONE_CLASS = {
     category: uiTokens.tone.primary.soft,
     difficulty: uiTokens.tone.warning.soft,
+    kind: uiTokens.tone.primary.soft,
     type: uiTokens.tone.info.soft,
 } as const;
 

@@ -51,6 +51,8 @@ describe("QuizLibraryCard", () => {
         );
 
         expect(html).toContain("Prise de rendez-vous");
+        expect(html).toContain("Quiz de méthode");
+        expect(html).toContain("Quiz de Connaissance");
         expect(html).toContain("Méthode DAGO");
         expect(html).toContain("16 questions");
         expect(html).toContain("20 min");
@@ -81,6 +83,24 @@ describe("QuizLibraryCard", () => {
         expect(html).toContain("—");
         expect(html).toContain("Commencer le quiz");
         expect(html).not.toContain("Retenter le quiz");
+    });
+
+    it("identifies contextual quizzes independently from their questionnaire type", () => {
+        const html = renderToStaticMarkup(
+            <QuizLibraryCard
+                detailHref="/evaluations/quiz-1"
+                quiz={{
+                    ...quiz,
+                    kind: QUIZ_KIND.contextual,
+                    methodId: null,
+                    methodName: null,
+                }}
+            />,
+        );
+
+        expect(html).toContain("Quiz contextuel");
+        expect(html).toContain("Quiz de Connaissance");
+        expect(html).not.toContain("Quiz de méthode");
     });
 
     it("opens a draft for administration without presenting a start action", () => {

@@ -7,7 +7,11 @@ import {
     LearnerContentStatusBadge,
 } from "@/features/content/components";
 import { isSelectableContent } from "@/features/content/domain";
-import { getQuizTypeLabel, type QuizListItem } from "@/features/evaluations/domain";
+import {
+    getQuizKindLabel,
+    getQuizTypeLabel,
+    type QuizListItem,
+} from "@/features/evaluations/domain";
 import { Box, CardSurface, InlineIcon, Text, Tooltip } from "@/lib/ui/atoms";
 import { uiTokens } from "@/lib/ui/tokens";
 import { cn } from "@/lib/ui/utils/cn";
@@ -75,6 +79,12 @@ export function QuizLibraryCard({
                             status={quiz.learnerStatus}
                         />
                     )}
+                    <QuizMetadataBadge
+                        className={uiTokens.quizLibraryCard.badge}
+                        tone="kind"
+                    >
+                        {getQuizKindLabel(quiz.kind)}
+                    </QuizMetadataBadge>
                     <QuizMetadataBadge
                         className={uiTokens.quizLibraryCard.badge}
                         tone="type"
