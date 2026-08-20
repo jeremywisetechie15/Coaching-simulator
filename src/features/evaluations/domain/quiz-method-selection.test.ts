@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CONTENT_STATUS } from "@/features/content/domain";
 import { QUIZ_KIND } from "./quiz";
 import {
     getQuizMethodAssociationError,
@@ -15,11 +16,11 @@ const method = {
 };
 
 describe("quiz method selection policy", () => {
-    it("allows every selectable reference method for a contextual quiz", () => {
+    it("does not offer a reference method for a contextual quiz", () => {
         expect(isQuizMethodSelectableForKind({
             ...method,
             methodKnowledgeQuizId: "other-quiz",
-        }, QUIZ_KIND.contextual)).toBe(true);
+        }, QUIZ_KIND.contextual)).toBe(false);
     });
 
     it("allows a method knowledge quiz only when the canonical slot is free", () => {
@@ -45,12 +46,29 @@ describe("quiz method selection policy", () => {
     });
 
     it("keeps the method ownership rule in one place", () => {
-        expect(getQuizMethodAssociationError(QUIZ_KIND.contextual, "method-1")).toBeNull();
-        expect(getQuizMethodAssociationError(QUIZ_KIND.methodKnowledge, null)).toContain(
+        expect(getQuizMethodAssociationError(
+            QUIZ_KIND.contextual,
+            "method-1",
+            CONTENT_STATUS.draft,
+        )).toContain("ne peut pas être lié");
+        expect(getQuizMethodAssociationError(
+            QUIZ_KIND.methodKnowledge,
+            null,
+            CONTENT_STATUS.published,
+        )).toContain(
             "lié à une méthode",
         );
-        expect(getQuizMethodAssociationError(QUIZ_KIND.methodKnowledge, "method-1")).toBeNull();
-        expect(normalizeQuizMethodId(QUIZ_KIND.contextual, "method-1")).toBe("method-1");
+        expect(getQuizMethodAssociationError(
+            QUIZ_KIND.methodKnowledge,
+            null,
+            CONTENT_STATUS.draft,
+        )).toBeNull();
+        expect(getQuizMethodAssociationError(
+            QUIZ_KIND.methodKnowledge,
+            "method-1",
+            CONTENT_STATUS.published,
+        )).toBeNull();
+        expect(normalizeQuizMethodId(QUIZ_KIND.contextual, "method-1")).toBeNull();
     });
 
     it("rejects method-step links when no reference method is selected", () => {

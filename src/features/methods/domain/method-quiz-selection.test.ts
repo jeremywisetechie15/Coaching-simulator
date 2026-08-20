@@ -11,11 +11,27 @@ describe("method knowledge quiz selection policy", () => {
         }, "method-1")).toBe(true);
     });
 
-    it("allows promoting a contextual quiz already linked to the same method", () => {
+    it("rejects an invalid contextual quiz carrying a method", () => {
         expect(isQuizAssignableAsMethodKnowledge({
             id: "quiz-1",
             kind: QUIZ_KIND.contextual,
             methodId: "method-1",
+        }, "method-1")).toBe(false);
+    });
+
+    it("allows an unattached method quiz draft while creating a method", () => {
+        expect(isQuizAssignableAsMethodKnowledge({
+            id: "quiz-1",
+            kind: QUIZ_KIND.methodKnowledge,
+            methodId: null,
+        }, null)).toBe(true);
+    });
+
+    it("allows attaching an orphan method quiz draft to an existing method", () => {
+        expect(isQuizAssignableAsMethodKnowledge({
+            id: "quiz-1",
+            kind: QUIZ_KIND.methodKnowledge,
+            methodId: null,
         }, "method-1")).toBe(true);
     });
 

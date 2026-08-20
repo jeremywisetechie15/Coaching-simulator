@@ -136,6 +136,7 @@ export const saveQuizDto = z
             .optional()
             .default(30),
         groupId: z.string().uuid("Le groupe sélectionné est invalide.").nullable().optional().default(null),
+        historicalImpactConfirmed: z.boolean().optional(),
         maxAttempts: z
             .number()
             .int("Le nombre de tentatives doit être un nombre entier.")
@@ -193,6 +194,7 @@ export const saveQuizDto = z
         const methodAssociationError = getQuizMethodAssociationError(
             quiz.quizKind,
             quiz.methodId,
+            quiz.status,
         );
         if (methodAssociationError) {
             ctx.addIssue({

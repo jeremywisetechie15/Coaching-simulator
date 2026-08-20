@@ -51,7 +51,7 @@ const QUIZ_SOURCE_ANALYSIS_INSTRUCTIONS = [
     "Le titre doit résumer le quiz en 180 caractères maximum et la description doit préciser ce qui est évalué en 4 000 caractères maximum.",
     "Utilise quizType=\"knowledge\" par défaut. Utilise quizType=\"self_assessment\" uniquement si le document décrit explicitement une auto-évaluation ou un auto-positionnement.",
     "Utilise quizKind=\"method_knowledge\" uniquement si la source décrit le quiz principal de validation d’une méthode. Utilise quizKind=\"contextual\" pour un quiz complémentaire ou contextuel.",
-    "Pour un quiz de méthode, utilise le methodId exact d’une méthode disponible. Pour un quiz contextuel, methodId peut rester null ou référencer une méthode disponible si elle sert de cadre. Les groupes de questions restent indépendants : renseigne leur methodStepId uniquement lorsqu’une correspondance avec une étape de la méthode choisie est certaine, sinon utilise null.",
+    "Pour un quiz de méthode, utilise si possible le methodId exact d’une méthode disponible ; un brouillon peut toutefois garder methodId=null. Pour un quiz contextuel, utilise obligatoirement methodId=null et methodStepId=null dans tous les groupes. Les groupes et leurs noms restent conservés même sans rattachement à une étape de méthode.",
     "Associe chaque étape et chaque question aux compétences et items Savoir disponibles par correspondance sémantique. Une question ne peut utiliser qu’une competenceId déjà présente dans competenceIds de son étape.",
     "Si le document fournit des pondérations d’étapes valides, entières et totalisant 100, conserve-les. Sinon, répartis 100 équitablement entre les étapes en nombres entiers et attribue le reliquat d’un point aux premières étapes.",
     "Si les étapes de la méthode sélectionnée possèdent toutes une pondération entière valide totalisant 100, utilise prioritairement ces pondérations.",
@@ -265,13 +265,12 @@ export function parseQuizJsonPrefillText(
     const selectedMethod = data.methodId === null
         ? null
         : selectableMethods.find((option) => option.id === data.methodId) ?? null;
-    if (data.methodId !== null && !selectedMethod) {
-        errors.methodId = quizKind === QUIZ_KIND.methodKnowledge
-            ? "Cette méthode possède déjà un autre quiz principal ou n’est pas disponible."
-            : "Aucune méthode disponible ne correspond à cet identifiant.";
-    }
-    if (quizKind === QUIZ_KIND.methodKnowledge && !selectedMethod) {
-        errors.methodId = "Un quiz principal doit être rattaché à une méthode disponible sans autre quiz principal.";
+    if (
+        quizKind === QUIZ_KIND.methodKnowledge
+        && data.methodId !== null
+        && !selectedMethod
+    ) {
+        errors.methodId = "Cette méthode possède déjà un autre quiz principal ou n’est pas disponible.";
     }
 
     const scope = scopeResult.success ? scopeResult.data : "public";
@@ -351,7 +350,10 @@ export function parseQuizJsonPrefillText(
                 } else {
                     errors[`${path}.methodStepId`] = "Cette étape n’appartient pas à la méthode sélectionnée.";
                 }
-            } else if (step.methodStepId !== null) {
+            } else if (
+                quizKind !== QUIZ_KIND.contextual
+                && step.methodStepId !== null
+            ) {
                 errors[`${path}.methodStepId`] = "L’identifiant d’étape doit être null pour un quiz sans méthode.";
             }
 
@@ -555,7 +557,7 @@ export function buildQuizJsonPrefillPrompt({
             "Règles d’analyse du document et de construction du quiz :",
             ...QUIZ_SOURCE_ANALYSIS_INSTRUCTIONS.map((instruction) => `- ${instruction}`),
         ].join("\n"),
-        `Méthodes et étapes disponibles : ${JSON.stringify(methods)}. Pour quizKind="method_knowledge", choisis uniquement une méthode avec canReceiveMethodKnowledgeQuiz=true. Pour quizKind="contextual", methodId peut être null ou l’id exact d’une méthode disponible. Les methodStepId sont facultatifs et servent seulement à affiner la progression par étape ; sans methodId, ils doivent être null.`,
+        `Méthodes et étapes disponibles : ${JSON.stringify(methods)}. Pour quizKind="method_knowledge", choisis uniquement une méthode avec canReceiveMethodKnowledgeQuiz=true, ou methodId=null si le brouillon n’est pas encore rattaché. Pour quizKind="contextual", methodId doit être null et tous les methodStepId doivent être null. Pour un quiz de méthode rattaché, les methodStepId restent facultatifs et servent seulement à affiner la progression par étape.`,
         `Compétences et items Savoir disponibles : ${JSON.stringify(skills)}. Utilise uniquement les id exacts. Chaque question doit cibler une compétence de son étape et un item Savoir appartenant à cette compétence.`,
         `Domaines : ${JSON.stringify(CONTENT_DOMAINS)}. Catégories par domaine : ${JSON.stringify(CONTENT_CATEGORIES_BY_DOMAIN)}. Difficultés : ${JSON.stringify(CONTENT_DIFFICULTIES)}.`,
         `Usages de quiz : ${JSON.stringify(QUIZ_KINDS)}. Types de quiz : ${JSON.stringify(QUIZ_TYPES)}. Participation : ${JSON.stringify(QUIZ_PARTICIPATIONS)}. Visibilités : ${JSON.stringify(QUIZ_VISIBILITY_SCOPES)}. Types de questions : ${JSON.stringify(QUIZ_QUESTION_TYPES)}. Types de pièces jointes : ${JSON.stringify(QUIZ_ATTACHMENT_TYPES)}. Dimension évaluée : ${JSON.stringify(QUIZ_EVALUATED_DIMENSION)}.`,

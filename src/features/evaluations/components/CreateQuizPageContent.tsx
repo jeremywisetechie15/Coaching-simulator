@@ -43,6 +43,7 @@ import {
     QUIZ_KIND,
     QUIZ_KIND_LABELS,
     QUIZ_KINDS,
+    QUIZ_METHOD_HISTORICAL_IMPACT_CONFIRMATION_REQUIRED_CODE,
     QUIZ_TYPE_LABELS,
     QUIZ_TYPES,
     hasActiveQuizKnowledgeItem,
@@ -70,6 +71,7 @@ import { submitWithDirectUploads } from "@/lib/uploads/direct-upload.client";
 import { Box, Button, CardSurface, FieldErrorMessage, FieldLabel, InlineIcon, Text, TextArea, TextInput } from "@/lib/ui/atoms";
 import {
     createFormSubmitApiError,
+    FormSubmitError,
     notifyFormSubmitError,
     notifyFormSubmitSuccess,
 } from "@/lib/ui/feedback/form-submit-feedback";
@@ -107,6 +109,7 @@ import {
 } from "./quiz-form-state";
 
 interface ApiErrorPayload {
+    code?: string;
     error?: string;
     issues?: Array<{ message: string }>;
     quiz?: QuizDetail;
@@ -226,7 +229,6 @@ export function CreateQuizPageContent({
 
     const methodSelectOptions = [
         {
-            disabled: form.quizKind === QUIZ_KIND.methodKnowledge,
             label: "Aucune",
             value: "",
         },
@@ -274,10 +276,15 @@ export function CreateQuizPageContent({
         [form.steps],
     );
 
-    const quizUsageReady = form.quizKind === QUIZ_KIND.contextual || Boolean(
-        form.quizKind === QUIZ_KIND.methodKnowledge &&
+    const selectedMethodReady = Boolean(
         selectedMethod &&
         isQuizMethodSelectableForKind(selectedMethod, form.quizKind, initialQuiz?.id),
+    );
+    const quizDraftUsageReady = form.quizKind === QUIZ_KIND.contextual || Boolean(
+        form.quizKind === QUIZ_KIND.methodKnowledge && (!form.methodId || selectedMethodReady),
+    );
+    const quizPublishUsageReady = form.quizKind === QUIZ_KIND.contextual || Boolean(
+        form.quizKind === QUIZ_KIND.methodKnowledge && selectedMethodReady,
     );
     const isPrivate = form.scope !== "public";
     const scopeTargetReady =
@@ -286,29 +293,42 @@ export function CreateQuizPageContent({
         (form.scope === "group" && Boolean(form.organizationId) && Boolean(form.groupId.trim())) ||
         (form.scope === "user" && Boolean(form.assignedUserId.trim()));
     const canSaveDraft =
-        quizUsageReady &&
+        quizDraftUsageReady &&
         form.title.trim().length > 0 &&
         Object.keys(jsonPrefillFieldErrors).length === 0;
     const canPublish =
         canSaveDraft &&
+        quizPublishUsageReady &&
         scopeTargetReady &&
         form.description.trim().length > 0 &&
         form.steps.length > 0 &&
         totalQuestions > 0;
     const isSaving = savingStatus !== null;
 
-    function clearJsonPrefillError(path: string, descendants = false) {
+    function clearJsonPrefillErrorsMatching(matches: (path: string) => boolean) {
         setJsonPrefillFieldErrors((current) => {
             const next = { ...current };
             let changed = false;
             for (const key of Object.keys(next)) {
-                if (key === path || (descendants && key.startsWith(`${path}.`))) {
+                if (matches(key)) {
                     delete next[key];
                     changed = true;
                 }
             }
             return changed ? next : current;
         });
+    }
+
+    function clearJsonPrefillError(path: string, descendants = false) {
+        clearJsonPrefillErrorsMatching(
+            (key) => key === path || (descendants && key.startsWith(`${path}.`)),
+        );
+    }
+
+    function clearJsonPrefillMethodStepErrors() {
+        clearJsonPrefillErrorsMatching(
+            (path) => /^steps\.\d+\.methodStepId$/.test(path),
+        );
     }
 
     function selectCreationMode(mode: EntityCreationMode) {
@@ -609,7 +629,7 @@ export function CreateQuizPageContent({
         );
         const methodId = selectedMethod?.id ?? null;
         clearJsonPrefillError("methodId");
-        clearJsonPrefillError("steps", true);
+        clearJsonPrefillMethodStepErrors();
 
         setForm((current) => changeQuizMethod(current, methodId));
     }
@@ -618,6 +638,7 @@ export function CreateQuizPageContent({
         const quizKind = QUIZ_KINDS.find((kind) => kind === value) ?? null;
         clearJsonPrefillError("quizKind");
         clearJsonPrefillError("methodId");
+        clearJsonPrefillMethodStepErrors();
 
         setForm((current) => {
             const selectedMethod = methodOptions.find(
@@ -692,7 +713,7 @@ export function CreateQuizPageContent({
             const savedQuiz = await submitWithDirectUploads({
                 onProgress: (clientFileId, percentage) =>
                     setUploadProgressByClientFileId((current) => ({ ...current, [clientFileId]: percentage })),
-                payload: toSaveQuizInput(form, status),
+                payload: toSaveQuizInput(form, status, historicalImpactConfirmed),
                 save: (payload) => saveQuiz(initialQuiz?.id, payload),
                 uploads: collectUploadFiles(),
             });
@@ -707,6 +728,15 @@ export function CreateQuizPageContent({
             );
             router.refresh();
         } catch (error) {
+            if (
+                !historicalImpactConfirmed
+                && error instanceof FormSubmitError
+                && error.code === QUIZ_METHOD_HISTORICAL_IMPACT_CONFIRMATION_REQUIRED_CODE
+            ) {
+                setPendingHistoricalImpactStatus(status);
+                return;
+            }
+
             setFormError(notifyFormSubmitError(error, "Impossible d'enregistrer le quiz."));
         } finally {
             setSavingStatus(null);
@@ -825,6 +855,10 @@ export function CreateQuizPageContent({
                                     onChange={selectQuizKind}
                                 />
                                 <FieldErrorMessage message={jsonPrefillFieldErrors.quizKind} />
+                                <Text className={cn("mt-2 text-[13px] font-semibold", uiTokens.text.muted)}>
+                                    Changer l’usage conserve les groupes et les questions. En passant au quiz contextuel,
+                                    seuls la méthode et les rattachements aux étapes sont retirés.
+                                </Text>
                             </Box>
                             <Box>
                                 <FieldLabel className={uiTokens.form.label}>Type de quiz</FieldLabel>
@@ -923,36 +957,29 @@ export function CreateQuizPageContent({
                                 )}
                                 <FieldErrorMessage message={jsonPrefillFieldErrors.categories} />
                             </Box>
-                            <Box>
-                                <FieldLabel
-                                    required={form.quizKind === QUIZ_KIND.methodKnowledge}
-                                    className={uiTokens.form.label}
-                                >
-                                    Méthode de référence
-                                </FieldLabel>
-                                <SingleSelectField
-                                    hasError={Boolean(jsonPrefillFieldErrors.methodId)}
-                                    options={methodSelectOptions}
-                                    value={form.methodId ?? ""}
-                                    placeholder={form.quizKind === QUIZ_KIND.methodKnowledge
-                                        ? "Sélectionner une méthode"
-                                        : "Aucune méthode"}
-                                    onChange={selectMethod}
-                                />
-                                <FieldErrorMessage message={jsonPrefillFieldErrors.methodId} />
-                                {selectedMethod ? (
+                            {form.quizKind === QUIZ_KIND.methodKnowledge && (
+                                <Box>
+                                    <FieldLabel className={uiTokens.form.label}>
+                                        Méthode de référence
+                                    </FieldLabel>
+                                    <SingleSelectField
+                                        hasError={Boolean(jsonPrefillFieldErrors.methodId)}
+                                        options={methodSelectOptions}
+                                        value={form.methodId ?? ""}
+                                        placeholder="Sélectionner une méthode"
+                                        onChange={selectMethod}
+                                    />
+                                    <FieldErrorMessage message={jsonPrefillFieldErrors.methodId} />
                                     <Text className={cn("mt-2 text-[13px] font-semibold", uiTokens.text.muted)}>
-                                        Le changement de méthode conserve tous les groupes et toutes les questions.
-                                        {mappedMethodStepCount > 0
+                                        Obligatoire pour publier. Un brouillon peut rester sans méthode.
+                                        {selectedMethod && mappedMethodStepCount > 0
                                             ? ` ${mappedMethodStepCount} groupe${mappedMethodStepCount > 1 ? "s sont" : " est"} rattaché${mappedMethodStepCount > 1 ? "s" : ""} à une étape.`
-                                            : " Le rattachement détaillé aux étapes reste optionnel."}
+                                            : selectedMethod
+                                                ? " Le rattachement détaillé aux étapes reste optionnel."
+                                                : ""}
                                     </Text>
-                                ) : form.quizKind === QUIZ_KIND.contextual ? (
-                                    <Text className={cn("mt-2 text-[13px] font-semibold", uiTokens.text.muted)}>
-                                        La méthode de référence reste optionnelle pour un quiz contextuel.
-                                    </Text>
-                                ) : null}
-                            </Box>
+                                </Box>
+                            )}
                             <Box>
                                 <FieldLabel required className={uiTokens.form.label}>Description</FieldLabel>
                                 <TextArea

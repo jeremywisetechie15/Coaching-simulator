@@ -1,12 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
+    hasQuizMethodAssociationChanged,
     hasQuizAttemptLockedConfigurationChanged,
     QUIZ_ATTEMPT_EDIT_RESTRICTION_MESSAGE,
+    QUIZ_METHOD_HISTORICAL_IMPACT_CONFIRMATION_MESSAGE,
+    QUIZ_METHOD_HISTORICAL_IMPACT_CONFIRMATION_REQUIRED_CODE,
     type QuizAttemptLockedConfiguration,
+    type QuizDetail,
 } from "@/features/evaluations/domain";
-import type { QuizDetail } from "@/features/evaluations/domain";
 import type { SaveQuizDto } from "@/features/evaluations/dto";
-import { ConflictError } from "@/lib/server/errors";
+import { AppError, ConflictError } from "@/lib/server/errors";
 import { fetchQuizDetail } from "./quiz-query";
 
 interface QuizAttemptEditOptions {
@@ -133,5 +136,27 @@ export async function assertQuizAttemptEditPolicy(
 
     if (configurationChanged || hasUploads) {
         throw new ConflictError(QUIZ_ATTEMPT_EDIT_RESTRICTION_MESSAGE);
+    }
+
+    if (
+        !input.historicalImpactConfirmed
+        && hasQuizMethodAssociationChanged(
+            {
+                methodId: currentQuiz.methodId,
+                quizKind: currentQuiz.kind,
+                steps: currentQuiz.steps,
+            },
+            {
+                methodId: input.methodId,
+                quizKind: input.quizKind,
+                steps: input.steps,
+            },
+        )
+    ) {
+        throw new AppError(
+            QUIZ_METHOD_HISTORICAL_IMPACT_CONFIRMATION_MESSAGE,
+            409,
+            QUIZ_METHOD_HISTORICAL_IMPACT_CONFIRMATION_REQUIRED_CODE,
+        );
     }
 }

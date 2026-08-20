@@ -288,6 +288,8 @@ export function quizToFormState(
         if (group) organizationId = group.organizationId;
     }
 
+    const methodId = normalizeQuizMethodId(quiz.kind, quiz.methodId);
+
     return {
         assignedUserId,
         categories: quiz.domain ? cleanList(quiz.categories) : [],
@@ -297,7 +299,7 @@ export function quizToFormState(
         durationMinutes: String(quiz.durationMinutes),
         groupId,
         maxAttempts: quiz.maxAttempts === null ? null : String(quiz.maxAttempts),
-        methodId: quiz.methodId,
+        methodId,
         organizationId,
         participation: quiz.participation,
         quizKind: quiz.kind,
@@ -307,7 +309,7 @@ export function quizToFormState(
             collapsed: false,
             competenceIds: step.competenceIds,
             id: step.id,
-            methodStepId: step.methodStepId,
+            methodStepId: methodId ? step.methodStepId : null,
             name: step.name,
             questions: step.questions.length
                 ? step.questions.map((question) => ({
@@ -352,7 +354,11 @@ export function quizToFormState(
     };
 }
 
-export function toSaveQuizInput(form: QuizFormState, status: ContentStatus): SaveQuizInput {
+export function toSaveQuizInput(
+    form: QuizFormState,
+    status: ContentStatus,
+    historicalImpactConfirmed = false,
+): SaveQuizInput {
     if (!form.quizKind) {
         throw new Error("L’usage du quiz doit être sélectionné avant l’enregistrement.");
     }
@@ -367,6 +373,7 @@ export function toSaveQuizInput(form: QuizFormState, status: ContentStatus): Sav
         domain: form.domain ?? "",
         durationMinutes: integerFromText(form.durationMinutes, 30),
         groupId: form.scope === "group" ? textOrNull(form.groupId) : null,
+        historicalImpactConfirmed,
         maxAttempts:
             form.maxAttempts === null
                 ? null

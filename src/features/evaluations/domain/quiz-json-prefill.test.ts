@@ -127,7 +127,7 @@ describe("quiz JSON prefill", () => {
         });
     });
 
-    it("keeps an optional reference method on contextual quizzes", () => {
+    it("normalizes and clears method links on contextual quizzes", () => {
         const result = parseQuizJsonPrefillText(JSON.stringify({
             ...document,
             data: {
@@ -137,8 +137,25 @@ describe("quiz JSON prefill", () => {
         }), options);
 
         expect(result.fieldErrors).toEqual({});
-        expect(result.draft.methodId).toBe(methodId);
-        expect(result.draft.steps[0].methodStepId).toBe(methodStepId);
+        expect(result.draft.methodId).toBeNull();
+        expect(result.draft.steps[0].methodStepId).toBeNull();
+    });
+
+    it("accepts a method quiz draft before a reference method is selected", () => {
+        const result = parseQuizJsonPrefillText(JSON.stringify({
+            ...document,
+            data: {
+                ...document.data,
+                methodId: null,
+                steps: document.data.steps.map((step) => ({
+                    ...step,
+                    methodStepId: null,
+                })),
+            },
+        }), options);
+
+        expect(result.fieldErrors).toEqual({});
+        expect(result.draft.methodId).toBeNull();
     });
 
     it("flags unknown skills and inconsistent QCU answers", () => {
@@ -186,7 +203,7 @@ describe("quiz JSON prefill", () => {
         expect(prompt).toContain('Visibilités : ["public","organization","group","user"]');
         expect(prompt).toContain('Types de pièces jointes : ["link","image","video","audio","document"]');
         expect(prompt).toContain('Usages de quiz : ["method_knowledge","contextual"]');
-        expect(prompt).toContain("methodStepId sont facultatifs");
+        expect(prompt).toContain("tous les methodStepId doivent être null");
         expect(prompt).toContain('"schemaVersion": 2');
         expect(prompt).toContain('"quizKind": "method_knowledge"');
         expect(prompt).not.toContain(unavailableId);

@@ -162,9 +162,20 @@ describe("saveQuizDto", () => {
         expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain("maxAttempts");
     });
 
-    it("requires a method for a method knowledge quiz", () => {
+    it("allows a method knowledge draft without a method", () => {
+        const result = saveQuizDto.parse({
+            quizKind: QUIZ_KIND.methodKnowledge,
+            title: "Quiz méthode en préparation",
+        });
+
+        expect(result.methodId).toBeNull();
+        expect(result.status).toBe(CONTENT_STATUS.draft);
+    });
+
+    it("requires a method to publish a method knowledge quiz", () => {
         const result = saveQuizDto.safeParse({
             quizKind: QUIZ_KIND.methodKnowledge,
+            status: CONTENT_STATUS.published,
             title: "Quiz méthode",
         });
 
@@ -174,14 +185,27 @@ describe("saveQuizDto", () => {
         );
     });
 
-    it("keeps an optional reference method on contextual quizzes", () => {
-        const result = saveQuizDto.parse({
+    it("rejects a reference method on contextual quizzes", () => {
+        const result = saveQuizDto.safeParse({
             methodId,
             quizKind: QUIZ_KIND.contextual,
             title: "Quiz contextuel",
         });
 
-        expect(result.methodId).toBe(methodId);
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.message)).toContain(
+            "Un quiz contextuel ne peut pas être lié à une méthode.",
+        );
+    });
+
+    it("accepts the historical-impact confirmation flag", () => {
+        const result = saveQuizDto.parse({
+            historicalImpactConfirmed: true,
+            quizKind: QUIZ_KIND.contextual,
+            title: "Quiz contextuel",
+        });
+
+        expect(result.historicalImpactConfirmed).toBe(true);
     });
 
     it("rejects a method-step link without a reference method", () => {

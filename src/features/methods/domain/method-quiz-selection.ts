@@ -12,9 +12,9 @@ export function isQuizAssignableAsMethodKnowledge(
     methodId: string | null | undefined,
 ) {
     if (quiz.isSelectable === false) return false;
-    if (quiz.methodId && quiz.methodId !== methodId) return false;
+    if (quiz.kind === QUIZ_KIND.contextual) return quiz.methodId === null;
 
-    return quiz.kind === QUIZ_KIND.contextual || quiz.methodId === methodId;
+    return quiz.methodId === null || quiz.methodId === methodId;
 }
 
 export function getMethodKnowledgeQuizOptions<T extends MethodQuizSelectionCandidate>(

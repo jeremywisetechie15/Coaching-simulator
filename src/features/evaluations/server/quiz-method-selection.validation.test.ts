@@ -52,29 +52,63 @@ function createFakeSupabase({
 }
 
 describe("quiz method selection server validation", () => {
-    it("allows contextual quizzes with or without a reference method", async () => {
+    it("rejects a reference method on a contextual quiz", async () => {
         await expect(assertQuizMethodSelection(
             createFakeSupabase() as never,
-            { methodId: "method-1", quizKind: QUIZ_KIND.contextual, steps: [] },
+            {
+                methodId: "method-1",
+                quizKind: QUIZ_KIND.contextual,
+                status: "draft",
+                steps: [],
+            },
+        )).rejects.toBeInstanceOf(ConflictError);
+    });
+
+    it("allows a contextual quiz without a reference method", async () => {
+        await expect(assertQuizMethodSelection(
+            createFakeSupabase() as never,
+            {
+                methodId: null,
+                quizKind: QUIZ_KIND.contextual,
+                status: "draft",
+                steps: [],
+            },
+        )).resolves.toBeUndefined();
+    });
+
+    it("allows a method quiz draft without a method but rejects its publication", async () => {
+        await expect(assertQuizMethodSelection(
+            createFakeSupabase() as never,
+            {
+                methodId: null,
+                quizKind: QUIZ_KIND.methodKnowledge,
+                status: "draft",
+                steps: [],
+            },
         )).resolves.toBeUndefined();
 
         await expect(assertQuizMethodSelection(
             createFakeSupabase() as never,
-            { methodId: null, quizKind: QUIZ_KIND.contextual, steps: [] },
-        )).resolves.toBeUndefined();
+            {
+                methodId: null,
+                quizKind: QUIZ_KIND.methodKnowledge,
+                status: "published",
+                steps: [],
+            },
+        )).rejects.toBeInstanceOf(ConflictError);
     });
 
     it("rejects a second principal quiz for the same method", async () => {
         await expect(assertQuizMethodSelection(
             createFakeSupabase({ canonicalQuizId: "quiz-principal" }) as never,
-            { methodId: "method-1", quizKind: QUIZ_KIND.methodKnowledge, steps: [] },
+            { methodId: "method-1", quizKind: QUIZ_KIND.methodKnowledge, status: "published", steps: [] },
         )).rejects.toBeInstanceOf(ConflictError);
     });
 
     it("allows the current principal quiz while editing", async () => {
         await expect(assertQuizMethodSelection(
             createFakeSupabase({ canonicalQuizId: "quiz-principal" }) as never,
-            { methodId: "method-1", quizKind: QUIZ_KIND.methodKnowledge, steps: [] },
+            { methodId: "method-1", quizKind: QUIZ_KIND.methodKnowledge, status: "published", steps: [] },
             "quiz-principal",
         )).resolves.toBeUndefined();
     });
@@ -82,15 +116,16 @@ describe("quiz method selection server validation", () => {
     it("rejects an unavailable method", async () => {
         await expect(assertQuizMethodSelection(
             createFakeSupabase({ methodActive: false }) as never,
-            { methodId: "method-1", quizKind: QUIZ_KIND.methodKnowledge, steps: [] },
+            { methodId: "method-1", quizKind: QUIZ_KIND.methodKnowledge, status: "published", steps: [] },
         )).rejects.toBeInstanceOf(ConflictError);
     });
 
     it("allows only the exact draft method created by internal duplication", async () => {
         const supabase = createFakeSupabase({ methodStatus: "draft" }) as never;
-        const input: Pick<SaveQuizDto, "methodId" | "quizKind" | "steps"> = {
+        const input: Pick<SaveQuizDto, "methodId" | "quizKind" | "status" | "steps"> = {
             methodId: "method-1",
             quizKind: QUIZ_KIND.methodKnowledge,
+            status: "draft",
             steps: [],
         };
 
@@ -110,6 +145,7 @@ describe("quiz method selection server validation", () => {
             {
                 methodId: "method-1",
                 quizKind: QUIZ_KIND.methodKnowledge,
+                status: "published",
                 steps: [{ methodStepId }] as never,
             },
         )).resolves.toBeUndefined();
@@ -119,12 +155,13 @@ describe("quiz method selection server validation", () => {
             {
                 methodId: "method-1",
                 quizKind: QUIZ_KIND.methodKnowledge,
+                status: "published",
                 steps: [{ methodStepId }] as never,
             },
         )).rejects.toBeInstanceOf(ConflictError);
     });
 
-    it("validates contextual method-step links against their reference method", async () => {
+    it("rejects method-step links on contextual quizzes", async () => {
         const methodStepId = "step-1";
 
         await expect(assertQuizMethodSelection(
@@ -132,15 +169,17 @@ describe("quiz method selection server validation", () => {
             {
                 methodId: "method-1",
                 quizKind: QUIZ_KIND.contextual,
+                status: "draft",
                 steps: [{ methodStepId }] as never,
             },
-        )).resolves.toBeUndefined();
+        )).rejects.toBeInstanceOf(ConflictError);
 
         await expect(assertQuizMethodSelection(
             createFakeSupabase() as never,
             {
                 methodId: null,
                 quizKind: QUIZ_KIND.contextual,
+                status: "draft",
                 steps: [{ methodStepId }] as never,
             },
         )).rejects.toBeInstanceOf(ConflictError);

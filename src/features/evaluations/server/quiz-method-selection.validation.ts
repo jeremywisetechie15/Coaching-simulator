@@ -34,13 +34,14 @@ export interface QuizMethodSelectionValidationOptions {
 
 export async function assertQuizMethodSelection(
     supabase: SupabaseClient,
-    input: Pick<SaveQuizDto, "methodId" | "quizKind" | "steps">,
+    input: Pick<SaveQuizDto, "methodId" | "quizKind" | "status" | "steps">,
     currentQuizId?: string | null,
     { allowedDraftMethodId = null }: QuizMethodSelectionValidationOptions = {},
 ) {
     const methodAssociationError = getQuizMethodAssociationError(
         input.quizKind,
         input.methodId,
+        input.status,
     );
     if (methodAssociationError) {
         throw new ConflictError(methodAssociationError);
@@ -97,9 +98,7 @@ export async function assertQuizMethodSelection(
         methodKnowledgeQuizId: methodKnowledgeQuizResult.data?.id ?? null,
     }, input.quizKind, currentQuizId)) {
         throw new ConflictError(
-            input.quizKind === QUIZ_KIND.methodKnowledge
-                ? "Cette méthode possède déjà un autre quiz principal ou n’est plus disponible."
-                : "La méthode sélectionnée n’est plus disponible.",
+            "Cette méthode possède déjà un autre quiz principal ou n’est plus disponible.",
         );
     }
 

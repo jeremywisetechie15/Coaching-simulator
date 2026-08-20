@@ -166,6 +166,29 @@ describe("quizToFormState", () => {
     it("keeps the persisted difficulty when editing a quiz", () => {
         expect(quizToFormState(quizDetail(3), [], []).difficulty).toBe("Moyen");
     });
+
+    it("normalizes legacy contextual method links without changing quiz content", () => {
+        const quiz = quizDetail(3);
+        quiz.methodId = "11111111-1111-4111-8111-111111111111";
+        quiz.steps = [{
+            competenceIds: ["skill-1"],
+            id: "quiz-step-1",
+            methodStepId: "22222222-2222-4222-8222-222222222222",
+            name: "Groupe historique",
+            order: 1,
+            questions: [],
+            weight: 100,
+        }];
+
+        const form = quizToFormState(quiz, [], []);
+
+        expect(form.methodId).toBeNull();
+        expect(form.steps[0]).toMatchObject({
+            competenceIds: ["skill-1"],
+            methodStepId: null,
+            name: "Groupe historique",
+        });
+    });
 });
 
 describe("maxAttemptsForLimitMode", () => {
@@ -200,14 +223,32 @@ describe("toSaveQuizInput", () => {
         expect(toSaveQuizInput(form, CONTENT_STATUS.draft).difficulty).toBe("Difficile");
     });
 
-    it("keeps optional method links on contextual quiz payloads", () => {
+    it("clears method and method-step links on contextual quiz payloads", () => {
         const form = quizForm("3");
         form.methodId = "11111111-1111-4111-8111-111111111111";
+        form.steps = [{
+            collapsed: false,
+            competenceIds: [],
+            id: "step-1",
+            methodStepId: "22222222-2222-4222-8222-222222222222",
+            name: "Groupe conservé",
+            questions: [],
+            weight: "100",
+        }];
 
         expect(toSaveQuizInput(form, CONTENT_STATUS.draft)).toMatchObject({
-            methodId: "11111111-1111-4111-8111-111111111111",
+            methodId: null,
             quizKind: QUIZ_KIND.contextual,
+            steps: [{ methodStepId: null, name: "Groupe conservé" }],
         });
+    });
+
+    it("forwards explicit historical-impact confirmation to the server", () => {
+        expect(toSaveQuizInput(
+            quizForm("3"),
+            CONTENT_STATUS.draft,
+            true,
+        ).historicalImpactConfirmed).toBe(true);
     });
 
     it("preserves the method quiz kind when editing the canonical quiz", () => {
