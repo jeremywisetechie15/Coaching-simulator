@@ -10,6 +10,7 @@ interface PageProps {
     searchParams?: Promise<{
         category?: string;
         domain?: string;
+        publicationStatus?: string;
         q?: string;
         returnTo?: string;
     }>;
@@ -36,6 +37,7 @@ export default async function Page({ searchParams }: PageProps) {
                     withSearchParams("/methods", {
                         category: filters.category,
                         domain: filters.domain,
+                        publicationStatus: filters.publicationStatus,
                         q: filters.q,
                     }),
                     filters.returnTo,

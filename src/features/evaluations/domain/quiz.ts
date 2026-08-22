@@ -14,7 +14,11 @@ import {
 } from "@/features/content/domain";
 import type { MethodSelectionOptionWithSteps, MethodSelectionStepOption } from "@/features/methods/domain/method";
 
-export const QUIZ_DEFAULT_VALIDATION_THRESHOLD = 70;
+export const QUIZ_DEFAULT_VALIDATION_THRESHOLD = 80;
+
+export const QUIZ_MIN_COMPETENCES_PER_STEP = 1;
+export const QUIZ_RECOMMENDED_COMPETENCES_PER_STEP = 2;
+export const QUIZ_MAX_COMPETENCES_PER_STEP = 3;
 
 export const QUIZ_DIFFICULTIES = CONTENT_DIFFICULTIES;
 
@@ -165,6 +169,31 @@ export interface QuizChoice {
     isCorrect: boolean;
     label: string;
     order: number;
+}
+
+function hashQuizChoiceSeed(seed: string) {
+    let hash = 2166136261;
+
+    for (let index = 0; index < seed.length; index += 1) {
+        hash ^= seed.charCodeAt(index);
+        hash = Math.imul(hash, 16777619);
+    }
+
+    return hash >>> 0;
+}
+
+/** Retourne une copie mélangée et reproductible sans modifier l'ordre stocké. */
+export function shuffleQuizChoices<T>(choices: readonly T[], seed: string): T[] {
+    const shuffled = [...choices];
+    let state = hashQuizChoiceSeed(seed) || 1;
+
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+        state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+        const targetIndex = state % (index + 1);
+        [shuffled[index], shuffled[targetIndex]] = [shuffled[targetIndex], shuffled[index]];
+    }
+
+    return shuffled;
 }
 
 export interface QuizQuestionAttachment {

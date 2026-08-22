@@ -34,6 +34,7 @@ import {
     getQuizDimensionDiagnostic,
     getQuizResumeQuestionIndex,
     scoreQuizAnswers,
+    shuffleQuizChoices,
     type QuizAttemptAnswer,
     type QuizAttemptDetail,
     type QuizAttemptSession,
@@ -268,6 +269,22 @@ export function EvaluationQuizPageContent({
     const resultPassed = completedAttempt?.passed ?? clientScore.passed;
     const threshold = quiz.validationThreshold ?? QUIZ_DEFAULT_VALIDATION_THRESHOLD;
     const current = flatQuestions[currentIndex];
+    const choiceOrderAttemptNumber =
+        attempt?.attemptNumber ??
+        initialAttempt?.attemptNumber ??
+        initialAttemptSession.attemptsUsed + 1;
+    const choicesByQuestionId = useMemo(
+        () => new Map(
+            flatQuestions.map(({ question }) => [
+                question.id,
+                shuffleQuizChoices(
+                    question.choices,
+                    `${quiz.id}:${choiceOrderAttemptNumber}:${question.id}`,
+                ),
+            ]),
+        ),
+        [choiceOrderAttemptNumber, flatQuestions, quiz.id],
+    );
     const reviewing = mode === "review";
     const attemptStatus = attemptError
         ? { className: uiTokens.text.danger, label: attemptError }
@@ -393,6 +410,7 @@ export function EvaluationQuizPageContent({
     }
 
     const selectedChoiceIds = answers[current.question.id] ?? [];
+    const displayedChoices = choicesByQuestionId.get(current.question.id) ?? current.question.choices;
     const currentAnswered = selectedChoiceIds.length > 0;
     const isLastQuestion = currentIndex === flatQuestions.length - 1;
     const nextLabel = reviewing && isLastQuestion
@@ -903,7 +921,7 @@ export function EvaluationQuizPageContent({
                     <QuestionAttachments attachments={current.question.attachments} quizId={quiz.id} />
 
                     <Box className="mt-6 space-y-3">
-                        {current.question.choices.map((choice) => {
+                        {displayedChoices.map((choice) => {
                             const selected = selectedChoiceIds.includes(choice.id);
                             const showCorrection = reviewing;
                             const isRight = choice.isCorrect;

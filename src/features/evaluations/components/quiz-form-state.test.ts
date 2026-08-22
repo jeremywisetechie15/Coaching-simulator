@@ -148,6 +148,7 @@ describe("quizToFormState", () => {
         const form = quizToFormState(undefined, [], []);
 
         expect(form.maxAttempts).toBeNull();
+        expect(form.validationThreshold).toBe("80");
         expect(form.scope).toBe("public");
         expect(form.organizationId).toBeNull();
         expect(form.groupId).toBe("");
@@ -156,7 +157,10 @@ describe("quizToFormState", () => {
     });
 
     it("preserves unlimited attempts when editing a quiz", () => {
-        expect(quizToFormState(quizDetail(null), [], []).maxAttempts).toBeNull();
+        const form = quizToFormState(quizDetail(null), [], []);
+
+        expect(form.maxAttempts).toBeNull();
+        expect(form.validationThreshold).toBe("80");
     });
 
     it("maps a finite attempt limit to an editable text value", () => {

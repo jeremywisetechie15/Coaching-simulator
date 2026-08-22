@@ -42,5 +42,7 @@ describe("MethodsPageContent", () => {
 
         expect(html).toContain("Domaine · Communication");
         expect(html).toContain("Catégorie · Gestion des conflits");
+        expect(html).toContain("Filtrer par statut de publication");
+        expect(html).toContain("Publié");
     });
 });

@@ -19,6 +19,7 @@ interface SearchableMultiSelectFieldProps {
     addLabel: string;
     disabled?: boolean;
     emptyHint?: string;
+    maxSelected?: number;
     onAdd: (value: string) => void;
     onRemove: (value: string) => void;
     options: SearchableOption[];
@@ -35,6 +36,7 @@ export function SearchableMultiSelectField({
     addLabel,
     disabled,
     emptyHint,
+    maxSelected,
     onAdd,
     onRemove,
     options,
@@ -43,6 +45,7 @@ export function SearchableMultiSelectField({
 }: SearchableMultiSelectFieldProps) {
     const [open, setOpen] = useState(false);
     const [query, setQuery] = useState("");
+    const selectionLimitReached = maxSelected !== undefined && selectedValues.length >= maxSelected;
 
     const selectedOptions = selectedValues
         .map((value) => options.find((option) => option.value === value))
@@ -106,7 +109,14 @@ export function SearchableMultiSelectField({
                                 <Button
                                     key={option.value}
                                     onClick={() => {
+                                        if (selectionLimitReached) return;
                                         onAdd(option.value);
+                                        if (
+                                            maxSelected !== undefined &&
+                                            selectedValues.length + 1 >= maxSelected
+                                        ) {
+                                            setOpen(false);
+                                        }
                                         setQuery("");
                                     }}
                                     className={uiTokens.searchableSelect.option}
@@ -135,11 +145,11 @@ export function SearchableMultiSelectField({
                 </Box>
             ) : (
                 <Button
-                    disabled={disabled}
+                    disabled={disabled || selectionLimitReached}
                     onClick={() => setOpen(true)}
                     className={cn(
                         addButtonClassName ?? uiTokens.action.addButton,
-                        disabled && "cursor-not-allowed opacity-50",
+                        (disabled || selectionLimitReached) && "cursor-not-allowed opacity-50",
                     )}
                 >
                     <InlineIcon icon={Plus} className="h-4 w-4" />

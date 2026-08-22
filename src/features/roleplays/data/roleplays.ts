@@ -40,6 +40,8 @@ export interface RoleplayDetail {
     simulations: number;
     context: string;
     learnerRole: string;
+    /** Objectif métier du scénario ; optionnel uniquement pour les anciens mocks. */
+    objective?: string;
     objections: string;
     method: string;
 }

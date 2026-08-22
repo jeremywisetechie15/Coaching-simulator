@@ -182,6 +182,34 @@ describe("quiz JSON prefill", () => {
         expect(result.fieldErrors["steps.0.questions.0.choices"]).toContain("exactement une");
     });
 
+    it("rejects more than three competencies in one step", () => {
+        const extraSkills = ["skill-2", "skill-3", "skill-4"].map((id) => ({
+            ...options.skillOptions[0],
+            dimensionItems: options.skillOptions[0].dimensionItems.map((item) => ({
+                ...item,
+                id: `${id}-item`,
+                skillId: id,
+            })),
+            id,
+            name: id,
+        }));
+        const result = parseQuizJsonPrefillText(JSON.stringify({
+            ...document,
+            data: {
+                ...document.data,
+                steps: [{
+                    ...document.data.steps[0],
+                    competenceIds: ["decouverte", "skill-2", "skill-3", "skill-4"],
+                }],
+            },
+        }), {
+            ...options,
+            skillOptions: [...options.skillOptions, ...extraSkills],
+        });
+
+        expect(result.fieldErrors["steps.0.competenceIds"]).toContain("maximum 3");
+    });
+
     it("includes methods, steps, skills and dimension items in the prompt", () => {
         const unavailableId = "44444444-4444-4444-8444-444444444444";
         const prompt = buildQuizJsonPrefillPrompt({
@@ -200,6 +228,9 @@ describe("quiz JSON prefill", () => {
         expect(prompt).toContain("attribue 1 point à chaque question");
         expect(prompt).toContain("Le score de chaque étape est le prorata des points obtenus");
         expect(prompt).toContain("attribue le reliquat d’un point aux premières étapes");
+        expect(prompt).toContain("validationThreshold=80");
+        expect(prompt).toContain("Mélange l’ordre des choix");
+        expect(prompt).toContain("idéalement 2");
         expect(prompt).toContain('Visibilités : ["public","organization","group","user"]');
         expect(prompt).toContain('Types de pièces jointes : ["link","image","video","audio","document"]');
         expect(prompt).toContain('Usages de quiz : ["method_knowledge","contextual"]');
@@ -209,7 +240,16 @@ describe("quiz JSON prefill", () => {
         expect(prompt).not.toContain(unavailableId);
 
         const structure = prompt.split("Respecte exactement cette structure :\n\n")[1];
-        expect((JSON.parse(structure) as { data: { maxAttempts: number | null } }).data.maxAttempts).toBeNull();
+        const example = JSON.parse(structure) as {
+            data: {
+                maxAttempts: number | null;
+                steps: Array<{ questions: Array<{ choices: Array<{ isCorrect: boolean }> }> }>;
+                validationThreshold: number;
+            };
+        };
+        expect(example.data.maxAttempts).toBeNull();
+        expect(example.data.validationThreshold).toBe(80);
+        expect(example.data.steps[0].questions[0].choices[0].isCorrect).toBe(false);
         expect(parseQuizJsonPrefillText(structure, options).fieldErrors).toEqual({});
     });
 

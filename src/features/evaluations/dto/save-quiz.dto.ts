@@ -9,6 +9,8 @@ import {
     QUIZ_ATTACHMENT_TYPES,
     QUIZ_DIMENSIONS,
     QUIZ_KINDS,
+    QUIZ_MAX_COMPETENCES_PER_STEP,
+    QUIZ_MIN_COMPETENCES_PER_STEP,
     QUIZ_PARTICIPATIONS,
     QUIZ_QUESTION_TYPES,
     QUIZ_TYPES,
@@ -29,6 +31,16 @@ function uniqueTextArrayDto(tooLongMessage: string) {
 
 const textArrayDto = uniqueTextArrayDto("Une valeur est trop longue.");
 const categoryArrayDto = uniqueTextArrayDto("Une catégorie est trop longue.");
+const stepCompetenceIdsDto = uniqueTextArrayDto("Une compétence est trop longue.").superRefine(
+    (competenceIds, ctx) => {
+        if (competenceIds.length <= QUIZ_MAX_COMPETENCES_PER_STEP) return;
+
+        ctx.addIssue({
+            code: "custom",
+            message: `Une étape ne peut pas contenir plus de ${QUIZ_MAX_COMPETENCES_PER_STEP} compétences.`,
+        });
+    },
+);
 
 const attachmentDto = z
     .object({
@@ -107,7 +119,7 @@ const questionDto = z
 
 const stepDto = z
     .object({
-        competenceIds: textArrayDto,
+        competenceIds: stepCompetenceIdsDto,
         id: z.string().uuid("L'étape est invalide.").optional(),
         methodStepId: z.string().uuid("L'étape de méthode est invalide.").nullable().optional().default(null),
         name: z.string().trim().max(220, "Le nom de l'étape est trop long.").optional().default(""),
@@ -273,6 +285,14 @@ export const saveQuizDto = z
         }
 
         quiz.steps.forEach((step, stepIndex) => {
+            if (step.competenceIds.length < QUIZ_MIN_COMPETENCES_PER_STEP) {
+                ctx.addIssue({
+                    code: "custom",
+                    message: "Chaque étape publiée doit contenir au moins une compétence.",
+                    path: ["steps", stepIndex, "competenceIds"],
+                });
+            }
+
             if (!step.name.trim()) {
                 ctx.addIssue({
                     code: "custom",

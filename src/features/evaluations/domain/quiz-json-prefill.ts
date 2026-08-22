@@ -18,11 +18,15 @@ import {
 import type { SkillOption } from "@/features/skills/domain/skills";
 import {
     QUIZ_ATTACHMENT_TYPES,
+    QUIZ_DEFAULT_VALIDATION_THRESHOLD,
     QUIZ_EVALUATED_DIMENSION,
     QUIZ_KIND,
     QUIZ_KINDS,
     QUIZ_PARTICIPATIONS,
+    QUIZ_MAX_COMPETENCES_PER_STEP,
+    QUIZ_MIN_COMPETENCES_PER_STEP,
     QUIZ_QUESTION_TYPES,
+    QUIZ_RECOMMENDED_COMPETENCES_PER_STEP,
     QUIZ_TYPES,
     QUIZ_VISIBILITY_SCOPES,
     type QuizAttachmentType,
@@ -58,9 +62,10 @@ const QUIZ_SOURCE_ANALYSIS_INSTRUCTIONS = [
     "Si le document fournit des points entiers entre 0 et 100 pour les questions, conserve-les. Sinon, attribue 1 point à chaque question afin qu’elles aient le même poids dans leur étape. Une question à 0 point ne contribue pas au score.",
     "Le score de chaque étape est le prorata des points obtenus sur les points possibles de cette étape. Le score global est ensuite le prorata des scores d’étape selon leur weight ; les points d’une question ne pondèrent donc que les questions de sa propre étape.",
     "Une QCU doit avoir au moins deux choix et exactement une bonne réponse. Une QCM doit avoir au moins deux choix et au moins une bonne réponse.",
+    "Mélange l’ordre des choix de chaque question et ne place jamais systématiquement la ou les bonnes réponses en première position.",
     "Rédige une explication fidèle à la source pour chaque question. Si aucune explication n’est disponible ou déductible sans invention, utilise une chaîne vide.",
     "Pour difficulty absent, utilise null. Pour domain absent, utilise null et categories=[]. Pour tags absents, utilise [].",
-    "Pour les paramètres absents, utilise durationMinutes=30, maxAttempts=null, validationThreshold=70 et participation=\"optional\". Utilise un entier supérieur à 0 uniquement si le document exige une limite de tentatives.",
+    `Pour les paramètres absents, utilise durationMinutes=30, maxAttempts=null, validationThreshold=${QUIZ_DEFAULT_VALIDATION_THRESHOLD} et participation="optional". Utilise un entier supérieur à 0 uniquement si le document exige une limite de tentatives.`,
     "Si aucune cible privée n’est explicitement identifiable dans les catalogues disponibles, utilise scope=\"public\" et organizationId, groupId, assignedUserId à null.",
     "Si aucune compétence ou aucun item Savoir disponible ne correspond de façon fiable, utilise un tableau vide ou une chaîne vide dans le champ concerné afin que l’interface le signale ; n’invente jamais d’identifiant.",
     "N’ajoute une pièce jointe que si la source contient une URL complète pertinente. Une question accepte au maximum une pièce jointe ; sinon utilise attachments=[].",
@@ -360,12 +365,17 @@ export function parseQuizJsonPrefillText(
             const weightResult = z.number().int().min(0).max(100).safeParse(step.weight);
             if (!weightResult.success) errors[`${path}.weight`] = "La pondération doit être un entier compris entre 0 et 100.";
 
-            const competenceIds = readTextList(step.competenceIds, `${path}.competenceIds`, errors, 160).filter((skillId, index) => {
-                if (skillsById.has(skillId)) return true;
-                errors[`${path}.competenceIds.${index}`] = "Aucune compétence disponible ne correspond à cet identifiant.";
-                return false;
-            });
+            const competenceIds = Array.from(new Set(
+                readTextList(step.competenceIds, `${path}.competenceIds`, errors, 160).filter((skillId, index) => {
+                    if (skillsById.has(skillId)) return true;
+                    errors[`${path}.competenceIds.${index}`] = "Aucune compétence disponible ne correspond à cet identifiant.";
+                    return false;
+                }),
+            ));
             if (competenceIds.length === 0) errors[`${path}.competenceIds`] = "Ajoutez au moins une compétence à cette étape.";
+            if (competenceIds.length > QUIZ_MAX_COMPETENCES_PER_STEP) {
+                errors[`${path}.competenceIds`] = `Sélectionnez au maximum ${QUIZ_MAX_COMPETENCES_PER_STEP} compétences pour cette étape.`;
+            }
 
             let questions: QuizJsonPrefillQuestionDraft[];
             if (!Array.isArray(step.questions) || step.questions.length === 0) {
@@ -539,8 +549,8 @@ export function buildQuizJsonPrefillPrompt({
             dimensionItemId: exampleSkill?.savoirItems[0]?.id ?? "UUID_ITEM_SAVOIR",
             explanation: "Explication affichée après la réponse",
             choices: [
-                { label: "Réponse correcte", isCorrect: true },
                 { label: "Réponse incorrecte", isCorrect: false },
+                { label: "Réponse correcte", isCorrect: true },
             ],
             attachments: [],
         }],
@@ -562,7 +572,7 @@ export function buildQuizJsonPrefillPrompt({
         `Domaines : ${JSON.stringify(CONTENT_DOMAINS)}. Catégories par domaine : ${JSON.stringify(CONTENT_CATEGORIES_BY_DOMAIN)}. Difficultés : ${JSON.stringify(CONTENT_DIFFICULTIES)}.`,
         `Usages de quiz : ${JSON.stringify(QUIZ_KINDS)}. Types de quiz : ${JSON.stringify(QUIZ_TYPES)}. Participation : ${JSON.stringify(QUIZ_PARTICIPATIONS)}. Visibilités : ${JSON.stringify(QUIZ_VISIBILITY_SCOPES)}. Types de questions : ${JSON.stringify(QUIZ_QUESTION_TYPES)}. Types de pièces jointes : ${JSON.stringify(QUIZ_ATTACHMENT_TYPES)}. Dimension évaluée : ${JSON.stringify(QUIZ_EVALUATED_DIMENSION)}.`,
         `Organisations : ${JSON.stringify(organizations)}. Groupes : ${JSON.stringify(groups)}. Utilisateurs : ${JSON.stringify(users)}. Respecte les relations entre ces identifiants. Pour scope="public", les trois identifiants de ciblage doivent être null.`,
-        "Chaque étape doit contenir au moins une compétence disponible et au moins une question. La somme des pondérations des étapes doit être exactement 100.",
+        `Chaque étape doit contenir entre ${QUIZ_MIN_COMPETENCES_PER_STEP} et ${QUIZ_MAX_COMPETENCES_PER_STEP} compétences disponibles, idéalement ${QUIZ_RECOMMENDED_COMPETENCES_PER_STEP}, et au moins une question. La somme des pondérations des étapes doit être exactement 100.`,
         "Respecte exactement cette structure :",
         JSON.stringify({
             schemaVersion: QUIZ_JSON_PREFILL_SCHEMA_VERSION,
@@ -577,7 +587,7 @@ export function buildQuizJsonPrefillPrompt({
                 categories: [CONTENT_CATEGORIES_BY_DOMAIN[CONTENT_DOMAINS[0]][0]],
                 durationMinutes: 30,
                 maxAttempts: null,
-                validationThreshold: 70,
+                validationThreshold: QUIZ_DEFAULT_VALIDATION_THRESHOLD,
                 participation: "optional",
                 methodId: exampleMethod?.id ?? null,
                 scope: "public",

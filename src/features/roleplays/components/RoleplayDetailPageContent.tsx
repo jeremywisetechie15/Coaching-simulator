@@ -293,7 +293,7 @@ export function RoleplayDetailPageContent({
                         <InfoBox title="Secteur d’activité">{activitySectorLabel}</InfoBox>
                     </Box>
                     <Box className="mt-4 grid gap-4 md:grid-cols-2">
-                        <InfoBox title="Objectif">{roleplay.description}</InfoBox>
+                        <InfoBox title="Objectif">{detail.objective || roleplay.description}</InfoBox>
                         <InfoBox title="Objections">{detail.objections}</InfoBox>
                     </Box>
 

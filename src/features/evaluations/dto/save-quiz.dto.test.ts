@@ -387,6 +387,32 @@ describe("saveQuizDto", () => {
         );
     });
 
+    it("requires one competency in every published step", () => {
+        const input = publishedQuiz();
+        input.steps![0].competenceIds = [];
+
+        const result = saveQuizDto.safeParse(input);
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain(
+            "steps.0.competenceIds",
+        );
+    });
+
+    it("rejects more than three competencies even in a draft", () => {
+        const result = saveQuizDto.safeParse({
+            quizKind: QUIZ_KIND.contextual,
+            status: CONTENT_STATUS.draft,
+            steps: [{ competenceIds: ["skill-1", "skill-2", "skill-3", "skill-4"] }],
+            title: "Quiz brouillon",
+        });
+
+        expect(result.success).toBe(false);
+        expect(result.error?.issues.map((issue) => issue.path.join("."))).toContain(
+            "steps.0.competenceIds",
+        );
+    });
+
     it("requires a dimension item id for published questions", () => {
         const result = saveQuizDto.safeParse(
             publishedQuiz({

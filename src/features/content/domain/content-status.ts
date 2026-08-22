@@ -33,12 +33,21 @@ export const CONTENT_STATUS_FILTER_OPTIONS = [
     { label: CONTENT_STATUS_LABELS[CONTENT_STATUS.archived], value: CONTENT_STATUS_FILTER.archived },
 ] satisfies Array<{ label: string; value: ContentStatusFilter }>;
 
+/** Statuts visibles dans les bibliothèques actives, qui excluent les archives côté serveur. */
+export const NON_ARCHIVED_CONTENT_STATUS_FILTER_OPTIONS = CONTENT_STATUS_FILTER_OPTIONS.filter(
+    (option) => option.value !== CONTENT_STATUS.archived,
+);
+
 export function isContentStatus(value: unknown): value is ContentStatus {
     return typeof value === "string" && CONTENT_STATUSES.includes(value as ContentStatus);
 }
 
 export function isContentStatusFilter(value: unknown): value is ContentStatusFilter {
     return value === CONTENT_STATUS_FILTER.all || isContentStatus(value);
+}
+
+export function isNonArchivedContentStatusFilter(value: unknown): value is ContentStatusFilter {
+    return isContentStatusFilter(value) && value !== CONTENT_STATUS.archived;
 }
 
 export function matchesContentStatusFilter(

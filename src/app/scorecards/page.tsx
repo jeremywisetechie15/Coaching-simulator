@@ -4,14 +4,25 @@ import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { listScorecards } from "@/features/scorecards/server";
 import { UnauthorizedError } from "@/lib/server/errors";
-import { buildAuthRedirectHref, withReturnTo, withSearchParams } from "@/features/app-shell/domain";
+import {
+    APP_NAVIGATION_LABEL,
+    buildAuthRedirectHref,
+    withReturnTo,
+    withSearchParams,
+} from "@/features/app-shell/domain";
 
 interface PageProps {
-    searchParams?: Promise<{ domain?: string; q?: string; returnTo?: string }>;
+    searchParams?: Promise<{
+        category?: string;
+        domain?: string;
+        publicationStatus?: string;
+        q?: string;
+        returnTo?: string;
+    }>;
 }
 
 export const metadata = {
-    title: "Scorecards | MaiaCoach",
+    title: `${APP_NAVIGATION_LABEL.scorecards} | MaiaCoach`,
 };
 
 export default async function Page({ searchParams }: PageProps) {
@@ -28,7 +39,12 @@ export default async function Page({ searchParams }: PageProps) {
         redirect(
             buildAuthRedirectHref(
                 withReturnTo(
-                    withSearchParams("/scorecards", { domain: filters.domain, q: filters.q }),
+                    withSearchParams("/scorecards", {
+                        category: filters.category,
+                        domain: filters.domain,
+                        publicationStatus: filters.publicationStatus,
+                        q: filters.q,
+                    }),
                     filters.returnTo,
                 ),
             ),

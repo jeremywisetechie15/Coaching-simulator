@@ -1,12 +1,13 @@
 import { AccessDeniedState, AppShell } from "@/features/app-shell/components";
+import { APP_NAVIGATION_LABEL } from "@/features/app-shell/domain";
 import {
     APP_NAVIGATION_RESOURCE,
     canManageAppResource,
 } from "@/features/auth/domain/access-control";
-import type {
-    ScorecardEditorDetail,
-    ScorecardMethodOption,
-    ScorecardOrganizationOption,
+import {
+    type ScorecardEditorDetail,
+    type ScorecardMethodOption,
+    type ScorecardOrganizationOption,
 } from "@/features/scorecards/domain";
 import type { ProfileFormValues } from "@/features/profile/domain/profile";
 import { getProfileInitials } from "@/features/profile/domain/profile-avatar";
@@ -34,7 +35,7 @@ export function CreateScorecardPage({
 
     return (
         <AppShell
-            activePrimaryItem="Scorecards"
+            activePrimaryItem={APP_NAVIGATION_LABEL.scorecards}
             avatarUrl={profileValues.avatarUrl}
             platformRole={profileValues.platformRole}
             initials={getProfileInitials(profileValues)}

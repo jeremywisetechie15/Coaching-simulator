@@ -15,7 +15,7 @@ import {
 } from "@/features/scorecards/server";
 import { listSkillSelectionOptions } from "@/features/skills/server";
 import { NotFoundError, UnauthorizedError } from "@/lib/server/errors";
-import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
+import { APP_NAVIGATION_LABEL, buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
 
 interface PageProps {
     params: Promise<{ scorecardId: string }>;
@@ -47,7 +47,7 @@ export default async function Page({ params, searchParams }: PageProps) {
     if (!canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.scorecards)) {
         return (
             <AccessDeniedPage
-                activePrimaryItem="Scorecards"
+                activePrimaryItem={APP_NAVIGATION_LABEL.scorecards}
                 profileValues={profileValues}
                 searchPlaceholder="Rechercher..."
             />

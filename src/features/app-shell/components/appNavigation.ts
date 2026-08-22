@@ -40,7 +40,7 @@ export const primaryNavigation: AppNavigationItem[] = [
         resource: APP_NAVIGATION_RESOURCE.evaluations,
     },
     { href: "/methods", icon: BookOpen, label: "Méthodes et Playbook", resource: APP_NAVIGATION_RESOURCE.methods },
-    { href: "/scorecards", icon: ClipboardList, label: "Scorecards", resource: APP_NAVIGATION_RESOURCE.scorecards },
+    { href: "/scorecards", icon: ClipboardList, label: APP_NAVIGATION_LABEL.scorecards, resource: APP_NAVIGATION_RESOURCE.scorecards },
     { href: "/skills", icon: Star, label: "Compétences", resource: APP_NAVIGATION_RESOURCE.skills },
     { href: "/coaches", icon: BotMessageSquare, label: "Mes Coachs IA", resource: APP_NAVIGATION_RESOURCE.coaches },
     { href: "/personas", icon: UserRoundCog, label: "Mes Personas IA", resource: APP_NAVIGATION_RESOURCE.personas },

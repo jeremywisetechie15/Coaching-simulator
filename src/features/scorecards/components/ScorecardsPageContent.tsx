@@ -14,14 +14,28 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { ContextualLink, useCurrentAppHref } from "@/features/app-shell/components";
-import { withReturnTo, withSearchParams } from "@/features/app-shell/domain";
+import { APP_NAVIGATION_LABEL, withReturnTo, withSearchParams } from "@/features/app-shell/domain";
 import {
     ContentRemovalConfirmationModal,
     ContentRemovalMenuButton,
 } from "@/features/content/components";
-import { CONTENT_DOMAINS, getContentRemovalErrorMessage } from "@/features/content/domain";
-import { getQuizStatusLabel } from "@/features/evaluations/domain";
-import { SCORECARD_ROUTES, SCORECARD_VISIBILITY_LABELS, type ScorecardListItem } from "@/features/scorecards/domain";
+import {
+    ALL_CONTENT_CATEGORIES,
+    CONTENT_DOMAINS,
+    CONTENT_STATUS_FILTER,
+    CONTENT_STATUS_LABELS,
+    NON_ARCHIVED_CONTENT_STATUS_FILTER_OPTIONS,
+    getCategoriesForDomain,
+    getContentRemovalErrorMessage,
+    isNonArchivedContentStatusFilter,
+    matchesContentStatusFilter,
+    type ContentStatusFilter,
+} from "@/features/content/domain";
+import {
+    SCORECARD_ROUTES,
+    SCORECARD_VISIBILITY_LABELS,
+    type ScorecardListItem,
+} from "@/features/scorecards/domain";
 import { Box, Button, CardSurface, InlineIcon, Text } from "@/lib/ui/atoms";
 import {
     AnimatedEntityHeader,
@@ -46,9 +60,9 @@ interface ApiErrorPayload {
     error?: string;
 }
 
-function getDomainOptions(options: readonly string[]): FilterSelectOption[] {
+function getFilterOptions(options: readonly string[], allLabel: string): FilterSelectOption[] {
     return options.map((option) => ({
-        label: option === "all" ? "Tous les domaines" : option,
+        label: option === "all" ? allLabel : option,
         value: option,
     }));
 }
@@ -76,14 +90,34 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
     const searchParams = useSearchParams();
     const currentHref = useCurrentAppHref();
     const domainOptions = ["all", ...CONTENT_DOMAINS];
+    const initialDomain = domainOptions.includes(searchParams.get("domain") ?? "")
+        ? searchParams.get("domain")!
+        : "all";
+    const initialCategoryOptions = [
+        "all",
+        ...(initialDomain === "all" ? ALL_CONTENT_CATEGORIES : getCategoriesForDomain(initialDomain)),
+    ];
     const [query, setQuery] = useState(searchParams.get("q") ?? "");
-    const [domain, setDomain] = useState(
-        domainOptions.includes(searchParams.get("domain") ?? "") ? searchParams.get("domain")! : "all",
+    const [domain, setDomain] = useState(initialDomain);
+    const [category, setCategory] = useState(
+        initialCategoryOptions.includes(searchParams.get("category") ?? "")
+            ? searchParams.get("category")!
+            : "all",
+    );
+    const requestedPublicationStatus = searchParams.get("publicationStatus");
+    const [publicationStatus, setPublicationStatus] = useState<ContentStatusFilter>(
+        isNonArchivedContentStatusFilter(requestedPublicationStatus)
+            ? requestedPublicationStatus
+            : CONTENT_STATUS_FILTER.all,
     );
     const [busyScorecardId, setBusyScorecardId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [scorecardToRemove, setScorecardToRemove] = useState<ScorecardListItem | null>(null);
+    const categoryOptions = [
+        "all",
+        ...(domain === "all" ? ALL_CONTENT_CATEGORIES : getCategoriesForDomain(domain)),
+    ];
 
     const filtered = useMemo(() => {
         const term = query.trim().toLowerCase();
@@ -96,10 +130,12 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
                     .toLowerCase()
                     .includes(term);
             const matchesDomain = domain === "all" || scorecard.domain === domain;
+            const matchesCategory = category === "all" || scorecard.category === category;
+            const matchesPublicationStatus = matchesContentStatusFilter(scorecard.status, publicationStatus);
 
-            return matchesTerm && matchesDomain;
+            return matchesTerm && matchesDomain && matchesCategory && matchesPublicationStatus;
         });
-    }, [domain, query, scorecards]);
+    }, [category, domain, publicationStatus, query, scorecards]);
 
     async function handleDuplicate(scorecardId: string) {
         setError(null);
@@ -141,9 +177,34 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
 
     function updateDomain(value: string) {
         setDomain(value);
-        router.replace(withSearchParams(currentHref, { domain: value === "all" ? null : value }), {
-            scroll: false,
-        });
+        setCategory("all");
+        router.replace(
+            withSearchParams(currentHref, {
+                category: null,
+                domain: value === "all" ? null : value,
+            }),
+            { scroll: false },
+        );
+    }
+
+    function updateCategory(value: string) {
+        setCategory(value);
+        router.replace(
+            withSearchParams(currentHref, { category: value === "all" ? null : value }),
+            { scroll: false },
+        );
+    }
+
+    function updatePublicationStatus(value: string) {
+        if (!isNonArchivedContentStatusFilter(value)) return;
+
+        setPublicationStatus(value);
+        router.replace(
+            withSearchParams(currentHref, {
+                publicationStatus: value === CONTENT_STATUS_FILTER.all ? null : value,
+            }),
+            { scroll: false },
+        );
     }
 
     return (
@@ -151,7 +212,7 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
             <Box className="mx-auto max-w-[1260px]">
                 <AnimatedEntityHeader
                     className="mb-7"
-                    title="Scorecards"
+                    title={APP_NAVIGATION_LABEL.scorecards}
                     tone="scorecard"
                     actions={
                         canManage ? (
@@ -178,8 +239,26 @@ export function ScorecardsPageContent({ canManage, scorecards }: ScorecardsPageC
                             appearance="library"
                             ariaLabel="Filtrer par domaine"
                             onChange={updateDomain}
-                            options={getDomainOptions(domainOptions)}
+                            options={getFilterOptions(domainOptions, "Tous les domaines")}
                             value={domain}
+                        />
+                    </Box>
+                    <Box className={uiTokens.filterBar.librarySelectCategory}>
+                        <FilterSelect
+                            appearance="library"
+                            ariaLabel="Filtrer par catégorie"
+                            onChange={updateCategory}
+                            options={getFilterOptions(categoryOptions, "Toutes les catégories")}
+                            value={category}
+                        />
+                    </Box>
+                    <Box className={uiTokens.filterBar.librarySelectStatus}>
+                        <FilterSelect
+                            appearance="library"
+                            ariaLabel="Filtrer par statut de publication"
+                            onChange={updatePublicationStatus}
+                            options={NON_ARCHIVED_CONTENT_STATUS_FILTER_OPTIONS}
+                            value={publicationStatus}
                         />
                     </Box>
                 </LibraryFilterBar>
@@ -301,7 +380,7 @@ function ScorecardCard({
                     {scorecard.category && <Badge>{scorecard.category}</Badge>}
                     {scorecard.level && <Badge tone="purple">{scorecard.level}</Badge>}
                     <Badge tone={scorecard.status === "published" ? "green" : "gray"}>
-                        {getQuizStatusLabel(scorecard.status)}
+                        {CONTENT_STATUS_LABELS[scorecard.status]}
                     </Badge>
                 </Box>
 

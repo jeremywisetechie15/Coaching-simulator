@@ -10,7 +10,7 @@
     "categories": ["Prospection"],
     "durationMinutes": 15,
     "maxAttempts": 3,
-    "validationThreshold": 70,
+    "validationThreshold": 80,
     "participation": "optional",
     "methodId": null,
     "scope": "public",

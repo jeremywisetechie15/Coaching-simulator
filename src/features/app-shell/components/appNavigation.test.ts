@@ -10,4 +10,10 @@ describe("primaryNavigation", () => {
             labels.indexOf("Méthodes et Playbook"),
         );
     });
+
+    it("uses the shared scorecard library label", () => {
+        expect(primaryNavigation.find((item) => item.href === "/scorecards")?.label).toBe(
+            APP_NAVIGATION_LABEL.scorecards,
+        );
+    });
 });

@@ -11,9 +11,14 @@ import { withReturnTo, withSearchParams } from "@/features/app-shell/domain";
 import {
     ALL_CONTENT_CATEGORIES,
     CONTENT_DOMAINS,
+    CONTENT_STATUS_FILTER,
     CONTENT_STATUS_LABELS,
+    NON_ARCHIVED_CONTENT_STATUS_FILTER_OPTIONS,
     getCategoriesForDomain,
     getContentRemovalErrorMessage,
+    isNonArchivedContentStatusFilter,
+    matchesContentStatusFilter,
+    type ContentStatusFilter,
 } from "@/features/content/domain";
 import {
     ContentRemovalConfirmationModal,
@@ -90,6 +95,12 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
             ? searchParams.get("category")!
             : "all",
     );
+    const requestedPublicationStatus = searchParams.get("publicationStatus");
+    const [publicationStatus, setPublicationStatus] = useState<ContentStatusFilter>(
+        isNonArchivedContentStatusFilter(requestedPublicationStatus)
+            ? requestedPublicationStatus
+            : CONTENT_STATUS_FILTER.all,
+    );
     const [busyMethodId, setBusyMethodId] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [methodToRemove, setMethodToRemove] = useState<MethodListItem | null>(null);
@@ -116,10 +127,11 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
                     .includes(term);
             const matchesDomain = domain === "all" || method.domain === domain;
             const matchesCategory = category === "all" || method.category === category;
+            const matchesPublicationStatus = matchesContentStatusFilter(method.status, publicationStatus);
 
-            return matchesQuery && matchesDomain && matchesCategory;
+            return matchesQuery && matchesDomain && matchesCategory && matchesPublicationStatus;
         });
-    }, [category, domain, methods, query]);
+    }, [category, domain, methods, publicationStatus, query]);
 
     function updateQuery(value: string) {
         setQuery(value);
@@ -146,6 +158,18 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
         router.replace(
             withSearchParams(currentHref, {
                 category: value === "all" ? null : value,
+            }),
+            { scroll: false },
+        );
+    }
+
+    function updatePublicationStatus(value: string) {
+        if (!isNonArchivedContentStatusFilter(value)) return;
+
+        setPublicationStatus(value);
+        router.replace(
+            withSearchParams(currentHref, {
+                publicationStatus: value === CONTENT_STATUS_FILTER.all ? null : value,
             }),
             { scroll: false },
         );
@@ -226,6 +250,15 @@ export function MethodsPageContent({ canManage, methods }: MethodsPageContentPro
                             onChange={updateCategory}
                             options={getFilterOptions(categoryOptions, "Toutes les catégories")}
                             value={category}
+                        />
+                    </Box>
+                    <Box className={uiTokens.filterBar.librarySelectStatus}>
+                        <FilterSelect
+                            appearance="library"
+                            ariaLabel="Filtrer par statut de publication"
+                            onChange={updatePublicationStatus}
+                            options={NON_ARCHIVED_CONTENT_STATUS_FILTER_OPTIONS}
+                            value={publicationStatus}
                         />
                     </Box>
                 </LibraryFilterBar>

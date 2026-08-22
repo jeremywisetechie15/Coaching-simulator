@@ -176,6 +176,9 @@ function buildDetail(roleplay: RoleplayListItem | DbRoleplayDetail, mock: Rolepl
                 ? dbStats.bestScore
                 : roleplay.bestScore ?? 0,
         method: textOrMock(roleplay.methodName, mockDetail.method),
+        objective: dbDetail
+            ? textOrMock(dbDetail.objective, roleplay.description)
+            : mockDetail.objective ?? roleplay.description,
         objections: dbDetail ? textOrMock(dbDetail.obstacles, mockDetail.objections) : mockDetail.objections,
         scoreActuel: hasDbStats && dbStats ? dbStats.scoreActuel : mockDetail.scoreActuel,
         simulations: hasDbStats && dbStats ? dbStats.simulations : roleplay.attemptCount,

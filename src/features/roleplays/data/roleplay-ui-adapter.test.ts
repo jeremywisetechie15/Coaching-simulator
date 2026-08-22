@@ -114,6 +114,16 @@ describe("roleplay UI adapter", () => {
         expect(roleplay.detail.learnerRole).toBe("Vous incarnez le conseiller commercial.");
     });
 
+    it("keeps the preview description separate from the scenario objective", () => {
+        const roleplay = mapDbRoleplayToUi(
+            createRoleplayDetail({ previewDescription: "Résumé affiché sur la carte." }),
+            null,
+        );
+
+        expect(roleplay.description).toBe("Résumé affiché sur la carte.");
+        expect(roleplay.detail.objective).toBe("Obtenir un rendez-vous");
+    });
+
     it("exposes the activity sector on the roleplay detail page model", () => {
         const detail = createRoleplayDetail();
         detail.activitySectorCode = "TIC";

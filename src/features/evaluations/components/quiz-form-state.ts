@@ -5,6 +5,7 @@ import {
 } from "@/features/content/domain";
 import {
     DEFAULT_QUIZ_MAX_ATTEMPTS,
+    QUIZ_DEFAULT_VALIDATION_THRESHOLD,
     QUIZ_KIND,
     QUIZ_EVALUATED_DIMENSION,
     normalizeQuizMethodId,
@@ -267,7 +268,7 @@ export function quizToFormState(
             steps: [],
             tags: [],
             title: "",
-            validationThreshold: "",
+            validationThreshold: String(QUIZ_DEFAULT_VALIDATION_THRESHOLD),
         };
     }
 
@@ -350,7 +351,7 @@ export function quizToFormState(
         })),
         tags: quiz.tags,
         title: quiz.title,
-        validationThreshold: quiz.validationThreshold === null ? "" : String(quiz.validationThreshold),
+        validationThreshold: String(quiz.validationThreshold ?? QUIZ_DEFAULT_VALIDATION_THRESHOLD),
     };
 }
 

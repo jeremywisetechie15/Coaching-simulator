@@ -37,6 +37,8 @@ import {
 import { HistoricalImpactConfirmationModal } from "@/features/content/components";
 import {
     EVALUATION_ROUTES,
+    QUIZ_DEFAULT_VALIDATION_THRESHOLD,
+    QUIZ_MAX_COMPETENCES_PER_STEP,
     QUIZ_ATTEMPT_EDIT_RESTRICTION_MESSAGE,
     QUIZ_PARTICIPATION_LABELS,
     QUIZ_PARTICIPATIONS,
@@ -1015,7 +1017,7 @@ export function CreateQuizPageContent({
                                     max={100}
                                     value={form.validationThreshold}
                                     onChange={(event) => patch("validationThreshold", event.target.value)}
-                                    placeholder="70"
+                                    placeholder={String(QUIZ_DEFAULT_VALIDATION_THRESHOLD)}
                                     hasLeadingIcon={false}
                                     className={cn(jsonPrefillFieldErrors.validationThreshold && uiTokens.form.controlError)}
                                 />
@@ -1405,6 +1407,7 @@ export function CreateQuizPageContent({
                                                             addLabel="Ajouter une compétence"
                                                             searchPlaceholder="Rechercher une compétence..."
                                                             emptyHint="Aucune compétence trouvée"
+                                                            maxSelected={QUIZ_MAX_COMPETENCES_PER_STEP}
                                                             onAdd={(value) => {
                                                                 clearJsonPrefillError(`steps.${stepIndex}.competenceIds`, true);
                                                                 updateStep(step.id, (current) => ({
@@ -1422,6 +1425,9 @@ export function CreateQuizPageContent({
                                                                 }));
                                                             }}
                                                         />
+                                                        <Text className={cn("mt-2 text-[12px] font-medium", uiTokens.text.muted)}>
+                                                            1 compétence minimum, 2 recommandées, 3 maximum par étape.
+                                                        </Text>
                                                         <FieldErrorMessage message={jsonPrefillFieldErrors[`steps.${stepIndex}.competenceIds`]} />
                                                     </Box>
 

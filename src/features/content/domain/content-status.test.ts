@@ -3,6 +3,7 @@ import {
     CONTENT_STATUS,
     CONTENT_STATUS_FILTER,
     CONTENT_STATUS_FILTER_OPTIONS,
+    NON_ARCHIVED_CONTENT_STATUS_FILTER_OPTIONS,
     isContentStatusFilter,
     matchesContentStatusFilter,
 } from "./content-status";
@@ -14,6 +15,14 @@ describe("content status filters", () => {
             { label: "Brouillon", value: CONTENT_STATUS.draft },
             { label: "Publié", value: CONTENT_STATUS.published },
             { label: "Archivé", value: CONTENT_STATUS.archived },
+        ]);
+    });
+
+    it("exposes only active-library publication states when archives are excluded", () => {
+        expect(NON_ARCHIVED_CONTENT_STATUS_FILTER_OPTIONS.map((option) => option.value)).toEqual([
+            CONTENT_STATUS_FILTER.all,
+            CONTENT_STATUS.draft,
+            CONTENT_STATUS.published,
         ]);
     });
 

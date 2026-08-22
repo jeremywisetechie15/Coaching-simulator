@@ -8,7 +8,28 @@ import {
     hasReachedQuizAttemptLimit,
     normalizeQuizMaxAttempts,
     scoreQuizAnswers,
+    shuffleQuizChoices,
 } from "./quiz";
+
+describe("shuffleQuizChoices", () => {
+    const choices = ["A", "B", "C", "D"];
+
+    it("keeps a stable order for the same attempt without mutating stored choices", () => {
+        const firstOrder = shuffleQuizChoices(choices, "quiz-1:attempt-1:question-1");
+        const secondOrder = shuffleQuizChoices(choices, "quiz-1:attempt-1:question-1");
+
+        expect(firstOrder).toEqual(secondOrder);
+        expect(firstOrder).toHaveLength(choices.length);
+        expect([...firstOrder].sort()).toEqual([...choices].sort());
+        expect(choices).toEqual(["A", "B", "C", "D"]);
+    });
+
+    it("uses the attempt in the seed to allow another answer order", () => {
+        expect(shuffleQuizChoices(choices, "quiz-1:attempt-1:question-1")).not.toEqual(
+            shuffleQuizChoices(choices, "quiz-1:attempt-2:question-1"),
+        );
+    });
+});
 
 describe("buildQuizLearnerStats", () => {
     it("uses the latest attempt, historical best score and shared score index", () => {

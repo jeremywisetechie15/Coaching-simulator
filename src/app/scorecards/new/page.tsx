@@ -11,7 +11,7 @@ import { toProfileFormValues } from "@/features/profile/domain/profile";
 import { getCurrentProfile } from "@/features/profile/server";
 import { listSkillSelectionOptions } from "@/features/skills/server";
 import { UnauthorizedError } from "@/lib/server/errors";
-import { buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
+import { APP_NAVIGATION_LABEL, buildAuthRedirectHref, withReturnTo } from "@/features/app-shell/domain";
 
 interface PageProps {
     searchParams?: Promise<{ returnTo?: string }>;
@@ -40,7 +40,7 @@ export default async function Page({ searchParams }: PageProps) {
     if (!canManageAppResource(profileValues.platformRole, APP_NAVIGATION_RESOURCE.scorecards)) {
         return (
             <AccessDeniedPage
-                activePrimaryItem="Scorecards"
+                activePrimaryItem={APP_NAVIGATION_LABEL.scorecards}
                 profileValues={profileValues}
                 searchPlaceholder="Rechercher..."
             />
